@@ -1,0 +1,35 @@
+{
+ "dwellings": 63468,
+ "complexes": 533,
+ "named_complexes": 38,
+ "meetinghouses": 151,
+ "venues": 712,
+ "dwellings_by_kind": {
+  "house": 37366,
+  "apartment": 12716,
+  "small_multi": 12361,
+  "mobile_home": 1025
+ },
+ "dwellings_by_city": {
+  "Other Utah County": 6,
+  "Provo": 37399,
+  "Orem": 26063
+ },
+ "venues_by_type": {
+  "cafe": 36,
+  "museum": 7,
+  "gym": 38,
+  "trailhead": 10,
+  "restaurant": 407,
+  "soda_shop": 13,
+  "dessert": 13,
+  "park": 132,
+  "cinema_theatre": 18,
+  "stadium": 4,
+  "library": 5,
+  "bar": 3,
+  "overlook": 5,
+  "recreation": 18,
+  "dance": 3
+ }
+}

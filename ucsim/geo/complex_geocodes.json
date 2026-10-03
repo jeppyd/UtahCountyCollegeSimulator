@@ -1,0 +1,293 @@
+{
+ "Glenwood Apartments": null,
+ "Wyview Park": {
+  "lat": 40.2612572,
+  "lon": -111.6602859,
+  "display": "Wyview Park, Pleasant View, Provo, Utah County, Utah, United States",
+  "osm_type": "residential",
+  "query": "Wyview Park, Provo"
+ },
+ "King Henry": {
+  "lat": 40.2401009,
+  "lon": -111.6387919,
+  "display": "King Henry Apartments, Provo, Utah County, Utah, United States",
+  "osm_type": "residential",
+  "query": "King Henry, Provo"
+ },
+ "Liberty Square": {
+  "lat": 40.2410323,
+  "lon": -111.6508205,
+  "display": "Liberty Square, 556, Provo, Utah County, Utah, 84606, United States",
+  "osm_type": "residential",
+  "query": "Liberty Square, Provo"
+ },
+ "Wymount Terrace": {
+  "lat": 40.2587669,
+  "lon": -111.6395884,
+  "display": "Picnic Area of Wymount Terrace, Provo, Utah County, Utah, United States",
+  "osm_type": "park",
+  "query": "Wymount Terrace, Provo"
+ },
+ "Branbury": {
+  "lat": 40.2561659,
+  "lon": -111.6643584,
+  "display": "Branbury-Moon River Greenway, Pleasant View, Provo, Utah County, Utah, United States",
+  "osm_type": "park",
+  "query": "Branbury, Provo"
+ },
+ "Riviera": {
+  "lat": 40.2551723,
+  "lon": -111.6579864,
+  "display": "Riviera Apartments, Pleasant View, Provo, Utah County, Utah, United States",
+  "osm_type": "residential",
+  "query": "Riviera, Provo"
+ },
+ "Cinnamon Tree Apartments": {
+  "lat": 40.2514355,
+  "lon": -111.6631894,
+  "display": "Cinnamon Tree Apartments, 1285 N, Freedom Boulevard, Brickyard, Provo, Utah County, Utah, 84602, United States",
+  "osm_type": "apartments",
+  "query": "Cinnamon Tree Apartments, Provo"
+ },
+ "Village at South Campus": null,
+ "Alta Apartments": {
+  "lat": 40.2598496,
+  "lon": -111.658226,
+  "display": "Alta Apartments, 1850, Pleasant View, Provo, Utah County, Utah, 84604, United States",
+  "osm_type": "residential",
+  "query": "Alta Apartments, Provo"
+ },
+ "Campus Plaza": {
+  "lat": 40.2448175,
+  "lon": -111.6471925,
+  "display": "Campus Plaza, 669, 800 North, Joaquin, Provo, Utah County, Utah, 84606, United States",
+  "osm_type": "apartments",
+  "query": "Campus Plaza, Provo"
+ },
+ "Centennial": {
+  "lat": 40.2388275,
+  "lon": -111.640283,
+  "display": "Centennial Apartments, 380, Provo, Utah County, Utah, 84606, United States",
+  "osm_type": "residential",
+  "query": "Centennial, Provo"
+ },
+ "Belmont": {
+  "lat": 40.2421697,
+  "lon": -111.6554212,
+  "display": "Belmont Apartments, 600 North, Joaquin, Provo, Utah County, Utah, 84603, United States",
+  "osm_type": "apartments",
+  "query": "Belmont, Provo"
+ },
+ "Liberty On Eighth": {
+  "lat": 40.2435753,
+  "lon": -111.6577197,
+  "display": "Liberty on Eighth, 740, Provo, Utah County, Utah, 84606, United States",
+  "osm_type": "residential",
+  "query": "Liberty On Eighth, Provo"
+ },
+ "The Green": {
+  "lat": 40.2784556,
+  "lon": -111.707084,
+  "display": "The Green on Campus Drive, 499, Orem, Utah County, Utah, 84058, United States",
+  "osm_type": "residential",
+  "query": "The Green, Orem"
+ },
+ "Wolverine Crossing": {
+  "lat": 40.2773649,
+  "lon": -111.7268301,
+  "display": "Wolverine Crossing, 1270, Orem, Utah County, Utah, 84058, United States",
+  "osm_type": "residential",
+  "query": "Wolverine Crossing, Orem"
+ },
+ "The Village Apartments": {
+  "lat": 40.2666217,
+  "lon": -111.6843728,
+  "display": "The Village Apartments, Curtis, Orem, Utah County, Utah, United States",
+  "osm_type": "residential",
+  "query": "The Village Apartments, Orem"
+ },
+ "Liberty On Freedom": {
+  "lat": 40.2458995,
+  "lon": -111.6613026,
+  "display": "Liberty on Freedom, 865, Provo, Utah County, Utah, United States",
+  "osm_type": "residential",
+  "query": "Liberty On Freedom, Provo"
+ },
+ "Raintree": {
+  "lat": 40.2607899,
+  "lon": -111.6627132,
+  "display": "Raintree Apartments, 1849, Pleasant View, Provo, Utah County, Utah, 84604, United States",
+  "osm_type": "residential",
+  "query": "Raintree, Provo"
+ },
+ "Carriage Cove": {
+  "lat": 40.2576256,
+  "lon": -111.6693198,
+  "display": "Carriage Cove Apartments, 606, Provo, Utah County, Utah, 84604, United States",
+  "osm_type": "residential",
+  "query": "Carriage Cove, Provo"
+ },
+ "Helaman Halls": {
+  "lat": 40.2526165,
+  "lon": -111.6537139,
+  "display": "Helaman Halls, Pleasant View, Provo, Utah County, Utah, United States",
+  "osm_type": "residential",
+  "query": "Helaman Halls, Provo"
+ },
+ "Alpine Village": {
+  "lat": 40.2524191,
+  "lon": -111.6612396,
+  "display": "Alpine Village, 1378, Pleasant View, Provo, Utah County, Utah, United States",
+  "osm_type": "residential",
+  "query": "Alpine Village, Provo"
+ },
+ "Heritage Halls": {
+  "lat": 40.2517415,
+  "lon": -111.6449041,
+  "display": "Heritage Halls, Provo, Utah County, Utah, United States",
+  "osm_type": "residential",
+  "query": "Heritage Halls, Provo"
+ },
+ "Foxwood": null,
+ "Colony Apartments": null,
+ "Village on the Parkway": null,
+ "Mountainwood": {
+  "lat": 40.2437467,
+  "lon": -111.6598417,
+  "display": "Mountainwood Condos, 700 North, North Park, Provo, Utah County, Utah, 84601, United States",
+  "osm_type": "apartments",
+  "query": "Mountainwood, Provo"
+ },
+ "Chatham Towne": {
+  "lat": 40.246748,
+  "lon": -111.6425457,
+  "display": "Chatham Towne Townhomes, Provo, Utah County, Utah, United States",
+  "osm_type": "residential",
+  "query": "Chatham Towne, Provo"
+ },
+ "Regency": null,
+ "Windsor Apartments": null,
+ "Bountiful Court Apartments": null,
+ "Monticello": null,
+ "College Place": null,
+ "University Avenue Condominiums": null,
+ "Ventana": null,
+ "Southridge": null,
+ "Blue Ridge Apartments": null,
+ "Brittany Apartments": {
+  "lat": 40.2428034,
+  "lon": -111.6554329,
+  "display": "Brittany Apartments 190-196, 700 North, Joaquin, Provo, Utah County, Utah, 84603, United States",
+  "osm_type": "yes",
+  "query": "Brittany Apartments, Provo"
+ },
+ "Old Academy": null,
+ "Crestwood Apartments": null,
+ "Axis": {
+  "lat": 40.2815501,
+  "lon": -111.7292466,
+  "display": "Axis Luxury Living, Orem, Utah County, Utah, United States",
+  "osm_type": "residential",
+  "query": "Axis, Orem"
+ },
+ "Victoria Place": {
+  "lat": 40.2414507,
+  "lon": -111.6538536,
+  "display": "Victoria Place I, 284, 600 North, Joaquin, Provo, Utah County, Utah, 84603, United States",
+  "osm_type": "apartments",
+  "query": "Victoria Place, Provo"
+ },
+ "Promenade": {
+  "lat": 40.2445216,
+  "lon": -111.6433655,
+  "display": "Promenade Townhouses, 820 North, Joaquin, Provo, Utah County, Utah, 84602, United States",
+  "osm_type": "apartments",
+  "query": "Promenade, Provo"
+ },
+ "Avenues": {
+  "lat": 40.2449769,
+  "lon": -111.6579324,
+  "display": "The Avenues, Provo, Utah County, Utah, United States",
+  "osm_type": "residential",
+  "query": "Avenues, Provo"
+ },
+ "Chatsworth Condominiums": null,
+ "Sparks Apartments": {
+  "lat": 40.2404287,
+  "lon": -111.6416038,
+  "display": "Sparks II Apartments, Provo, Utah County, Utah, United States",
+  "osm_type": "residential",
+  "query": "Sparks Apartments, Provo"
+ },
+ "Santa Barbara Apartments": null,
+ "Old Mill": {
+  "lat": 40.2574794,
+  "lon": -111.671212,
+  "display": "Old Mill, Provo, Utah County, Utah, United States",
+  "osm_type": "residential",
+  "query": "Old Mill, Provo"
+ },
+ "Jamestown": {
+  "lat": 40.2410818,
+  "lon": -111.6502673,
+  "display": "Jamestown, 500 East, Joaquin, Provo, Utah County, Utah, 84603, United States",
+  "osm_type": "apartments",
+  "query": "Jamestown, Provo"
+ },
+ "Devonshire": {
+  "lat": 40.2862035,
+  "lon": -111.6356994,
+  "display": "Devonshire Drive, Sherwood Hills, Provo, Utah County, Utah, 84604, United States",
+  "osm_type": "residential",
+  "query": "Devonshire, Provo"
+ },
+ "Bay Terrace": null,
+ "Stonebridge": null,
+ "Courtside": {
+  "lat": 40.2880237,
+  "lon": -111.7246117,
+  "display": "Courtside Apartments (South), South 1230 West, Orem, Utah County, Utah, 84058, United States",
+  "osm_type": "yes",
+  "query": "Courtside, Orem"
+ },
+ "Enclave Village": null,
+ "Crown Apartments": {
+  "lat": 40.2420673,
+  "lon": -111.6507623,
+  "display": "Crown Apartments, 600 North, Joaquin, Provo, Utah County, Utah, 84603, United States",
+  "osm_type": "apartments",
+  "query": "Crown Apartments, Provo"
+ },
+ "Monson": {
+  "lat": 40.2407778,
+  "lon": -111.6526228,
+  "display": "Monson Apartments, 345, 500 North, Joaquin, Provo, Utah County, Utah, 84603, United States",
+  "osm_type": "apartments",
+  "query": "Monson, Provo"
+ },
+ "The Village at South Campus": null,
+ "Joaquin Village": null,
+ "The Quarry": {
+  "lat": 40.2669252,
+  "lon": -111.6701091,
+  "display": "The Quarry, 1030 East, Carterville, Provo, Utah County, Utah, 84604, United States",
+  "osm_type": "yes",
+  "query": "The Quarry, Provo"
+ },
+ "Kensington Manor": null,
+ "Moon River": {
+  "lat": 40.2561659,
+  "lon": -111.6643584,
+  "display": "Branbury-Moon River Greenway, Pleasant View, Provo, Utah County, Utah, United States",
+  "osm_type": "park",
+  "query": "Moon River, Provo"
+ },
+ "Stadium Terrace": null,
+ "The Lodge": null,
+ "Roosevelt Apartments": null,
+ "Northfield Apartments": null,
+ "Ivy Lofts": null,
+ "University Villa": null,
+ "The Cottages": null,
+ "Somerset Apartments": null
+}

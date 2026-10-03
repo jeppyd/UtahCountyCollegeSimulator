@@ -1,0 +1,205 @@
+"""Religious life: practice, belief, certainty, identity, crises and their resolution.
+
+* Attendance is a habit (Lally et al. 2010) whose probability combines belief, identity,
+  habit strength, the perceived local norm (roommates/friends/ward), family expectation,
+  and frictions (Sunday work, fatigue, stress).
+* Belief moves by closeness-weighted social influence whose strength rises as certainty
+  falls ("friend influence matters more when someone is uncertain"), by spiritual
+  experiences and faith challenges, and by belief–behavior dissonance: persistent guilt
+  either resolves through behavior change/repentance or through belief change, depending
+  on identity, certainty and moral autonomy (Festinger-style dissonance; hypothetical form).
+* Faith crises resolve into renewal, nuanced continuation, or disaffiliation.
+"""
+from __future__ import annotations
+
+import numpy as np
+from scipy.special import expit
+
+
+class Faith:
+    def __init__(self, sim):
+        self.sim = sim
+        self.attending_today = np.zeros(0, bool)
+
+    def init(self):
+        P = self.sim.w.P
+        P.add_internal("attend_prob", np.float32, 0.0)
+        P.add_internal("crisis_start", np.int32, -1)
+        P.add_internal("guilt_weeks", np.int16, 0)
+        P.add_internal("works_sunday", np.bool_, False)
+        P.internal["attend_prob"][: P.n] = P["attend_rate"]
+        mask = P.internal["shift_mask"][: P.n] if "shift_mask" in P.internal else np.zeros(P.n, np.uint32)
+        P.internal["works_sunday"][: P.n] = (mask & np.uint32(1 << 18)) > 0
+        self.attending_today = np.zeros(P.n, bool)
+        self._norms()
+
+    def daily(self):
+        sim, w = self.sim, self.sim.w
+        P = w.P
+        n = P.n
+        if w.env["weekday"] != 6:
+            self.attending_today = np.zeros(n, bool)
+            return
+        u = sim.u("church")
+        conf = w.env["conference"]
+        prob = P.internal["attend_prob"][:n] * (0.0 if conf else 1.0)
+        att = P["lds_member"] & P["present"] & (P["ward_id"] >= 0) & (u < prob)
+        self.attending_today = att
+        members = P["lds_member"] & P["present"]
+        if conf:  # General Conference weekend: watched at home; attendance rate unchanged
+            return
+        a = 0.12
+        rate = P["attend_rate"]
+        P["attend_rate"] = np.where(members, (1 - a) * rate + a * att, rate).astype(np.float32)
+        h = P["practice_habit"]
+        lr = sim.p("faith.habit.learning_rate")
+        P["practice_habit"] = np.where(members, np.where(att, h + lr * (1 - h), h * (1 - lr * 0.4)), h).astype(np.float32)
+
+    def _norms(self):
+        sim, w = self.sim, self.sim.w
+        P = w.P
+        net = sim.systems["network"]
+        n = P.n
+        friend_norm, den = net.neighbor_mean(P["attend_rate"].astype(np.float64), min_stage=2)
+        friend_belief, _ = net.neighbor_mean(P["faith_belief"].astype(np.float64), min_stage=2)
+        ward = P["ward_id"]
+        wn = np.zeros(int(ward.max()) + 2)
+        wc = np.zeros_like(wn)
+        mm = ward >= 0
+        np.add.at(wn, ward[mm], P["attend_rate"][mm])
+        np.add.at(wc, ward[mm], 1)
+        ward_mean = np.where(ward >= 0, wn[np.maximum(ward, 0)] / np.maximum(wc[np.maximum(ward, 0)], 1), 0.3)
+        has = den > 0
+        norm = np.where(has, 0.65 * np.nan_to_num(friend_norm) + 0.35 * ward_mean, ward_mean)
+        P["perceived_norm"] = norm.astype(np.float32)
+        self.friend_belief = np.where(has, np.nan_to_num(friend_belief), P["faith_belief"])
+        del n
+
+    def weekly(self):
+        sim, w = self.sim, self.sim.w
+        P, p = w.P, sim.p
+        n = P.n
+        day = w.day
+        self._norms()
+        lds = P["lds_member"] & P["present"]
+        belief = P["faith_belief"].astype(np.float64)
+        cert = P["faith_certainty"].astype(np.float64)
+        ident = P["religious_identity"].astype(np.float64)
+        # ---- attendance probability for next Sunday
+        ap = expit(p("faith.attend.base") + p("faith.attend.belief") * (belief - 0.6) + p("faith.attend.identity") * (ident - 0.5)
+                   + p("faith.attend.habit") * (P["practice_habit"] - 0.5) + p("faith.attend.norm") * (P["perceived_norm"] - 0.5)
+                   + p("faith.attend.family") * P["family_expectation"] - p("faith.attend.stress") * np.clip(P["stress"] - 0.3, 0, None)
+                   - 0.8 * P["fatigue"] - 2.0 * P.internal["works_sunday"][:n] + np.log(w.env["church_attendance_norm"] + 1e-9)
+                   - 1.0 * P["faith_crisis"])
+        P.internal["attend_prob"][:n] = np.where(lds, ap, 0)
+        # ---- events: spiritual experiences & faith challenges
+        u1, u2 = sim.u("spirit"), sim.u("challenge")
+        h_sp = p("faith.spiritual.rate") * (0.3 + P["private_practice"] + 0.5 * P["attend_rate"]) * belief
+        sp = lds & (u1 < h_sp)
+        h_ch = p("faith.challenge.rate") * np.exp(0.35 * sim.z("openness") + 0.15 * np.log1p(P["social_media_hours"])
+                                                   + 0.8 * P["history_struggle"] / 4 + 1.2 * P["lgbtq_tension"]
+                                                   - 0.8 * (cert - 0.6))
+        ch = lds & (u2 < h_ch)
+        if sp.any():
+            sim.emit("spiritual_experience", np.where(sp)[0], mech="faith.spiritual")
+        if ch.any():
+            sim.emit("faith_challenge", np.where(ch)[0], mech="faith.challenge")
+        # ---- belief update
+        susc = p("faith.influence.base") * (1 - cert) * np.exp(0.3 * sim.z("conformity"))
+        d_social = susc * (self.friend_belief - belief)
+        d_events = 0.03 * sp - p("faith.challenge.belief_hit") * ch * (1 - cert)
+        # dissonance: persistent guilt over standards → belief erosion for low-identity/high-autonomy agents,
+        # otherwise behavior change (handled in norms) and repentance (romance)
+        guilty = P["guilt"] > 0.3
+        gw = np.where(guilty, P.internal["guilt_weeks"][:n] + 1, np.maximum(P.internal["guilt_weeks"][:n] - 1, 0))
+        P.internal["guilt_weeks"][:n] = np.minimum(gw, 500)
+        d_dis = -p("faith.dissonance.belief_shift") * (gw >= 4) * P["guilt"] * (1 - ident) * (0.5 + P["moral_autonomy"])
+        noise = 0.004 * sim.streams.normal("belief_noise", day, n)
+        new_b = np.clip(belief + d_social + d_events + d_dis + noise, 0.01, 0.99)
+        P["faith_belief"] = np.where(lds, new_b, belief).astype(np.float32)
+        # certainty: experiences up, challenges/disagreement down, slow pull toward belief-consistent level
+        d_c = 0.04 * sp - p("faith.challenge.certainty_hit") * ch - 0.05 * np.abs(self.friend_belief - belief) + 0.01 * (new_b - cert)
+        P["faith_certainty"] = np.where(lds, np.clip(cert + d_c, 0.02, 0.99), cert).astype(np.float32)
+        # identity follows practice slowly
+        P["religious_identity"] = np.where(lds, np.clip(ident + 0.01 * (P["attend_rate"] - ident) + 0.005 * (new_b - ident), 0.01, 0.99), ident).astype(np.float32)
+        # ---- faith crisis onset & resolution
+        crisis = P["faith_crisis"]
+        on = lds & ~crisis & (P["faith_certainty"] < p("faith.crisis.certainty_threshold")) & (sim.u("crisis_on") < p("faith.crisis.onset_rate"))
+        if on.any():
+            ids = np.where(on)[0]
+            P.cols["faith_crisis"][ids] = True
+            P.internal["crisis_start"][ids] = day
+            P.cols["struggled_faith"][ids] = True
+            sim.emit("faith_crisis_start", ids, mech="faith.crisis")
+        dur = day - P.internal["crisis_start"][:n]
+        res = lds & crisis & (dur > 60) & (sim.u("crisis_res") < p("faith.crisis.resolution_rate"))
+        if res.any():
+            ids = np.where(res)[0]
+            fam = P["family_expectation"][ids]
+            u_renew = 1.5 * ident[ids] + 1.0 * P["perceived_norm"][ids] + 0.8 * fam + 0.8 * P["institutional_trust"][ids]
+            u_nuance = 0.8 + 1.0 * ident[ids] + 0.6 * P["moral_autonomy"][ids]
+            u_leave = (p("faith.crisis.leave_bias") + 1.4 * (1 - P["faith_belief"][ids]) + 1.0 * P["moral_autonomy"][ids]
+                       + 1.5 * P["lgbtq_tension"][ids] + 0.8 * (1 - P["perceived_norm"][ids]) - 1.0 * fam)
+            g = sim.streams.gen("crisis_outcome", day).gumbel(size=(len(ids), 3))
+            outcome = np.argmax(np.c_[u_renew, u_nuance, u_leave] + g, axis=1)
+            cause = self._last_event(ids, "faith_crisis_start")
+            P.cols["faith_crisis"][ids] = False
+            r = ids[outcome == 0]
+            if len(r):
+                P.cols["faith_belief"][r] = np.clip(P["faith_belief"][r] + 0.15, 0, 0.99)
+                P.cols["faith_certainty"][r] = np.clip(P["faith_certainty"][r] + 0.3, 0, 0.95)
+                sim.emit("faith_renewed", r, cause=cause[outcome == 0], mech="faith.crisis")
+            nu = ids[outcome == 1]
+            if len(nu):
+                P.cols["faith_certainty"][nu] = 0.5
+                P.cols["orthodoxy"][nu] = np.clip(P["orthodoxy"][nu] - 0.12, 0, 1)
+                P.cols["moral_autonomy"][nu] = np.clip(P["moral_autonomy"][nu] + 0.1, 0, 1)
+                sim.emit("faith_nuanced", nu, cause=cause[outcome == 1], mech="faith.crisis")
+            lv = ids[outcome == 2]
+            if len(lv):
+                P.cols["religious_identity"][lv] = np.clip(P["religious_identity"][lv] - 0.45, 0.01, 1)
+                P.cols["faith_belief"][lv] = np.clip(P["faith_belief"][lv] - 0.3, 0.01, 1)
+                P.cols["practice_habit"][lv] *= 0.4
+                P.cols["chastity_commitment"][lv] = np.clip(P["chastity_commitment"][lv] - 0.25, 0, 1)
+                P.cols["temple_recommend"][lv] = False
+                resign = sim.u("resign")[lv] < 0.2
+                P.cols["lds_member"][lv[resign]] = False
+                sim.emit("disaffiliated", lv, cause=cause[outcome == 2], mech="faith.crisis")
+        # ---- activity category from attendance
+        old = P["activity"].copy()
+        rate = P["attend_rate"]
+        # hysteresis bands: active ↔ less active at 0.55/0.65, less active ↔ inactive at 0.10/0.20
+        new = old.copy()
+        new = np.where((old == 3) & (rate < 0.55), 2, new)
+        new = np.where((old == 2) & (rate > 0.65), 3, new)
+        new = np.where((old == 2) & (rate < 0.10), 1, new)
+        new = np.where((old == 1) & (rate > 0.20), 2, new)
+        new = np.where(P["lds_member"], np.maximum(new, 1), 0).astype(np.uint8)
+        P["activity"] = np.where(P["present"], new, old).astype(np.uint8)
+        stopped = P["present"] & (old >= 2) & (new == 1)
+        back = P["present"] & (old <= 2) & (old >= 1) & (new == 3)
+        if stopped.any():
+            sim.emit("stopped_attending", np.where(stopped)[0], mech="faith.attend")
+        if back.any():
+            sim.emit("returned_to_activity", np.where(back)[0], mech="faith.attend")
+        # temple recommend gained/lost
+        clean = (P["coffee"] == 0) & (P["alcohol"] == 0) & ~P["premarital_sex_current"]
+        eligible = P["lds_member"] & (P["activity"] == 3) & (P["faith_belief"] > 0.6) & clean & (P["age"] >= 18)
+        gain = eligible & ~P["temple_recommend"] & (sim.u("tr") < 0.03)
+        lose = P["temple_recommend"] & (~clean | (P["activity"] < 3)) & (sim.u("tr2") < 0.2)
+        P.cols["temple_recommend"][np.where(gain)[0]] = True
+        P.cols["temple_recommend"][np.where(lose)[0]] = False
+
+    def _last_event(self, ids: np.ndarray, etype: str) -> np.ndarray:
+        log = self.sim.log
+        code = self.sim.reg.event_ids[etype]
+        m = log["type"] == code
+        ev_ids = np.where(m)[0]
+        agents = log["a"][m]
+        out = np.full(len(ids), -1, np.int64)
+        if len(ev_ids):
+            last = {}
+            for e, a in zip(ev_ids, agents):
+                last[int(a)] = int(e)
+            out = np.array([last.get(int(i), -1) for i in ids], dtype=np.int64)
+        return out

@@ -1,0 +1,40 @@
+# Non-person entities. Place/unit aggregates of person variables (e.g. mean loneliness per
+# complex) are computed on demand by the analysis layer for any person variable.
+sections:
+  - entity: unit
+    defaults: {kind: attribute, dtype: f4, update: event, evidence: calibrated, flags: [filter, chart, map]}
+    variables:
+      rent_total: {label: Unit rent, units: USD/month, range: [0, 6000], desc: "Monthly rent for the unit (per-bed for contracted/dorm housing)."}
+      capacity: {label: Capacity (beds), dtype: u1, range: [1, 12]}
+      occupancy: {label: Occupants, dtype: u1, range: [0, 12], derived: true}
+      contracted: {label: BYU-contracted, dtype: bool, desc: "Approved BYU Contracted Housing (single undergrads must live in contracted housing unless with parents/relatives; units are single-sex)."}
+      sex_restriction: {label: Sex restriction, dtype: cat, categories: [none, F, M]}
+      married_only: {label: Married housing, dtype: bool}
+      unit_type: {label: Unit type, dtype: cat, categories: [dorm, apartment, house_room, married_apartment, family_home]}
+  - entity: complex
+    defaults: {kind: attribute, dtype: f4, update: static, evidence: calibrated, flags: [filter, chart, map]}
+    variables:
+      name: {label: Name, dtype: str}
+      lon: {label: Longitude}
+      lat: {label: Latitude}
+      units: {label: Units, dtype: i4}
+      beds: {label: Beds, dtype: i4}
+      kind: {label: Kind, dtype: cat, categories: [byu_dorm, byu_contracted, uvu_area, married, general_apartments, houses, family_neighborhood]}
+      location_quality: {label: Location precision, dtype: cat, categories: [approximate, synthetic, osm], desc: "How the coordinates were obtained."}
+  - entity: world
+    defaults: {kind: state, dtype: f4, update: daily, evidence: calibrated, flags: [chart, intervene, timeseries]}
+    variables:
+      temp_f: {label: Daily high temperature, units: °F, desc: "Provo climate normals by month (approximate) + noise; intervention target.", evidence: extrapolated}
+      unemployment: {label: Unemployment rate (Utah County), units: rate, update: monthly, desc: "Starts near Utah's low pre-2025 level (~3%); recession interventions raise it."}
+      wage_index: {label: Wage index, update: monthly}
+      rent_index: {label: Rent index, update: monthly, desc: "Market rent multiplier (1.0 = start); adjusts to vacancy."}
+      housing_supply_index: {label: Housing supply index, update: monthly}
+      tuition_byu: {label: BYU tuition (LDS undergrad), units: USD/semester, update: yearly, desc: "≈$3.5k/semester for LDS undergraduates (approximate; verify against BYU's current schedule)."}
+      tuition_uvu: {label: UVU tuition (resident), units: USD/semester, update: yearly, desc: "≈$3k/semester full-time resident (approximate)."}
+      app_appeal: {label: Dating-app appeal multiplier, desc: "Scales app adoption/engagement (e.g. a new app takes off)."}
+      coffee_permitted: {label: Coffee permitted by church, dtype: bool, desc: "Word of Wisdom norm switch (hypothetical intervention).", evidence: hypothetical}
+      contracted_housing_required: {label: BYU contracted-housing requirement, dtype: bool}
+      mission_norm: {label: Mission participation norm, desc: "Multiplier on mission-departure hazard."}
+      men_initiate_norm: {label: Men-ask norm strength, desc: "How strongly dating initiation is expected of men."}
+      church_attendance_norm: {label: Church attendance norm multiplier}
+      transit_quality: {label: Transit quality (UVX/FrontRunner)}

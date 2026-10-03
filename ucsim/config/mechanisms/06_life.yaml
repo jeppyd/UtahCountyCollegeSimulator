@@ -1,0 +1,151 @@
+system: life
+mechanisms:
+  academics.term:
+    label: Terms, sections and enrollment
+    target: [enrolled, credits_term]
+    sources: [calendar, present]
+    form: "At term start: enroll present students (≈55% of BYU singles in spring/summer); GE lectures (~90) + major sections (~32) as shared contexts"
+    evidence: calibrated
+  academics.study:
+    label: Weekly study hours
+    target: study_hours
+    sources: [credits_term, conscientiousness, academic_pressure, work_hours, depressive_episode, fatigue, social_hours_week, children]
+    form: "target = base + 0.75·credits + βC·C + 8·pressure − βw·(work−10)⁺ − 6·depressed − 4·fatigue − 0.08·(social−20)⁺ − 3·[children]"
+    params:
+      base: {value: 4.0, range: [0, 8]}
+      conscientiousness: {value: 3.0, range: [1, 5]}
+      work_crowdout: {value: 0.25, range: [0.05, 0.5]}
+    evidence: hypothetical
+    desc: Time is finite — work and social life crowd out study (and through it GPA).
+  academics.gpa:
+    label: Term GPA production
+    target: [gpa, gpa_term]
+    sources: [academic_ability, conscientiousness, study_hours, class_attendance, fatigue, depressive_episode, stress, sleep_hours]
+    form: "GPA = clip(base + βa·ability + βC·C + βs·(study−18) + 0.8·(attendance−0.85) − 0.35·fatigue − 0.3·depressed − 0.15·stress + 0.05·(sleep−7) + ε, 0, 4)"
+    params:
+      base: {value: 3.45, range: [3.0, 3.7]}
+      ability: {value: 0.3, range: [0.15, 0.45]}
+      conscientiousness: {value: 0.2, range: [0.05, 0.35]}
+      study: {value: 0.015, range: [0.005, 0.03]}
+      noise: {value: 0.3, range: [0.15, 0.45]}
+    evidence: calibrated
+    refs: ["ProvoStats: GPA distribution by school and sex", "Okano et al. (2019) npj Sci Learn: sleep and academic performance"]
+  academics.dropout:
+    label: Leaving school
+    target: enrolled
+    sources: [gpa, financial_stress, children]
+    form: "per term h = logistic(base + 0.9·UVU + 1.6·[GPA<2] + 1.2·(fin stress−0.5)⁺ + 0.8·[mother of young children])"
+    params:
+      base: {value: -4.5, range: [-5.5, -3.5]}
+    evidence: calibrated
+  economy.budget:
+    label: Monthly household budget
+    target: [savings, debt, monthly_income, rent_burden]
+    sources: [wage, work_hours, parental_support, rent, tuition_byu, tuition_uvu, dates_30d, children, owns_car]
+    form: "income (pooled for couples) − (rent + tuition/4 + food + car + dating + children + other) → savings; shortfalls become debt"
+    evidence: calibrated
+    refs: ["College Life: housing cost, wages, 'parents pay for' items, debts"]
+  economy.job_loss:
+    label: Job loss hazard
+    target: employed
+    sources: [unemployment]
+    form: "monthly h = base·(unemployment/0.032)^1.5"
+    params:
+      base: {value: 0.01, range: [0.004, 0.02]}
+    evidence: calibrated
+  economy.job_find:
+    label: Job finding
+    target: employed
+    sources: [financial_stress, unemployment]
+    form: "monthly h = logistic(base + 2·(fin stress − 0.4))·(0.032/unemployment)^0.8"
+    params:
+      base: {value: -1.0, range: [-2.0, 0.0]}
+    evidence: calibrated
+  economy.work_more:
+    label: Financial strain → more work hours
+    target: work_hours
+    sources: [financial_stress]
+    form: "students with fin stress > threshold add 3 h/week per month (cap 32)"
+    params:
+      threshold: {value: 0.6, range: [0.4, 0.8]}
+    evidence: hypothetical
+  housing.move:
+    label: Moving at lease turnover
+    target: unit_id
+    sources: [roommate_cohesion, rent_burden, living, openness]
+    form: "P(move) = logistic(base − 2·(cohesion−0.5) + 1.2·(rent burden−0.5)⁺ + 0.8·dorm + 0.3·O) at Apr 30 / Aug 20"
+    params:
+      base: {value: -0.6, range: [-1.5, 0.3]}
+    evidence: calibrated
+  housing.choice:
+    label: Residential location choice
+    target: [unit_id, complex_id, ward_id]
+    sources: [rent, budget, distance to campus, friends in complex, quality, contracted_housing_required]
+    form: "MNL over 25 sampled vacant eligible units: U = −βr·rent/budget − βd·km + βf·log(1+friends there) + 0.8·quality + Gumbel"
+    params:
+      rent: {value: 2.0, range: [1.0, 3.5]}
+      distance: {value: 0.9, range: [0.3, 1.5]}
+      friends: {value: 0.8, range: [0.2, 1.5]}
+    evidence: literature
+    refs: ["McFadden (1978): estimation with sampled alternatives", "UrbanSim household location choice models (Waddell 2002)"]
+  housing.market:
+    label: Rent responds to vacancy
+    target: rent_index
+    sources: [vacancy, housing_supply_index]
+    form: "monthly rent × (1 + β·(0.06 − vacancy))"
+    params:
+      rent_response: {value: 0.15, range: [0.05, 0.4]}
+    evidence: calibrated
+  lifecourse.arrival:
+    label: Cohort arrivals
+    target: present
+    sources: [flows, enrollment_index]
+    form: "Freshmen and new UVU students arrive at fall start; returned missionaries arrive through the year"
+    evidence: calibrated
+  lifecourse.departure:
+    label: Leaving the area
+    target: present
+    sources: [graduated, family_local]
+    form: "after graduation P(leave) ≈ 0.62 BYU / 0.42 UVU, −0.25 if family local"
+    evidence: calibrated
+  lifecourse.illness:
+    label: Short illnesses
+    target: ill
+    sources: []
+    form: "daily P = rate; 2–7 days"
+    params:
+      rate: {value: 0.006, range: [0.003, 0.012]}
+    evidence: calibrated
+  lifecourse.mission:
+    label: Mission service
+    target: mission_status
+    sources: [sex, age, faith_belief, activity, family_expectation, religious_identity, mission_norm]
+    form: "monthly P(call) = logistic(base + βm·male + βb·(belief−0.7) + 1.2·active + βf·family + 0.8·identity + 2·age peak + log(mission_norm)); departure ~3 months later; men 24, women 18 months; ~8% return early"
+    params:
+      base: {value: -6.5, range: [-8, -5]}
+      male: {value: 1.6, range: [0.8, 2.4]}
+      belief: {value: 3.0, range: [1.5, 4.5]}
+      family: {value: 1.0, range: [0.3, 1.8]}
+    evidence: calibrated
+    refs: ["ProvoStats: mission service by sex, activity and age", "Church policy since 2012: men from 18 (24 months), women from 19 (18 months)"]
+  lifecourse.fertility:
+    label: Fertility (married couples)
+    target: [pregnant, children]
+    sources: [kids_wanted, children, married_day, enrolled, financial_stress, activity, age]
+    form: "monthly P(conceive) = logistic(base + 0.25·(wanted−3) − 0.55·children + 0.06·months married − βs·student − 0.8·fin stress + 0.5·active − 0.08·(age−30)⁺)"
+    params:
+      base: {value: -3.3, range: [-4.5, -2.0]}
+      student: {value: 0.8, range: [0.2, 1.4]}
+    evidence: calibrated
+    refs: ["Dating survey: desired number of children (median 4)", "Culture & Lifestyle: children by age among married respondents"]
+  lifecourse.events:
+    label: Background life events
+    target: [stress, mood, financial_stress]
+    sources: []
+    form: "monthly hazards: family crisis, death in family, car accident (car owners)"
+    params:
+      family_crisis: {value: 0.006, range: [0.002, 0.012]}
+      death: {value: 0.0015, range: [0.0005, 0.003]}
+      car_accident: {value: 0.008, range: [0.003, 0.015]}
+    evidence: calibrated
+    refs: ["College Life: ~1/3 report ≥1 at-fault car accident"]

@@ -1,0 +1,154 @@
+# Variable registry — demographics, background, roles, family.
+# Every key below becomes a column in the columnar state store and is auto-discovered
+# by the analysis UI (filters, charts, cross-tabs, maps). See ucsim/registry.py for schema.
+entity: person
+defaults: {kind: attribute, dtype: f4, update: static, evidence: observed, flags: [filter, chart]}
+variables:
+  age:
+    label: Age
+    units: years
+    range: [16, 75]
+    kind: attribute
+    update: daily
+    derived: true
+    desc: Age in years, derived from birth day and simulation date.
+    init: "Skeleton CPT: age | school, sex, relationship status (ProvoStats quantiles), shifted for missions."
+    source: [provostats]
+    evidence: empirical
+    flags: [filter, chart, map, timeseries]
+  birth_day:
+    label: Birth day (sim day index)
+    dtype: i4
+    flags: []
+    desc: Day index of birth relative to simulation start (negative).
+  sex:
+    label: Sex
+    dtype: cat
+    categories: [F, M]
+    desc: Sex (survey item "What is your sex?"). Respondents outside M/F were too few for a stable model and are not represented in v1 — a known limitation.
+    source: [provostats, institutional targets]
+    flags: [filter, chart, map]
+  orientation:
+    label: Sexual orientation
+    dtype: cat
+    categories: [straight, bi, gay, asexual, other]
+    desc: Self-identified sexual orientation; drives the romantic-attraction compatibility mask.
+    init: "CPT orientation | sex (ProvoStats)"
+    source: [provostats]
+    evidence: empirical
+    flags: [filter, chart]
+  ethnicity:
+    label: Ethnicity
+    dtype: cat
+    categories: [White, Hispanic, Asian, Black, Pacific Islander, Native American, Other]
+    init: "CPT ethnicity | school (ProvoStats), lightly blended toward institutional shares"
+    source: [provostats]
+    evidence: empirical
+    desc: Self-described ethnicity. Used only for homophily/composition analysis; no behavioral rules key on it except a weak, adjustable dating-homophily term.
+  origin_region:
+    label: Home region
+    dtype: cat
+    categories: [Utah, Mountain West, West Coast, Other US, International]
+    desc: Where the person grew up ("homeland").
+    init: "CPT origin_utah | school (ProvoStats); non-Utah split by ProvoStats origin-state table"
+    source: [provostats, dating, culture-lifestyle]
+    evidence: empirical
+  parent_income:
+    label: Parental income (childhood SES)
+    dtype: u1
+    kind: attribute
+    range: [0, 11]
+    ordinal: ["<10k", "10-20k", "20-30k", "30-40k", "40-50k", "50-60k", "60-70k", "70-80k", "80-90k", "90-100k", "100-150k", "150k+"]
+    desc: Parents' annual income bracket — proxy for childhood socioeconomic background; shapes parental financial support.
+    init: "CPT parent_income | origin_utah (ProvoStats)"
+    source: [provostats]
+    evidence: empirical
+  family_structure:
+    label: Family of origin
+    dtype: cat
+    categories: [nuclear, blended, single_parent, other]
+    desc: Family structure growing up.
+    source: [college-life, culture-lifestyle]
+    evidence: empirical
+  parents_divorced:
+    label: Parents divorced
+    dtype: bool
+    source: [culture-lifestyle]
+    evidence: empirical
+    init: "copula culture.parents_divorced"
+  family_local:
+    label: Family lives in Utah County
+    dtype: bool
+    desc: Parents live locally (Utah-raised students more likely); enables weekend family visits, living at home, family religious expectation.
+    evidence: calibrated
+  languages:
+    label: Languages spoken
+    dtype: u1
+    range: [1, 6]
+    source: [provostats]
+    evidence: empirical
+    init: "copula provostats.languages (strongly linked to foreign mission service)"
+  height_in:
+    label: Height
+    units: inches
+    range: [56, 82]
+    source: [provostats, dating]
+    evidence: empirical
+    init: "copula provostats.height_in (sex-specific marginals)"
+    desc: Height. Matters because many women report a minimum-height requirement for partners (Dating & ProvoStats surveys).
+  role:
+    label: Primary role
+    dtype: cat
+    categories: [byu_student, uvu_student, young_adult, spouse, faculty, staff, community]
+    update: event
+    desc: Primary structural role in the ecosystem.
+    evidence: calibrated
+    flags: [filter, chart, map]
+  present:
+    label: Present in Provo/Orem
+    dtype: bool
+    update: event
+    desc: True while the person is physically part of the simulated area (false before arrival, while serving a mission, after leaving).
+    flags: [filter]
+  arrival_day:
+    label: Arrival day
+    dtype: i4
+    flags: []
+    desc: Day the person enters the simulated area (pre-generated cohorts arrive on schedule).
+  departure_day:
+    label: Departure day
+    dtype: i4
+    update: event
+    flags: []
+    desc: Day the person left the area permanently (graduation, move away), -1 if never.
+  household_id:
+    label: Household
+    dtype: i4
+    update: event
+    flags: []
+    desc: Household identifier (roommates or family).
+  unit_id:
+    label: Housing unit
+    dtype: i4
+    update: event
+    flags: []
+  children:
+    label: Children
+    dtype: u1
+    range: [0, 10]
+    update: event
+    kind: structural
+    desc: Number of children (children are household attributes, not agents, in v1).
+    source: [culture-lifestyle, external fertility literature]
+    evidence: calibrated
+    flags: [filter, chart, map, timeseries]
+  pregnant:
+    label: Pregnant (household)
+    dtype: bool
+    update: event
+    desc: Expecting a child (set for both spouses in a married couple).
+    evidence: calibrated
+  due_day:
+    label: Due day
+    dtype: i4
+    flags: []

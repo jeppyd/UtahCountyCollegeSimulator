@@ -1,0 +1,135 @@
+entity: person
+defaults: {kind: belief, dtype: f4, range: [0, 4], update: yearly, evidence: empirical, flags: [filter, chart, map]}
+variables:
+  politics:
+    label: Political orientation
+    dtype: u1
+    ordinal: [very liberal, liberal, centrist, conservative, very conservative]
+    init: "CPT politics | lds, activity, sex (ProvoStats)"
+    source: [provostats]
+  traditional_roles:
+    label: Traditional gender roles
+    desc: Agreement that, where possible, wives stay home with kids and husbands provide.
+    init: "copula culture.traditional_roles"
+    source: [culture-lifestyle]
+  att_gay_marriage_legal:
+    label: Supports legal same-sex marriage
+    init: "copula college_life.att_gay_marriage_legal"
+    source: [college-life]
+  expects_ssm_change:
+    label: Expects church SSM policy change
+    init: "copula culture.expects_ssm_policy_change"
+    source: [culture-lifestyle]
+  supports_women_priesthood:
+    label: Supports women holding priesthood
+    init: "copula culture.supports_women_priesthood"
+    source: [culture-lifestyle]
+  kids_wanted:
+    label: Children wanted
+    range: [0, 12]
+    units: children
+    init: "copula dating.kids_wanted"
+    source: [dating]
+  ideal_months_engaged:
+    label: Ideal months dating before engagement
+    range: [0, 60]
+    units: months
+    init: "copula dating.ideal_months_to_engagement"
+    source: [dating]
+  future_confidence:
+    label: Confidence in society's future
+    init: "copula college_life.future_confidence"
+    source: [college-life]
+  chastity_commitment:
+    label: Chastity commitment
+    range: [0, 1]
+    desc: Personal commitment to the law of chastity (latent; derived from orthodoxy, activity, modesty norms).
+    evidence: calibrated
+    init: "Derived from orthodoxy, activity, modesty items, NCMO interest (−)."
+  ncmo_interest:
+    label: Interest in NCMOs
+    kind: preference
+    desc: '"I am interested in having NCMOs" (non-committal make-outs).'
+    init: "copula provostats.ncmo_interest"
+    source: [provostats]
+  kiss_first_date_ok:
+    label: OK kissing on a first date
+    kind: preference
+    init: "copula provostats.kiss_first_date_ok"
+    source: [provostats]
+  n_kissed:
+    label: People kissed (lifetime)
+    dtype: i2
+    kind: history
+    range: [0, 150]
+    units: people
+    update: event
+    init: "copula provostats.n_kissed"
+    source: [provostats]
+    flags: [filter, chart, map, timeseries]
+  n_ncmo:
+    label: NCMO partners (lifetime)
+    dtype: i2
+    kind: history
+    range: [0, 150]
+    units: people
+    update: event
+    init: "copula provostats.n_ncmo"
+    source: [provostats]
+    flags: [filter, chart, map, timeseries]
+  n_sex_partners:
+    label: Sexual partners (lifetime)
+    dtype: i2
+    kind: history
+    range: [0, 60]
+    units: people
+    update: event
+    init: "copula provostats.n_sex_partners"
+    source: [provostats]
+    flags: [filter, chart, map, timeseries]
+  premarital_sex_current:
+    label: Sexually active (unmarried relationship)
+    dtype: bool
+    kind: state
+    update: event
+    desc: Currently sexually active in an unmarried relationship.
+    evidence: calibrated
+  porn_use:
+    label: Pornography use
+    dtype: u1
+    kind: habit
+    range: [0, 3]
+    ordinal: [none, rare, monthly, weekly+]
+    update: monthly
+    desc: Pornography-use frequency. NOT measured in the supplied surveys — initialized from broad literature prevalence by sex and adjusted by religiosity; treat as extrapolated.
+    evidence: extrapolated
+    init: "Literature prevalence (young adult men ≫ women), lowered by chastity commitment."
+  porn_incongruence:
+    label: Moral incongruence (porn)
+    kind: state
+    range: [0, 1]
+    update: weekly
+    desc: Distress from use that conflicts with one's moral beliefs (moral incongruence model; Grubbs et al. 2019). Feeds guilt and faith dissonance.
+    evidence: literature
+  made_out_squaw_peak:
+    label: Made out at Squaw Peak
+    dtype: bool
+    kind: history
+    update: event
+    desc: A Provo cultural landmark (the overlook was renamed Kyhv Peak in 2022). ~14% of ProvoStats respondents said yes.
+    init: "copula provostats.squaw_peak_makeout"
+    source: [provostats]
+  ever_cheated:
+    label: Has cheated on a partner
+    dtype: bool
+    kind: history
+    update: event
+    init: "copula provostats.ever_cheated"
+    source: [provostats]
+  ever_cheated_on:
+    label: Has been cheated on
+    dtype: bool
+    kind: history
+    update: event
+    init: "copula provostats.ever_cheated_on"
+    source: [provostats]

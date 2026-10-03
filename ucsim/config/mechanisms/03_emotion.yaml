@@ -1,0 +1,392 @@
+# Additive terms of composed emotional states. Mechanism id = "<state>.<term>", matching the
+# per-agent attribution stored by the emotion system, so explanations link straight here.
+system: emotion
+mechanisms:
+  # ---------------------------------------------------------------- fatigue
+  fatigue.setpoint: {label: Fatigue baseline, target: fatigue, sources: [], form: "0.22", evidence: calibrated}
+  fatigue.sleep:
+    label: Sleep deficit → fatigue
+    target: fatigue
+    sources: [sleep_hours]
+    form: "β·clip(7.5 − sleep, 0, 4)/3"
+    params: {beta: {value: 0.25, range: [0.1, 0.4]}}
+    evidence: literature
+    refs: ["Sleep restriction and daytime fatigue (well established)"]
+  fatigue.workload:
+    label: Overload (work + study + class) → fatigue
+    target: fatigue
+    sources: [work_hours, study_hours, credits_term]
+    form: "β·clip((work + study + 2.5·credits − 45)/40, 0, 1)"
+    params: {beta: {value: 0.35, range: [0.15, 0.5]}}
+    evidence: hypothetical
+  fatigue.children: {label: Young children → fatigue, target: fatigue, sources: [children], form: "0.08·min(children,3)/3", evidence: literature}
+  # ---------------------------------------------------------------- financial stress
+  financial_stress.setpoint: {label: Financial stress baseline, target: financial_stress, sources: [], form: "0.05", evidence: calibrated}
+  financial_stress.buffer:
+    label: Savings buffer → financial stress (non-linear)
+    target: financial_stress
+    sources: [savings, monthly_income, rent]
+    form: "β·logistic((1.5 − savings/monthly expenses)/0.6) — manageable with a buffer, steep below ~1 month"
+    params: {beta: {value: 0.6, range: [0.3, 0.9]}}
+    evidence: literature
+    refs: ["Financial-strain research: liquidity buffers matter more than income levels (general finding)"]
+  financial_stress.debt:
+    label: Debt → financial stress
+    target: financial_stress
+    sources: [debt]
+    form: "β·clip(debt/30000, 0, 1)"
+    params: {beta: {value: 0.15, range: [0.05, 0.3]}}
+    evidence: literature
+  financial_stress.rent_burden:
+    label: Rent burden → financial stress
+    target: financial_stress
+    sources: [rent_burden]
+    form: "β·clip(rent/income − 0.4, 0, 1)"
+    params: {beta: {value: 0.3, range: [0.1, 0.5]}}
+    evidence: literature
+    refs: ["HUD cost-burden convention (>30–40% of income)"]
+  # ---------------------------------------------------------------- academic pressure
+  academic_pressure.load:
+    label: Credit load → academic pressure
+    target: academic_pressure
+    sources: [credits_term]
+    form: "β·credits/15 while enrolled in term"
+    params: {beta: {value: 0.25, range: [0.1, 0.4]}}
+    evidence: calibrated
+  academic_pressure.exams:
+    label: Midterms/finals → academic pressure
+    target: academic_pressure
+    sources: [calendar]
+    form: "β during exam weeks"
+    params: {beta: {value: 0.25, range: [0.1, 0.4]}}
+    evidence: calibrated
+  academic_pressure.gpa_gap:
+    label: Low GPA → academic pressure
+    target: academic_pressure
+    sources: [gpa, conscientiousness]
+    form: "β·clip(3.4 − GPA, 0, 1.5)/1.5·(1 + 0.3·C)"
+    params: {beta: {value: 0.2, range: [0.05, 0.35]}}
+    evidence: hypothetical
+  academic_pressure.standing: {label: Warning/probation → pressure, target: academic_pressure, sources: [academic_standing], form: "0.15", evidence: calibrated}
+  # ---------------------------------------------------------------- romantic longing
+  romantic_longing.wants:
+    label: Wanting a relationship → longing (single)
+    target: romantic_longing
+    sources: [wants_relationship, rel_status]
+    form: "β·clip((wants − 1.5)/2.5, 0, 1) if single"
+    params: {beta: {value: 0.3, range: [0.1, 0.5]}}
+    evidence: empirical
+    refs: ["Dating survey: 'I want to be in a romantic relationship' (most agree)"]
+  romantic_longing.marriage_norm:
+    label: Age-graded marriage norm → longing (active LDS singles)
+    target: romantic_longing
+    sources: [age, activity, marriage_norm]
+    form: "β·active·clip((age − 20.5)/3, 0, 1.2)·norm"
+    params: {beta: {value: 0.25, range: [0.05, 0.45]}}
+    evidence: hypothetical
+  romantic_longing.drought:
+    label: Time since last date → longing
+    target: romantic_longing
+    sources: [dates_30d]
+    form: "β·clip(days since last date / 90, 0, 1)"
+    params: {beta: {value: 0.2, range: [0.05, 0.35]}}
+    evidence: hypothetical
+  romantic_longing.talking: {label: Mutual interest relieves longing, target: romantic_longing, sources: [rel_status], form: "−0.15 if talking", evidence: hypothetical}
+  # ---------------------------------------------------------------- stress
+  stress.setpoint:
+    label: Neuroticism → stress set-point
+    target: stress
+    sources: [neuroticism]
+    form: "0.16 + β·N"
+    params: {neuroticism: {value: 0.07, range: [0.03, 0.12]}}
+    evidence: literature
+  stress.academic:
+    label: Academic pressure → stress
+    target: stress
+    sources: [academic_pressure]
+    form: "β·academic_pressure"
+    params: {beta: {value: 0.35, range: [0.15, 0.5]}}
+    evidence: literature
+  stress.financial:
+    label: Financial stress → stress
+    target: stress
+    sources: [financial_stress]
+    form: "β·financial_stress"
+    params: {beta: {value: 0.3, range: [0.1, 0.5]}}
+    evidence: literature
+  stress.fatigue:
+    label: Fatigue → stress
+    target: stress
+    sources: [fatigue]
+    form: "β·fatigue"
+    params: {beta: {value: 0.2, range: [0.05, 0.35]}}
+    evidence: literature
+  stress.relationship:
+    label: Unsatisfying relationship → stress
+    target: stress
+    sources: [relationship_satisfaction]
+    form: "β·clip(0.6 − satisfaction, 0, 0.6) if partnered"
+    params: {beta: {value: 0.4, range: [0.15, 0.6]}}
+    evidence: literature
+  stress.faith_crisis:
+    label: Faith crisis → stress
+    target: stress
+    sources: [faith_crisis]
+    form: "β if in crisis"
+    params: {beta: {value: 0.12, range: [0.04, 0.2]}}
+    evidence: empirical
+  stress.minority_stress:
+    label: LGBTQ–faith tension → stress (active members)
+    target: stress
+    sources: [lgbtq_tension, activity]
+    form: "β·tension·[less active or active]"
+    params: {beta: {value: 0.25, range: [0.1, 0.4]}}
+    evidence: literature
+    refs: ["Meyer (2003) Psychol Bull: minority stress model"]
+  # ---------------------------------------------------------------- loneliness
+  loneliness.setpoint:
+    label: Trait loneliness set-point
+    target: loneliness
+    sources: [neuroticism, social_anxiety]
+    form: "0.43 + β·N + 0.025·SA"
+    params: {neuroticism: {value: 0.05, range: [0.02, 0.1]}}
+    evidence: literature
+  loneliness.contact_deficit:
+    label: Close contact below one's own need → loneliness
+    target: loneliness
+    sources: [close_contact_hours, extraversion]
+    moderators: [extraversion]
+    form: "β·clip((need − contact)/need, −1, 1), need = need_hours·exp(βE·E)"
+    params:
+      beta: {value: 0.22, range: [0.1, 0.4]}
+      need_hours: {value: 16, range: [8, 24]}
+      extraversion: {value: 0.25, range: [0.0, 0.5]}
+    evidence: literature
+    refs: ["Loneliness as perceived (not objective) isolation — Cacioppo & Hawkley (2009)"]
+    desc: Extraverts need more contact, so a highly social person can still feel lonely.
+  loneliness.close_friends:
+    label: Close friends buffer loneliness
+    target: loneliness
+    sources: [n_close_friends]
+    form: "−β·log(1+n_close)/log 6"
+    params: {beta: {value: 0.07, range: [0.03, 0.15]}}
+    evidence: literature
+  loneliness.partner:
+    label: Partner buffers loneliness
+    target: loneliness
+    sources: [rel_status]
+    form: "−β·(partnered + 0.4·married)"
+    params: {beta: {value: 0.07, range: [0.03, 0.15]}}
+    evidence: literature
+  loneliness.ward:
+    label: Ward belonging buffers loneliness (attenders)
+    target: loneliness
+    sources: [ward_belonging, activity]
+    form: "−β·(ward_belonging − 0.5)"
+    params: {beta: {value: 0.15, range: [0.05, 0.3]}}
+    evidence: hypothetical
+  loneliness.roommates:
+    label: Roommate cohesion buffers loneliness
+    target: loneliness
+    sources: [roommate_cohesion]
+    form: "−β·(cohesion − 0.5)"
+    params: {beta: {value: 0.15, range: [0.05, 0.3]}}
+    evidence: hypothetical
+  loneliness.romantic:
+    label: Romantic longing → loneliness
+    target: loneliness
+    sources: [romantic_longing]
+    form: "β·romantic_longing"
+    params: {beta: {value: 0.12, range: [0.03, 0.25]}}
+    evidence: hypothetical
+  # ---------------------------------------------------------------- belonging
+  belonging.setpoint: {label: Belonging baseline, target: belonging, sources: [], form: "0.5", evidence: calibrated}
+  belonging.ward:
+    label: Ward belonging → overall belonging
+    target: belonging
+    sources: [ward_belonging]
+    form: "β·(ward_belonging − 0.5) for attenders"
+    params: {beta: {value: 0.3, range: [0.1, 0.5]}}
+    evidence: hypothetical
+  belonging.friends:
+    label: Friends → belonging
+    target: belonging
+    sources: [n_friends]
+    form: "β·(log(1+friends)/log 15 − 0.5)"
+    params: {beta: {value: 0.3, range: [0.1, 0.5]}}
+    evidence: literature
+  belonging.roommates: {label: Roommates → belonging, target: belonging, sources: [roommate_cohesion], form: "0.15·(cohesion − 0.5)", evidence: hypothetical}
+  belonging.loneliness: {label: Loneliness erodes belonging, target: belonging, sources: [loneliness], form: "−0.3·(loneliness − 0.3)", evidence: literature}
+  # ---------------------------------------------------------------- anxiety
+  anxiety.setpoint:
+    label: Trait anxiety set-point
+    target: anxiety
+    sources: [neuroticism, mh_anxiety]
+    form: "0.18 + β·N + 0.12·anxiety condition"
+    params: {neuroticism: {value: 0.08, range: [0.03, 0.12]}}
+    evidence: empirical
+    refs: ["College Life & Dating surveys: self-reported anxiety prevalence"]
+  anxiety.stress:
+    label: Stress → anxiety
+    target: anxiety
+    sources: [stress]
+    form: "β·(stress − 0.25)"
+    params: {beta: {value: 0.5, range: [0.2, 0.8]}}
+    evidence: literature
+  anxiety.social: {label: Social anxiety → anxiety, target: anxiety, sources: [social_anxiety], form: "0.04·SA", evidence: literature}
+  # ---------------------------------------------------------------- self-esteem
+  self_esteem.setpoint:
+    label: Self-esteem set-point
+    target: self_esteem
+    sources: [neuroticism, extraversion]
+    form: "0.55 − β·N + 0.03·E"
+    params: {neuroticism: {value: 0.07, range: [0.03, 0.12]}}
+    evidence: literature
+  self_esteem.rejection:
+    label: Recent rejections lower confidence
+    target: self_esteem
+    sources: [rejections_recent]
+    form: "−β·log(1 + recent rejections)"
+    params: {beta: {value: 0.12, range: [0.04, 0.2]}}
+    evidence: literature
+  self_esteem.dating_success:
+    label: Dating success raises confidence (singles)
+    target: self_esteem
+    sources: [dates_30d]
+    form: "β·clip(dates_30d/4, 0, 1)"
+    params: {beta: {value: 0.1, range: [0.03, 0.2]}}
+    evidence: hypothetical
+  self_esteem.relationship: {label: Being in a relationship → confidence, target: self_esteem, sources: [rel_status], form: "0.06", evidence: hypothetical}
+  self_esteem.academic: {label: Grades → confidence (students), target: self_esteem, sources: [gpa], form: "0.06·clip((GPA−3.3)/0.7, −1, 1)", evidence: hypothetical}
+  # ---------------------------------------------------------------- guilt
+  guilt.setpoint: {label: Guilt baseline, target: guilt, sources: [], form: "0.03", evidence: calibrated}
+  guilt.word_of_wisdom:
+    label: Word of Wisdom violations → guilt (in proportion to own orthodoxy)
+    target: guilt
+    sources: [coffee, alcohol, orthodoxy, moral_autonomy, coffee_permitted]
+    form: "β·orthodoxy·(1 − autonomy)·member·(coffee·[not permitted] + alcohol)"
+    params: {beta: {value: 0.3, range: [0.1, 0.5]}}
+    evidence: hypothetical
+  guilt.chastity:
+    label: Premarital sex → guilt (in proportion to chastity commitment)
+    target: guilt
+    sources: [premarital_sex_current, chastity_commitment]
+    form: "β·active·commitment"
+    params: {beta: {value: 0.35, range: [0.1, 0.6]}}
+    evidence: hypothetical
+  guilt.porn_incongruence:
+    label: Moral incongruence → guilt
+    target: guilt
+    sources: [porn_incongruence]
+    form: "β·incongruence"
+    params: {beta: {value: 0.3, range: [0.1, 0.5]}}
+    evidence: literature
+    refs: ["Grubbs, Perry, Wilt & Reid (2019) Arch Sex Behav: pornography problems due to moral incongruence"]
+  # ---------------------------------------------------------------- purpose
+  purpose.setpoint: {label: Purpose baseline, target: purpose, sources: [conscientiousness], form: "0.48 + 0.04·C", evidence: calibrated}
+  purpose.religion:
+    label: Faith & identity → purpose
+    target: purpose
+    sources: [religious_identity, faith_belief]
+    form: "β·(identity·belief − 0.4)"
+    params: {beta: {value: 0.3, range: [0.1, 0.5]}}
+    evidence: literature
+  purpose.progress:
+    label: Making progress (school/work) → purpose
+    target: purpose
+    sources: [enrolled, academic_standing, employed]
+    form: "β·[enrolled in good standing or employed non-student]"
+    params: {beta: {value: 0.08, range: [0.02, 0.15]}}
+    evidence: hypothetical
+  purpose.family: {label: Marriage & children → purpose, target: purpose, sources: [rel_status, children], form: "0.06·married + 0.05·[children>0]", evidence: literature}
+  # ---------------------------------------------------------------- mood
+  mood.setpoint:
+    label: Happiness set-point (personality)
+    target: mood
+    sources: [extraversion, neuroticism]
+    form: "0.55 + βE·E − βN·N"
+    params:
+      extraversion: {value: 0.05, range: [0.02, 0.08]}
+      neuroticism: {value: 0.07, range: [0.03, 0.1]}
+    evidence: literature
+    refs: ["Steel, Schmidt & Shultz (2008) Psychol Bull: personality and subjective well-being"]
+  mood.loneliness:
+    label: Loneliness → lower mood
+    target: mood
+    sources: [loneliness]
+    form: "−β·(loneliness − 0.3)"
+    params: {beta: {value: 0.35, range: [0.15, 0.5]}}
+    evidence: literature
+  mood.stress:
+    label: Stress → lower mood
+    target: mood
+    sources: [stress]
+    form: "−β·(stress − 0.3)"
+    params: {beta: {value: 0.3, range: [0.1, 0.5]}}
+    evidence: literature
+  mood.relationship:
+    label: Relationship satisfaction → mood
+    target: mood
+    sources: [relationship_satisfaction]
+    form: "β·(satisfaction − 0.5) if partnered"
+    params: {beta: {value: 0.2, range: [0.05, 0.35]}}
+    evidence: literature
+  mood.purpose:
+    label: Purpose → mood
+    target: mood
+    sources: [purpose]
+    form: "β·(purpose − 0.5)"
+    params: {beta: {value: 0.25, range: [0.1, 0.4]}}
+    evidence: literature
+  mood.sleep:
+    label: Short sleep → lower mood
+    target: mood
+    sources: [sleep_hours]
+    form: "−β·clip(7 − sleep, 0, 4)/3"
+    params: {beta: {value: 0.1, range: [0.03, 0.2]}}
+    evidence: literature
+  mood.exercise:
+    label: Exercise → mood
+    target: mood
+    sources: [workouts_week]
+    form: "β·clip(workouts, 0, 7)/7"
+    params: {beta: {value: 0.05, range: [0.0, 0.1]}}
+    evidence: literature
+  mood.season:
+    label: Winter → slightly lower mood
+    target: mood
+    sources: [calendar]
+    form: "−β in Dec–Feb"
+    params: {beta: {value: 0.03, range: [0.0, 0.06]}}
+    evidence: hypothetical
+    desc: Small seasonal effect; seasonal affective patterns vary greatly between people.
+  mood.contagion:
+    label: Emotional contagion from friends
+    target: mood
+    sources: [friends' mood]
+    form: "β·(closeness-weighted friends' mood − 0.55), updated weekly"
+    params: {beta: {value: 0.15, range: [0.0, 0.3]}}
+    evidence: literature
+    refs: ["Fowler & Christakis (2008) BMJ: happiness spreads in social networks", "Hatfield, Cacioppo & Rapson (1993): emotional contagion"]
+  mood.guilt:
+    label: Guilt → lower mood
+    target: mood
+    sources: [guilt]
+    form: "−β·guilt"
+    params: {beta: {value: 0.2, range: [0.05, 0.35]}}
+    evidence: literature
+  mood.financial:
+    label: Financial stress → lower mood
+    target: mood
+    sources: [financial_stress]
+    form: "−β·financial_stress"
+    params: {beta: {value: 0.1, range: [0.03, 0.2]}}
+    evidence: literature
+  mood.depression: {label: Depressive episode → lower mood, target: mood, sources: [depressive_episode], form: "−0.15", evidence: literature}
+  mental_health.depression:
+    label: Depressive episode onset/remission
+    target: depressive_episode
+    sources: [mood, loneliness, mh_depression, neuroticism]
+    form: "weekly onset = logistic(−6.2 + 36·max(0, 0.45 − 8-week mood) + 1.0·history + 0.35·N + 1.5·max(0, loneliness − 0.5)); remission = 0.06 + 0.25·max(0, mood8 − 0.4)"
+    evidence: hypothetical
+    desc: Threshold non-linearity — sustained low mood matters disproportionately.

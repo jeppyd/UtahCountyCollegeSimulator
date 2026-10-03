@@ -1,0 +1,23 @@
+# Date-type preferences (Dating survey, n≈900): "Rate how much you agree that the following
+# would be GOOD first dates". Used to choose date activities and to score date quality.
+entity: person
+defaults: {kind: preference, dtype: u1, range: [0, 4], update: static, evidence: empirical, source: [dating], flags: [filter, chart], group: date_preferences}
+variables:
+  fd_ice_cream: {label: "First date pref: ice cream", init: "copula dating.fd_ice_cream"}
+  fd_restaurant: {label: "First date pref: restaurant", init: "copula dating.fd_restaurant"}
+  fd_hike: {label: "First date pref: hike", init: "copula dating.fd_hike"}
+  fd_board_games: {label: "First date pref: board games", init: "copula dating.fd_board_games"}
+  fd_cook_together: {label: "First date pref: cook together", init: "copula dating.fd_cook_together"}
+  fd_movie_theater: {label: "First date pref: movie theater", init: "copula dating.fd_movie_theater"}
+  fd_movie_apartment: {label: "First date pref: movie at apartment", init: "copula dating.fd_movie_apartment"}
+  fd_concert: {label: "First date pref: concert", init: "copula dating.fd_concert"}
+  fd_museum: {label: "First date pref: museum", init: "copula dating.fd_museum"}
+  fd_picnic: {label: "First date pref: picnic", init: "copula dating.fd_picnic"}
+  fd_pickleball: {label: "First date pref: pickleball", init: "copula dating.fd_pickleball"}
+  fd_rock_climbing: {label: "First date pref: rock climbing", init: "copula dating.fd_rock_climbing"}
+  fd_soda_shop: {label: "First date pref: soda shop", init: "copula dating.fd_soda_shop"}
+  fd_sports_game: {label: "First date pref: sports game", init: "copula dating.fd_sports_game"}
+  fd_stargazing: {label: "First date pref: stargazing", init: "copula dating.fd_stargazing"}
+  fd_video_games: {label: "First date pref: video games", init: "copula dating.fd_video_games"}
+  fd_gym: {label: "First date pref: gym workout", init: "copula dating.fd_gym"}
+  fd_makeout: {label: "First date pref: make out", init: "copula dating.fd_makeout"}

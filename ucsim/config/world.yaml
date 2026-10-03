@@ -1,0 +1,65 @@
+# World configuration: institutional targets, flows and environment.
+# Numbers marked (approx) are from general knowledge of public institutional reporting and
+# should be verified against current BYU/UVU fact books; they are calibration targets, not data.
+start_date: "2026-08-24"     # Monday of BYU/UVU fall-semester start (approx)
+default_scale: 0.3           # 1.0 ≈ 60k agents; group sizes (wards, classes, units) stay realistic at any scale
+
+population:                  # counts at scale 1.0
+  byu:
+    students: 33500          # (approx) BYU Provo daytime enrollment ~34k
+    married_share: 0.25      # (approx) ~1 in 4 BYU students married
+    grad_share: 0.09
+    male_share: 0.50
+    lds_share: 0.985
+    freshman_share: 0.16
+    with_parents_share: 0.06
+  uvu:
+    students: 15000          # in-scope subset of ~45k: excludes concurrent-enrollment, online-only and most distant commuters
+    married_share: 0.30      # (approx)
+    male_share: 0.52
+    lds_share: 0.72          # (assumption) lower than BYU; no ecclesiastical endorsement requirement
+    with_parents_share: 0.33 # (assumption) many UVU students live with family in Utah County
+    active_tilt: 0.55        # odds multiplier on 'active' vs survey (survey over-represents active members)
+  young_adults: 6000         # non-student 18-30s embedded in YSA wards / workplaces
+  faculty: 1500
+  staff: 1000
+  community: 1000            # bishops, ward leaders, local family members, employers
+
+flows:                       # per year at scale 1.0
+  byu_freshmen: 5400         # arrive at fall start
+  byu_rm_returners: 3000     # returned missionaries enrolling; arrive spread over the year
+  uvu_new_students: 4000
+  byu_transfer: 600
+
+mission:
+  male_age: 18
+  female_age: 19
+  male_months: 24
+  female_months: 18
+  early_return_rate: 0.08    # (assumption; literature on early-returned missionaries suggests a minority)
+
+calendar:                    # month-day boundaries (approx BYU calendar)
+  byu_terms:
+    - {name: Fall, start: "08-24", end: "12-17"}
+    - {name: Winter, start: "01-07", end: "04-22"}
+    - {name: Spring, start: "04-29", end: "06-18"}
+    - {name: Summer, start: "06-23", end: "08-12"}
+  uvu_terms:
+    - {name: Fall, start: "08-24", end: "12-16"}
+    - {name: Spring, start: "01-07", end: "05-01"}
+    - {name: Summer, start: "05-11", end: "08-08"}
+  spring_summer_presence: 0.45   # share of single BYU undergrads who stay in Provo for spring/summer
+  lease_turnover: ["04-30", "08-20"]
+
+climate:                     # Provo monthly mean daily high °F (approx normals)
+  high_f: [38, 44, 54, 61, 71, 82, 91, 89, 79, 65, 50, 39]
+
+economy:
+  unemployment: 0.032
+  min_wage_campus: 12.5
+  rent_market_adjust: 0.15    # monthly rent response per unit vacancy gap
+
+tuition:
+  byu_lds_semester: 3500      # (approx)
+  byu_nonlds_semester: 7000   # (approx)
+  uvu_semester: 3100          # (approx) resident full-time

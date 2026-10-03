@@ -1,0 +1,176 @@
+# Religion is multidimensional: affiliation, belief, certainty, identity, institutional trust,
+# orthodoxy on specific teachings, private practice, public practice, habit, norms, crisis.
+entity: person
+defaults: {kind: belief, dtype: f4, range: [0, 1], update: weekly, evidence: empirical, source: [culture-lifestyle], flags: [filter, chart, map]}
+variables:
+  lds_member:
+    label: LDS member
+    dtype: bool
+    kind: attribute
+    update: event
+    desc: Current membership in The Church of Jesus Christ of Latter-day Saints.
+    init: "CPT lds | school (ProvoStats), calibrated to institutional targets (BYU ≈ 98%, UVU assumed ≈ 70%)."
+    source: [provostats, institutional targets]
+    evidence: calibrated
+  raised_lds:
+    label: Raised LDS
+    dtype: bool
+    kind: attribute
+    update: static
+    init: "copula culture.convert (inverse)"
+  activity:
+    label: Church activity
+    dtype: cat
+    categories: [non_member, inactive, less_active, active]
+    kind: habit
+    derived: true
+    desc: Activity category derived from the rolling sacrament-attendance rate (≥0.6 active, ≥0.15 less active).
+    init: "CPT activity | school, sex, relationship (ProvoStats), calibrated."
+    source: [provostats]
+    flags: [filter, chart, map, timeseries]
+  faith_belief:
+    label: Belief in doctrine
+    desc: Strength of belief in core church doctrine (latent). Updated weekly by social influence, spiritual experiences, faith challenges and belief–behavior dissonance.
+    init: "copula culture.believes_all_doctrine + support_teachings (ProvoStats) → latent."
+    source: [culture-lifestyle, provostats]
+    flags: [filter, chart, map, timeseries]
+  faith_certainty:
+    label: Religious certainty
+    desc: Confidence in one's beliefs (distinct from belief level). Low certainty increases susceptibility to social influence.
+    init: "Derived from struggled-faith, history-struggle, faith-crisis items."
+    evidence: calibrated
+    flags: [filter, chart, map, timeseries]
+  religious_identity:
+    label: Religious identity strength
+    desc: How central being a Latter-day Saint is to self-concept; slows disaffiliation even when belief falls ("physically in, mentally out" pathway).
+    init: "Derived from activity, garments, temple recommend, EFY, mission."
+    evidence: calibrated
+  institutional_trust:
+    label: Institutional trust
+    desc: Trust in church leadership/institutions. Moved by policy announcements and bishop experiences.
+    init: "Derived from support-teachings, bishop experience, policy-change expectations."
+    evidence: calibrated
+  orthodoxy:
+    label: Doctrinal orthodoxy
+    desc: Composite agreement with specific teachings (plural marriage divine, no women's priesthood, no expected same-sex-marriage policy change, R-movies wrong).
+    init: "Composite of culture items via copula."
+  moral_autonomy:
+    label: Moral autonomy
+    desc: Agreement that it is okay to break church standards if it feels internally acceptable. Moderates guilt and the dissonance pathway.
+    init: "copula culture.moral_autonomy"
+  practice_habit:
+    label: Practice habit strength
+    kind: habit
+    desc: Automaticity of weekly church attendance (habit formation, Lally et al. 2010). Grows with repetition, decays slowly with absence.
+    init: "From attendance frequency items."
+    evidence: literature
+  attend_rate:
+    label: Sacrament attendance (8-wk)
+    kind: habit
+    update: weekly
+    desc: Rolling share of Sundays attended (8-week EWMA).
+    init: "copula culture.attend_sacrament"
+    flags: [filter, chart, map, timeseries]
+  private_practice:
+    label: Private devotion
+    kind: habit
+    desc: Composite of prayer and personal scripture study frequency.
+    init: "copula culture.prayers_per_day, scripture_minutes, studies_cfm"
+  scripture_minutes:
+    label: Scripture study (min/day)
+    kind: habit
+    range: [0, 120]
+    units: minutes/day
+    init: "copula culture.scripture_minutes"
+  temple_recommend:
+    label: Temple recommend
+    dtype: bool
+    kind: attribute
+    update: event
+    init: "copula culture.temple_recommend (members only)"
+  temple_per_year:
+    label: Temple visits / year
+    kind: habit
+    range: [0, 150]
+    units: visits/year
+    init: "copula culture.temple_per_year"
+  garments:
+    label: Garment wearing (endowed)
+    dtype: u1
+    kind: habit
+    range: [0, 4]
+    ordinal: [never, rarely, some, most, always]
+    init: "copula culture.garments (endowed members only)"
+  ward_activity_rate:
+    label: Ward-activity participation
+    kind: habit
+    desc: Probability of attending ward activities/FHE when available.
+    init: "copula culture.attends_ward_activities"
+  mission_status:
+    label: Mission status
+    dtype: cat
+    categories: [none, serving, returned, early_returned]
+    kind: structural
+    update: event
+    desc: Full-time mission status. Serving missionaries leave the area (men 24 months, women 18 months).
+    init: "CPT mission | sex, activity, age (ProvoStats)"
+    source: [provostats]
+    flags: [filter, chart, map, timeseries]
+  mission_foreign:
+    label: Served foreign mission
+    dtype: bool
+    kind: attribute
+    update: event
+    init: "copula provostats.mission_foreign"
+    source: [provostats]
+  faith_crisis:
+    label: In faith crisis
+    dtype: bool
+    kind: state
+    update: event
+    desc: Currently experiencing a faith crisis (onset when certainty is low and belief is falling; resolves into renewal, nuanced continuation, or disaffiliation).
+    init: "copula culture.faith_crisis_now (agree → true)"
+    flags: [filter, chart, map, timeseries]
+  struggled_faith:
+    label: Has struggled with faith
+    dtype: bool
+    kind: history
+    update: event
+    init: "copula culture.struggled_faith"
+  history_struggle:
+    label: Church-history struggle
+    desc: Difficulty reconciling church history with faith.
+    init: "copula culture.history_struggle"
+  lgbtq_tension:
+    label: LGBTQ–faith tension
+    desc: Difficulty reconciling sexual-minority identity with faith (sexual-minority members only); a minority-stress pathway (Meyer 2003).
+    init: "copula culture.lgbtq_hard_to_reconcile (sexual-minority members)"
+  family_expectation:
+    label: Family religious expectation
+    desc: Perceived expectation from family to remain active (higher for Utah-raised, raised-LDS, local family).
+    evidence: hypothetical
+    init: "Derived: raised LDS, origin Utah, EFY, parents divorced (−)."
+  perceived_norm:
+    label: Perceived religiosity norm
+    kind: belief
+    desc: Closeness-weighted mean attendance of one's network (roommates, friends, ward) — the local norm the person perceives.
+    derived: true
+    evidence: literature
+  bishop_meetings:
+    label: Adult repentance meetings
+    dtype: u1
+    kind: history
+    range: [0, 10]
+    update: event
+    desc: Count of adult meetings with a bishop as part of a repentance process.
+    init: "copula culture.bishop_adult"
+  ward_id:
+    label: Ward
+    dtype: i4
+    kind: structural
+    update: event
+    flags: []
+  plans_to_leave:
+    label: Plans to leave church
+    range: [0, 4]
+    init: "copula culture.plans_to_leave"

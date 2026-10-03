@@ -1,0 +1,175 @@
+system: social
+mechanisms:
+  activity.choice:
+    label: Free-time activity choice
+    target: activity_now
+    sources: [fatigue, loneliness, academic_pressure, workouts_week, hikes, dancing, romantic_longing, temp_f]
+    form: "Random-utility (Gumbel-max) choice among home / campus / gym / venue / outdoors / dance / visit friend / complex commons; utilities linear in traits, habits and states."
+    params:
+      home: {value: 0.0, range: [-0.5, 0.5]}
+      withdraw: {value: 2.5, range: [1.0, 4.0]}
+      approach: {value: 1.8, range: [0.8, 3.0]}
+    timescale: block
+    evidence: calibrated
+    desc: Daily/weekly spatial activity patterns built from obligations plus discretionary choice; the source of spatial opportunity.
+  activity.loneliness_response:
+    label: Loneliness → approach vs. withdrawal
+    target: activity_now
+    sources: [loneliness, extraversion, social_anxiety, neuroticism]
+    moderators: [extraversion, social_anxiety, neuroticism]
+    form: "approach_share = logistic(b0 + βE·E − βSA·SA − βN·N); loneliness × approach_share raises social choices, loneliness × (1−approach_share) raises staying home."
+    params:
+      base: {value: 0.0, range: [-1, 1]}
+      extraversion: {value: 1.0, range: [0.4, 1.6]}
+      social_anxiety: {value: 0.9, range: [0.4, 1.5]}
+      neuroticism: {value: 0.5, range: [0.0, 1.0]}
+    evidence: literature
+    refs: ["Cacioppo & Hawkley (2009) Trends Cogn Sci: loneliness heightens social-threat vigilance and can become self-reinforcing"]
+    desc: Creates heterogeneous feedback loops — loneliness → withdrawal → fewer encounters → more loneliness for some; loneliness → seeking company → new friends for others.
+  activity.class_attendance:
+    label: Class attendance
+    target: class_attendance
+    sources: [conscientiousness, fatigue, academic_pressure, depressive_episode]
+    form: "P(attend) = logistic(base + βC·C − βF·fatigue + 0.8·pressure − 0.6·depressed)"
+    params:
+      base: {value: 2.2, range: [1.5, 3.0]}
+      conscientiousness: {value: 0.4, range: [0.1, 0.8]}
+      fatigue: {value: 2.0, range: [0.8, 3.0]}
+    evidence: calibrated
+  activity.fhe:
+    label: FHE group participation
+    target: activity_now
+    sources: [ward_activity_rate]
+    form: "Monday evening: P = ward_activity_rate × mult (YSA wards; FHE groups pair a men's and a women's apartment)"
+    params:
+      attend_mult: {value: 0.85, range: [0.5, 1.0]}
+    evidence: calibrated
+    applicability: BYU/YSA wards
+  activity.ward_activity:
+    label: Ward activity participation
+    target: activity_now
+    sources: [ward_activity_rate]
+    form: "One weekday evening per ward: P = ward_activity_rate × mult"
+    params:
+      attend_mult: {value: 0.5, range: [0.2, 0.9]}
+    evidence: empirical
+    refs: ["Culture & Lifestyle survey: frequency of attending ward-sponsored activities"]
+  activity.gathering:
+    label: Hosting & attending get-togethers
+    target: activity_now
+    sources: [extraversion, loneliness, n_friends, fatigue]
+    form: "P(host) = base[weekday] × exp(0.6·E + 0.8·approach) × [friends≥2]; invitees ~ Poisson(k) friends weighted by closeness, accept = logistic(a + 2·closeness + 0.4·E − 1.5·fatigue + 0.8·approach)"
+    params:
+      host_weekday: {value: 0.012, range: [0.005, 0.03]}
+      host_friday: {value: 0.04, range: [0.02, 0.08]}
+      host_saturday: {value: 0.05, range: [0.02, 0.1]}
+      host_sunday: {value: 0.025, range: [0.01, 0.05]}
+      invites: {value: 5, range: [2, 9]}
+      accept_base: {value: -0.5, range: [-1.5, 0.5]}
+    evidence: calibrated
+    refs: ["Calibrated toward ProvoStats 'social events per month' (median ~6)"]
+    desc: Gatherings are hosted in apartments, so friends of the host meet the host's roommates and each other — the engine of triadic closure.
+  encounter.rate:
+    label: Interaction attempts by context
+    target: social_hours_week
+    sources: [activity_now]
+    form: "Attempts per person per block ~ Poisson(rate[context] × sociability)"
+    params:
+      unit: {value: 1.6, range: [0.8, 2.5]}
+      complex: {value: 0.3, range: [0.1, 0.6]}
+      class: {value: 0.6, range: [0.2, 1.2]}
+      ward: {value: 1.2, range: [0.5, 2.0]}
+      fhe: {value: 2.0, range: [1.0, 3.0]}
+      work: {value: 1.0, range: [0.4, 1.6]}
+      gym: {value: 0.15, range: [0.05, 0.4]}
+      venue: {value: 0.12, range: [0.05, 0.3]}
+      gathering: {value: 2.5, range: [1.5, 4.0]}
+      campus: {value: 0.12, range: [0.05, 0.3]}
+      dance: {value: 1.2, range: [0.5, 2.0]}
+      outdoors: {value: 0.2, range: [0.05, 0.5]}
+    evidence: calibrated
+    refs: ["Festinger, Schachter & Back (1950): propinquity in student housing", "Kossinets & Watts (2006) Science: shared foci (classes) drive tie formation"]
+    desc: Opportunity structure — whom a person can meet depends on where they are.
+  encounter.sociability:
+    label: Sociability multiplier
+    target: social_hours_week
+    sources: [extraversion, social_anxiety, fatigue, loneliness]
+    form: "mult = exp(βE·E − βSA·max(SA,0) + 0.4·approach) × (1 − 0.5·fatigue)"
+    params:
+      extraversion: {value: 0.3, range: [0.1, 0.5]}
+      social_anxiety: {value: 0.25, range: [0.0, 0.5]}
+    evidence: literature
+  encounter.choice:
+    label: Partner choice within a context
+    target: liking
+    sources: [familiarity, liking, attraction_lh, age, school, activity, politics, study_area]
+    form: "Among 3 randomly encountered co-present people, choose argmax(β_fam·σ(B+1) + β_like·liking + β_sim·similarity + β_attr·attraction(if seeking) + Gumbel)"
+    params:
+      familiarity: {value: 1.5, range: [0.5, 2.5]}
+      liking: {value: 1.2, range: [0.4, 2.0]}
+      similarity: {value: 0.8, range: [0.2, 1.4]}
+      attraction: {value: 1.0, range: [0.3, 2.0]}
+    evidence: literature
+    refs: ["McPherson, Smith-Lovin & Cook (2001) Annu Rev Sociol: homophily", "Zajonc (1968): mere exposure", "Anderson & Lebiere (1998): ACT-R base-level activation"]
+  encounter.valence:
+    label: Interaction quality
+    target: liking
+    sources: [chemistry, agreeableness, social_skill, mood, similarity, liking]
+    form: "v = base + βc·chemistry + βA·mean(A) + βS·mean(skill) + βm·(mood_i+mood_j−1) + βsim·sim + βl·liking + ε"
+    params:
+      base: {value: 0.25, range: [0.0, 0.5]}
+      chemistry: {value: 0.35, range: [0.1, 0.6]}
+      agreeableness: {value: 0.15, range: [0.0, 0.3]}
+      social_skill: {value: 0.15, range: [0.0, 0.3]}
+      mood: {value: 0.4, range: [0.1, 0.8]}
+      similarity: {value: 0.2, range: [0.0, 0.5]}
+      liking: {value: 0.5, range: [0.2, 0.8]}
+      noise: {value: 0.6, range: [0.3, 0.9]}
+    evidence: hypothetical
+    desc: Pair chemistry is persistent and pair-specific, so two similar people can still clash and dissimilar people can click.
+  network.liking:
+    label: Liking learns from interactions
+    target: liking
+    sources: [n_interactions]
+    form: "liking ← liking + (1−(1−α)^k)·(tanh(mean valence) − liking)"
+    params:
+      learning_rate: {value: 0.12, range: [0.05, 0.25]}
+    evidence: literature
+    refs: ["Reinforcement-affect model of attraction (Byrne)"]
+  network.stage:
+    label: Friendship stages from time together
+    target: n_friends
+    sources: [hours_leisure, liking, closeness]
+    form: "casual ≥ 0.55·k·50 h & liking>0.1; friend ≥ 0.55·k·90 h & liking>0.25 & closeness≥0.3; close ≥ 0.55·k·200 h & liking>0.4 & closeness≥0.5 (leisure-weighted hours)"
+    params:
+      hours_scale: {value: 1.0, range: [0.5, 1.6]}
+    evidence: literature
+    refs: ["Hall (2019) J Soc Pers Relat 36(4): ~50 h casual friend, ~90 h friend, >200 h close friend"]
+  network.closeness:
+    label: Closeness growth and decay
+    target: closeness
+    sources: [hours_leisure, liking, last_day]
+    form: "with contact: c ← c + g·(target − c); without contact for 2+ weeks: c ← c·exp(−7/τ)"
+    params:
+      growth: {value: 0.15, range: [0.05, 0.3]}
+      decay_days: {value: 240, range: [90, 500]}
+    evidence: literature
+    refs: ["Roberts & Dunbar (2011): emotional closeness declines without contact"]
+  network.forget:
+    label: Forgetting weak ties
+    target: degree
+    sources: [familiarity]
+    form: "drop unflagged acquaintance edges when ACT-R activation < threshold"
+    params:
+      activation: {value: -4.0, range: [-5.0, -3.0]}
+    evidence: literature
+    refs: ["Petrov (2006) ICCM: efficient approximation of ACT-R base-level learning"]
+  encounter.friend_contact:
+    label: Deliberate contact with friends
+    target: [close_contact_hours, closeness]
+    sources: [extraversion, loneliness, n_friends, closeness]
+    form: "contacts/day ~ Poisson(rate·exp(0.25·E + 0.6·approach)·(0.6 if married)); friend chosen by closeness (best of 2); in person if <4 km (60%) else mostly remote"
+    params:
+      rate: {value: 0.35, range: [0.1, 0.7]}
+    evidence: literature
+    refs: ["Roberts & Dunbar (2011) Pers Relat: communication frequency sustains emotional closeness", "Kalmijn (2003) Soc Networks: partners/marriage reduce time with friends (dyadic withdrawal)"]

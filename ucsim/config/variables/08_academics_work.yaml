@@ -1,0 +1,249 @@
+entity: person
+defaults: {kind: structural, dtype: f4, update: semester, evidence: calibrated, flags: [filter, chart, map]}
+variables:
+  school:
+    label: School
+    dtype: cat
+    categories: [none, BYU, UVU]
+    update: event
+    desc: Institution currently enrolled at (or most recently, for those on mission/break).
+    flags: [filter, chart, map, timeseries]
+  enrolled:
+    label: Enrolled this term
+    dtype: bool
+    update: event
+    flags: [filter, chart, timeseries]
+  class_standing:
+    label: Class standing
+    dtype: cat
+    categories: [none, freshman, sophomore, junior, senior, graduate]
+    derived: true
+  credits_done:
+    label: Credits completed
+    range: [0, 200]
+    units: credits
+  credits_term:
+    label: Credits this term
+    range: [0, 20]
+    units: credits
+  study_area:
+    label: Area of study
+    dtype: cat
+    categories: [Business, Health Sciences, Engineering & Tech, Social Sciences, Natural Sciences, Education, Fine Arts, Humanities, Math & Stats, Communications, Law & Policy, Agriculture & Environment, Undeclared]
+    init: "Study-area table by school (College Life + Dating surveys)"
+    source: [college-life, dating]
+    evidence: empirical
+  gpa:
+    label: GPA (cumulative)
+    range: [0, 4]
+    init: "copula provostats.gpa"
+    source: [provostats]
+    evidence: empirical
+    flags: [filter, chart, map, timeseries]
+  gpa_term:
+    label: GPA (last term)
+    range: [0, 4]
+  academic_standing:
+    label: Academic standing
+    dtype: cat
+    categories: [good, warning, probation, suspended]
+  study_hours:
+    label: Study hours / week
+    range: [0, 60]
+    units: hours/week
+    kind: habit
+    update: weekly
+    flags: [filter, chart, map, timeseries]
+  class_attendance:
+    label: Class attendance rate
+    range: [0, 1]
+    kind: habit
+    update: weekly
+    derived: true
+  homework_early:
+    label: Finishes homework early
+    dtype: bool
+    kind: habit
+    update: static
+    init: "copula college_life.homework_early"
+    source: [college-life]
+    evidence: empirical
+  cheats_school:
+    label: Academic dishonesty frequency
+    range: [0, 4]
+    kind: habit
+    update: static
+    init: "copula college_life.cheats_school"
+    source: [college-life]
+    evidence: empirical
+  graduated:
+    label: Graduated (in simulation)
+    dtype: bool
+    update: event
+  enroll_day:
+    label: First enrollment day
+    dtype: i4
+    flags: []
+  grad_day:
+    label: Graduation day
+    dtype: i4
+    update: event
+    flags: []
+  # ---------------------------------------------------------------- work & finance
+  employed:
+    label: Employed
+    dtype: bool
+    update: event
+    flags: [filter, chart, map, timeseries]
+  employer_id:
+    label: Employer
+    dtype: i4
+    update: event
+    flags: []
+  job_type:
+    label: Job type
+    dtype: cat
+    categories: [none, campus, food_retail, tech, health, office, sales, trades, teaching, faculty, staff]
+    update: event
+  work_hours:
+    label: Work hours / week
+    range: [0, 70]
+    units: hours/week
+    init: "copula provostats.work_hours"
+    source: [provostats]
+    evidence: empirical
+    flags: [filter, chart, map, timeseries]
+  wage:
+    label: Hourly wage
+    range: [0, 120]
+    units: USD/hour
+    init: "copula college_life.wage"
+    source: [college-life]
+    evidence: empirical
+  monthly_income:
+    label: Monthly income (all sources)
+    range: [0, 20000]
+    units: USD/month
+    update: monthly
+    derived: true
+  parental_support:
+    label: Parental support / month
+    range: [0, 5000]
+    units: USD/month
+    desc: Money from parents (rent/tuition/insurance/car), conditioned on parental income and the College Life "parents pay for" items.
+    source: [college-life, provostats]
+    evidence: calibrated
+  savings:
+    label: Savings
+    range: [-50000, 200000]
+    units: USD
+    update: monthly
+    flags: [filter, chart, map, timeseries]
+  debt:
+    label: Debt
+    range: [0, 300000]
+    units: USD
+    update: monthly
+  rent:
+    label: Rent share
+    range: [0, 4000]
+    units: USD/month
+    update: event
+    source: [college-life]
+    flags: [filter, chart, map, timeseries]
+  rent_burden:
+    label: Rent burden
+    range: [0, 3]
+    units: share of income
+    update: monthly
+    derived: true
+    flags: [filter, chart, map, timeseries]
+  owns_car:
+    label: Owns a car
+    dtype: bool
+    update: event
+    init: "copula provostats.owns_car"
+    source: [provostats]
+    evidence: empirical
+  commute_min:
+    label: Commute (minutes)
+    range: [0, 90]
+    units: minutes
+    update: event
+    derived: true
+  summer_sales:
+    label: Has done summer sales
+    dtype: bool
+    kind: history
+    update: event
+    init: "copula provostats.summer_sales"
+    source: [provostats]
+    evidence: empirical
+  # ---------------------------------------------------------------- health
+  ill:
+    label: Currently ill
+    dtype: bool
+    kind: state
+    update: event
+    evidence: calibrated
+  ill_until:
+    label: Illness end day
+    dtype: i4
+    flags: []
+  # ---------------------------------------------------------------- geography (person-level)
+  home_lon:
+    label: Home longitude
+    kind: attribute
+    update: event
+    flags: []
+  home_lat:
+    label: Home latitude
+    kind: attribute
+    update: event
+    flags: []
+  city:
+    label: City of residence
+    dtype: cat
+    categories: [Provo, Orem, Other Utah County]
+    update: event
+    flags: [filter, chart, map]
+  neighborhood:
+    label: Neighborhood
+    dtype: u2
+    kind: attribute
+    update: event
+    flags: [filter]
+  complex_id:
+    label: Housing complex / building
+    dtype: i4
+    update: event
+    flags: []
+  living:
+    label: Living situation
+    dtype: cat
+    categories: [dorm, contracted, apartment, house_share, with_parents, married_housing, family_home]
+    update: event
+    flags: [filter, chart, map, timeseries]
+  dist_campus_km:
+    label: Distance to campus
+    range: [0, 40]
+    units: km
+    update: event
+    derived: true
+  loc_lon:
+    label: Current longitude
+    kind: state
+    update: hourly
+    flags: []
+  loc_lat:
+    label: Current latitude
+    kind: state
+    update: hourly
+    flags: []
+  activity_now:
+    label: Current activity
+    dtype: cat
+    categories: [home, class, work, church, campus, gym, gathering, date, venue, outdoors, ward_activity, away]
+    kind: state
+    update: hourly
+    flags: [filter, chart, map]

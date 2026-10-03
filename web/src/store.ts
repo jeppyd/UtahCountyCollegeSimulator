@@ -71,7 +71,7 @@ export const useStore = create<State>((set, get) => ({
   refreshStatus: async () => {
     const s = await api.status()
     const prev = get().status
-    const changed = !prev || prev.day !== s.day || prev.hour !== s.hour || prev.has_alt !== s.has_alt || prev.agents !== s.agents
+    const changed = !prev || prev.world_id !== s.world_id || prev.day !== s.day || prev.hour !== s.hour || prev.has_alt !== s.has_alt || prev.agents !== s.agents
     set({ status: s })
     if (changed) set({ colCache: new Map(), dataVersion: get().dataVersion + 1 })
     if (!s.has_alt && get().universe === 'alt') set({ universe: 'base' })

@@ -16,6 +16,7 @@ import PersonView from './views/PersonView'
 import Places from './views/Places'
 import Variables from './views/Variables'
 import About from './views/About'
+import { WorldDialog, WorldSetupPage } from './views/WorldSetup'
 
 const NAV: [string, string, string][] = [
   ['Observe', 'overview', 'Overview'], ['Observe', 'map', 'Map'], ['Observe', 'people', 'People'], ['Observe', 'network', 'Network'],
@@ -46,7 +47,7 @@ export default function App() {
 
   if (err) return <div className="empty">Could not reach the simulator: {err}<br />Start it with <span className="kbd">python -m ucsim.api.server</span></div>
   if (!registry || !status) return <div className="empty">Loading the synthetic society…</div>
-  if (!status.day && status.day !== 0) return <div className="empty">Building the world… <div className="progress" style={{ margin: '12px auto' }}><i style={{ width: '50%' }} /></div></div>
+  if (!STATIC && !status.has_world) return <WorldSetupPage />
 
   const view = route[0] || 'overview'
   let body
@@ -86,7 +87,9 @@ function TopBar() {
   const { status, refreshStatus, universe, setUniverse, theme, setTheme } = useStore()
   const job = status?.job ?? {}
   const running = job.state === 'running'
+  const building = job.state === 'building'
   const [until, setUntil] = useState('')
+  const [worldOpen, setWorldOpen] = useState(false)
   const step = async (body: any) => {
     try { await api.step(body); setTimeout(() => refreshStatus(), 150) } catch (e: any) { alert(e.message) }
   }
@@ -107,14 +110,14 @@ function TopBar() {
         <span className="pill">Static demo snapshot · run locally to simulate</span>
       ) : (
         <div className="controls">
-          <button className="btn small" disabled={running} onClick={() => step({ hours: 1 })} title="Advance one hour (activities happen at 8am, 1pm, 6pm; the day closes at 11pm)">+1h</button>
-          <button className="btn small" disabled={running} onClick={() => step({ days: 1 })}>+1 day</button>
-          <button className="btn small" disabled={running} onClick={() => step({ days: 7 })}>+1 week</button>
-          <button className="btn small" disabled={running} onClick={() => step({ days: 30 })}>+1 month</button>
-          <button className="btn small" disabled={running} onClick={() => step({ days: 112 })}>+semester</button>
-          <button className="btn small" disabled={running} onClick={() => step({ days: 365 })}>+1 year</button>
+          <button className="btn small" disabled={running || building} onClick={() => step({ hours: 1 })} title="Advance one hour (activities happen at 8am, 1pm, 6pm; the day closes at 11pm)">+1h</button>
+          <button className="btn small" disabled={running || building} onClick={() => step({ days: 1 })}>+1 day</button>
+          <button className="btn small" disabled={running || building} onClick={() => step({ days: 7 })}>+1 week</button>
+          <button className="btn small" disabled={running || building} onClick={() => step({ days: 30 })}>+1 month</button>
+          <button className="btn small" disabled={running || building} onClick={() => step({ days: 112 })}>+semester</button>
+          <button className="btn small" disabled={running || building} onClick={() => step({ days: 365 })}>+1 year</button>
           <input type="date" value={until} onChange={e => setUntil(e.target.value)} style={{ width: 140 }} title="Run until date" />
-          <button className="btn small" disabled={running || !until} onClick={() => {
+          <button className="btn small" disabled={running || building || !until} onClick={() => {
             const d0 = new Date(status.date + 'T12:00:00'), d1 = new Date(until + 'T12:00:00')
             step({ days: Math.max(0, Math.round((+d1 - +d0) / 864e5)) })
           }}>Run until</button>
@@ -125,9 +128,21 @@ function TopBar() {
               <button className="btn small" onClick={() => api.cancel()}>Pause</button>
             </>
           )}
+          {building && (
+            <>
+              <span className="small muted">{job.phase === 'warming up' ? `New world: warming up ${job.progress}/${job.total}` : 'Building new world…'}</span>
+              <div className="progress"><i style={{ width: `${job.phase === 'warming up' ? (100 * (job.progress ?? 0)) / (job.total || 1) : 8}%` }} /></div>
+            </>
+          )}
           {job.state === 'error' && <span className="pill" style={{ color: 'var(--critical)' }}>error: {job.error}</span>}
         </div>
       )}
+      {!STATIC && (
+        <button className="btn small" onClick={() => setWorldOpen(true)} disabled={building} title="Build a new world at a different scale or seed">
+          World · scale {status.scale} · seed {status.seed}
+        </button>
+      )}
+      {worldOpen && <WorldDialog onClose={() => setWorldOpen(false)} />}
       <span className="spacer" />
       {status.has_alt && (
         <div className="seg" title="Which universe the views show">

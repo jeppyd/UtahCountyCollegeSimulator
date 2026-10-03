@@ -77,6 +77,7 @@ class Workspace:
         self.mc = None
         self.sweep_result = None
         self.compare_cache = None
+        self.world_id = 0
         self.registry = get_registry()
 
     def sim(self, u: str):
@@ -85,13 +86,24 @@ class Workspace:
             raise HTTPException(404, f"universe '{u}' not available")
         return s
 
-    def build(self, scale: float, seed: int):
-        with self.lock:
-            self.job = {"state": "building", "progress": 0}
-        sim = runner.new_simulation(scale=scale, seed=seed)
-        with self.lock:
-            self.base, self.alt, self.divergence, self.compare_cache = sim, None, [], None
+    def build(self, scale: float, seed: int, warmup: int = 0):
+        """Synthesize a new world (replacing the current one and any intervention universe), then warm it up."""
+        self.job = {"state": "building", "phase": "synthesizing", "progress": 0, "total": max(warmup, 1),
+                    "scale": scale, "seed": seed, "started": time.time()}
+        try:
+            sim = runner.new_simulation(scale=scale, seed=seed)
+            for k in range(warmup):
+                if self.job.get("cancel"):
+                    break
+                self.job.update(phase="warming up", progress=k)
+                sim.step_day()
+            with self.lock:
+                self.base, self.alt, self.divergence, self.compare_cache = sim, None, [], None
+                self.world_id += 1
             self.job = {"state": "idle"}
+        except Exception as e:  # noqa: BLE001
+            traceback.print_exc()
+            self.job = {"state": "error", "error": repr(e)}
 
     def step(self, days: int = 0, hours: int = 0):
         try:
@@ -132,7 +144,8 @@ def registry():
 @app.get("/api/status")
 def status():
     b = WS.base
-    out = {"job": WS.job, "has_alt": WS.alt is not None}
+    out = {"job": WS.job, "has_alt": WS.alt is not None, "has_world": b is not None, "world_id": WS.world_id,
+           "scale_agents_per_unit": 60000}
     if b is not None:
         w = b.w
         out.update({"day": w.day, "hour": w.hour, "date": str(w.date), "weekday": w.date.strftime("%A"),
@@ -146,9 +159,15 @@ def status():
 
 @app.post("/api/world")
 def new_world(body: dict = Body(default={})):
+    """Build a new world in the background: {"scale": 0.02–1, "seed": int, "warmup": days}."""
+    if WS.job.get("state") in ("running", "building"):
+        raise HTTPException(409, "the simulator is busy; pause it first")
     scale = float(body.get("scale", 0.3))
+    if not 0.01 <= scale <= 1.0:
+        raise HTTPException(400, "scale must be between 0.01 and 1")
     seed = int(body.get("seed", 1))
-    threading.Thread(target=WS.build, args=(scale, seed), daemon=True).start()
+    warmup = max(0, min(int(body.get("warmup", 0)), 365))
+    threading.Thread(target=WS.build, args=(scale, seed, warmup), daemon=True).start()
     return {"ok": True}
 
 
@@ -738,17 +757,18 @@ if WEB_DIST.exists():
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--scale", type=float, default=0.3)
+    ap = argparse.ArgumentParser(description="Serve the simulator and workstation. Worlds are normally created from the UI; "
+                                             "pass --scale to build one at startup instead.")
+    ap.add_argument("--scale", type=float, default=None, help="build a world of this scale at startup (0.3 ≈ 18k people)")
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--warmup", type=int, default=0, help="with --scale: simulate this many days before serving")
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--host", default="127.0.0.1")
-    ap.add_argument("--warmup", type=int, default=0, help="simulate this many days before serving")
     args = ap.parse_args()
-    print(f"Building world (scale {args.scale}, seed {args.seed}) …")
-    WS.build(args.scale, args.seed)
-    if args.warmup:
-        WS.step(args.warmup)
+    if args.scale is not None:
+        print(f"Building world (scale {args.scale}, seed {args.seed}, warmup {args.warmup} days) …")
+        WS.build(args.scale, args.seed, args.warmup)
+    print(f"Workstation: http://{args.host}:{args.port}")
     import uvicorn
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
 

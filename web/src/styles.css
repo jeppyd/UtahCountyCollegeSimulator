@@ -179,3 +179,10 @@ table.data tr.click:hover td { background: var(--surface-2); }
 .kbd { font-family: ui-monospace, monospace; font-size: 12px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
 .progress { height: 4px; background: var(--surface-3); border-radius: 2px; overflow: hidden; width: 120px; }
 .progress i { display: block; height: 100%; background: var(--accent); }
+
+/* world setup */
+.setup-page { max-width: 760px; margin: 6vh auto; padding-inline: 16px; }
+.world-form { display: grid; gap: 14px; }
+.world-form .tile .value { font-size: 20px; }
+.modal-backdrop { position: fixed; inset: 0; background: color-mix(in srgb, var(--page) 55%, transparent); backdrop-filter: blur(2px); display: grid; place-items: start center; padding: 10vh 16px 16px; z-index: 50; }
+.modal { width: min(640px, 100%); max-height: 80vh; overflow: auto; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18); }

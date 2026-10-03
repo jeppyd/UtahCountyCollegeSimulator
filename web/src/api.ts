@@ -184,7 +184,7 @@ export const api = {
   async cancel() { return post('/api/cancel', {}) },
   async fork(interventions: any[]) { return post('/api/fork', { interventions }) },
   async unfork() { return j('/api/fork', { method: 'DELETE' }) },
-  async newWorld(scale: number, seed: number) { return post('/api/world', { scale, seed }) },
+  async newWorld(scale: number, seed: number, warmup = 0) { return post('/api/world', { scale, seed, warmup }) },
   async montecarloStart(body: any) { return post('/api/montecarlo', body) },
   async montecarlo() { return STATIC ? j(`${D}/montecarlo.json`) : j('/api/montecarlo') },
   async sweepStart(body: any) { return post('/api/sweep', body) },

@@ -24,11 +24,13 @@ cd web
 npm install
 npm run build
 cd ..
-python -m ucsim.api.server --scale 0.3 --warmup 14     # then open http://127.0.0.1:8000
+python -m ucsim.api.server        # then open http://127.0.0.1:8000
 ```
 
-`--scale` sets the fraction of the real population (0.3 ≈ 18k agents); `--warmup` simulates days before
-serving. For UI development run `npm run dev` in `web/` (proxies to the API on :8000).
+The browser opens on **Create a world**: pick the population scale (the share of the real BYU/UVU
+community to simulate — 0.15 ≈ 9k people, 1.0 ≈ 60k), a random seed and warm-up days. The **World** button
+in the top bar rebuilds at another scale any time. For scripts, `--scale 0.3 --seed 1 --warmup 14` builds a
+world at startup instead. For UI development run `npm run dev` in `web/` (proxies to the API on :8000).
 
 Rebuilding inputs (not needed to run — derived files are committed):
 

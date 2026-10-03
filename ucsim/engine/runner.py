@@ -15,6 +15,7 @@ from __future__ import annotations
 import copy
 import json
 import multiprocessing as mp
+import os
 import time
 import uuid
 from concurrent.futures import ProcessPoolExecutor
@@ -26,7 +27,7 @@ import polars as pl
 from ..population.build import build_world
 from .sim import Simulation
 
-RUNS = Path(__file__).resolve().parents[2] / "runs"
+RUNS = Path(os.environ.get("UCSIM_RUNS") or Path(__file__).resolve().parents[2] / "runs")  # the desktop app points this at the user profile
 
 
 def new_simulation(scale: float = 0.3, seed: int = 1, interventions: list | None = None,

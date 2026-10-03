@@ -768,9 +768,11 @@ def main():
     if args.scale is not None:
         print(f"Building world (scale {args.scale}, seed {args.seed}, warmup {args.warmup} days) …")
         WS.build(args.scale, args.seed, args.warmup)
-    print(f"Workstation: http://{args.host}:{args.port}")
+    from ..app import free_port
+    port = free_port(args.port, args.host)  # Windows may reserve the requested port; fall back to a free one
+    print(f"Workstation: http://{args.host}:{port}")
     import uvicorn
-    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+    uvicorn.run(app, host=args.host, port=port, log_level="warning")
 
 
 if __name__ == "__main__":

@@ -13,7 +13,13 @@ meaningful change is an event with a mechanism and a causal parent, so any outco
 
 ## Quick start
 
-Needs Python ≥ 3.10, Git and Node.js 18+ (for the web UI). Works on Windows, macOS and Linux.
+**Windows, no setup:** download `ProvoOremSimulator-Setup.exe` from the
+[latest release](https://github.com/jeppyd/UtahCountyCollegeSimulator/releases/latest), double-click it, and
+start the simulator from the desktop or Start-menu shortcut. Windows may warn that the app isn't signed:
+choose **More info → Run anyway**. Every push rebuilds and self-tests the installer
+(`.github/workflows/windows-app.yml`).
+
+**From source** (any OS) needs Python ≥ 3.10, Git and Node.js 18+ (for the web UI). Works on Windows, macOS and Linux.
 
 ```bash
 git clone https://github.com/jeppyd/UtahCountyCollegeSimulator.git

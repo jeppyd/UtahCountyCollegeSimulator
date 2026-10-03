@@ -2,7 +2,7 @@
 
 Generated from `ucsim/config/variables/*.yaml` by `scripts/gen_catalogs.py` — do not edit by hand.
 
-276 variables. Evidence levels: **observed** 8, **empirical** 122, **literature** 32, **calibrated** 100, **extrapolated** 2, **hypothetical** 12.
+288 variables. Evidence levels: **observed** 11, **empirical** 122, **literature** 32, **calibrated** 102, **extrapolated** 6, **hypothetical** 15.
 
 Columns: id · label · type (categories or range) · kind · update cadence · evidence · source · description.
 
@@ -52,6 +52,8 @@ Columns: id · label · type (categories or range) · kind · update cadence · 
 | `credits_done` | Credits completed | f4 [0, 200] (credits) | structural | semester | calibrated |  |  |
 | `credits_term` | Credits this term | f4 [0, 20] (credits) | structural | semester | calibrated |  |  |
 | `study_area` | Area of study | cat: Business, Health Sciences, Engineering & Tech, Social Sciences, Natural Sciences, Education, Fine Arts, Humanities, Math & Stats, Communications, Law & Policy, Agriculture & Environment, Undeclared | structural | semester | empirical | college-life, dating |  |
+| `major_id` | Major (id) | i2 | structural | semester | observed | BYU majors list 2025-26, UVU academic catalog | Index into the majors catalog; shown by name on profiles. |
+| `college` | College | cat: none, Marriott School of Business, Fulton College of Engineering, College of Computational, Mathematical & Physical Sciences, College of Nursing, College of Life Sciences, College of Humanities, Kennedy Center for International Studies, College of Family, Home & Social Sciences, College of Fine Arts & Communications, McKay School of Education, University Advisement Center, Woodbury School of Business, Smith College of Engineering & Technology, School of Education, College of Health & Public Service, College of Science, School of the Arts, University College, College of Humanities & Social Sciences | structural | semester | observed | BYU majors list 2025-26, UVU academic catalog | The college or school of the person's major (real BYU and UVU colleges). |
 | `gpa` | GPA (cumulative) | f4 [0, 4] | structural | semester | empirical | provostats |  |
 | `gpa_term` | GPA (last term) | f4 [0, 4] | structural | semester | calibrated |  |  |
 | `academic_standing` | Academic standing | cat: good, warning, probation, suspended | structural | semester | calibrated |  |  |
@@ -81,13 +83,13 @@ Columns: id · label · type (categories or range) · kind · update cadence · 
 | `home_lon` | Home longitude | f4 | attribute | event | calibrated |  |  |
 | `home_lat` | Home latitude | f4 | attribute | event | calibrated |  |  |
 | `city` | City of residence | cat: Provo, Orem, Other Utah County | structural | event | calibrated |  |  |
-| `neighborhood` | Neighborhood | u2 | attribute | event | calibrated |  |  |
+| `neighborhood` | Neighborhood | cat: Other, Brickyard, Carterville, Dixon, Downtown, East Bay, Edgemont, Foothills, Fort Utah, Franklin, Franklin South, Grandview North, Grandview South, Indian Hills, Joaquin, Lakeview North, Lakeview South, Lakewood, Maeser, North Park, North Timpview, Oak Hills, Pleasant View, Provo Bay, Provost, Provost South, Riverbottoms, Rivergrove, Riverside, Rock Canyon, Sherwood Hills, Spring Creek, Sunset, Timp, University, Wasatch, Aspen, Canyon View, Cascade, Cherry Hill, Geneva Heights, Heatheridge, Hillcrest, Lakeridge, Lakeview, Northridge, Orchard (Orem East), Orem North, Orem Park, Orem South, Sharon, Sharon Park, Stonewood, Suncrest, Sunset Heights East, Sunset Heights West, Timpview, Windsor | structural | event | observed | Provo City and Orem City official neighborhood boundaries (scripts/fetch_neighborhoods.py) | Official Provo or Orem neighborhood of the person's home (Other = outside both cities' neighborhood maps). |
 | `complex_id` | Housing complex / building | i4 | structural | event | calibrated |  |  |
 | `living` | Living situation | cat: dorm, contracted, apartment, house_share, with_parents, married_housing, family_home | structural | event | calibrated |  |  |
 | `dist_campus_km` | Distance to campus | f4 [0, 40] (km) | structural | event | calibrated |  |  |
 | `loc_lon` | Current longitude | f4 | state | hourly | calibrated |  |  |
 | `loc_lat` | Current latitude | f4 | state | hourly | calibrated |  |  |
-| `activity_now` | Current activity | cat: home, class, work, church, campus, gym, gathering, date, venue, outdoors, ward_activity, away | state | hourly | calibrated |  |  |
+| `activity_now` | Current activity | cat: home, class, work, church, campus, gym, gathering, date, venue, outdoors, ward_activity, away, club | state | hourly | calibrated |  |  |
 
 ## person · dating
 
@@ -144,6 +146,11 @@ Columns: id · label · type (categories or range) · kind · update cadence · 
 | `family_local` | Family lives in Utah County | bool | attribute | static | calibrated |  | Parents live locally (Utah-raised students more likely); enables weekend family visits, living at home, family religious expectation. |
 | `languages` | Languages spoken | u1 [1, 6] | attribute | static | empirical | provostats |  |
 | `height_in` | Height | f4 [56, 82] (inches) | attribute | static | empirical | provostats, dating | Height. Matters because many women report a minimum-height requirement for partners (Dating & ProvoStats surveys). |
+| `weight_lb` | Weight | f4 [80, 420] (lb) | attribute | static | extrapolated | CDC NHANES adult BMI distributions (approximate), Utah adult obesity below the US average | Body weight. Derived from BMI and height. |
+| `bmi` | Body-mass index | f4 [15, 55] (kg/m²) | attribute | static | extrapolated | CDC NHANES (approximate) | Body-mass index. Feeds weakly into perceived attractiveness (see attractiveness). |
+| `body_build` | Build | cat: slender, average, athletic, heavier | attribute | static | hypothetical |  | Plain-language body type for profiles and filters. |
+| `hair_color` | Hair color | cat: black, dark_brown, light_brown, blonde, red, gray | attribute | static | extrapolated |  | Descriptive only; does not drive behavior in the model. |
+| `eye_color` | Eye color | cat: brown, hazel, green, blue, gray | attribute | static | extrapolated |  | Descriptive only; does not drive behavior in the model. |
 | `role` | Primary role | cat: byu_student, uvu_student, young_adult, spouse, faculty, staff, community | attribute | event | calibrated |  | Primary structural role in the ecosystem. |
 | `present` | Present in Provo/Orem | bool | attribute | event | observed |  | True while the person is physically part of the simulated area (false before arrival, while serving a mission, after leaving). |
 | `arrival_day` | Arrival day | i4 | attribute | static | observed |  | Day the person enters the simulated area (pre-generated cohorts arrive on schedule). |
@@ -261,6 +268,10 @@ Columns: id · label · type (categories or range) · kind · update cadence · 
 | id | label | type | kind | update | evidence | source | description |
 |---|---|---|---|---|---|---|---|
 | `n_friends` | Friends | i2 [0, 200] | derived | weekly | calibrated |  | Ties at stage ≥ friend (accumulated ~80+ leisure-equivalent hours with mutual liking; after Hall 2019). |
+| `n_groups` | Clubs, teams & classes joined | u1 [0, 3] | state | semester | calibrated |  | How many weekly groups the person belongs to: a campus club, an intramural team, an institute class (0-3). |
+| `club_id` | Club | i4 [0, 1] | state | semester | calibrated |  | Campus club the person attends weekly (-1 none). Joining depends on extraversion and conscientiousness; less likely when married, parenting or working long hours. |
+| `team_id` | Intramural team | i4 [0, 1] | state | semester | calibrated |  | Intramural sports team (-1 none). BYU intramurals are large (~20% of students); fitness and extraversion raise joining. |
+| `institute_class` | Institute class | i4 [0, 1] | state | semester | hypothetical |  | Weekly Institute of Religion class at the Orem Institute next to UVU (-1 none): UVU Latter-day Saint students and young single adults. BYU students take religion classes on campus instead. |
 | `n_close_friends` | Close friends | i2 [0, 50] | derived | weekly | calibrated |  | Ties at stage close friend (~200+ hours, high closeness). |
 | `n_acquaintances` | Acquaintances | i2 [0, 2000] | derived | weekly | calibrated |  |  |
 | `degree` | Network degree | i2 [0, 3000] | derived | weekly | calibrated |  | Number of people the person recognizes (any tie with activation above threshold). |
@@ -308,7 +319,7 @@ Columns: id · label · type (categories or range) · kind · update cadence · 
 | `premarital_sex_current` | Sexually active (unmarried relationship) | bool [0, 4] | state | event | calibrated |  | Currently sexually active in an unmarried relationship. |
 | `porn_use` | Pornography use | u1 [0, 3] | habit | monthly | extrapolated |  | Pornography-use frequency. NOT measured in the supplied surveys — initialized from broad literature prevalence by sex and adjusted by religiosity; treat as extrapolated. |
 | `porn_incongruence` | Moral incongruence (porn) | f4 [0, 1] | state | weekly | literature |  | Distress from use that conflicts with one's moral beliefs (moral incongruence model; Grubbs et al. 2019). Feeds guilt and faith dissonance. |
-| `made_out_squaw_peak` | Made out at Squaw Peak | bool [0, 4] | history | event | empirical | provostats | A Provo cultural landmark (the overlook was renamed Kyhv Peak in 2022). ~14% of ProvoStats respondents said yes. |
+| `made_out_kyhv_peak` | Made out at Kyhv Peak | bool [0, 4] | history | event | empirical | provostats | A Provo cultural landmark (the overlook was renamed Kyhv Peak in 2022). ~14% of ProvoStats respondents said yes. |
 | `ever_cheated` | Has cheated on a partner | bool [0, 4] | history | event | empirical | provostats |  |
 | `ever_cheated_on` | Has been cheated on | bool [0, 4] | history | event | empirical | provostats |  |
 
@@ -337,7 +348,8 @@ Columns: id · label · type (categories or range) · kind · update cadence · 
 | `world.tuition_uvu` | UVU tuition (resident) | f4 (USD/semester) | state | yearly | calibrated |  | ≈$3k/semester full-time resident (approximate). |
 | `world.app_appeal` | Dating-app appeal multiplier | f4 | state | daily | calibrated |  | Scales app adoption/engagement (e.g. a new app takes off). |
 | `world.coffee_permitted` | Coffee permitted by church | bool | state | daily | hypothetical |  | Word of Wisdom norm switch (hypothetical intervention). |
-| `world.contracted_housing_required` | BYU contracted-housing requirement | bool | state | daily | calibrated |  |  |
+| `world.contracted_housing_required` | BYU contracted-housing requirement | bool | state | daily | calibrated |  | Single first-year BYU undergraduates must live on campus or in BYU-contracted housing (BYU policy since fall 2022: first two semesters only). |
+| `world.contracted_housing_all_years` | Contracted housing for all years (pre-2022 rule) | bool | state | daily | hypothetical |  | When true, the requirement covers every single BYU undergraduate, as it did before fall 2022. |
 | `world.mission_norm` | Mission participation norm | f4 | state | daily | calibrated |  | Multiplier on mission-departure hazard. |
 | `world.men_initiate_norm` | Men-ask norm strength | f4 | state | daily | calibrated |  | How strongly dating initiation is expected of men. |
 | `world.church_attendance_norm` | Church attendance norm multiplier | f4 | state | daily | calibrated |  |  |

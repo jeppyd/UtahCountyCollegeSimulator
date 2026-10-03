@@ -117,8 +117,8 @@ events:
       - {var: guilt, mag: 0.07, sd: 0.6, half_life: 7, mods: {chastity_commitment: 0.6, orthodoxy: 0.4, moral_autonomy: -0.5}}
       - {var: romantic_longing, mag: 0.02, sd: 0.8, half_life: 7, mods: {attachment_anxiety: 0.4}}
     evidence: hypothetical
-  squaw_peak:
-    label: Made out at Kyhv (Squaw) Peak
+  kyhv_peak:
+    label: Made out at Kyhv Peak
     story: "{a} and {b} made out at Kyhv Peak"
     category: romance
     salience: 0.65

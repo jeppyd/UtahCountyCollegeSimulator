@@ -136,6 +136,10 @@ def main():
 
     # ---- people
     extra = [r["id"] for rows in cmp.get("most_affected", {}).values() for r in rows[:6]]
+    featured = {u: get("/api/people/featured", u=u).json() for u in ("base", "alt")}
+    for u, rows in featured.items():
+        put(f"featured_{u}.json", rows)
+        extra += [r["id"] for r in rows]
     people = interesting_people(WS.base, a.people, extra)
     shard, shard_no = {}, 0
     for k, i in enumerate(people):
@@ -156,6 +160,19 @@ def main():
     put("events.json", {"total": len(ev), "events": ev})
     for u in ("base", "alt"):
         put(f"events_summary_{u}.json", get("/api/events/summary", u=u).json())
+
+    # ---- flows over time: one "start -> middle -> now" Sankey per tracked variable
+    for u in ("base", "alt"):
+        info = get("/api/history/info", u=u).json()
+        put(f"history_info_{u}.json", info)
+        snaps = [d for d in info["days"] if d < info["now"]]
+        days = sorted({0, snaps[len(snaps) // 2] if snaps else 0, info["now"]})
+        flows = {}
+        for var in info["categorical"]:
+            r = c.post("/api/flows", json={"var": var, "days": days, "u": u})
+            if r.status_code == 200:
+                flows[var] = r.json()
+        put(f"flows_{u}.json", flows)
 
     # ---- time series & mechanism terms (all groups)
     for kind, frame_fn in (("timeseries", "frame"), ("terms", "terms_frame")):

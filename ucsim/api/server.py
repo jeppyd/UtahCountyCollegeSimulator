@@ -26,7 +26,7 @@ from ..analysis.person import headline, profile, synthetic_name
 from ..analysis.query import describe_filter, evaluate_filter
 from ..engine import runner
 from ..engine.interventions import load_presets
-from ..engine.state import CTX
+from ..engine.state import CTX, Tie
 from ..registry import get_registry
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -757,14 +757,22 @@ def institution(kind: str, iid: int, u: str = "base"):
 
 
 @app.get("/api/network/sample")
-def network_sample(u: str = "base", min_stage: int = 3, max_nodes: int = 1500, filter: str = ""):
-    """A sampled friendship graph for the network view (cohort-filterable)."""
+def network_sample(u: str = "base", min_stage: int = 3, max_nodes: int = 1500, filter: str = "", tie: str = ""):
+    """A sampled friendship graph for the network view (cohort-filterable; `tie` keeps one kind of tie,
+    e.g. roommate, classmate, ward, clubmate, teammate, romantic)."""
     sim = WS.sim(u)
     with WS.lock:
         P, E = sim.w.P, sim.w.E
         mask = evaluate_filter(sim.w, json.loads(filter) if filter else None, sim)
         lo, hi = E.endpoints()
-        m = (E["stage"] >= min_stage) & mask[lo] & mask[hi]
+        m = mask[lo] & mask[hi]
+        if tie == "romantic":
+            m &= (E["flags"] & (Tie.ROMANTIC | Tie.SPOUSE)) > 0
+        elif tie:
+            bit = next((b for b, nm in Tie.NAMES.items() if nm == tie), 0)
+            m &= ((E["flags"] & bit) > 0) & (E["stage"] >= min_stage)
+        else:
+            m &= E["stage"] >= min_stage
         idx = np.where(m)[0]
         nodes = np.unique(np.r_[lo[idx], hi[idx]])
         if len(nodes) > max_nodes:

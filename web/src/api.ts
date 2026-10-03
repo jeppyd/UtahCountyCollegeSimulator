@@ -180,9 +180,9 @@ export const api = {
     if (STATIC) { const all = await j(`${D}/institutions_${u}.json`); const r = all[`${kind}:${id}`]; if (!r) throw new Error('not in static export'); return r }
     return j(`/api/institution/${kind}/${id}?u=${u}`)
   },
-  async networkSample(filter: any | null, minStage = 3, maxNodes = 1500, u: Universe = 'base') {
+  async networkSample(filter: any | null, minStage = 3, maxNodes = 1500, u: Universe = 'base', tie = '') {
     if (STATIC) return j(`${D}/network_sample_${u}.json`)
-    return j(`/api/network/sample?u=${u}&min_stage=${minStage}&max_nodes=${maxNodes}&filter=${encodeURIComponent(filter ? JSON.stringify(filter) : '')}`)
+    return j(`/api/network/sample?u=${u}&min_stage=${minStage}&max_nodes=${maxNodes}&tie=${tie}&filter=${encodeURIComponent(filter ? JSON.stringify(filter) : '')}`)
   },
   async origins(romantic = false, u: Universe = 'base') {
     if (STATIC) return j(`${D}/origins_${romantic ? 'romantic' : 'friends'}_${u}.json`)

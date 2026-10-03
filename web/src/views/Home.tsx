@@ -22,12 +22,14 @@ const QUESTIONS: Record<string, Q[]> = {
   'Friends & wellbeing': [
     { q: 'Who is lonely, and why?', how: 'The loneliest 20%, what makes them lonely, and example lives', cohort: [{ var: 'loneliness', op: 'quantile_ge', value: 0.8 }], route: ['explore', 'loneliness'] },
     { q: 'Which apartment complexes are the loneliest?', how: 'Complexes on the map, colored by average loneliness', route: ['map', 'complexes:loneliness'] },
+    { q: 'Do clubs and intramural teams make people less lonely?', how: 'Loneliness by how many clubs, teams and institute classes people join', route: ['explore', 'loneliness', '', 'n_groups'] },
     { q: 'Do introverts have fewer close friends?', how: 'Extraversion vs. number of close friends', route: ['explore', 'extraversion', 'n_close_friends'] },
     { q: 'What does a breakup do to someone?', how: 'People broken up with in the last 90 days: their mood and why', cohort: [{ recent_event: 'breakup_received', days: 90 }], route: ['explore', 'mood'] },
   ],
   'Money & housing': [
     { q: 'Who is struggling financially?', how: 'Financial stress by school', route: ['explore', 'financial_stress', '', 'school'] },
     { q: 'Where is rent the biggest burden?', how: 'Homes on the map, colored by share of income going to rent', route: ['map', 'homes:rent_burden'] },
+    { q: 'Which neighborhoods do students live in?', how: 'Official Provo and Orem neighborhoods by school', route: ['crosstab', 'neighborhood', 'school'] },
     { q: 'How do people\'s living situations change?', how: 'Flows between dorms, apartments, married housing and home', route: ['flows', 'living'] },
   ],
   'What if…?': [

@@ -8,6 +8,7 @@ import numpy as np
 import polars as pl
 
 from ..engine.state import CTX_ID, EdgeStore, PersonTable, Tie
+from ..geo import neighborhoods
 
 GEO = Path(__file__).resolve().parents[1] / "geo" / "data"
 BYU = (-111.6493, 40.2500)
@@ -35,6 +36,7 @@ class Units:
     quality: np.ndarray
     kind_src: np.ndarray            # dwelling kind code: 0 house 1 small_multi 2 apartment 3 mobile 4 dorm 5 married
     occupants: list = field(default_factory=list)
+    nbhd: np.ndarray | None = None  # official Provo/Orem neighborhood code (0 = other)
 
     def __len__(self):
         return len(self.lon)
@@ -118,7 +120,8 @@ def build_units(scale: float, rng: np.random.Generator) -> tuple[Units, pl.DataF
     units = Units(lon=lon, lat=lat, capacity=cap.astype(np.uint8), rent_total=np.zeros(m, np.float32),
                   contracted=contracted.astype(bool), sex_restriction=np.zeros(m, np.uint8),
                   married_only=married_only, unit_type=utype.astype(np.uint8), complex_id=cid.astype(np.int32),
-                  city=city.astype(np.int8), quality=quality, kind_src=k.astype(np.int8))
+                  city=city.astype(np.int8), quality=quality, kind_src=k.astype(np.int8),
+                  nbhd=neighborhoods.locate(lon, lat))
     return units, cx
 
 

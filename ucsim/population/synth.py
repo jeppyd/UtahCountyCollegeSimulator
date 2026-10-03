@@ -288,7 +288,7 @@ class Synthesizer:
         put("n_kissed", np.round(np.nan_to_num(ps["n_kissed"], nan=3)).astype(np.int16))
         put("n_ncmo", np.round(np.nan_to_num(ps["n_ncmo"], nan=0)).astype(np.int16))
         put("n_sex_partners", np.round(np.nan_to_num(ps["n_sex_partners"], nan=0)).astype(np.int16))
-        put("made_out_squaw_peak", np.nan_to_num(ps["squaw_peak_makeout"]) > 0.5)
+        put("made_out_kyhv_peak", np.nan_to_num(ps["squaw_peak_makeout"]) > 0.5)
         put("ever_cheated", np.nan_to_num(ps["ever_cheated"]) > 0.5)
         put("ever_cheated_on", np.nan_to_num(ps["ever_cheated_on"]) > 0.5)
         put("n_relationships", np.round(np.nan_to_num(ps["n_relationships"], nan=1)).astype(np.int16))

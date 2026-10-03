@@ -247,6 +247,7 @@ def build_world(scale: float | None = None, seed: int = 1, verbose: bool = False
     P["home_lat"] = np.where(has, units.lat[u] + jitter(P.n), BYU[1] + rng.normal(0, 0.03, P.n))
     P["complex_id"] = np.where(has, units.complex_id[u], -1)
     P["city"] = np.where(has, units.city[u], 2).astype(np.uint8)
+    P["neighborhood"] = np.where(has, units.nbhd[u], 0).astype(np.uint8)
     adults = np.maximum(occupants[u], 1)
     share = np.where(units.unit_type[u] == 0, unit_rent[u] / units.capacity[u], unit_rent[u] / adults)
     share = np.where(married & has, unit_rent[u] / 2, share)

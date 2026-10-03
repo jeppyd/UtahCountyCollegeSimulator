@@ -54,9 +54,9 @@ export default function Guide({ section }: { section?: string }) {
               <Layer c="--s4" name="World" small={`${n('world')} measures`} go={() => setRoute(['variables'])}
                 body="Economy, unemployment, rents and housing supply, tuition, the academic calendar, weather, and cultural norms (mission norm, men-ask norm, church attendance norm, whether coffee is allowed). What-if experiments mostly change things here." />
               <Layer c="--s2" name="Places" small="real geography" go={() => setRoute(['map'])}
-                body="Real Provo/Orem streets and buildings: about 63,000 homes, 533 apartment complexes (dorms, contracted student housing, married housing), 151 LDS meetinghouses, 712 restaurants, parks, gyms, theaters and trailheads, plus the BYU and UVU campuses." />
+                body="Real Provo/Orem streets and buildings: about 63,000 homes and 590 apartment complexes (about 200 with their real names from OpenStreetMap and BYU's contracted-housing list, plus the dorms and married housing), 151 LDS meetinghouses, 712 restaurants, parks, gyms, theaters and trailheads, plus the BYU and UVU campuses." />
               <Layer c="--s7" name="Groups" small="where people meet" go={() => setRoute(['places'])}
-                body="Households and roommates, wards and FHE groups, class sections, workplaces, gatherings in apartments, and dating apps. Being in the same group is how people get the chance to meet." />
+                body="Households and roommates, wards and FHE groups, class sections, workplaces, clubs, intramural teams, institute classes, gatherings in apartments, and dating apps. Being in the same group is how people get the chance to meet." />
               <Layer c="--s3" name="Relationships" small={`${n('edge')} measures per tie`} go={() => setRoute(['network'])}
                 body="Every pair who has met is a tie with its own history: familiarity, liking, closeness, trust, conflict, attraction in each direction, hours together, how and where they met, and who introduced them." />
               <Layer c="--s1" name="People" small={`${person.length} measures each`} go={() => setRoute(['people'])}
@@ -87,7 +87,7 @@ export default function Guide({ section }: { section?: string }) {
           <Sec id="relationships" title="How relationships form" lede="Compatibility matters only once people actually meet. Opportunity comes first.">
             <div className="card" style={{ marginBottom: 10 }}>
               <h3>Friendship</h3>
-              <p className="small secondary">People who share a place (apartment, class, ward, FHE group, job, gym, a party) bump into each other. Each encounter builds familiarity, which fades if they stop seeing each other. Similarity, personality, mood and a bit of chemistry make each meeting go well or badly. Enough good hours together turns acquaintances into friends: research suggests about 50 hours for a casual friend and 200+ for a close friend.</p>
+              <p className="small secondary">People who share a place (apartment, class, ward, FHE group, job, club, intramural team, institute class, gym, a party) bump into each other. Each encounter builds familiarity, which fades if they stop seeing each other. Similarity, personality, mood and a bit of chemistry make each meeting go well or badly. Enough good hours together turns acquaintances into friends: research suggests about 50 hours for a casual friend and 200+ for a close friend.</p>
               <div className="ladder"><span className="rung">same place</span>→<span className="rung">acquaintance</span>→<span className="rung">casual friend</span>→<span className="rung">friend</span>→<span className="rung">close friend</span></div>
             </div>
             <div className="card">

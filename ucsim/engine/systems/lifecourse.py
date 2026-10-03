@@ -86,7 +86,11 @@ class LifeCourse:
         cfg = w.cfg["flows"]
         s = w.scale * w.env.get("enrollment_index", 1.0)
         rng = np.random.default_rng([w.seed, 502, w.day])
-        nb = int(round(cfg["byu_freshmen"] * s))
+        # Admissions: BYU's enrollment is capped by its board, so the incoming class fills the gap to the
+        # target; UVU (open enrollment) closes only half of any gap. Keeps multi-year runs at realistic size.
+        pop = w.cfg["population"]
+        nb = self._intake("BYU", cfg["byu_freshmen"] * s, pop["byu"]["students"] * s, 1.0)
+        nu = self._intake("UVU", cfg["uvu_new_students"] * s, pop["uvu"]["students"] * s, 0.5)
         women = rng.random(nb) < 0.5
         rm_men = ~women & (rng.random(nb) < 0.32)
         age = np.where(women, rng.uniform(17.9, 18.9, nb), np.where(rm_men, rng.uniform(20.5, 21.5, nb), rng.uniform(17.9, 18.9, nb)))
@@ -98,7 +102,6 @@ class LifeCourse:
         P.cols["mission_status"][ids] = np.where(rm_men[: len(ids)], P.code("mission_status", "returned"), P.code("mission_status", "none"))
         P.cols["n_kissed"][ids] = np.minimum(P["n_kissed"][ids], rng.integers(0, 6, len(ids)))
         P.cols["n_sex_partners"][ids] = np.where(rng.random(len(ids)) < 0.9, 0, P["n_sex_partners"][ids])
-        nu = int(round(cfg["uvu_new_students"] * s))
         ids2 = self._new_people("uvu_student", nu, "UVU", {"age": rng.uniform(17.9, 22, nu), "_tag": 2},
                                 arrive_days=w.day + rng.integers(0, 4, nu))
         P.cols["class_standing"][ids2] = P.code("class_standing", "freshman")
@@ -114,6 +117,20 @@ class LifeCourse:
         P.cols["class_standing"][ids3] = P.code("class_standing", "freshman")
         P.cols["credits_done"][ids3] = rng.uniform(0, 30, nr)
         sim.systems["activity"].assign_shifts(np.r_[ids, ids2, ids3])
+
+    def _intake(self, school: str, base: float, target: float, gain: float) -> int:
+        """Size of this fall's new class: the configured flow, adjusted toward the enrollment target."""
+        w = self.sim.w
+        P, day = w.P, w.day
+        n = P.n
+        role = P.code("role", "byu_student" if school == "BYU" else "uvu_student")
+        mine = (P["role"] == role) & (P["school"] == P.code("school", school)) & ~P["graduated"] & (P["departure_day"] < 0)
+        serving = P.is_("mission_status", "serving")
+        back_by_fall = serving & (P.internal["mission_return_day"][:n] <= day + 30)
+        arriving = ~P["present"] & (P.internal["arrive_day"][:n] >= day) & (P.internal["arrive_day"][:n] <= day + 30)
+        continuing = int((mine & ((P["present"] & ~serving) | back_by_fall | (arriving & ~serving))).sum())
+        want = base + gain * (target - continuing - base)
+        return int(round(np.clip(want, 0.5 * base, 2.0 * base)))
 
     def _arrive(self, ids, event="arrival", cause=None):
         sim, w = self.sim, self.sim.w

@@ -10,6 +10,43 @@ variables:
     update: weekly
     derived: true
     desc: Ties at stage ≥ friend (accumulated ~80+ leisure-equivalent hours with mutual liking; after Hall 2019).
+  n_groups:
+    label: Clubs, teams & classes joined
+    dtype: u1
+    kind: state
+    range: [0, 3]
+    update: semester
+    group: groups
+    evidence: calibrated
+    desc: "How many weekly groups the person belongs to: a campus club, an intramural team, an institute class (0-3)."
+    flags: [filter, chart, map, timeseries]
+  club_id:
+    label: Club
+    dtype: i4
+    kind: state
+    update: semester
+    group: groups
+    evidence: calibrated
+    desc: "Campus club the person attends weekly (-1 none). Joining depends on extraversion and conscientiousness; less likely when married, parenting or working long hours."
+    flags: []
+  team_id:
+    label: Intramural team
+    dtype: i4
+    kind: state
+    update: semester
+    group: groups
+    evidence: calibrated
+    desc: "Intramural sports team (-1 none). BYU intramurals are large (~20% of students); fitness and extraversion raise joining."
+    flags: []
+  institute_class:
+    label: Institute class
+    dtype: i4
+    kind: state
+    update: semester
+    group: groups
+    evidence: hypothetical
+    desc: "Weekly Institute of Religion class at the Orem Institute next to UVU (-1 none): UVU Latter-day Saint students and young single adults. BYU students take religion classes on campus instead."
+    flags: []
   n_close_friends:
     label: Close friends
     dtype: i2

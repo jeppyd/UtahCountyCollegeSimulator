@@ -94,6 +94,9 @@ class Network:
         # forgetting: drop weak, unflagged ties whose memory activation decayed
         keep_flags = Tie.ROMANTIC | Tie.SPOUSE | Tie.FAMILY | Tie.EX | Tie.DATED | Tie.KISSED | Tie.NCMO | Tie.SEXUAL
         forget = (new_stage <= 1) & (fam < p("network.forget.activation")) & ((flags & keep_flags) == 0)
+        # acquaintances of people who have left the area for good are not tracked further (keeps long runs lean)
+        gone = (~P["present"]) & (P["departure_day"] >= 0)
+        forget |= (new_stage <= 2) & (gone[lo] | gone[hi]) & ((flags & keep_flags) == 0)
         if forget.any():
             E.remove(forget)
         # derived per-person metrics

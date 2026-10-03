@@ -1,5 +1,5 @@
 import { MapboxOverlay } from '@deck.gl/mapbox'
-import { GeoJsonLayer, LineLayer, ScatterplotLayer, SolidPolygonLayer } from '@deck.gl/layers'
+import { GeoJsonLayer, LineLayer, PolygonLayer, ScatterplotLayer, SolidPolygonLayer } from '@deck.gl/layers'
 import maplibregl from 'maplibre-gl'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { cohortMask, fmt, quantile } from '../analysis'
@@ -53,6 +53,8 @@ export default function MapView({ initial }: { initial?: string }) {
   const [showRoads, setShowRoads] = useState(true)
   const [showBldg, setShowBldg] = useState(true)
   const [showVenues, setShowVenues] = useState(false)
+  const [showNbhd, setShowNbhd] = useState(false)
+  const [nbhds, setNbhds] = useState<any[]>([])
   const [highlight, setHighlight] = useState(true)
   const [buildings, setBuildings] = useState<any[] | null>(null)
   const [roads, setRoads] = useState<any>(null)
@@ -85,6 +87,7 @@ export default function MapView({ initial }: { initial?: string }) {
     loadBuildings().then(setBuildings).catch(() => {})
     fetch(api.geo('roads.json')).then(r => r.json()).then(setRoads).catch(() => {})
     fetch(api.geo('cities.json')).then(r => r.json()).then(setCities).catch(() => {})
+    fetch(api.geo('neighborhoods.json')).then(r => r.json()).then((d: any[]) => setNbhds(d.flatMap(n => n.rings.map((ring: any) => ({ name: n.name, city: n.city, ring }))))).catch(() => {})
     api.venues().then(setVenues).catch(() => {})
   }, [])
 
@@ -158,6 +161,7 @@ export default function MapView({ initial }: { initial?: string }) {
     if (!basemap && cities) layers.push(new GeoJsonLayer({ id: 'cities', data: cities, stroked: true, filled: false, getLineColor: [...mutedC, 90], lineWidthMinPixels: 1 }))
     if (showBldg && buildings) layers.push(new SolidPolygonLayer({ id: 'bldg', data: buildings, getPolygon: (d: any) => d, getFillColor: [...bldg, basemap ? 120 : 255], pickable: false }))
     if (showRoads && roads && !basemap) layers.push(new GeoJsonLayer({ id: 'roads', data: roads, stroked: true, filled: false, getLineColor: [...road, 255], getLineWidth: (f: any) => (f.properties.c === 1 ? 2.2 : 1), lineWidthUnits: 'pixels' }))
+    if (showNbhd && nbhds.length) layers.push(new PolygonLayer({ id: 'nbhd', data: nbhds, getPolygon: (d: any) => d.ring, stroked: true, filled: true, getFillColor: [...hexRgb(cssVar('--s1')), 14], getLineColor: [...hexRgb(cssVar('--s1')), 170], lineWidthMinPixels: 1.2, pickable: true, autoHighlight: true, highlightColor: [...hexRgb(cssVar('--s1')), 50], onHover: (i: any) => setHover(i.object ? { x: i.x, y: i.y, html: `<b>${i.object.name}</b><br/>${i.object.city} neighborhood` } : null) }))
     if (showVenues) layers.push(new ScatterplotLayer({ id: 'venues', data: venues, getPosition: (d: any) => [d.lon, d.lat], getRadius: 5, radiusUnits: 'pixels', getFillColor: [...hexRgb(cssVar('--s4')), 230], stroked: true, getLineColor: [255, 255, 255, 200], lineWidthMinPixels: 1, pickable: true, onHover: (i: any) => setHover(i.object ? { x: i.x, y: i.y, html: `<b>${i.object.name}</b><br/>${i.object.vtype.replace('_', ' ')}` } : null) }))
     if ((mode === 'people' || mode === 'homes') && pts && colorFn) {
       const idx: number[] = []
@@ -195,7 +199,7 @@ export default function MapView({ initial }: { initial?: string }) {
       layers.push(new LineLayer({ id: 'ego', data: ego, getSourcePosition: (d: any) => d.from, getTargetPosition: (d: any) => d.to, getColor: (d: any) => (d.romantic ? [...hexRgb(cssVar('--s5')), 255] : [...hexRgb(cssVar('--s7')), d.stage >= 3 ? 200 : 90]), getWidth: (d: any) => (d.romantic ? 3 : d.stage >= 4 ? 2 : 1), widthUnits: 'pixels' }))
     }
     overlay.current.setProps({ layers })
-  }, [buildings, roads, cities, venues, pts, colorFn, places, mode, showRoads, showBldg, showVenues, highlight, ego, basemap, cohort.length])
+  }, [buildings, roads, cities, venues, pts, colorFn, places, mode, showRoads, showBldg, showVenues, showNbhd, nbhds, highlight, ego, basemap, cohort.length])
 
   const legend = colorFn?.legend
   return (
@@ -227,6 +231,7 @@ export default function MapView({ initial }: { initial?: string }) {
           <label className="inline"><input type="checkbox" checked={showRoads} onChange={e => setShowRoads(e.target.checked)} />roads</label>
           <label className="inline"><input type="checkbox" checked={showBldg} onChange={e => setShowBldg(e.target.checked)} />buildings</label>
           <label className="inline"><input type="checkbox" checked={showVenues} onChange={e => setShowVenues(e.target.checked)} />venues</label>
+          <label className="inline"><input type="checkbox" checked={showNbhd} onChange={e => setShowNbhd(e.target.checked)} />neighborhoods</label>
         </div>
         <div style={{ marginTop: 10 }}><CohortBar /></div>
         {selected !== null && (

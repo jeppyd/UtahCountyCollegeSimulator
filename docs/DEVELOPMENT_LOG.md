@@ -40,3 +40,37 @@ universes → analysis/API → workstation → tests, validation, docs, static e
 
 **UI checks**: every route rendered in headless Chromium with no console errors; the network view
 switched to snowball sampling (clusters instead of stars) and the causal web to a concentric layout.
+
+## Iteration 2
+
+**Decisions with the project owner**: main uses are what-if experiments, research questions and following
+individual lives; a guided Home; priorities are flows over time and a richer life model; a Simple/Advanced
+language switch; more real-world detail (complex names and locations, real majors, physical traits). The
+LLM layer stays deferred.
+
+**What changed**
+- UX: guided Home ("this week in Provo", vital signs, question gallery, people to follow), Field guide
+  (layers, what a person is made of, how relationships and feelings work, time, evidence, glossary),
+  task-based navigation, page headers with how-to tips, plain-language event stories, Follow, what-if wizard
+  with plain-language results and saved experiments, network tie-type filter.
+- Flows: `engine/systems/history.py` snapshots categorical and numeric state every 14 days; Sankey and
+  transition tables; `transition` cohort condition; cohort-vs-everyone trajectories.
+- Real-world detail: OSM outlines + BYU's official contracted list (address-matched) name ~200 complexes;
+  Provo/Orem official neighborhoods; BYU 2025-26 and UVU catalog majors; height/weight/BMI/build/hair/eyes
+  (attractiveness now tied to fitness and BMI); the Kyhv Peak overlook uses its current name.
+- Life model: clubs, intramural teams and institute classes as weekly contexts (new tie types and
+  "where they met" origins).
+
+**Calibration notes**
+- Dating couples broke up ~20%/month → breakup base −2.0 → −2.8 (~10%/month).
+- Survey ages skew young, so 42% of BYU singles were freshmen → credits re-banded to the published class mix.
+- Contracted housing applied to all undergrads → first-year only (BYU policy since 2022); a what-if restores
+  the old rule.
+- Four-year run: BYU enrollment settled at ~60% of target (half of the re-banded seniors graduated in
+  December; intake was fixed) → per-person credit requirement (120-135) and an admissions controller
+  (BYU fills to its cap; UVU closes half the gap). Ties to people who left for good are now forgotten.
+- Asking-out base −4.0 → −4.5 after clubs added new meeting places (dates per month drifted up).
+
+**Bugs found**: Heritage Court (a south-Provo complex) matched "Heritage Halls" by first word; BYU students
+placed in "food retail" jobs at intramural fields; boolean masks over preallocated columns in the groups
+system; weddings listed twice in the Home feed.

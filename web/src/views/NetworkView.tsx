@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fmt, histogram, values, useCohortData } from '../analysis'
-import { api } from '../api'
+import { api, STATIC } from '../api'
 import { axisStyle, CohortBar, cssVar, EChart, Loading } from '../components'
 import { CyGraph } from '../graph'
 import { useStore } from '../store'
@@ -13,17 +13,22 @@ const COLOR_BY: Record<string, { label: string; cats: string[] }> = {
   rel: { label: 'Relationship', cats: ['single', 'talking', 'dating', 'engaged', 'married', 'divorced'] },
 }
 
+const TIES: [string, string][] = [['', 'all ties'], ['roommate', 'roommates'], ['classmate', 'classmates'], ['coworker', 'coworkers'],
+  ['ward', 'ward members'], ['fhe', 'FHE group'], ['neighbor', 'neighbors'], ['clubmate', 'club members'], ['teammate', 'intramural teammates'],
+  ['institute', 'institute classmates'], ['introduced', 'met through a friend'], ['romantic', 'couples']]
+
 export default function NetworkView() {
   const { cohort, universe, dataVersion, setRoute } = useStore()
   const [g, setG] = useState<any>(null)
   const [by, setBy] = useState('activity')
   const [maxN, setMaxN] = useState(600)
   const [stage, setStage] = useState(3)
+  const [tie, setTie] = useState('')
   const deg = useCohortData(['n_friends', 'n_close_friends', 'degree'])
   useEffect(() => {
     setG(null)
-    api.networkSample(cohort.length ? { and: cohort } : null, stage, maxN, universe).then(setG).catch(() => setG({ nodes: [], edges: [] }))
-  }, [JSON.stringify(cohort), universe, dataVersion, maxN, stage])
+    api.networkSample(cohort.length ? { and: cohort } : null, stage, maxN, universe, tie).then(setG).catch(() => setG({ nodes: [], edges: [] }))
+  }, [JSON.stringify(cohort), universe, dataVersion, maxN, stage, tie])
   const { elements, homophily } = useMemo(() => {
     if (!g) return { elements: [], homophily: null }
     const pal = [1, 2, 3, 4, 5, 6].map(k => cssVar(`--s${k}`))
@@ -60,7 +65,8 @@ export default function NetworkView() {
           <div className="row" style={{ marginBottom: 8 }}>
             <span className="small muted">Color by</span>
             <div className="seg">{Object.entries(COLOR_BY).map(([k, v]) => <button key={k} className={by === k ? 'on' : ''} onClick={() => setBy(k)}>{v.label}</button>)}</div>
-            <select value={stage} onChange={e => setStage(Number(e.target.value))}><option value={2}>casual friends+</option><option value={3}>friends+</option><option value={4}>close friends</option></select>
+            <select value={tie} onChange={e => { setTie(e.target.value); setStage(e.target.value ? 1 : 3) }} disabled={STATIC} title="Show only one kind of tie">{TIES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+            <select value={stage} onChange={e => setStage(Number(e.target.value))} disabled={tie === 'romantic'}><option value={1}>everyone they've met</option><option value={2}>casual friends+</option><option value={3}>friends+</option><option value={4}>close friends</option></select>
             <select value={maxN} onChange={e => setMaxN(Number(e.target.value))}>{[300, 600, 1000, 1500].map(n => <option key={n} value={n}>{n} nodes</option>)}</select>
           </div>
           {g ? <CyGraph elements={elements} height={620} layout={{ name: 'cose', animate: false, nodeRepulsion: 6000, idealEdgeLength: 30, numIter: 600, randomize: true }} onTap={id => setRoute(['person', id])} /> : <Loading what="Sampling the network" />}

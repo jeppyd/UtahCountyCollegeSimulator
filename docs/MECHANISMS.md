@@ -933,7 +933,7 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Inputs**: `edge.attraction_lh`, `dating_motivation`, `self_esteem`, `rejection_sensitivity`, `rejections_recent`, `sex`, `dating_propensity`, `asks_for_numbers`
 - **Moderators**: `rejection_sensitivity`
 - **Form**: P/day = logistic(base + βa·attraction + βm·motivation + βc·confidence − βrs·RS⁺·log(1+recent rejections) ± βmale·norm + βp·log(propensity)) × weekday factor
-- **Parameters**: `base` = -4.0 (range -5.5–-2.5); `attraction` = 2.5 (range 1–4); `motivation` = 1.5 (range 0.5–2.5); `confidence` = 1.0 (range 0.3–2.0); `rejection_sensitivity` = 0.6 (range 0.2–1.2); `male` = 1.0 (range 0.3–1.8); `propensity` = 0.6 (range 0.2–1.0); `min_attraction` = 0.25 (range 0.1–0.4)
+- **Parameters**: `base` = -4.5 (range -5.5–-2.5); `attraction` = 2.5 (range 1–4); `motivation` = 1.5 (range 0.5–2.5); `confidence` = 1.0 (range 0.3–2.0); `rejection_sensitivity` = 0.6 (range 0.2–1.2); `male` = 1.0 (range 0.3–1.8); `propensity` = 0.6 (range 0.2–1.0); `min_attraction` = 0.25 (range 0.1–0.4)
 - **Notes**: Repeated rejection matters non-linearly — the log of recent rejections multiplies rejection sensitivity.
 - *Ref*: Dating survey: most agree men should make the first move
 - *Ref*: ProvoStats: dates per month by sex/relationship/activity
@@ -1027,7 +1027,7 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Target**: `rel_status`
 - **Inputs**: `relationship_commitment`, `edge.conflict`; other inputs: religious mismatch
 - **Form**: weekly h = logistic(base − βc·commitment + βm·mismatch + 1.5·conflict); ×0.25 engaged; ×married_mult married. Initiator = less-attracted partner.
-- **Parameters**: `base` = -2.0 (range -3.5–-1.0); `commitment` = 3.5 (range 2.0–5.0); `religious_mismatch` = 2.0 (range 0.5–3.0); `married_mult` = 0.03 (range 0.01–0.08)
+- **Parameters**: `base` = -2.8 (range -3.8–-1.5); `commitment` = 3.5 (range 2.0–5.0); `religious_mismatch` = 2.0 (range 0.5–3.0); `married_mult` = 0.03 (range 0.01–0.08)
 - *Ref*: Rusbult (1980, 1983): investment model of commitment
 
 ### `romance.engage` — Engagement & wedding timing
@@ -1132,7 +1132,7 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Target**: `social_hours_week`
 - **Inputs**: `activity_now`
 - **Form**: Attempts per person per block ~ Poisson(rate[context] × sociability)
-- **Parameters**: `unit` = 1.6 (range 0.8–2.5); `complex` = 0.3 (range 0.1–0.6); `class` = 0.6 (range 0.2–1.2); `ward` = 1.2 (range 0.5–2.0); `fhe` = 2.0 (range 1.0–3.0); `work` = 1.0 (range 0.4–1.6); `gym` = 0.15 (range 0.05–0.4); `venue` = 0.12 (range 0.05–0.3); `gathering` = 2.5 (range 1.5–4.0); `campus` = 0.12 (range 0.05–0.3); `dance` = 1.2 (range 0.5–2.0); `outdoors` = 0.2 (range 0.05–0.5)
+- **Parameters**: `unit` = 1.6 (range 0.8–2.5); `complex` = 0.3 (range 0.1–0.6); `class` = 0.6 (range 0.2–1.2); `ward` = 1.2 (range 0.5–2.0); `fhe` = 2.0 (range 1.0–3.0); `work` = 1.0 (range 0.4–1.6); `gym` = 0.15 (range 0.05–0.4); `venue` = 0.12 (range 0.05–0.3); `gathering` = 2.5 (range 1.5–4.0); `campus` = 0.12 (range 0.05–0.3); `dance` = 1.2 (range 0.5–2.0); `outdoors` = 0.2 (range 0.05–0.5); `club` = 1.1 (range 0.5–1.8); `team` = 1.6 (range 0.8–2.4); `institute` = 0.8 (range 0.3–1.4)
 - **Notes**: Opportunity structure — whom a person can meet depends on where they are.
 - *Ref*: Festinger, Schachter & Back (1950): propinquity in student housing
 - *Ref*: Kossinets & Watts (2006) Science: shared foci (classes) drive tie formation
@@ -1237,7 +1237,7 @@ Events push states with decaying effects (half-life in days) and carry causal pa
 | `first_kiss_with` Kissed someone new | romance | 0.6 | mood: +0.06, 5; romantic_longing: -0.08, 14; guilt: +0.02, 5 | hypothetical |
 | `first_kiss_ever` First kiss ever | romance | 0.9 | mood: +0.1, 10; self_esteem: +0.06, 30 | hypothetical |
 | `ncmo` NCMO (non-committal make-out) | romance | 0.55 | mood: +0.04, 2; guilt: +0.07, 7; romantic_longing: +0.02, 7 | hypothetical |
-| `squaw_peak` Made out at Kyhv (Squaw) Peak | romance | 0.65 | mood: +0.05, 3 | observed |
+| `kyhv_peak` Made out at Kyhv Peak | romance | 0.65 | mood: +0.05, 3 | observed |
 | `talking_started` Started "talking" (mutual interest) | romance | 0.45 | mood: +0.04, 7; romantic_longing: -0.1, 20 | calibrated |
 | `relationship_started` Became exclusive (DTR) | romance | 0.85 | mood: +0.08, 21; loneliness: -0.08, 30; romantic_longing: -0.2, 60; self_esteem: +0.04, 30 | literature |
 | `breakup_initiated` Ended a relationship | romance | 0.85 | mood: -0.06, 10; guilt: +0.04, 10; stress: +0.04, 7 | literature |

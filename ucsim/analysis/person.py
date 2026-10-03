@@ -83,6 +83,7 @@ def profile(sim, i: int) -> dict:
         "home": {"lon": float(P["home_lon"][i]), "lat": float(P["home_lat"][i]), "complex": complex_name,
                  "living": _val(P, "living", i), "rent": float(P["rent"][i])},
         "ward": {"id": ward, "kind": str(w.wards["kind"][ward])} if ward >= 0 else None,
+        "groups": groups_of(w, P, i),
         "employer": {"id": emp, "name": str(w.employers["name"][emp]), "type": str(w.employers["type"][emp])} if emp >= 0 else None,
         "timeline": timeline,
         "why": why,
@@ -91,6 +92,15 @@ def profile(sim, i: int) -> dict:
         "exposures": exposures,
         "now": {"activity": _val(P, "activity_now", i), "lon": float(np.nan_to_num(P["loc_lon"][i])), "lat": float(np.nan_to_num(P["loc_lat"][i]))},
     }
+
+
+def groups_of(w, P, i: int) -> list[dict]:
+    G = w.groups
+    out = []
+    for col, label in (("club_id", "Club"), ("team_id", "Team"), ("institute_class", "Institute class")):
+        if col in P and G and int(P[col][i]) >= 0:
+            out.append({"kind": col, "label": label, "id": int(P[col][i]), "name": G["name"][int(P[col][i])]})
+    return out
 
 
 def _named(net: dict, P) -> dict:

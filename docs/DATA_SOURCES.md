@@ -28,8 +28,11 @@ survey linkage uses only shared bridge variables (sex, religion, activity, age, 
 
 ## Institutional & market figures (`ucsim/config/world.yaml`)
 
-Approximate, labeled `(approx)` or `(assumption)` in the file: BYU daytime enrollment (~33.5k), share
-married (~25%), LDS share; in-scope UVU population (15k of ~45k) and its married/LDS shares; incoming
+Fall 2025 headcounts: BYU 37,337 (modeled 35,000 daytime, in-residence) and UVU 48,670 (16,000 in scope).
+Class mix follows the published shape (BYU ~17% freshmen, 33% seniors, 9% graduate). Contracted housing:
+BYU's rule covers single undergraduates' first two semesters only (since fall 2022).
+Approximate, labeled `(approx)` or `(assumption)` in the file: share
+married (~25%), LDS share; UVU married/LDS shares; incoming
 cohorts and returned-missionary flows; mission ages and lengths (Church policy since 2012); tuition;
 calendar terms; lease turnover dates; climate normals; unemployment and wage index. These should be
 replaced with official figures where available (see `ROADMAP.md`).
@@ -40,11 +43,16 @@ replaced with official figures where available (see `ROADMAP.md`).
 |---|---|---|
 | Utah Geospatial Resource Center (UGRC / SGID) | parcels (Utah County LIR), building footprints, address points, places of worship, parks, roads, municipal boundaries, higher-ed campuses, trailheads | public / open |
 | OpenStreetMap via Nominatim | geocodes for named apartment complexes (cached in `ucsim/geo/complex_geocodes.json`) | ODbL |
+| OpenStreetMap via Overpass | named apartment / dormitory / residential outlines (`scripts/fetch_osm_housing.py`) | ODbL |
+| BYU Off-Campus Housing | 2026-27 Contracted Housing List: property names, sizes, addresses (`ucsim/geo/byu_contracted_2026_27.csv`; phone numbers not stored) | public listing |
+| Provo City GIS (ComDev/Neighborhoods) and Orem City GIS (Neighborhoods) | official neighborhood names and outlines only (`scripts/fetch_neighborhoods.py`) | public |
+| BYU University Advisement, "Majors List by Colleges & Departments 2025-2026"; UVU academic catalog (catalog.uvu.edu/programs) | majors and colleges (`scripts/build_majors.py` → `ucsim/config/majors.yaml`) | public |
 | OpenFreeMap | optional basemap tiles in the browser | ODbL / OSM |
 
 `scripts/fetch_geodata.py` downloads the UGRC layers for the bounding box (−111.775, 40.170, −111.570, 40.360);
 `ucsim/geo/build_world.py` derives 63k dwellings (house / small multi-family / apartment / mobile home),
-533 complexes (38 named and geocoded, plus BYU's Helaman & Heritage Halls, Wymount and Wyview), 151 LDS
+~590 complexes (~200 with real names: BYU's contracted list matched to UGRC address points, OSM outlines
+containing the parcels, and survey geocodes; plus Helaman & Heritage Halls, Wymount and Wyview), 151 LDS
 meetinghouses and 712 venues (restaurants, cafés, soda & dessert shops, parks, gyms, theaters, trailheads,
 dance venues…). Web layers (roads, city outlines, building footprints) are committed under `web/public/geo/`.
 

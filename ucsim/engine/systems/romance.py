@@ -416,9 +416,9 @@ class Romance:
         night_outdoor = np.isin(act.v_type[venue], ["overlook", "trailhead"]) & (sim.u("kyhv")[a] < 0.5)
         sp = kyhv | night_outdoor & (sim.u("kyhv2")[a] < 0.25)
         if sp.any():
-            P.cols["made_out_squaw_peak"][np.r_[a[sp], b[sp]]] = True
-            sim.emit("squaw_peak", a[sp], b=b[sp], cause=cause[sp], block=2, mech="romance.kiss")
-            sim.emit("squaw_peak", b[sp], b=a[sp], cause=cause[sp], block=2, mech="romance.kiss")
+            P.cols["made_out_kyhv_peak"][np.r_[a[sp], b[sp]]] = True
+            sim.emit("kyhv_peak", a[sp], b=b[sp], cause=cause[sp], block=2, mech="romance.kiss")
+            sim.emit("kyhv_peak", b[sp], b=a[sp], cause=cause[sp], block=2, mech="romance.kiss")
 
     def _ncmo(self):
         """Non-committal make-outs at gatherings and dances among mutually attracted single people."""
@@ -553,9 +553,14 @@ class Romance:
         # young LDS men usually serve a mission before marrying; teen grooms are rare
         man = np.where(P.is_("sex", "M")[ids], ids, j)
         young_man = -1.8 * (P["age"][man] < 20) - 1.2 * (P["lds_member"][man] & P.is_("mission_status", "none")[man] & (P["age"][man] < 21.5))
+        # same-sex marriage conflicts with Church policy: rare while either partner is active, and no
+        # active-member marriage-norm boost
+        same_sex = P["sex"][ids] == P["sex"][j]
+        any_active = P.is_("activity", "active")[ids] | P.is_("activity", "active")[j]
         h_eng = expit(young_man + p("romance.engage.base") + p("romance.engage.commitment") * commit
                       + p("romance.engage.timing") * np.clip((months - ideal) / 4, -2, 2)
-                      + p("romance.engage.active_lds") * both_active * w.env["marriage_norm"]
+                      + p("romance.engage.active_lds") * (both_active & ~same_sex) * w.env["marriage_norm"]
+                      - 3.0 * (same_sex & any_active)
                       + 0.35 * np.clip((mean_age - 20.5) / 2, -1, 1.5) - 0.8 * fin - 1.2 * rel_mis)
         eng = dating & (months >= 2.0) & (rng.random(len(ids)) < h_eng)
         if eng.any():

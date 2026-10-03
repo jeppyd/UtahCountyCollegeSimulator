@@ -98,7 +98,8 @@ def goals(sim, i: int) -> list[dict]:
         g.append({"goal": "Get finances under control", "intensity": float(P["financial_stress"][i])})
     if P["faith_crisis"][i]:
         g.append({"goal": "Resolve questions about faith", "intensity": 0.8})
-    if P["lds_member"][i] and P.is_("mission_status", "none")[i] and P["age"][i] < 21 and P["faith_belief"][i] > 0.7:
+    if (P["lds_member"][i] and P.is_("mission_status", "none")[i] and P["age"][i] < 21 and P["faith_belief"][i] > 0.7
+            and P.isin("rel_status", ["single", "talking"])[i]):
         g.append({"goal": "Prepare to serve a mission", "intensity": float(P["faith_belief"][i])})
     if P["guilt"][i] > 0.3:
         g.append({"goal": "Repent / resolve guilt", "intensity": float(P["guilt"][i])})

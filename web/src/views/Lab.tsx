@@ -44,6 +44,11 @@ export default function Lab({ preset }: { preset?: string }) {
   )
 }
 
+type Saved = { name: string; queue: any[]; days: number }
+const SAVED_KEY = 'ucsim-saved-experiments'
+const loadSaved = (): Saved[] => { try { return JSON.parse(localStorage.getItem(SAVED_KEY) ?? '[]') } catch { return [] } }
+const storeSaved = (s: Saved[]) => { try { localStorage.setItem(SAVED_KEY, JSON.stringify(s)) } catch { /* private mode */ } }
+
 function Wizard({ preset }: { preset?: string }) {
   const { presets, status, refreshStatus } = useStore()
   const adv = useAdvanced()
@@ -51,6 +56,14 @@ function Wizard({ preset }: { preset?: string }) {
   const [days, setDays] = useState(112)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [saved, setSaved] = useState<Saved[]>(loadSaved)
+  const [naming, setNaming] = useState<string | null>(null)
+  const keep = (s: Saved[]) => { setSaved(s); storeSaved(s) }
+  const saveCurrent = () => {
+    const name = (naming ?? '').trim() || queue.map(q => q.name ?? q.preset).join(' + ')
+    keep([{ name, queue, days }, ...saved.filter(s => s.name !== name)].slice(0, 20))
+    setNaming(null)
+  }
   useEffect(() => { if (preset && presets?.[preset] && !queue.some(q => q.preset === preset)) setQueue([{ preset, name: presets[preset].name }]) }, [preset])
   const toggle = (id: string) => setQueue(queue.some(q => q.preset === id) ? queue.filter(q => q.preset !== id) : [...queue, { preset: id, name: presets[id].name }])
   const run = async () => {
@@ -63,6 +76,17 @@ function Wizard({ preset }: { preset?: string }) {
   const step = queue.length ? 2 : 1
   return (
     <>
+      {saved.length > 0 && (
+        <div className="card" style={{ marginBottom: 14 }}>
+          <div className="small muted" style={{ marginBottom: 6, fontWeight: 600 }}>Your saved experiments</div>
+          <div className="row">{saved.map(s => (
+            <span key={s.name} className="cond">
+              <button style={{ color: "var(--accent)", fontWeight: 600 }} onClick={() => { setQueue(s.queue); setDays(s.days) }} title="Load these changes and duration">{s.name}</button>
+              <button onClick={() => keep(saved.filter(x => x.name !== s.name))} aria-label={`delete ${s.name}`}>×</button>
+            </span>
+          ))}</div>
+        </div>
+      )}
       <div className="wizard-steps"><span className={`ws ${step === 1 ? 'on' : 'done'}`}>1 · Choose a change</span><span className={`ws ${step === 2 ? 'on' : ''}`}>2 · How long to watch</span><span className="ws">3 · See what changed</span></div>
       {[...THEMES, ...(others.length ? [['Other', others] as [string, string[]]] : [])].map(([theme, ids]) => (
         <div key={theme} style={{ marginBottom: 14 }}>
@@ -89,6 +113,9 @@ function Wizard({ preset }: { preset?: string }) {
           <span className="spacer" />
           <span className="small muted">Watch for</span>
           <div className="seg">{DURATIONS.map(([d, l]) => <button key={d} className={days === d ? 'on' : ''} onClick={() => setDays(d)}>{l}</button>)}</div>
+          {queue.length > 0 && (naming === null
+            ? <button className="btn" onClick={() => setNaming('')} title="Keep this combination of changes to rerun later">Save…</button>
+            : <span className="row" style={{ gap: 4 }}><input type="text" autoFocus placeholder="Name this experiment" value={naming} onChange={e => setNaming(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveCurrent(); if (e.key === 'Escape') setNaming(null) }} style={{ width: 190 }} /><button className="btn" onClick={saveCurrent}>Save</button></span>)}
           <button className="btn primary" disabled={!queue.length || busy || STATIC} onClick={run}>{busy ? 'Starting…' : 'Split the world and run ▶'}</button>
         </div>
         {status.day < 14 && <p className="small muted" style={{ margin: '8px 0 0' }}>Tip: the world is only {status.day} days old. Friendships and dating need a few weeks to get going, so effects will be clearer if you run a couple of weeks first.</p>}

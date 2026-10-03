@@ -25,7 +25,7 @@ BLOCKS = ["morning", "afternoon", "evening"]
 class Simulation:
     def __init__(self, world: World, interventions: list | None = None, name: str = "baseline",
                  record: bool = True):
-        from .systems import (academics, activity, economy, emotion, encounters, environment, faith, housing,
+        from .systems import (academics, activity, economy, emotion, encounters, environment, faith, groups, housing,
                               history, lifecourse, network, norms, recorder, romance)
         self.w = world
         self.name = name
@@ -43,6 +43,7 @@ class Simulation:
             "lifecourse": lifecourse.LifeCourse(self),
             "academics": academics.Academics(self),
             "activity": activity.Activity(self),
+            "groups": groups.Groups(self),
             "encounters": encounters.Encounters(self),
             "network": network.Network(self),
             "romance": romance.Romance(self),
@@ -56,7 +57,7 @@ class Simulation:
         }
         self._zcache_day = -999
         self._zcache: dict[str, tuple[float, float]] = {}
-        for name in ("environment", "housing", "activity", "network", "academics", "encounters", "economy",
+        for name in ("environment", "housing", "activity", "groups", "network", "academics", "encounters", "economy",
                      "romance", "faith", "norms", "emotion", "lifecourse", "recorder"):
             sysobj = self.systems[name]
             if hasattr(sysobj, "init"):
@@ -142,6 +143,7 @@ class Simulation:
             self._run("environment", S["environment"].daily)
             self._run("lifecourse", S["lifecourse"].daily)
             self._run("academics", S["academics"].daily)
+            self._run("groups", S["groups"].daily)
             self._run("faith", S["faith"].daily)
             self._run("romance", S["romance"].plan_day)
         elif phase.startswith("block"):

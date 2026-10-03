@@ -226,10 +226,13 @@ variables:
     flags: [filter, chart, map]
   neighborhood:
     label: Neighborhood
-    dtype: u2
-    kind: attribute
+    dtype: cat
+    categories: ["Other", "Brickyard", "Carterville", "Dixon", "Downtown", "East Bay", "Edgemont", "Foothills", "Fort Utah", "Franklin", "Franklin South", "Grandview North", "Grandview South", "Indian Hills", "Joaquin", "Lakeview North", "Lakeview South", "Lakewood", "Maeser", "North Park", "North Timpview", "Oak Hills", "Pleasant View", "Provo Bay", "Provost", "Provost South", "Riverbottoms", "Rivergrove", "Riverside", "Rock Canyon", "Sherwood Hills", "Spring Creek", "Sunset", "Timp", "University", "Wasatch", "Aspen", "Canyon View", "Cascade", "Cherry Hill", "Geneva Heights", "Heatheridge", "Hillcrest", "Lakeridge", "Lakeview", "Northridge", "Orchard (Orem East)", "Orem North", "Orem Park", "Orem South", "Sharon", "Sharon Park", "Stonewood", "Suncrest", "Sunset Heights East", "Sunset Heights West", "Timpview", "Windsor"]
     update: event
-    flags: [filter]
+    source: [Provo City and Orem City official neighborhood boundaries (scripts/fetch_neighborhoods.py)]
+    evidence: observed
+    desc: "Official Provo or Orem neighborhood of the person's home (Other = outside both cities' neighborhood maps)."
+    flags: [filter, chart, map]
   complex_id:
     label: Housing complex / building
     dtype: i4
@@ -260,7 +263,7 @@ variables:
   activity_now:
     label: Current activity
     dtype: cat
-    categories: [home, class, work, church, campus, gym, gathering, date, venue, outdoors, ward_activity, away]
+    categories: [home, class, work, church, campus, gym, gathering, date, venue, outdoors, ward_activity, away, club]
     kind: state
     update: hourly
     flags: [filter, chart, map]

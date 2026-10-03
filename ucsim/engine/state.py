@@ -240,11 +240,15 @@ class Tie:
     INTRODUCED = 1 << 14
     NEIGHBOR = 1 << 15
     PREEXISTING = 1 << 16
+    CLUBMATE = 1 << 17
+    TEAMMATE = 1 << 18
+    INSTITUTE = 1 << 19
 
     NAMES = {1 << 0: "roommate", 1 << 1: "classmate", 1 << 2: "coworker", 1 << 3: "ward", 1 << 4: "fhe",
              1 << 5: "family", 1 << 6: "dated", 1 << 7: "romantic", 1 << 8: "ex", 1 << 9: "spouse",
              1 << 10: "kissed", 1 << 11: "ncmo", 1 << 12: "sexual", 1 << 13: "app_match", 1 << 14: "introduced",
-             1 << 15: "neighbor", 1 << 16: "preexisting"}
+             1 << 15: "neighbor", 1 << 16: "preexisting", 1 << 17: "clubmate", 1 << 18: "teammate",
+             1 << 19: "institute"}
 
     @classmethod
     def decode(cls, flags: int) -> list[str]:
@@ -253,5 +257,5 @@ class Tie:
 
 # Context types (where interactions happen)
 CTX = ["unit", "complex", "class", "ward", "fhe", "work", "gym", "venue", "gathering", "campus", "app", "date",
-       "family", "preexisting", "dance", "outdoors", "hangout", "online"]
+       "family", "preexisting", "dance", "outdoors", "hangout", "online", "club", "team", "institute"]
 CTX_ID = {c: i for i, c in enumerate(CTX)}

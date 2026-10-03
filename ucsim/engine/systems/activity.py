@@ -17,7 +17,7 @@ from ..state import CTX_ID
 BYU = (-111.6493, 40.2500)
 UVU = (-111.7129, 40.2773)
 ACT = ["home", "class", "work", "church", "campus", "gym", "gathering", "date", "venue", "outdoors",
-       "ward_activity", "away"]
+       "ward_activity", "away", "club"]
 A = {k: i for i, k in enumerate(ACT)}
 NONE = 255
 
@@ -184,6 +184,15 @@ class Activity:
                 cid[go] = ward[go]
                 act[go] = A["ward_activity"]
                 busy |= go
+        # ---- clubs, intramural teams and institute classes (weekly, in term)
+        if b >= 1:
+            free_now = present & ~busy
+            met = sim.systems["groups"].meeting(b, wd, free_now, u)
+            for (gids, gid), name in zip(met, ("team", "club", "institute")):
+                ctype[gids] = CTX_ID[name]
+                cid[gids] = gid
+                act[gids] = A["class"] if name == "institute" else A["club"]
+                busy[gids] = True
         # ---- gatherings (evening)
         self.gathering_units = set()
         self.host_of_unit = {}
@@ -386,6 +395,10 @@ class Activity:
             cx = w.complexes
             lon[m] = cx["lon"].to_numpy()[cid[m]]
             lat[m] = cx["lat"].to_numpy()[cid[m]]
+        for name in ("club", "team", "institute"):
+            m = ctype == CTX_ID[name]
+            if m.any():
+                lon[m], lat[m] = w.groups["lon"][cid[m]], w.groups["lat"][cid[m]]
         m = ctype == CTX_ID["date"]
         if m.any():
             rom = sim.systems["romance"]

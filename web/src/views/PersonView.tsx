@@ -77,8 +77,10 @@ export default function PersonView({ id }: { id: number }) {
         {p.college && p.college !== 'none' && <span className="pill">{p.college}</span>}
         {pill('job_type')}{pill('origin_region')}
         {p.home?.complex && <span className="pill">Home: <b>{p.home.complex}</b></span>}
+        {vals.neighborhood && vals.neighborhood.value !== 'Other' && <span className="pill">Neighborhood: <b>{vals.neighborhood.value}</b></span>}
         {p.ward && <span className="pill">Ward: <a href={`#/places/ward/${p.ward.id}`}>{p.ward.kind.replace(/_/g, ' ')} #{p.ward.id}</a></span>}
         {p.employer && <span className="pill">Works at: <b>{p.employer.name}</b></span>}
+        {(p.groups ?? []).map((g: any) => <span key={g.kind} className="pill">{g.label}: <b>{g.name}</b></span>)}
         {p.partner && <span className="pill">Partner: <PersonLink id={p.partner.id} name={p.partner.name} /></span>}
         {p.roommates?.length > 0 && <span className="pill">Lives with: {p.roommates.slice(0, 4).map((r: any, k: number) => <span key={r.id}>{k ? ', ' : ''}<PersonLink id={r.id} name={r.name.split(' ')[0]} /></span>)}{p.roommates.length > 4 ? ` +${p.roommates.length - 4}` : ''}</span>}
       </div>

@@ -1,13 +1,36 @@
 # Roadmap
 
-## Iteration 1 (this release) — end-to-end vertical slice
+## Iteration 1 — end-to-end vertical slice
 
 Population → real geography & housing → characteristics → schedules → encounters → relationships →
 events → emotion → behavior change → intervention → paired simulation → history → cohort filtering →
 map → charts → causal explanation → individual drill-down. Registries with evidence labels, tests,
 validation report, static demo.
 
-## Next
+## Iteration 2 (this release) — usability and real-world detail
+
+Guided Home, Field guide, Simple/Advanced switch, task-based navigation, plain-language stories; flows over
+time (14-day snapshots, Sankey, transition cohorts); what-if wizard with saved experiments; real complex
+names (OSM + BYU contracted list), official neighborhoods, BYU/UVU majors, physical traits; clubs,
+intramural teams and institute classes; first-year contracted-housing rule; admissions-driven enrollment
+that stays stable over multi-year runs.
+
+## Still to do (from the master prompt)
+
+- **LLM layer** (deliberately deferred): natural-language questions and what-ifs compiled to the existing
+  JSON intervention/cohort schemas; narrated life stories.
+- **Calibration**: formal simulated-method-of-moments fit; dating frequency and kissing counts drift above
+  the survey over a year (see `VALIDATION.md`); married-share of 24-30 year olds (survey bias suspected).
+- **Sensitivity mode**: Morris/Sobol screening across every parameter range; flag results driven by
+  hypothetical mechanisms.
+- **Backtesting** against administrative series (Utah County marriages by age, enrollment by term, rents).
+- **External data**: Census ACS/LODES for non-student residents and commutes; official BYU/UVU class-level
+  enrollment; real employer locations.
+- **Model depth**: cohabitation, social media as a second network, non-LDS religious communities,
+  family ties in Utah County, room-level dorm assignment.
+- **Workstation**: side-by-side cohort comparison, report export, map time-lapse.
+
+## Earlier backlog
 
 **Calibration & validation**
 - Simulated method of moments over mechanism parameter ranges (dating frequency by age/stage, DTR and

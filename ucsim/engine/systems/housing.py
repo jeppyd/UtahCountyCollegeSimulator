@@ -158,6 +158,7 @@ class Housing:
         P.cols["home_lat"][i] = U.lat[u]
         P.cols["complex_id"][i] = U.complex_id[u]
         P.cols["city"][i] = U.city[u] if U.city[u] in (0, 1) else 2
+        P.cols["neighborhood"][i] = U.nbhd[u]
         ut = U.unit_type[u]
         married = P["rel_status"][i] == P.code("rel_status", "married")
         living = ("dorm" if ut == 0 else "married_housing" if (ut == 3 or married) else "contracted" if U.contracted[u]
@@ -240,4 +241,5 @@ class Housing:
         U.city = np.r_[U.city, U.city[src]]
         U.quality = np.r_[U.quality, np.full(k, 0.85, np.float32)]
         U.kind_src = np.r_[U.kind_src, U.kind_src[src]]
+        U.nbhd = np.r_[U.nbhd, U.nbhd[src]]
         self.occ = np.r_[self.occ, np.zeros(k, np.int32)]

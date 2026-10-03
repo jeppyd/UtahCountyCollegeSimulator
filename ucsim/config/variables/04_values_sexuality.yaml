@@ -111,8 +111,8 @@ variables:
     update: weekly
     desc: Distress from use that conflicts with one's moral beliefs (moral incongruence model; Grubbs et al. 2019). Feeds guilt and faith dissonance.
     evidence: literature
-  made_out_squaw_peak:
-    label: Made out at Squaw Peak
+  made_out_kyhv_peak:
+    label: Made out at Kyhv Peak
     dtype: bool
     kind: history
     update: event

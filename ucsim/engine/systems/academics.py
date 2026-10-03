@@ -215,7 +215,9 @@ class Academics:
             P.cols["study_area"][ids[mc]] = rng.integers(0, areas - 1, mc.sum())
             sim.emit("major_change", ids[mc], mech="academics.term")
         # graduation
-        grad = ((cd >= 120) & ~grad_student) | (grad_student & (rng.random(len(ids)) < 0.22))
+        # programs need 120-135 credits (majors, minors, retakes); a fixed per-person requirement spreads graduations out
+        need = 120 + 15 * ((ids * 0.6180339887) % 1.0)
+        grad = ((cd >= need) & ~grad_student) | (grad_student & (rng.random(len(ids)) < 0.22))
         if grad.any():
             gi = ids[grad]
             P.cols["graduated"][gi] = True

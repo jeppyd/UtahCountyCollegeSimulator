@@ -720,7 +720,7 @@ def runs():
         for d in sorted(runner.RUNS.iterdir()):
             cfg = d / "config.json"
             if cfg.exists():
-                rows.append(json.loads(cfg.read_text()))
+                rows.append(json.loads(cfg.read_text(encoding="utf-8")))
     return jresp(rows)
 
 

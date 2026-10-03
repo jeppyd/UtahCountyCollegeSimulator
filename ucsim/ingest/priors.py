@@ -418,7 +418,7 @@ def build(write: bool = True) -> dict:
     }
     if write:
         PRIORS_DIR.mkdir(parents=True, exist_ok=True)
-        (PRIORS_DIR / "survey_priors.json").write_text(json.dumps(priors, indent=1, default=_json_default))
+        (PRIORS_DIR / "survey_priors.json").write_text(json.dumps(priors, indent=1, default=_json_default), encoding="utf-8")
     return priors
 
 

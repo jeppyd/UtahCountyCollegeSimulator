@@ -141,7 +141,7 @@ class Registry:
     # ------------------------------------------------------------------ loading
     def _load_variables(self):
         for path in sorted((self.config_dir / "variables").glob("*.yaml")):
-            doc = yaml.safe_load(path.read_text())
+            doc = yaml.safe_load(path.read_text(encoding="utf-8"))
             sections = doc.get("sections") or [doc]
             domain_default = path.stem.split("_", 1)[1]
             for sec in sections:
@@ -160,7 +160,7 @@ class Registry:
 
     def _load_mechanisms(self):
         for path in sorted((self.config_dir / "mechanisms").glob("*.yaml")):
-            doc = yaml.safe_load(path.read_text())
+            doc = yaml.safe_load(path.read_text(encoding="utf-8"))
             system = doc["system"]
             for mid, spec in doc["mechanisms"].items():
                 if mid in self.mechanisms:
@@ -201,7 +201,7 @@ class Registry:
         path = self.config_dir / "events.yaml"
         if not path.exists():
             return
-        doc = yaml.safe_load(path.read_text())
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
         for eid, spec in doc["events"].items():
             spec = dict(spec)
             spec.setdefault("effects", [])

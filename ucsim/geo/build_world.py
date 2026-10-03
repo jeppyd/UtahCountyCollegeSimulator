@@ -47,7 +47,7 @@ SPECIAL_COMPLEXES = {
 
 
 def _load(name):
-    return json.loads((EXT / f"{name}.json").read_text())["features"]
+    return json.loads((EXT / f"{name}.json").read_text(encoding="utf-8"))["features"]
 
 
 def km_dist(lon1, lat1, lon2, lat2):
@@ -139,8 +139,8 @@ def build():
         if c["PARCEL_ID"] in bnames and re.search(r"(?i)apart|condo|village|court|manor|place|park|terrace|lofts|halls", bnames[c["PARCEL_ID"]]):
             c["name"], c["name_src"] = bnames[c["PARCEL_ID"]], "ugrc_building_name"
 
-    geocodes = json.loads(GEOCODES.read_text()) if GEOCODES.exists() else {}
-    survey_share = json.loads(PRIORS.read_text())["tables"]["complexes"]
+    geocodes = json.loads(GEOCODES.read_text(encoding="utf-8")) if GEOCODES.exists() else {}
+    survey_share = json.loads(PRIORS.read_text(encoding="utf-8"))["tables"]["complexes"]
     clon = np.array([c["lon"] for c in cx])
     clat = np.array([c["lat"] for c in cx])
     named_extra = []
@@ -274,7 +274,7 @@ def build():
         "dwellings_by_city": dict(dw["city"].value_counts().iter_rows()),
         "venues_by_type": dict(vdf["vtype"].value_counts().iter_rows()),
     }
-    (OUT / "summary.json").write_text(json.dumps(summary, indent=1))
+    (OUT / "summary.json").write_text(json.dumps(summary, indent=1), encoding="utf-8")
     return summary
 
 
@@ -290,10 +290,10 @@ def _write_web_layers(munis):
             feats.append({"type": "Feature", "properties": {"n": (r.get("FULLNAME") or "").title(),
                                                            "c": 1 if r["CARTOCODE"] in major else 2},
                           "geometry": {"type": "LineString", "coordinates": path}})
-    (WEB / "roads.json").write_text(json.dumps({"type": "FeatureCollection", "features": feats}, separators=(",", ":")))
+    (WEB / "roads.json").write_text(json.dumps({"type": "FeatureCollection", "features": feats}, separators=(",", ":")), encoding="utf-8")
     (WEB / "cities.json").write_text(json.dumps({"type": "FeatureCollection", "features": [
         {"type": "Feature", "properties": {"name": m["NAME"]},
-         "geometry": {"type": "Polygon", "coordinates": m["rings"]}} for m in munis]}, separators=(",", ":")))
+         "geometry": {"type": "Polygon", "coordinates": m["rings"]}} for m in munis]}, separators=(",", ":")), encoding="utf-8")
     # Building footprints: compact binary (int32 microdegree deltas). Header: n_polygons, then per polygon
     # n_vertices followed by vertices.  Decoded in web/src/map/buildings.ts.
     blds = _load("buildings")

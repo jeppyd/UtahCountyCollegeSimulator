@@ -53,7 +53,7 @@ STUDY_AREA_MAP = {
 
 
 def load_world_cfg() -> dict:
-    return yaml.safe_load(WORLD_CFG.read_text())
+    return yaml.safe_load(WORLD_CFG.read_text(encoding="utf-8"))
 
 
 def age_band(age: np.ndarray) -> np.ndarray:

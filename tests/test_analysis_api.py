@@ -88,7 +88,7 @@ def test_save_run_roundtrip(ran, tmp_path, monkeypatch):
     assert persons.height == ran.w.P.n
     assert edges.height == ran.w.E.n
     assert events.height > 0 and "cause" in events.columns
-    cfg = json.loads((out / "config.json").read_text())
+    cfg = json.loads((out / "config.json").read_text(encoding="utf-8"))
     assert cfg["seed"] == ran.w.seed
 
 
@@ -118,7 +118,7 @@ def test_api_core_endpoints(client, ran):
 
 # ---------------------------------------------------------------- privacy boundary
 def test_committed_priors_contain_only_aggregates():
-    pri = json.loads((ROOT / "ucsim" / "priors" / "survey_priors.json").read_text())
+    pri = json.loads((ROOT / "ucsim" / "priors" / "survey_priors.json").read_text(encoding="utf-8"))
     text = json.dumps(pri)
     assert len(text) < 5_000_000
     # no respondent-level arrays: every list is short (CPT rows, quantile grids, correlation rows)
@@ -134,5 +134,5 @@ def test_committed_priors_contain_only_aggregates():
 
 
 def test_raw_survey_files_are_gitignored():
-    gi = (ROOT / ".gitignore").read_text()
+    gi = (ROOT / ".gitignore").read_text(encoding="utf-8")
     assert "data/raw/" in gi

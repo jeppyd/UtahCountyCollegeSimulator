@@ -30,7 +30,7 @@ def dump(path: Path, obj) -> int:
     if data is None:
         path.write_bytes(obj)
         return len(obj)
-    path.write_text(data)
+    path.write_text(data, encoding="utf-8")
     return len(data)
 
 

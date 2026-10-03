@@ -39,8 +39,8 @@ def clean(name: str) -> str:
 
 
 def main():
-    cache = json.loads(CACHE.read_text()) if CACHE.exists() else {}
-    names = list(json.loads(PRIORS.read_text())["tables"]["complexes"]) + EXTRA
+    cache = json.loads(CACHE.read_text(encoding="utf-8")) if CACHE.exists() else {}
+    names = list(json.loads(PRIORS.read_text(encoding="utf-8"))["tables"]["complexes"]) + EXTRA
     names = [n for n in names if n not in ("House", "None of the Above")]
     for name in names:
         key = clean(name)
@@ -64,8 +64,8 @@ def main():
                 break
         cache[key] = hit
         print(f"{key:35s} -> {hit and (hit['lat'], hit['lon'])}")
-        CACHE.write_text(json.dumps(cache, indent=1))
-    CACHE.write_text(json.dumps(cache, indent=1))
+        CACHE.write_text(json.dumps(cache, indent=1), encoding="utf-8")
+    CACHE.write_text(json.dumps(cache, indent=1), encoding="utf-8")
 
 
 if __name__ == "__main__":

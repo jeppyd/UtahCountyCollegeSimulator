@@ -104,7 +104,7 @@ def save_run(sim: Simulation, run_id: str | None = None, notes: str = "", snapsh
     w = sim.w
     cfg = {"run_id": run_id, "name": sim.name, "scale": w.scale, "seed": w.seed, "start_date": str(w.start_date),
            "days": w.day, "interventions": sim.interventions, "param_overrides": w.params.changed(), "notes": notes}
-    (d / "config.json").write_text(json.dumps(cfg, indent=1, default=str))
+    (d / "config.json").write_text(json.dumps(cfg, indent=1, default=str), encoding="utf-8")
     rec = sim.systems["recorder"]
     rec.frame().write_parquet(d / "timeseries.parquet")
     rec.terms_frame().write_parquet(d / "terms.parquet")

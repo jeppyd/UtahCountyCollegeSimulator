@@ -20,7 +20,7 @@ PRIORS = Path(__file__).resolve().parents[1] / "priors" / "survey_priors.json"
 
 @lru_cache(maxsize=1)
 def load_priors() -> dict:
-    return json.loads(PRIORS.read_text())
+    return json.loads(PRIORS.read_text(encoding="utf-8"))
 
 
 class CPT:

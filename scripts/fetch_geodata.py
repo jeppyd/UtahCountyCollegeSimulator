@@ -121,7 +121,7 @@ def fetch_layer(name: str) -> int:
                 rec["paths"] = [[[round(x, 5), round(y, 5)] for x, y in p] for p in paths]
             feats.append(rec)
     OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / f"{name}.json").write_text(json.dumps({"layer": cfg["service"], "bbox": BBOX, "features": feats}))
+    (OUT / f"{name}.json").write_text(json.dumps({"layer": cfg["service"], "bbox": BBOX, "features": feats}), encoding="utf-8")
     return len(feats)
 
 

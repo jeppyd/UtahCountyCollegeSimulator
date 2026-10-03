@@ -65,7 +65,7 @@ def _code_value(vtype: str, opts: dict, raw):
 def load_survey(slug: str) -> pl.DataFrame:
     spec = SPEC[slug]
     path = RAW_DIR / spec["file"]
-    data = json.loads(path.read_text())
+    data = json.loads(path.read_text(encoding="utf-8"))
     rows = []
     for resp in data["responses"]:
         if not resp.get("completed", True):

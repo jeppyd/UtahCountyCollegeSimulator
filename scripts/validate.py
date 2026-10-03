@@ -236,9 +236,9 @@ Emergent rows only: {counts_e['pass']} pass · {counts_e['warn']} warn · {count
 - No administrative validation yet (actual marriage counts, enrollment flows, rent series).
 """
     (ROOT / "docs").mkdir(exist_ok=True)
-    (ROOT / "docs" / "VALIDATION.md").write_text(doc)
+    (ROOT / "docs" / "VALIDATION.md").write_text(doc, encoding="utf-8")
     (ROOT / "runs").mkdir(exist_ok=True)
-    (ROOT / "runs" / "validation.json").write_text(json.dumps({"final": final, "institutional": inst, "trajectory": traj, "timing": timing}, default=float, indent=1))
+    (ROOT / "runs" / "validation.json").write_text(json.dumps({"final": final, "institutional": inst, "trajectory": traj, "timing": timing}, default=float, indent=1), encoding="utf-8")
     print(f"wrote docs/VALIDATION.md — {counts}")
 
 

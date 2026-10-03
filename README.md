@@ -13,10 +13,18 @@ meaningful change is an event with a mechanism and a causal parent, so any outco
 
 ## Quick start
 
+Needs Python ≥ 3.10, Git and Node.js 18+ (for the web UI). Works on Windows, macOS and Linux.
+
 ```bash
-pip install -e .                       # Python ≥ 3.11
-cd web && npm install && npm run build && cd ..
-python -m ucsim.api.server --scale 0.3 --warmup 14     # → http://127.0.0.1:8000
+git clone https://github.com/jeppyd/UtahCountyCollegeSimulator.git
+cd UtahCountyCollegeSimulator
+git checkout claude/serene-bohr-cyvzxl        # until this branch is merged
+pip install -e .
+cd web
+npm install
+npm run build
+cd ..
+python -m ucsim.api.server --scale 0.3 --warmup 14     # then open http://127.0.0.1:8000
 ```
 
 `--scale` sets the fraction of the real population (0.3 ≈ 18k agents); `--warmup` simulates days before

@@ -27,7 +27,7 @@ PRESETS = Path(__file__).resolve().parents[1] / "config" / "interventions.yaml"
 
 
 def load_presets() -> dict:
-    return yaml.safe_load(PRESETS.read_text())["interventions"]
+    return yaml.safe_load(PRESETS.read_text(encoding="utf-8"))["interventions"]
 
 
 def expand(spec: dict | str) -> list[dict]:

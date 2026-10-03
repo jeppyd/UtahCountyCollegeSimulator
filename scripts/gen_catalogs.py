@@ -87,8 +87,8 @@ def mechanisms(reg) -> str:
 def main():
     reg = get_registry()
     (ROOT / "docs").mkdir(exist_ok=True)
-    (ROOT / "docs" / "VARIABLE_CATALOG.md").write_text(variables(reg))
-    (ROOT / "docs" / "MECHANISMS.md").write_text(mechanisms(reg))
+    (ROOT / "docs" / "VARIABLE_CATALOG.md").write_text(variables(reg), encoding="utf-8")
+    (ROOT / "docs" / "MECHANISMS.md").write_text(mechanisms(reg), encoding="utf-8")
     print("wrote docs/VARIABLE_CATALOG.md and docs/MECHANISMS.md")
 
 

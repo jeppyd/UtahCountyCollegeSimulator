@@ -57,7 +57,7 @@ mechanisms:
     label: Job finding
     target: employed
     sources: [financial_stress, unemployment]
-    form: "monthly h = logistic(base + 2·(fin stress − 0.4))·(0.032/unemployment)^0.8"
+    form: "monthly, for job seekers (students with fin stress > 0.5; non-students always): h = logistic(base + 2·(fin stress − 0.4))·(0.032/unemployment)^0.8"
     params:
       base: {value: -1.0, range: [-2.0, 0.0]}
     evidence: calibrated
@@ -65,9 +65,9 @@ mechanisms:
     label: Financial strain → more work hours
     target: work_hours
     sources: [financial_stress]
-    form: "students with fin stress > threshold add 3 h/week per month (cap 32)"
+    form: "monthly: students with fin stress > threshold add 3 h/week (cap 32); with fin stress < threshold − 0.25 and above their preferred hours, drop 2 h/week"
     params:
-      threshold: {value: 0.6, range: [0.4, 0.8]}
+      threshold: {value: 0.7, range: [0.4, 0.85]}
     evidence: hypothetical
   housing.move:
     label: Moving at lease turnover
@@ -120,9 +120,9 @@ mechanisms:
     label: Mission service
     target: mission_status
     sources: [sex, age, faith_belief, activity, family_expectation, religious_identity, mission_norm]
-    form: "monthly P(call) = logistic(base + βm·male + βb·(belief−0.7) + 1.2·active + βf·family + 0.8·identity + 2·age peak + log(mission_norm)); departure ~3 months later; men 24, women 18 months; ~8% return early"
+    form: "monthly P(call) = logistic(base + βm·male + βb·(belief−0.7) + 1.2·active + βf·family + 0.8·identity + 2·age peak − 1.5·years past the usual age + log(mission_norm)); departure ~3 months later; men 24, women 18 months; ~8% return early"
     params:
-      base: {value: -6.5, range: [-8, -5]}
+      base: {value: -7.0, range: [-8, -5]}
       male: {value: 1.6, range: [0.8, 2.4]}
       belief: {value: 3.0, range: [1.5, 4.5]}
       family: {value: 1.0, range: [0.3, 1.8]}

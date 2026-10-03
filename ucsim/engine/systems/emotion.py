@@ -212,10 +212,10 @@ class Emotion:
         # depressive episodes: onset rises steeply when sustained mood is low (threshold non-linearity)
         u = sim.u("depress")
         m8 = P.internal["mood_8w"][:n]
-        onset = expit(-7.2 + 14.0 * np.clip(0.42 - m8, 0, None) + 0.9 * P["mh_depression"] + 0.35 * sim.z("neuroticism")
+        onset = expit(-7.9 + 14.0 * np.clip(0.42 - m8, 0, None) + 0.9 * P["mh_depression"] + 0.35 * sim.z("neuroticism")
                       + 2.0 * np.clip(P["loneliness"] - 0.5, 0, None))
         start = P["present"] & ~P["depressive_episode"] & (u < onset)
-        stop = P["depressive_episode"] & (u < 0.06 + 0.25 * np.clip(m8 - 0.4, 0, None))
+        stop = P["depressive_episode"] & (u < 0.09 + 0.3 * np.clip(m8 - 0.4, 0, None))
         if start.any():
             P.cols["depressive_episode"][np.where(start)[0]] = True
             sim.emit("depressive_episode_start", np.where(start)[0], mech="mental_health.depression")

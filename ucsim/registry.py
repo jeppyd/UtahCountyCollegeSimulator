@@ -97,6 +97,7 @@ class MechSpec:
     refs: list = field(default_factory=list)
     population: str = "all"
     applicability: str = ""
+    context: list = field(default_factory=list)
 
     def p(self, name: str) -> float:
         return float(self.params[name]["value"])
@@ -121,6 +122,10 @@ class EventSpec:
 
 
 class Registry:
+    # short names used in mechanism YAML for edge/world inputs → registry ids
+    ALIASES = {"attraction": "edge.attraction_lh", "crush attraction": "edge.attraction_lh", "spark": "edge.chemistry",
+               "friends' mood": "mood", "friends' belief": "faith_belief"}
+
     def __init__(self, config_dir: Path = CONFIG):
         self.config_dir = config_dir
         self.variables: dict[str, VarSpec] = {}
@@ -129,6 +134,7 @@ class Registry:
         self._load_variables()
         self._load_mechanisms()
         self._load_events()
+        self._resolve_refs()
         self.event_ids = {k: i for i, k in enumerate(self.events)}
         self.event_names = list(self.events)
 
@@ -162,6 +168,34 @@ class Registry:
                 spec = dict(spec)
                 spec.setdefault("params", {})
                 self.mechanisms[mid] = MechSpec(id=mid, system=system, **spec)
+
+    def resolve(self, name: str) -> str | None:
+        """Map a mechanism input/target name to a registry id (person, edge.* or world.*), if any."""
+        if name in self.variables:
+            return name
+        for cand in (self.ALIASES.get(name), f"edge.{name}", f"world.{name}"):
+            if cand and cand in self.variables:
+                return cand
+        return None
+
+    def _resolve_refs(self):
+        """Normalize mechanism targets/sources/moderators to registry ids; free-text inputs that are
+        not state variables (\"calendar\", \"distance to campus\") move to `context`."""
+        for m in self.mechanisms.values():
+            tg = m.target if isinstance(m.target, list) else [m.target]
+            rt = [self.resolve(t) for t in tg]
+            if any(r is None for r in rt):
+                raise ValueError(f"mechanism {m.id} targets unknown variable(s) {[t for t, r in zip(tg, rt) if r is None]}")
+            m.target = rt if isinstance(m.target, list) else rt[0]
+            for attr in ("sources", "moderators"):
+                keep = []
+                for x in getattr(m, attr):
+                    r = self.resolve(x)
+                    if r is None:
+                        m.context.append(x)
+                    elif r not in keep:
+                        keep.append(r)
+                setattr(m, attr, keep)
 
     def _load_events(self):
         path = self.config_dir / "events.yaml"

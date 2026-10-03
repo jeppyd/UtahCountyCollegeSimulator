@@ -498,17 +498,24 @@ class Romance:
         for x in (ids, j):
             P.cols["relationship_satisfaction"][x] = sat
             P.cols["relationship_commitment"][x] = commit
-        # couple time: dating couples see each other often (dates + hanging out)
-        exclusive = np.isin(status, [P.code("rel_status", s) for s in ("talking", "dating", "engaged")])
-        if exclusive.any():
-            xa, xb = ids[exclusive], j[exclusive]
-            k_dates = np.where(sim.streams.uniform("kdates", day, len(xa)) < 0.25, 2, 1)
-            for kk in range(int(k_dates.max())):
-                sel = k_dates > kk
-                dd = self._next_date_day(6, sim.streams.uniform(f"cdate{kk}", day, len(xa))[sel])
+        # couple time: dates per week by stage (Dating survey: ~4–8 dates/month for couples; married
+        # couples' weekly "date night"), on distinct days; exclusive couples also hang out a lot
+        code = {s_: P.code("rel_status", s_) for s_ in ("talking", "dating", "engaged", "married")}
+        uk = sim.streams.uniform("kdates", day, len(ids))
+        k_dates = np.select([status == code["talking"], status == code["dating"], status == code["engaged"], status == code["married"]],
+                            [(uk < 0.8).astype(int), 1 + (uk < 0.45), 2 + (uk < 0.3), (uk < 0.85).astype(int)], 0)
+        exclusive = np.isin(status, [code["talking"], code["dating"], code["engaged"]])
+        has = k_dates > 0
+        if has.any():
+            xa, xb, kd = ids[has], j[has], k_dates[has]
+            first = self._next_date_day(6, sim.streams.uniform("cdate0", day, len(xa))) - day  # 1..7
+            for kk in range(int(kd.max())):
+                sel = kd > kk
+                dd = day + 1 + ((first[sel] - 1 + 3 * kk) % 7)
                 dtypes = self._date_type(xa[sel], xb[sel])
                 for a_, b_, d_, t_ in zip(xa[sel].tolist(), xb[sel].tolist(), dd.tolist(), dtypes):
-                    self.queue.append((d_ if d_ > day else day + 1, a_, b_, t_, False, int(P.internal["rel_event"][a_])))
+                    self.queue.append((d_, a_, b_, t_, False, int(P.internal["rel_event"][a_])))
+        if exclusive.any():
             E.cols["hours_leisure"][eix[exclusive]] += 6.0
             E.cols["hours"][eix[exclusive]] += 8.0
             E.cols["last_day"][eix[exclusive]] = day
@@ -543,7 +550,10 @@ class Romance:
         ideal = (P["ideal_months_engaged"][ids] + P["ideal_months_engaged"][j]) / 2
         mean_age = (P["age"][ids] + P["age"][j]) / 2
         fin = (P["financial_stress"][ids] + P["financial_stress"][j]) / 2
-        h_eng = expit(p("romance.engage.base") + p("romance.engage.commitment") * commit
+        # young LDS men usually serve a mission before marrying; teen grooms are rare
+        man = np.where(P.is_("sex", "M")[ids], ids, j)
+        young_man = -1.8 * (P["age"][man] < 20) - 1.2 * (P["lds_member"][man] & P.is_("mission_status", "none")[man] & (P["age"][man] < 21.5))
+        h_eng = expit(young_man + p("romance.engage.base") + p("romance.engage.commitment") * commit
                       + p("romance.engage.timing") * np.clip((months - ideal) / 4, -2, 2)
                       + p("romance.engage.active_lds") * both_active * w.env["marriage_norm"]
                       + 0.35 * np.clip((mean_age - 20.5) / 2, -1, 1.5) - 0.8 * fin - 1.2 * rel_mis)

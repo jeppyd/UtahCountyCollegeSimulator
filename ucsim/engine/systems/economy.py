@@ -15,6 +15,7 @@ class Economy:
         P = w.P
         P.add_internal("scholarship", np.float32, 0.0)
         P.add_internal("last_hardship", np.int32, -10000)
+        P.add_internal("work_pref", np.float32, 0.0)
         self.assign_scholarships(np.arange(P.n))
         self._compute(update_balances=False)
 
@@ -22,7 +23,8 @@ class Economy:
         """Share of tuition covered by scholarships/grants (merit at BYU, need-based Pell common at UVU)."""
         sim, w = self.sim, self.sim.w
         P = w.P
-        rng = np.random.default_rng([w.seed, 61, len(ids)])
+        P.internal["work_pref"][ids] = P["work_hours"][ids]  # hours chosen before any financial strain
+        rng = np.random.default_rng([w.seed, 61, len(ids), int(ids[0]) if len(ids) else 0])
         gpa = np.nan_to_num(P["gpa"][ids], nan=3.4)
         byu = P["school"][ids] == 1
         p_merit = np.clip((gpa - 3.3) * 0.6, 0, 0.55)
@@ -98,7 +100,7 @@ class Economy:
             P.internal["shift_mask"][ids] = 0
             sim.emit("job_lost", ids, mech="economy.job_loss")
         # job search: driven by financial stress; finding rate falls with unemployment
-        seeking = present & ~P["employed"] & (P["age"] < 65) & ((P["financial_stress"] > 0.35) | ~P["enrolled"]) & ~P.is_("role", "faculty")
+        seeking = present & ~P["employed"] & (P["age"] < 65) & ((P["financial_stress"] > 0.5) | ~P["enrolled"]) & ~P.is_("role", "faculty")
         h_find = expit(p("economy.job_find.base") + 2.0 * (P["financial_stress"] - 0.4)) * (0.032 / ur) ** 0.8
         find = seeking & (sim.u("job_find") < h_find)
         if find.any():
@@ -112,10 +114,17 @@ class Economy:
             sim.systems["activity"].assign_shifts(ids)
             sim.emit("job_found", ids, mech="economy.job_find")
         # financial stress pushes students to work more (crowding out study)
-        more = present & P["employed"] & P["enrolled"] & (P["financial_stress"] > p("economy.work_more.threshold")) & (P["work_hours"] < 32)
+        thr = p("economy.work_more.threshold")
+        more = present & P["employed"] & P["enrolled"] & (P["financial_stress"] > thr) & (P["work_hours"] < 32)
         if more.any():
             ids = np.where(more)[0]
             P.cols["work_hours"][ids] += 3
+            sim.systems["activity"].assign_shifts(ids)
+        # …and cut back once the pressure is off (back toward the hours they started with)
+        less = present & P["employed"] & P["enrolled"] & (P["financial_stress"] < thr - 0.25) & (P["work_hours"] > P.internal["work_pref"][:n] + 1)
+        if less.any():
+            ids = np.where(less)[0]
+            P.cols["work_hours"][ids] = np.maximum(P["work_hours"][ids] - 2, P.internal["work_pref"][ids])
             sim.systems["activity"].assign_shifts(ids)
         # annual raise in January
         if w.date.month == 12:

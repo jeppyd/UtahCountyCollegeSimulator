@@ -161,7 +161,7 @@ mechanisms:
     sources: [familiarity]
     form: "drop unflagged acquaintance edges when ACT-R activation < threshold"
     params:
-      activation: {value: -4.0, range: [-5.0, -3.0]}
+      activation: {value: -3.4, range: [-4.5, -2.8]}
     evidence: literature
     refs: ["Petrov (2006) ICCM: efficient approximation of ACT-R base-level learning"]
   encounter.friend_contact:

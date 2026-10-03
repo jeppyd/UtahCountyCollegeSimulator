@@ -606,12 +606,34 @@ def network_sample(u: str = "base", min_stage: int = 3, max_nodes: int = 1500, f
         idx = np.where(m)[0]
         nodes = np.unique(np.r_[lo[idx], hi[idx]])
         if len(nodes) > max_nodes:
+            # snowball sample from a few seeds so local clusters (apartments, wards) stay intact,
+            # then keep every tie among the sampled people (induced subgraph)
             rng = np.random.default_rng(0)
-            seeds = rng.choice(nodes, max_nodes // 6, replace=False)
-            keep = np.isin(lo[idx], seeds) | np.isin(hi[idx], seeds)
-            idx = idx[keep]
-            nodes = np.unique(np.r_[lo[idx], hi[idx]])[:max_nodes]
-            idx = idx[np.isin(lo[idx], nodes) & np.isin(hi[idx], nodes)]
+            a, b = np.r_[lo[idx], hi[idx]], np.r_[hi[idx], lo[idx]]
+            order = np.argsort(a, kind="stable")
+            a, b = a[order], b[order]
+            starts = np.searchsorted(a, np.arange(P.n + 1))
+            seen = np.zeros(P.n, bool)
+            picked: list[int] = []
+            for seed in rng.permutation(nodes):
+                if len(picked) >= max_nodes:
+                    break
+                if seen[seed]:
+                    continue
+                queue, seen[seed] = [int(seed)], True
+                budget = max(30, max_nodes // 8)
+                while queue and budget > 0 and len(picked) < max_nodes:
+                    v = queue.pop(0)
+                    picked.append(v)
+                    budget -= 1
+                    nb = b[starts[v]:starts[v + 1]]
+                    nb = nb[~seen[nb]]
+                    seen[nb] = True
+                    queue.extend(int(x) for x in rng.permutation(nb))
+            nodes = np.array(sorted(picked), dtype=np.int64)
+            keep = np.zeros(P.n, bool)
+            keep[nodes] = True
+            idx = idx[keep[lo[idx]] & keep[hi[idx]]]
         return jresp({"nodes": [{"id": int(i), "sex": int(P["sex"][i]), "activity": int(P["activity"][i]),
                                  "school": int(P["school"][i]), "rel": int(P["rel_status"][i]), "ward": int(P["ward_id"][i]),
                                  "complex": int(P["complex_id"][i]), "loneliness": float(P["loneliness"][i]),

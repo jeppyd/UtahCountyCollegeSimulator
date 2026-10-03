@@ -35,6 +35,10 @@ class LifeCourse:
         sy = self._synth(int(w.day) * 10 + {"byu_student": 1, "uvu_student": 2}.get(role, 3) + int(extra.get("_tag", 0)))
         extra = {k: v for k, v in extra.items() if k != "_tag"}
         ids = sy.people(P, role, n, school, extra=extra)
+        if "temple_pref" in P.internal:
+            sim.systems["faith"].init_practices(ids)
+        if "work_pref" in P.internal:
+            sim.systems["economy"].assign_scholarships(ids)
         P.cols["present"][ids] = False
         P.internal["arrive_day"][ids] = arrive_days
         P.cols["arrival_day"][ids] = arrive_days
@@ -88,7 +92,7 @@ class LifeCourse:
         age = np.where(women, rng.uniform(17.9, 18.9, nb), np.where(rm_men, rng.uniform(20.5, 21.5, nb), rng.uniform(17.9, 18.9, nb)))
         ids = self._new_people("byu_student", nb, "BYU",
                                {"sex": np.where(women, "F", "M"), "age": age, "rel": np.full(nb, "single"), "_tag": 1},
-                               arrive_days=w.day + rng.integers(-3, 1, nb))
+                               arrive_days=w.day + rng.integers(0, 4, nb))
         P.cols["class_standing"][ids] = P.code("class_standing", "freshman")
         P.cols["credits_done"][ids] = 0
         P.cols["mission_status"][ids] = np.where(rm_men[: len(ids)], P.code("mission_status", "returned"), P.code("mission_status", "none"))
@@ -96,7 +100,7 @@ class LifeCourse:
         P.cols["n_sex_partners"][ids] = np.where(rng.random(len(ids)) < 0.9, 0, P["n_sex_partners"][ids])
         nu = int(round(cfg["uvu_new_students"] * s))
         ids2 = self._new_people("uvu_student", nu, "UVU", {"age": rng.uniform(17.9, 22, nu), "_tag": 2},
-                                arrive_days=w.day + rng.integers(-3, 1, nu))
+                                arrive_days=w.day + rng.integers(0, 4, nu))
         P.cols["class_standing"][ids2] = P.code("class_standing", "freshman")
         P.cols["credits_done"][ids2] = 0
         # external RMs (served from elsewhere) arriving through the year
@@ -305,7 +309,8 @@ class LifeCourse:
         h = expit(p("lifecourse.mission.base") + np.where(male, p("lifecourse.mission.male"), 0)
                   + p("lifecourse.mission.belief") * (P["faith_belief"] - 0.7) + 1.2 * (P["activity"] == 3)
                   + p("lifecourse.mission.family") * P["family_expectation"] + 0.8 * P["religious_identity"]
-                  + 2.0 * age_peak + np.log(env["mission_norm"] + 1e-9) - 0.6 * P.is_("rel_status", "dating"))
+                  + 2.0 * age_peak + np.log(env["mission_norm"] + 1e-9) - 0.6 * P.is_("rel_status", "dating")
+                  - 1.5 * np.maximum(age - np.where(male, 19.8, 21.5), 0))  # those who haven't gone by then mostly won't
         call = elig & (P["activity"] == 3) & (sim.u("mission_call") < h)
         if call.any():
             ids = np.where(call)[0]

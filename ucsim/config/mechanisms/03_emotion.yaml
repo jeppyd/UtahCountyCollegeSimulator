@@ -387,6 +387,6 @@ mechanisms:
     label: Depressive episode onset/remission
     target: depressive_episode
     sources: [mood, loneliness, mh_depression, neuroticism]
-    form: "weekly onset = logistic(−6.2 + 36·max(0, 0.45 − 8-week mood) + 1.0·history + 0.35·N + 1.5·max(0, loneliness − 0.5)); remission = 0.06 + 0.25·max(0, mood8 − 0.4)"
+    form: "weekly onset = logistic(−7.9 + 14·max(0, 0.42 − 8-week mood) + 1.0·history + 0.35·N + 1.5·max(0, loneliness − 0.5)); remission = 0.09 + 0.3·max(0, mood8 − 0.4)"
     evidence: hypothetical
     desc: Threshold non-linearity — sustained low mood matters disproportionately.

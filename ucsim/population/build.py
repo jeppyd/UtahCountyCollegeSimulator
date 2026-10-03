@@ -46,7 +46,7 @@ def build_world(scale: float | None = None, seed: int = 1, verbose: bool = False
     # ---- literature bridge: extraversion ↔ social activity (cross-survey link, r≈0.3 assumption)
     ids = np.arange(P.n)
     ev = zscore(P["social_events_month"])
-    P["extraversion"] = zscore(0.88 * P["extraversion"] + 0.35 * ev)
+    P["extraversion"] = np.clip(zscore(0.88 * P["extraversion"] + 0.35 * ev), -3.5, 3.5)
     P["social_skill"] = zscore(0.85 * P["social_skill"] + 0.2 * ev)
 
     # ---- couples
@@ -289,6 +289,11 @@ def build_world(scale: float | None = None, seed: int = 1, verbose: bool = False
     E.cols["flags"][: E.n] |= np.where(same_ward, Tie.WARD, 0).astype(np.uint32)
     if verbose:
         print(f"  edges {E.n} ({time.time() - t0:.1f}s)")
+
+    # keep every ranged float inside the registry's declared support after the re-scalings above
+    for k, spec in P.specs.items():
+        if spec.range and spec.dtype in ("f4", "f8"):
+            np.clip(P.cols[k][: P.n], spec.range[0], spec.range[1], out=P.cols[k][: P.n])
 
     params = ParamSet(reg, overrides)
     world = World(reg=reg, params=params, cfg=cfg, scale=scale, seed=seed,

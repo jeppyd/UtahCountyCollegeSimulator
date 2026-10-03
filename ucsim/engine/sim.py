@@ -60,6 +60,16 @@ class Simulation:
             sysobj = self.systems[name]
             if hasattr(sysobj, "init"):
                 sysobj.init()
+        self._ranged = [(k, v.range[0], v.range[1]) for k, v in self.w.P.specs.items()
+                        if v.range and v.dtype in ("f4", "f8")]
+        self.clamp()
+
+    def clamp(self):
+        """Invariant: every ranged float stays inside the registry's declared support."""
+        P = self.w.P
+        for k, lo, hi in self._ranged:
+            col = P.cols[k][: P.n]
+            np.clip(col, lo, hi, out=col)
 
     # ------------------------------------------------------------------ helpers used by systems
     @property
@@ -164,6 +174,8 @@ class Simulation:
             self._run("lifecourse", S["lifecourse"].monthly)
             self._run("emotion", S["emotion"].monthly)
         self._run("housing", S["housing"].daily)
+        self._run("activity", S["activity"].night)
+        self.clamp()
         if self.record:
             self._run("recorder", S["recorder"].daily)
         if d % 14 == 13:

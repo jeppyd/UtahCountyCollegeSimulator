@@ -151,6 +151,7 @@ class EdgeStore:
         return idx
 
     def _insert(self, new_keys: np.ndarray, init: dict):
+        """Insert keys that must be unique and absent (callers go through upsert or filter first)."""
         m = len(new_keys)
         if self.n + m > self.cap:
             new_cap = max(self.cap * 2, self.n + m + 1024)

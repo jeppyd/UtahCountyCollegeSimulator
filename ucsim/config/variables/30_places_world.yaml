@@ -38,3 +38,7 @@ sections:
       men_initiate_norm: {label: Men-ask norm strength, desc: "How strongly dating initiation is expected of men."}
       church_attendance_norm: {label: Church attendance norm multiplier}
       transit_quality: {label: Transit quality (UVX/FrontRunner)}
+      marriage_norm: {label: Early-marriage norm strength, desc: "Multiplier on the cultural pressure to marry young (intervention target).", evidence: hypothetical}
+      rent_shock: {label: Rent shock multiplier, desc: "Exogenous rent multiplier on top of the vacancy-driven rent index."}
+      enrollment_index: {label: Enrollment index, desc: "Multiplier on incoming cohort size."}
+      social_media_intensity: {label: Social media intensity, desc: "Multiplier on social-media hours and comparison effects.", evidence: hypothetical}

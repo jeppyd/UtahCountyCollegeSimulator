@@ -424,6 +424,12 @@ class Synthesizer:
         put("credits_term", np.where(is_student, np.where(part_time, rng.integers(6, 11, n), rng.integers(12, 17, n)), 0).astype(np.float32))
         put("academic_standing", P.codes("academic_standing", np.where(gpa < 2.0, "probation", np.where(gpa < 2.3, "warning", "good"))))
         wh = np.clip(np.nan_to_num(ps["work_hours"], nan=15), 0, 60)
+        if is_student and wh.mean() > 0:
+            # the copula pools schools; rescale to the survey's per-school mean (BYU students work less than UVU)
+            from .sampling import load_priors
+            tgt = {r["school_proxy"]: r["mean"] for r in load_priors()["targets"]["work_hours_by_school"]}.get(school)
+            if tgt:
+                wh = np.clip(wh * tgt / wh.mean(), 0, 60)
         if role in ("young_adult", "staff"):
             wh = np.where(rng.random(n) < 0.9, np.clip(rng.normal(38, 6, n), 20, 55), 0)
         elif role == "faculty":
@@ -470,6 +476,9 @@ class Synthesizer:
                  "live_parents_pref": np.nan_to_num(cl["live_parents"]) > 0.5}
 
         for col, val in S.items():
+            spec = P.specs.get(col)
+            if spec is not None and spec.range and spec.dtype in ("f4", "f8"):
+                val = np.clip(val, *spec.range)  # keep sampled tails inside the registry's declared support
             P.cols[col][ids] = val
         for col, val in S_int.items():
             P.internal[col][ids] = val

@@ -155,8 +155,8 @@ mechanisms:
   romance.engage:
     label: Engagement & wedding timing
     target: [rel_status, age_at_marriage]
-    sources: [relationship_commitment, ideal_months_engaged, activity, age, financial_stress]
-    form: "weekly h = logistic(base + βc·commitment + βt·clip((months − ideal)/4) + βa·both active LDS·marriage_norm + age term − 0.8·financial stress − 1.2·mismatch); wedding 2.5–4.5 months later for active LDS couples"
+    sources: [relationship_commitment, ideal_months_engaged, activity, age, financial_stress, mission_status]
+    form: "weekly h = logistic(base + βc·commitment + βt·clip((months − ideal)/4) + βa·both active LDS·marriage_norm + age term − 1.8·[man under 20] − 1.2·[LDS man under 21.5 who has not served] − 0.8·financial stress − 1.2·mismatch); wedding 2.5–4.5 months later for active LDS couples"
     params:
       base: {value: -7.0, range: [-8.5, -5.5]}
       commitment: {value: 3.0, range: [1.5, 4.5]}

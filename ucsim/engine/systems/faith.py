@@ -32,6 +32,28 @@ class Faith:
         P.internal["works_sunday"][: P.n] = (mask & np.uint32(1 << 18)) > 0
         self.attending_today = np.zeros(P.n, bool)
         self._norms()
+        P.add_internal("temple_pref", np.float32, 0.0)
+        P.add_internal("scripture_pref", np.float32, 0.0)
+        self.init_practices(np.arange(P.n))
+
+    def init_practices(self, ids):
+        """Store sampled practice levels as preferences and set current practice from activity."""
+        P = self.sim.w.P
+        P.internal["temple_pref"][ids] = P["temple_per_year"][ids]
+        P.internal["scripture_pref"][ids] = P["scripture_minutes"][ids]
+        self.practices(ids, rate=1.0)
+
+    def practices(self, ids, rate: float | None = None):
+        P, p = self.sim.w.P, self.sim.p
+        r = p("faith.practices.adjust_rate") if rate is None else rate
+        act = P["activity"][ids]
+        f = np.select([act == 3, act == 2, act == 1], [1.0, p("faith.practices.less_active_factor"), p("faith.practices.inactive_factor")], 0.0)
+        f = f * P["lds_member"][ids]
+        g = np.where(P["temple_recommend"][ids], 1.0, 0.15)
+        t = P["temple_per_year"][ids]
+        sc = P["scripture_minutes"][ids]
+        P.cols["temple_per_year"][ids] = t + r * (P.internal["temple_pref"][ids] * f * g - t)
+        P.cols["scripture_minutes"][ids] = sc + r * (P.internal["scripture_pref"][ids] * f - sc)
 
     def daily(self):
         sim, w = self.sim, self.sim.w
@@ -189,6 +211,7 @@ class Faith:
         lose = P["temple_recommend"] & (~clean | (P["activity"] < 3)) & (sim.u("tr2") < 0.2)
         P.cols["temple_recommend"][np.where(gain)[0]] = True
         P.cols["temple_recommend"][np.where(lose)[0]] = False
+        self.practices(np.where(P["present"])[0])
 
     def _last_event(self, ids: np.ndarray, etype: str) -> np.ndarray:
         log = self.sim.log

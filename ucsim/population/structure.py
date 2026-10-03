@@ -419,6 +419,7 @@ def seed_network(P: PersonTable, E: EdgeStore, unit_of: np.ndarray, rng, day0: i
     src, dst = src[ok], dst[ok]
     keys = EdgeStore.make_keys(src, dst)
     keys = np.unique(keys)
+    keys = keys[E.find(keys) < 0]  # partners/spouses already have their own tie
     m = len(keys)
     stage = rng.choice([2, 3, 4], m, p=[0.5, 0.35, 0.15]).astype(np.uint8)
     hours = np.select([stage == 2, stage == 3, stage == 4], [rng.uniform(30, 80, m), rng.uniform(80, 220, m), rng.uniform(220, 600, m)])

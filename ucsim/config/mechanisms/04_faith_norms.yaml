@@ -6,11 +6,11 @@ mechanisms:
     sources: [faith_belief, religious_identity, practice_habit, perceived_norm, family_expectation, stress, fatigue, church_attendance_norm]
     form: "P(attend) = logistic(base + βb·(belief−0.6) + βi·(identity−0.5) + βh·(habit−0.5) + βn·(norm−0.5) + βf·family − βs·(stress−0.3)⁺ − 0.8·fatigue − 2·Sunday work − crisis)"
     params:
-      base: {value: -0.3, range: [-1.5, 0.5]}
+      base: {value: -0.45, range: [-1.5, 0.5]}
       belief: {value: 3.0, range: [1.5, 4.5]}
       identity: {value: 2.0, range: [1.0, 3.0]}
       habit: {value: 2.0, range: [1.0, 3.0]}
-      norm: {value: 1.5, range: [0.5, 2.5]}
+      norm: {value: 1.0, range: [0.3, 2.0]}
       family: {value: 0.8, range: [0.2, 1.4]}
       stress: {value: 1.5, range: [0.5, 2.5]}
     evidence: empirical
@@ -25,6 +25,18 @@ mechanisms:
       learning_rate: {value: 0.06, range: [0.02, 0.12]}
     evidence: literature
     refs: ["Lally, van Jaarsveld, Potts & Wardle (2010) EJSP: habit automaticity grows asymptotically (median ~66 days)"]
+  faith.practices:
+    label: Private & temple practice follow activity
+    target: [temple_per_year, scripture_minutes]
+    sources: [activity, temple_recommend]
+    form: "weekly: x ← x + r·(pref·f(activity)·g(recommend) − x); f = 1 active, f_less, f_inactive, 0 non-member; g = 1 with recommend else 0.15 (temple only)"
+    params:
+      less_active_factor: {value: 0.5, range: [0.3, 0.7]}
+      inactive_factor: {value: 0.05, range: [0.0, 0.15]}
+      adjust_rate: {value: 0.08, range: [0.03, 0.2]}
+    evidence: empirical
+    desc: "Each person keeps a personal preference level (sampled from the culture survey); what they actually do tracks their current activity, so a faith transition shows up in practices over weeks."
+    refs: ["Culture & Lifestyle survey: temple visits/year 17.1 (active) vs 3.4 (less active) vs 0.25 (inactive); scripture minutes/day 10.7 vs 2.4 vs 0"]
   faith.influence:
     label: Social influence on belief (uncertainty-gated)
     target: faith_belief

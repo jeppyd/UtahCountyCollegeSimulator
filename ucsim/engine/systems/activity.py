@@ -197,6 +197,19 @@ class Activity:
         P["activity_now"] = act
         self._locate(ctype, cid, act)
 
+    def night(self):
+        """End of day: everyone present goes home to sleep (keeps the map honest between days)."""
+        P = self.sim.w.P
+        n = P.n
+        unit = P["unit_id"]
+        home = P["present"] & (unit >= 0)
+        ctype = np.full(n, NONE, np.uint8)
+        cid = np.full(n, -1, np.int64)
+        act = np.full(n, A["away"], np.uint8)
+        ctype[home], cid[home], act[home] = CTX_ID["unit"], unit[home], A["home"]
+        P["activity_now"] = act
+        self._locate(ctype, cid, act)
+
     def _drives(self):
         sim, P = self.sim, self.sim.w.P
         p = sim.p

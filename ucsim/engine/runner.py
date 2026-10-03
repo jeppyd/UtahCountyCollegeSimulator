@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import copy
 import json
+import multiprocessing as mp
 import time
 import uuid
 from concurrent.futures import ProcessPoolExecutor
@@ -175,7 +176,7 @@ def monte_carlo(scenarios: dict[str, list], seeds: list[int], days: int, scale: 
                 overrides: dict | None = None, workers: int = 4) -> dict:
     """Run each scenario for each seed. Same seed across scenarios = paired comparison."""
     jobs = [(scale, s, specs, overrides, days, name) for name, specs in scenarios.items() for s in seeds]
-    with ProcessPoolExecutor(max_workers=workers) as ex:
+    with ProcessPoolExecutor(max_workers=workers, mp_context=mp.get_context("spawn")) as ex:
         results = list(ex.map(_one_run, jobs))
     return summarize_mc(results)
 
@@ -221,7 +222,7 @@ def sweep(param: str, values: list[float], seeds: list[int], days: int, scale: f
             jobs += [(scale, s, spec, None, days, f"{v}") for s in seeds]
         else:
             jobs += [(scale, s, [], {param: v}, days, f"{v}") for s in seeds]
-    with ProcessPoolExecutor(max_workers=workers) as ex:
+    with ProcessPoolExecutor(max_workers=workers, mp_context=mp.get_context("spawn")) as ex:
         results = list(ex.map(_one_run, jobs))
     curves = {}
     for k in results[0]["final"]:

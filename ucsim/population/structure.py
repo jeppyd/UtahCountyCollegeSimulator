@@ -43,6 +43,10 @@ class Units:
 UNIT_TYPES = ["dorm", "apartment", "house_room", "married_apartment", "family_home"]
 
 
+def dist_km(lon1, lat1, lon2, lat2):
+    return float(np.hypot((lon1 - lon2) * 111.32 * np.cos(np.radians(40.26)), (lat1 - lat2) * 111.32))
+
+
 def build_units(scale: float, rng: np.random.Generator) -> tuple[Units, pl.DataFrame]:
     dw = pl.read_parquet(GEO / "dwellings.parquet")
     cx = pl.read_parquet(GEO / "complexes.parquet")
@@ -54,6 +58,10 @@ def build_units(scale: float, rng: np.random.Generator) -> tuple[Units, pl.DataF
     # Thinning keeps spatial density patterns at reduced scale.
     q = np.where(student_zone & (k >= 1), min(1.0, scale * 1.15), min(1.0, scale * 0.45))
     keep = rng.random(len(k)) < q
+    # senior-living complexes are outside the simulated student/young-adult housing market
+    if "kind" in cx.columns:
+        senior = cx.filter(pl.col("kind").is_in(["senior", "special_dup"]))["complex_id"].to_numpy()
+        keep &= ~np.isin(dw["complex_id"].fill_null(-1).to_numpy(), senior)
     dw = dw.filter(pl.Series(keep))
     k = k[keep]
     cid = dw["complex_id"].fill_null(-1).to_numpy().astype(np.int32)
@@ -81,6 +89,17 @@ def build_units(scale: float, rng: np.random.Generator) -> tuple[Units, pl.DataF
             extra.append((row["lon"] + rad[i] * np.cos(ang[i]) * 1.3, row["lat"] + rad[i] * np.sin(ang[i]),
                           bpu if row["kind"] == "byu_dorm" else 4, row["kind"] == "byu_dorm", row["kind"] == "married",
                           0 if row["kind"] == "byu_dorm" else 3, row["complex_id"], 4 if row["kind"] == "byu_dorm" else 5))
+    # named complexes whose outline holds more apartments than county address points show (OSM footprint × floors)
+    if "extra_units" in cx.columns:
+        for row in cx.filter(pl.col("extra_units") > 0).iter_rows(named=True):
+            near = min(dist_km(row["lon"], row["lat"], -111.6493, 40.2519), dist_km(row["lon"], row["lat"], -111.7149, 40.2785)) < 2.8
+            n_units = int(rng.binomial(row["extra_units"], min(1.0, scale * (1.15 if near else 0.45))))
+            ang = rng.uniform(0, 2 * np.pi, n_units)
+            rad = np.sqrt(rng.uniform(0, 1, n_units)) * 0.0007
+            for i in range(n_units):
+                extra.append((row["lon"] + rad[i] * np.cos(ang[i]) * 1.3, row["lat"] + rad[i] * np.sin(ang[i]),
+                              int(rng.choice([4, 6]) if row["contracted"] else rng.choice([2, 3, 4])), bool(row["contracted"]), False,
+                              1, row["complex_id"], 2))
     if extra:
         ex = np.array(extra, dtype=object)
         lon = np.concatenate([lon, ex[:, 0].astype(float)])
@@ -321,7 +340,7 @@ def build_workplaces(P: PersonTable, venues: pl.DataFrame, rng, scale: float):
             employer[grp] = e
             job[grp] = JOB_TYPES.index(jt)
 
-    rest_v = venues.filter(pl.col("vtype").is_in(["restaurant", "cafe", "soda_shop", "dessert", "cinema_theatre", "gym"]))
+    rest_v = venues.filter(pl.col("vtype").is_in(["restaurant", "cafe", "soda_shop", "dessert", "cinema_theatre"]))
     vlon, vlat, vname = rest_v["lon"].to_numpy(), rest_v["lat"].to_numpy(), rest_v["name"].to_list()
     slon, slat = sites["lon"].to_numpy(), sites["lat"].to_numpy()
     vi = iter(rng.permutation(len(vlon)).tolist() * 50)

@@ -3,29 +3,104 @@ import { fmt, quantile } from '../analysis'
 import { api, STATIC } from '../api'
 import { axisStyle, condLabel, Decomposition, EChart, Evidence, Loading, PersonLink, series, tokens, VarPicker } from '../components'
 import { useStore } from '../store'
+import { effectWord, PageHeader, useAdvanced } from '../ui'
 import { dayToDate, TSChart } from './Overview'
 
 const DERIVED_ENV = /^(temp_f|weekday|term_|date|month|outdoor_appeal|holiday|conference|exam_week|term_progress)/
 const STATES = ['loneliness', 'mood', 'stress', 'belonging', 'romantic_longing', 'financial_stress', 'academic_pressure', 'guilt', 'self_esteem', 'purpose', 'fatigue', 'anxiety']
 
-export default function Lab() {
+const THEMES: [string, string[]][] = [
+  ['Money & housing', ['rent_up_20', 'tuition_up_20', 'construction_30', 'recession', 'contracted_housing_removed', 'contracted_housing_all_years', 'transit_improved']],
+  ['Dating & marriage', ['new_dating_app', 'women_ask_more', 'marriage_norm_weaker', 'new_dance_hall']],
+  ['Faith & culture', ['coffee_permitted', 'church_attendance_decline', 'mission_participation_minus_15', 'pickleball_craze', 'stronger_peer_influence']],
+  ['School & environment', ['enrollment_up_20', 'warmer_plus_5f']],
+]
+const DURATIONS: [number, string][] = [[30, '1 month'], [112, '1 semester'], [365, '1 year'], [730, '2 years']]
+
+export default function Lab({ preset }: { preset?: string }) {
   const { status } = useStore()
+  const adv = useAdvanced()
   return (
     <div className="page">
-      <h1>Scenario lab</h1>
-      <p className="sub">Change something, branch the universe, and watch consequences propagate. Both universes start from the identical state and share random-number streams, so differences are attributable to the intervention and the chains it sets off.</p>
-      {status.has_alt ? <Compare /> : <Builder />}
-      <div className="grid g2" style={{ marginTop: 14 }}>
-        <MonteCarlo />
-        <Sweep />
-      </div>
+      <PageHeader id="lab" eyebrow="What if?" title="What-if lab"
+        sub="Change something about Provo, split the world in two, and compare what happens. Both worlds start identical and roll the same dice, so differences come from your change."
+        tips={[
+          'Pick one or more changes. Each card says how confident we are that the effect is realistic.',
+          'Choose how long to watch, then split the world. The original keeps going unchanged; the copy gets your change.',
+          'Results show what changed most, what happened more or less often, why feelings changed, and the people most affected.',
+          <>Use the <b>Original / What-if</b> switch at the top right to view any page (map, people, charts) in either world.</>,
+        ]} />
+      {status.has_alt ? <Results /> : <Wizard preset={preset} />}
+      {adv && (
+        <>
+          <div className="section-title"><h2>Many runs & sweeps</h2><span className="small muted">Advanced: repeat experiments with different dice, or try a range of strengths.</span></div>
+          <div className="grid g2">
+            <MonteCarlo />
+            <Sweep />
+          </div>
+        </>
+      )}
     </div>
   )
 }
 
-function Builder() {
-  const { presets, status, cohort, registry, refreshStatus } = useStore()
-  const [queue, setQueue] = useState<any[]>([])
+function Wizard({ preset }: { preset?: string }) {
+  const { presets, status, refreshStatus } = useStore()
+  const adv = useAdvanced()
+  const [queue, setQueue] = useState<any[]>(() => (preset && presets?.[preset] ? [{ preset, name: presets[preset].name }] : []))
+  const [days, setDays] = useState(112)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  useEffect(() => { if (preset && presets?.[preset] && !queue.some(q => q.preset === preset)) setQueue([{ preset, name: presets[preset].name }]) }, [preset])
+  const toggle = (id: string) => setQueue(queue.some(q => q.preset === id) ? queue.filter(q => q.preset !== id) : [...queue, { preset: id, name: presets[id].name }])
+  const run = async () => {
+    setBusy(true); setErr('')
+    try { await api.fork(queue); await api.step({ days }); await refreshStatus() } catch (e: any) { setErr(String(e.message ?? e)) }
+    setBusy(false)
+  }
+  const listed = new Set(THEMES.flatMap(t => t[1]))
+  const others = Object.keys(presets ?? {}).filter(k => !listed.has(k))
+  const step = queue.length ? 2 : 1
+  return (
+    <>
+      <div className="wizard-steps"><span className={`ws ${step === 1 ? 'on' : 'done'}`}>1 · Choose a change</span><span className={`ws ${step === 2 ? 'on' : ''}`}>2 · How long to watch</span><span className="ws">3 · See what changed</span></div>
+      {[...THEMES, ...(others.length ? [['Other', others] as [string, string[]]] : [])].map(([theme, ids]) => (
+        <div key={theme} style={{ marginBottom: 14 }}>
+          <div className="small muted" style={{ marginBottom: 6, fontWeight: 600 }}>{theme}</div>
+          <div className="grid g3">{ids.filter(id => presets?.[id]).map(id => {
+            const p = presets[id], on = queue.some(q => q.preset === id)
+            return (
+              <button key={id} className={`card preset-card ${on ? 'on' : ''}`} onClick={() => toggle(id)} disabled={STATIC} aria-pressed={on}>
+                <div className="row" style={{ flexWrap: 'nowrap' }}><b style={{ flex: 1 }}>{p.name}</b><span className="pill" title="How defensible the size of this effect is">{p.confidence === 'plausible' ? 'plausible' : 'speculative'}</span></div>
+                <span className="pc-desc">{p.description}</span>
+                <span className="small" style={{ color: on ? 'var(--accent)' : 'var(--text-muted)', fontWeight: 600 }}>{on ? '✓ selected' : 'select'}</span>
+              </button>
+            )
+          })}</div>
+        </div>
+      ))}
+      {adv && <CustomBuilder onAdd={spec => setQueue([...queue, spec])} />}
+      <div className="card" style={{ position: 'sticky', bottom: 10, marginTop: 10, zIndex: 3 }}>
+        <div className="row">
+          <div style={{ minWidth: 0 }}>
+            <b>{queue.length ? `${queue.length} change${queue.length > 1 ? 's' : ''}:` : 'Select at least one change above.'}</b>{' '}
+            {queue.map((q, k) => <span key={k} className="cond" style={{ marginRight: 4 }}>{q.name ?? q.preset}<button onClick={() => setQueue(queue.filter((_, j) => j !== k))} aria-label="remove">×</button></span>)}
+          </div>
+          <span className="spacer" />
+          <span className="small muted">Watch for</span>
+          <div className="seg">{DURATIONS.map(([d, l]) => <button key={d} className={days === d ? 'on' : ''} onClick={() => setDays(d)}>{l}</button>)}</div>
+          <button className="btn primary" disabled={!queue.length || busy || STATIC} onClick={run}>{busy ? 'Starting…' : 'Split the world and run ▶'}</button>
+        </div>
+        {status.day < 14 && <p className="small muted" style={{ margin: '8px 0 0' }}>Tip: the world is only {status.day} days old. Friendships and dating need a few weeks to get going, so effects will be clearer if you run a couple of weeks first.</p>}
+        {err && <div className="banner" style={{ marginTop: 8 }}>{err}</div>}
+        {STATIC && <p className="small muted" style={{ margin: '8px 0 0' }}>Running experiments needs the installed app.</p>}
+      </div>
+    </>
+  )
+}
+
+function CustomBuilder({ onAdd }: { onAdd: (spec: any) => void }) {
+  const { status, cohort, registry } = useStore()
   const [tt, setTt] = useState<'world' | 'param' | 'agent'>('world')
   const envKeys = Object.keys(status.env ?? {}).filter(k => !DERIVED_ENV.test(k))
   const params = useMemo(() => {
@@ -40,69 +115,42 @@ function Builder() {
   const [delay, setDelay] = useState(0)
   const [dur, setDur] = useState('')
   const [useCohort, setUseCohort] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const addCustom = () => {
+  const add = () => {
     const v = value === 'true' ? true : value === 'false' ? false : Number(value)
     const spec: any = { target_type: tt, target, op, value: v, ramp_days: ramp, start_day: status.day + delay, name: `${target} ${op} ${value}` }
     if (dur) spec.duration_days = Number(dur)
     if (tt === 'agent' && useCohort && cohort.length) { spec.population = { and: cohort }; spec.name += ` for ${cohort.map(c => condLabel(c, registry)).join(', ')}` }
-    setQueue([...queue, spec])
-  }
-  const branch = async () => {
-    setBusy(true)
-    try { await api.fork(queue); await refreshStatus() } catch (e: any) { alert(e.message) }
-    setBusy(false)
+    onAdd(spec)
   }
   return (
-    <div className="grid g2">
-      <div className="card">
-        <h3>Intervention library</h3>
-        <p className="hint">Click to queue. Confidence describes how defensible the mechanism/magnitude is.</p>
-        <div className="scroll" style={{ maxHeight: 460 }}>
-          {presets && Object.entries(presets).map(([id, p]: any) => (
-            <div key={id} style={{ padding: '8px 0', borderBottom: '1px solid var(--grid)' }}>
-              <div className="row"><b>{p.name}</b><span className="pill">{p.confidence}</span><span className="spacer" /><button className="btn small" disabled={STATIC} onClick={() => setQueue([...queue, { preset: id, name: p.name }])}>+ Queue</button></div>
-              <div className="small secondary">{p.description}</div>
-            </div>
-          ))}
-        </div>
+    <div className="card" style={{ marginBottom: 14 }}>
+      <h3>Custom change (advanced)</h3>
+      <p className="hint">Anything in the world, the strength of any rule, or any personal measure for your current group.</p>
+      <div className="seg" style={{ marginBottom: 8 }}>
+        {(['world', 'param', 'agent'] as const).map(k => <button key={k} className={tt === k ? 'on' : ''} onClick={() => { setTt(k); setTarget(k === 'world' ? 'tuition_byu' : k === 'param' ? params[0]?.key : 'faith_belief') }}>{k === 'world' ? 'World variable' : k === 'param' ? 'Rule strength' : 'People (your group)'}</button>)}
       </div>
-      <div className="card">
-        <h3>Custom intervention</h3>
-        <p className="hint">Anything in the world, any mechanism parameter, or any person variable for a cohort.</p>
-        <div className="seg" style={{ marginBottom: 8 }}>
-          {(['world', 'param', 'agent'] as const).map(k => <button key={k} className={tt === k ? 'on' : ''} onClick={() => { setTt(k); setTarget(k === 'world' ? 'tuition_byu' : k === 'param' ? params[0]?.key : 'faith_belief') }}>{k === 'world' ? 'World variable' : k === 'param' ? 'Mechanism strength' : 'People (cohort)'}</button>)}
-        </div>
-        <div className="row" style={{ marginBottom: 8 }}>
-          {tt === 'world' && <select value={target} onChange={e => setTarget(e.target.value)}>{envKeys.map(k => <option key={k}>{k}</option>)}</select>}
-          {tt === 'param' && <select value={target} onChange={e => setTarget(e.target.value)} style={{ maxWidth: 360 }}>{params.map(p => <option key={p.key} value={p.key}>{p.label} ({fmt(p.value)})</option>)}</select>}
-          {tt === 'agent' && <VarPicker value={target} onChange={setTarget} filter={v => !!v.intervenable && v.dtype !== 'cat'} />}
-          <select value={op} onChange={e => setOp(e.target.value)}><option value="mul">× multiply</option><option value="add">+ add</option><option value="set">= set</option></select>
-          <input type="text" value={value} onChange={e => setValue(e.target.value)} style={{ width: 80 }} />
-        </div>
-        {tt === 'world' && <div className="small muted" style={{ marginBottom: 8 }}>current value: {String(status.env?.[target])}</div>}
-        <div className="row small" style={{ marginBottom: 8 }}>
-          <label className="inline">starts in <input type="number" value={delay} onChange={e => setDelay(Number(e.target.value))} style={{ width: 60 }} /> days</label>
-          <label className="inline">ramp <input type="number" value={ramp} onChange={e => setRamp(Number(e.target.value))} style={{ width: 60 }} /> days</label>
-          <label className="inline">lasts <input type="text" placeholder="forever" value={dur} onChange={e => setDur(e.target.value)} style={{ width: 70 }} /> days</label>
-        </div>
-        {tt === 'agent' && <label className="inline small"><input type="checkbox" checked={useCohort} onChange={e => setUseCohort(e.target.checked)} />apply only to current cohort ({cohort.length ? cohort.map(c => condLabel(c, registry)).join(', ') : 'everyone'})</label>}
-        <div style={{ marginTop: 8 }}><button className="btn small" disabled={STATIC} onClick={addCustom}>+ Queue custom</button></div>
-        <hr style={{ border: 0, borderTop: '1px solid var(--grid)', margin: '14px 0' }} />
-        <h3>Queued for the intervention universe</h3>
-        {queue.length === 0 && <div className="muted small">Nothing queued.</div>}
-        {queue.map((q, k) => <div key={k} className="row small" style={{ padding: '3px 0' }}><span className="cond">{q.name ?? q.preset}<button onClick={() => setQueue(queue.filter((_, j) => j !== k))}>×</button></span></div>)}
-        <div className="row" style={{ marginTop: 10 }}>
-          <button className="btn primary" disabled={!queue.length || busy || STATIC} onClick={branch}>Branch universe now (day {status.day})</button>
-          {STATIC && <span className="muted small">Interactive branching needs the local simulator.</span>}
-        </div>
+      <div className="row" style={{ marginBottom: 8 }}>
+        {tt === 'world' && <select value={target} onChange={e => setTarget(e.target.value)}>{envKeys.map(k => <option key={k}>{k}</option>)}</select>}
+        {tt === 'param' && <select value={target} onChange={e => setTarget(e.target.value)} style={{ maxWidth: 360 }}>{params.map(p => <option key={p.key} value={p.key}>{p.label} ({fmt(p.value)})</option>)}</select>}
+        {tt === 'agent' && <VarPicker value={target} onChange={setTarget} filter={v => !!v.intervenable && v.dtype !== 'cat'} />}
+        <select value={op} onChange={e => setOp(e.target.value)}><option value="mul">× multiply</option><option value="add">+ add</option><option value="set">= set</option></select>
+        <input type="text" value={value} onChange={e => setValue(e.target.value)} style={{ width: 80 }} aria-label="Value" />
+        {tt === 'world' && <span className="small muted">now: {String(status.env?.[target])}</span>}
+      </div>
+      <div className="row small" style={{ marginBottom: 8 }}>
+        <label className="inline">starts in <input type="number" value={delay} onChange={e => setDelay(Number(e.target.value))} style={{ width: 60 }} /> days</label>
+        <label className="inline">ramps up over <input type="number" value={ramp} onChange={e => setRamp(Number(e.target.value))} style={{ width: 60 }} /> days</label>
+        <label className="inline">lasts <input type="text" placeholder="forever" value={dur} onChange={e => setDur(e.target.value)} style={{ width: 70 }} /> days</label>
+        {tt === 'agent' && <label className="inline"><input type="checkbox" checked={useCohort} onChange={e => setUseCohort(e.target.checked)} />only my group ({cohort.length ? cohort.map(c => condLabel(c, registry)).join(', ') : 'everyone'})</label>}
+        <button className="btn small" disabled={STATIC} onClick={add}>+ Add</button>
       </div>
     </div>
   )
 }
 
-function Compare() {
-  const { status, dataVersion, refreshStatus, setRoute, registry } = useStore()
+function Results() {
+  const { status, dataVersion, refreshStatus, setRoute, registry, setUniverse } = useStore()
+  const adv = useAdvanced()
   const [c, setC] = useState<any>(null)
   const [state, setState] = useState('loneliness')
   const [tsVar, setTsVar] = useState('loneliness')
@@ -113,69 +161,118 @@ function Compare() {
     if (!c?.divergence?.length) return null
     const ax = axisStyle()
     const start = dayToDate(status.date, -status.day)
-    const keys: [string, string][] = [['any_state_diff', 'People in a different state'], ['friendship_jaccard_distance', 'Friendship network difference'], ['diff_rel_status', 'Different relationship status']]
+    const keys: [string, string][] = [['any_state_diff', 'Lives that differ in some way'], ['diff_rel_status', 'Different relationship status'], ['friendship_jaccard_distance', 'Friendships that differ']]
     return {
-      grid: { left: 50, right: 16, top: 30, bottom: 26 }, legend: { top: 0, textStyle: { color: tokens().text2, fontSize: 11 } },
-      tooltip: { trigger: 'axis', valueFormatter: (v: number) => (100 * v).toFixed(2) + '%' },
+      grid: { left: 46, right: 16, top: 30, bottom: 26 }, legend: { top: 0, textStyle: { color: tokens().text2, fontSize: 11 } },
+      tooltip: { trigger: 'axis', valueFormatter: (v: number) => (100 * v).toFixed(1) + '%' },
       xAxis: { type: 'time', ...ax, splitLine: { show: false } },
       yAxis: { type: 'value', ...ax, axisLabel: { ...ax.axisLabel, formatter: (v: number) => (100 * v).toFixed(0) + '%' } },
       series: keys.map(([k, l]) => ({ name: l, type: 'line', showSymbol: false, lineStyle: { width: 2 }, data: c.divergence.map((d: any) => [dayToDate(start, d.day), d[k]]) })),
     }
   }, [c])
-  if (!c) return <Loading what="Comparing universes" />
-  const vars = Object.entries(c.variables).filter(([, v]: any) => v.kind === 'num' && Math.abs(v.delta) > 1e-6).sort((a: any, b: any) => Math.abs(b[1].delta_sd) - Math.abs(a[1].delta_sd)).slice(0, 25)
+  if (!c) return <Loading what="Comparing the two worlds" />
+  const running = status.job?.state === 'running'
+  const since = status.day - (status.fork_day ?? status.day)
+  const vars = Object.entries(c.variables).filter(([k, v]: any) => v.kind === 'num' && Math.abs(v.delta) > 1e-6 && registry!.variables[k]?.chartable)
+    .sort((a: any, b: any) => Math.abs(b[1].delta_sd) - Math.abs(a[1].delta_sd))
   const st = c.states[state]
+  const lastDiv = c.divergence?.[c.divergence.length - 1]
+  const changes = c.events.filter((e: any) => e.base + e.alt >= 10 && Math.abs(e.rel) >= 0.05 && e.type !== 'intervention_exposure').slice(0, 8)
   return (
     <>
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="row">
-          <div><h3>Intervention universe (branched on day {status.fork_day})</h3>
-            <div className="row small">{[...new Set<string>(c.interventions.map((i: any) => i.name ?? i.preset ?? `${i.target} ${i.op} ${i.value}`))].map(label => <span key={label} className="pill">{label}</span>)}</div></div>
+          <div style={{ minWidth: 0 }}>
+            <div className="eyebrow">Your experiment</div>
+            <div className="row">{[...new Set<string>(c.interventions.map((i: any) => i.name ?? i.preset ?? `${i.target} ${i.op} ${i.value}`))].map(label => <span key={label} className="pill" style={{ fontSize: 13 }}><b>{label}</b></span>)}</div>
+            <div className="small secondary" style={{ marginTop: 6 }}>Split on day {status.fork_day} · running for {since} days so far{running ? ' (still running…)' : ''} · {c.n.toLocaleString()} people in both worlds.</div>
+          </div>
           <span className="spacer" />
-          {!STATIC && <button className="btn" onClick={async () => { await api.unfork(); await refreshStatus() }}>Discard intervention universe</button>}
+          {!STATIC && <>
+            <button className="btn" disabled={running} onClick={async () => { await api.step({ days: 30 }); refreshStatus() }}>Run 1 more month</button>
+            <button className="btn" onClick={() => setUniverse('alt')} title="View every page in the what-if world">View the what-if world</button>
+            <button className="btn" onClick={async () => { await api.unfork(); await refreshStatus() }}>Start a new experiment</button>
+          </>}
         </div>
-        <p className="small muted" style={{ marginBottom: 0 }}>{c.n.toLocaleString()} people present in both universes · use the top-right toggle to view any page in the intervention universe · open any person to see their counterfactual life.</p>
       </div>
+
       <div className="grid g2">
-        <div className="card"><h3>Where the universes diverge</h3><p className="hint">Butterfly effects: share of people whose life has changed so far.</p>{divOpt ? <EChart option={divOpt} height={240} /> : <div className="empty small">Advance the clock.</div>}</div>
         <div className="card">
-          <div className="row"><h3>Outcome over time</h3><span className="spacer" /><VarPicker value={tsVar} onChange={setTsVar} filter={v => !!v.flags?.includes('timeseries') && v.dtype !== 'cat'} /></div>
-          {ts && <TSChart data={ts} v={tsVar} label={registry!.variables[tsVar]?.label ?? tsVar} height={210} startDate={dayToDate(status.date, -status.day)} forkDay={status.fork_day} />}
+          <h3>How far apart the worlds have drifted</h3>
+          <p className="hint">{lastDiv ? <>So far <b>{(100 * lastDiv.any_state_diff).toFixed(1)}%</b> of people live a noticeably different life in the what-if world: the change itself plus its ripple effects.</> : 'Run time forward to see the worlds drift apart.'}</p>
+          {divOpt ? <EChart option={divOpt} height={220} /> : <div className="empty small">Run time forward.</div>}
+        </div>
+        <div className="card">
+          <div className="row"><h3>Side by side over time</h3><span className="spacer" /><VarPicker value={tsVar} onChange={setTsVar} filter={v => !!v.flags?.includes('timeseries') && v.dtype !== 'cat'} /></div>
+          {ts && <TSChart data={ts} v={tsVar} label={registry!.variables[tsVar]?.label ?? tsVar} height={200} startDate={dayToDate(status.date, -status.day)} forkDay={status.fork_day} />}
         </div>
       </div>
-      <div className="grid g2" style={{ marginTop: 14 }}>
-        <div className="card">
-          <h3>Biggest outcome differences</h3><p className="hint">Mean difference (intervention − baseline), in standard deviations. Click for the variable.</p>
-          <div className="scroll" style={{ maxHeight: 420 }}><table className="data"><thead><tr><th>Variable</th><th className="num">Baseline</th><th className="num">Intervention</th><th className="num">Δ</th><th className="num">Δ / sd</th><th className="num">people changed</th></tr></thead>
-            <tbody>{vars.map(([k, v]: any) => (
-              <tr key={k} className="click" onClick={() => setRoute(['variables', k])}><td>{registry!.variables[k]?.label ?? k} <Evidence level={registry!.variables[k]?.evidence} /></td>
-                <td className="num">{fmt(v.base, 3)}</td><td className="num">{fmt(v.alt, 3)}</td><td className="num">{v.delta > 0 ? '+' : ''}{fmt(v.delta, 3)}</td>
-                <td className="num"><b>{v.delta_sd > 0 ? '+' : ''}{fmt(v.delta_sd, 3)}</b></td><td className="num">{(100 * v.changed_share).toFixed(1)}%</td></tr>))}</tbody></table></div>
-        </div>
-        <div className="card">
-          <h3>Consequence chains: event counts since the fork</h3><p className="hint">Discrete events that became more or less common.</p>
-          <div className="scroll" style={{ maxHeight: 420 }}><table className="data"><thead><tr><th>Event</th><th className="num">Baseline</th><th className="num">Intervention</th><th className="num">Change</th></tr></thead>
-            <tbody>{c.events.slice(0, 40).map((e: any) => (
-              <tr key={e.type}><td>{e.label}</td><td className="num">{e.base.toLocaleString()}</td><td className="num">{e.alt.toLocaleString()}</td>
-                <td className="num" style={{ color: e.delta > 0 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{e.delta > 0 ? '+' : ''}{e.delta} ({e.rel > 0 ? '+' : ''}{(100 * e.rel).toFixed(0)}%)</td></tr>))}</tbody></table></div>
-        </div>
+
+      <div className="section-title"><h2>What changed most</h2><span className="small muted">Averages in the what-if world vs the original. Size is judged relative to how much people normally differ.</span></div>
+      <div className="grid g3">
+        {vars.slice(0, 6).map(([k, v]: any) => {
+          const spec = registry!.variables[k]
+          const why = c.states[k]?.terms?.filter((t: any) => Math.abs(t.delta) > 1e-4).slice(0, 2) ?? []
+          return (
+            <div key={k} className="card change-card" style={{ cursor: 'pointer' }} onClick={() => setRoute(['variables', k])}>
+              <div className="small muted">{spec?.label} <Evidence level={spec?.evidence} /></div>
+              <div className="cc-big tabular">{v.delta > 0 ? '▲' : '▼'} {fmt(v.base, 3)} → {fmt(v.alt, 3)}</div>
+              <div className="small"><b>{effectWord(v.delta_sd)}</b> · {(100 * v.changed_share).toFixed(0)}% of people affected</div>
+              {why.length > 0 && <ul className="why-list">{why.map((t: any) => <li key={t.term}>{t.mechanism ? (registry!.mechanisms[t.mechanism]?.label ?? t.term) : 'after-effects of events'} ({t.delta > 0 ? '+' : ''}{fmt(t.delta, 3)})</li>)}</ul>}
+            </div>
+          )
+        })}
       </div>
+
       <div className="grid g2" style={{ marginTop: 14 }}>
         <div className="card">
-          <div className="row"><h3>Why did it change? Mechanism attribution</h3><span className="spacer" />
-            <select value={state} onChange={e => setState(e.target.value)}>{STATES.map(s => <option key={s} value={s}>{registry!.variables[s]?.label}</option>)}</select></div>
-          <p className="hint">Exact additive split of the change in mean {registry!.variables[state]?.label.toLowerCase()} (Δ = {fmt(st?.delta, 4)}) across mechanism terms. Follow a mechanism into the causal web.</p>
-          {st && <Decomposition rows={st.terms.slice(0, 12).map((t: any) => ({ label: t.mechanism ? (registry!.mechanisms[t.mechanism]?.label ?? t.term) : 'Event after-effects', value: t.delta, evidence: t.mechanism ? registry!.mechanisms[t.mechanism]?.evidence : undefined }))} />}
-          <div className="small" style={{ marginTop: 8 }}><a href={`#/causal/${state}`}>Open the causal web for {registry!.variables[state]?.label.toLowerCase()} →</a></div>
-        </div>
-        <div className="card">
-          <h3>Most affected people</h3><p className="hint">Representative lives to read — open one to compare their two timelines.</p>
-          {Object.entries(c.most_affected).map(([v, rows]: any) => (
-            <div key={v} style={{ marginBottom: 8 }}><b className="small">{registry!.variables[v]?.label}</b>
-              <div className="row small">{rows.slice(0, 6).map((r: any) => <span key={r.id} className="pill"><PersonLink id={r.id} name={r.name} /> {r.delta > 0 ? '+' : ''}{fmt(r.delta, 2)}</span>)}</div></div>
+          <h3>Things that happened more or less often</h3><p className="hint">Life events since the split, what-if world vs original.</p>
+          {changes.length === 0 && <div className="empty small">No clear differences yet. Run longer.</div>}
+          {changes.map((e: any) => (
+            <div key={e.type} className="row small" style={{ padding: '5px 0', borderBottom: '1px solid var(--grid)' }}>
+              <span style={{ width: 24, textAlign: 'center', fontWeight: 700, color: e.delta > 0 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{e.delta > 0 ? '▲' : '▼'}</span>
+              <span style={{ flex: 1 }}>{e.label}</span>
+              <span className="tabular muted">{e.base.toLocaleString()} → {e.alt.toLocaleString()}</span>
+              <b className="tabular" style={{ width: 60, textAlign: 'right' }}>{e.rel > 0 ? '+' : ''}{(100 * e.rel).toFixed(0)}%</b>
+            </div>
           ))}
         </div>
+        <div className="card">
+          <div className="row"><h3>Why did feelings change?</h3><span className="spacer" />
+            <select value={state} onChange={e => setState(e.target.value)} aria-label="Feeling">{STATES.map(s => <option key={s} value={s}>{registry!.variables[s]?.label}</option>)}</select></div>
+          <p className="hint">The change in average {registry!.variables[state]?.label.toLowerCase()} ({st ? `${st.delta >= 0 ? '+' : ''}${fmt(st.delta, 4)}` : '—'}) split exactly into the model's forces. Red raises it, blue lowers it.</p>
+          {st && <Decomposition rows={st.terms.slice(0, 8).map((t: any) => ({ label: t.mechanism ? (registry!.mechanisms[t.mechanism]?.label ?? t.term) : 'After-effects of events', value: t.delta, evidence: t.mechanism ? registry!.mechanisms[t.mechanism]?.evidence : undefined }))} />}
+          <div className="small" style={{ marginTop: 8 }}><a href={`#/causal/${state}`}>Trace these forces in Cause & effect →</a></div>
+        </div>
       </div>
+
+      <div className="card" style={{ marginTop: 14 }}>
+        <h3>People most affected</h3><p className="hint">Open someone to compare their two lives side by side.</p>
+        <div className="grid g4">{Object.entries(c.most_affected).map(([v, rows]: any) => (
+          <div key={v}><b className="small">{registry!.variables[v]?.label}</b>
+            {rows.slice(0, 5).map((r: any) => <div key={r.id} className="row small" style={{ padding: '3px 0' }}><PersonLink id={r.id} name={r.name} /><span className="spacer" /><span className="tabular muted">{r.delta > 0 ? '+' : ''}{fmt(r.delta, 2)}</span></div>)}</div>
+        ))}</div>
+      </div>
+
+      {adv && (
+        <div className="grid g2" style={{ marginTop: 14 }}>
+          <div className="card">
+            <h3>All measure differences</h3><p className="hint">Mean difference (what-if − original) and in standard deviations.</p>
+            <div className="scroll" style={{ maxHeight: 420 }}><table className="data"><thead><tr><th>Measure</th><th className="num">Original</th><th className="num">What-if</th><th className="num">Δ</th><th className="num">Δ / sd</th><th className="num">changed</th></tr></thead>
+              <tbody>{vars.slice(0, 40).map(([k, v]: any) => (
+                <tr key={k} className="click" onClick={() => setRoute(['variables', k])}><td>{registry!.variables[k]?.label ?? k}</td>
+                  <td className="num">{fmt(v.base, 3)}</td><td className="num">{fmt(v.alt, 3)}</td><td className="num">{v.delta > 0 ? '+' : ''}{fmt(v.delta, 3)}</td>
+                  <td className="num"><b>{v.delta_sd > 0 ? '+' : ''}{fmt(v.delta_sd, 3)}</b></td><td className="num">{(100 * v.changed_share).toFixed(1)}%</td></tr>))}</tbody></table></div>
+          </div>
+          <div className="card">
+            <h3>All event differences</h3><p className="hint">Counts since the split.</p>
+            <div className="scroll" style={{ maxHeight: 420 }}><table className="data"><thead><tr><th>Event</th><th className="num">Original</th><th className="num">What-if</th><th className="num">Change</th></tr></thead>
+              <tbody>{c.events.slice(0, 60).map((e: any) => (
+                <tr key={e.type}><td>{e.label}</td><td className="num">{e.base.toLocaleString()}</td><td className="num">{e.alt.toLocaleString()}</td>
+                  <td className="num">{e.delta > 0 ? '+' : ''}{e.delta} ({e.rel > 0 ? '+' : ''}{(100 * e.rel).toFixed(0)}%)</td></tr>))}</tbody></table></div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

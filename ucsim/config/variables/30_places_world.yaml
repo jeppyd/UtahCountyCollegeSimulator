@@ -33,7 +33,8 @@ sections:
       tuition_uvu: {label: UVU tuition (resident), units: USD/semester, update: yearly, desc: "≈$3k/semester full-time resident (approximate)."}
       app_appeal: {label: Dating-app appeal multiplier, desc: "Scales app adoption/engagement (e.g. a new app takes off)."}
       coffee_permitted: {label: Coffee permitted by church, dtype: bool, desc: "Word of Wisdom norm switch (hypothetical intervention).", evidence: hypothetical}
-      contracted_housing_required: {label: BYU contracted-housing requirement, dtype: bool}
+      contracted_housing_required: {label: BYU contracted-housing requirement, dtype: bool, desc: "Single first-year BYU undergraduates must live on campus or in BYU-contracted housing (BYU policy since fall 2022: first two semesters only)."}
+      contracted_housing_all_years: {label: Contracted housing for all years (pre-2022 rule), dtype: bool, desc: "When true, the requirement covers every single BYU undergraduate, as it did before fall 2022.", evidence: hypothetical}
       mission_norm: {label: Mission participation norm, desc: "Multiplier on mission-departure hazard."}
       men_initiate_norm: {label: Men-ask norm strength, desc: "How strongly dating initiation is expected of men."}
       church_attendance_norm: {label: Church attendance norm multiplier}

@@ -94,8 +94,8 @@ class Housing:
                 self._set_home(i, u)
             self.occ[u] += len(ids)
         else:
-            byu_single_ug = (P["school"][ids] == 1) & P.isin("class_standing", ["freshman", "sophomore", "junior", "senior"])[ids]
-            need_contract = byu_single_ug & bool(w.env["contracted_housing_required"])
+            years = ["freshman", "sophomore", "junior", "senior"] if w.env.get("contracted_housing_all_years") else ["freshman"]
+            need_contract = (P["school"][ids] == 1) & P.isin("class_standing", years)[ids] & bool(w.env["contracted_housing_required"])
             budget = np.maximum(P.internal["budget_pref"][ids], 250)
             # friends among movers in this call: group close friends of the same sex
             friends_cx = self._friend_complexes(ids)

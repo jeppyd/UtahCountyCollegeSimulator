@@ -33,6 +33,23 @@ variables:
     init: "Study-area table by school (College Life + Dating surveys)"
     source: [college-life, dating]
     evidence: empirical
+  major_id:
+    label: Major (id)
+    dtype: i2
+    fill: -1
+    flags: []
+    init: "a real BYU/UVU major within the person's study area (ucsim/config/majors.yaml), weighted by approximate popularity"
+    source: [BYU majors list 2025-26, UVU academic catalog]
+    evidence: observed
+    desc: Index into the majors catalog; shown by name on profiles.
+  college:
+    label: College
+    dtype: cat
+    categories: [none, Marriott School of Business, Fulton College of Engineering, "College of Computational, Mathematical & Physical Sciences", College of Nursing, College of Life Sciences, College of Humanities, Kennedy Center for International Studies, "College of Family, Home & Social Sciences", College of Fine Arts & Communications, McKay School of Education, University Advisement Center, Woodbury School of Business, Smith College of Engineering & Technology, School of Education, College of Health & Public Service, College of Science, School of the Arts, University College, College of Humanities & Social Sciences]
+    init: "the college that offers the person's major"
+    source: [BYU majors list 2025-26, UVU academic catalog]
+    evidence: observed
+    desc: The college or school of the person's major (real BYU and UVU colleges).
   gpa:
     label: GPA (cumulative)
     range: [0, 4]

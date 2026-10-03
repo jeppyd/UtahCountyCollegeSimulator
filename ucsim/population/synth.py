@@ -22,6 +22,7 @@ from scipy.special import expit, ndtri
 
 from ..engine.state import PersonTable
 from ..registry import Registry
+from . import majors
 from .sampling import copulas, skeleton
 
 WORLD_CFG = Path(__file__).resolve().parents[1] / "config" / "world.yaml"
@@ -250,7 +251,26 @@ class Synthesizer:
         put("conformity", zscore(0.3 * A + 0.2 * C - 0.3 * O + 0.85 * e()))
         put("empathy", zscore(0.6 * A + 0.8 * e()))
         workouts = np.nan_to_num(ps["workouts_week"], nan=3)
-        put("attractiveness", zscore(0.15 * zscore(workouts) + e()))
+        # ---------------- body & appearance (approximate population distributions; see 01_demographics.yaml)
+        male = sex == "M"
+        med = np.where(male, 24.5, 23.0) + np.where(male, 0.15, 0.18) * np.clip(age - 20, 0, 40) - 0.3 * (np.clip(workouts, 0, 7) - 3)
+        bmi = np.clip(med * np.exp(rng.normal(0, 0.14, n)), 16, 52)
+        h_m = S["height_in"] * 0.0254
+        put("bmi", bmi.astype(np.float32))
+        put("weight_lb", (bmi * h_m ** 2 * 2.20462).astype(np.float32))
+        build = np.select([bmi < 20.5, (workouts >= 4) & (bmi < 27), bmi >= 28], ["slender", "athletic", "heavier"], "average")
+        put("body_build", P.codes("body_build", build))
+        white = eth == 0
+        hair = np.where(white, rng.choice(["black", "dark_brown", "light_brown", "blonde", "red"], n, p=[0.08, 0.33, 0.29, 0.24, 0.06]),
+                        rng.choice(["black", "dark_brown", "light_brown"], n, p=[0.62, 0.33, 0.05]))
+        hair = np.where((age > 40) & (rng.random(n) < np.clip((age - 40) / 30, 0, 0.8)), "gray", hair)
+        put("hair_color", P.codes("hair_color", hair))
+        eyes = np.where(white, rng.choice(["brown", "hazel", "green", "blue", "gray"], n, p=[0.27, 0.18, 0.13, 0.38, 0.04]),
+                        rng.choice(["brown", "hazel", "green", "blue", "gray"], n, p=[0.84, 0.10, 0.03, 0.02, 0.01]))
+        put("eye_color", P.codes("eye_color", eyes))
+        # perceived attractiveness: mostly idiosyncratic, a little exercise, and lower far from a typical weight
+        bmi_dev = np.abs(bmi - np.where(male, 24.0, 22.0)) / 4.0
+        put("attractiveness", zscore(0.15 * zscore(workouts) - 0.25 * bmi_dev + e()))
         gpa = np.clip(np.nan_to_num(ps["gpa"], nan=3.4), 1.0, 4.0)
         put("academic_ability", zscore(zscore(gpa) - 0.35 * C + 0.15 * zscore(np.nan_to_num(ps["work_hours"], nan=15)) + 0.6 * e()))
         put("social_skill", zscore(0.4 * E + 0.3 * A - 0.3 * S["social_anxiety"] + 0.8 * e()))
@@ -410,6 +430,14 @@ class Synthesizer:
         put("enrolled", np.full(n, is_student))
         areas = self._study_areas(school, n) if is_student else np.full(n, "Undeclared")
         put("study_area", P.codes("study_area", areas))
+        if is_student and school in ("BYU", "UVU"):
+            mid = majors.sample(rng, school, areas)
+            cat = majors.catalog()
+            put("major_id", mid)
+            put("college", P.codes("college", [cat[m]["college"] if m >= 0 else "none" for m in mid]))
+        else:
+            put("major_id", np.full(n, -1, np.int16))
+            put("college", P.codes("college", np.full(n, "none")))
         put("gpa", (gpa if is_student else np.full(n, np.nan)).astype(np.float32))
         put("gpa_term", (gpa if is_student else np.full(n, np.nan)).astype(np.float32))
         mission_years = np.where(mission == 1, np.where(sex == "M", 2.0, 1.5), 0.0)
@@ -417,6 +445,20 @@ class Synthesizer:
         part_time = (school == "UVU") & (rng.random(n) < 0.35)
         credits = np.clip(yrs_school * np.where(part_time, 17, 24) + rng.normal(0, 8, n), 0, 119)
         grad = (age > 24) & (rng.random(n) < (self.cfg["population"]["byu"]["grad_share"] * 2.2 if school == "BYU" else 0.05))
+        mix = self.cfg["population"].get(str(school).lower(), {}).get("class_mix") if is_student else None
+        if mix and n >= 50:
+            # The survey sample skews young; rank people by age-implied progress and re-band credits so the
+            # class mix matches the school's published enrollment by class.
+            order = np.argsort(credits + 6 * age + rng.normal(0, 4, n))
+            q = np.empty(n)
+            q[order] = (np.arange(n) + 0.5) / n
+            cum = np.cumsum([mix[k] for k in ("freshman", "sophomore", "junior", "senior")])
+            cum = cum / (cum[-1] + mix.get("graduate", 0))
+            grad = q > cum[-1]
+            band = np.searchsorted(cum, q)
+            lo = np.r_[0, cum][np.minimum(band, 3)]
+            hi = cum[np.minimum(band, 3)]
+            credits = np.clip(30 * (np.minimum(band, 3) + (q - lo) / np.maximum(hi - lo, 1e-9)), 0, 119)
         standing = np.select([~np.full(n, is_student), grad, credits < 30, credits < 60, credits < 90],
                              ["none", "graduate", "freshman", "sophomore", "junior"], "senior")
         put("class_standing", P.codes("class_standing", standing))

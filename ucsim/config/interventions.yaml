@@ -66,12 +66,20 @@ interventions:
     value: true
   contracted_housing_removed:
     name: BYU contracted-housing requirement removed
-    description: Single BYU undergraduates may live anywhere — changes roommate composition (religiosity, sex mixing), wards, and peer norms.
+    description: First-year single BYU students may live anywhere too (today's rule already frees everyone after two semesters) — changes roommate composition (religiosity, sex mixing), wards, and peer norms.
     confidence: plausible
     target_type: world
     target: contracted_housing_required
     op: set
     value: false
+  contracted_housing_all_years:
+    name: Bring back the pre-2022 contracted-housing rule
+    description: Every single BYU undergraduate (not just first-years) must live in BYU-contracted housing, as before fall 2022.
+    confidence: plausible
+    target_type: world
+    target: contracted_housing_all_years
+    op: set
+    value: true
   church_attendance_decline:
     name: Church attendance norm −20%
     description: A general secular drift lowers the attendance propensity of everyone by ~20% (odds).

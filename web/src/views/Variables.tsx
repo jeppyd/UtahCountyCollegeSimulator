@@ -3,6 +3,7 @@ import { fmt, groupsOf, histogram, isCategorical, pearson, summary, values } fro
 import { api } from '../api'
 import { axisStyle, DOMAIN_LABEL, EChart, Evidence, Loading, tokens } from '../components'
 import { loadColumns, useStore } from '../store'
+import { PageHeader } from '../ui'
 import { dayToDate, TSChart } from './Overview'
 
 export default function Variables({ id }: { id?: string }) {
@@ -22,8 +23,9 @@ function VariableList() {
   for (const v of Object.values(registry!.variables)) counts[v.evidence] = (counts[v.evidence] ?? 0) + 1
   return (
     <div className="page">
-      <h1>Variable registry</h1>
-      <p className="sub">{Object.keys(registry!.variables).length} registered variables across people, relationships, housing units, places and the world. The registry drives the state store, every filter, chart and map — and records where each variable comes from and how well-evidenced it is.</p>
+      <PageHeader id="variables" eyebrow="The model" title="Data dictionary"
+        sub="Every measure the model tracks about people, relationships, places and the world, with what it means and how well it is grounded."
+        tips={['Search or filter by area. Click a measure for its definition, distribution, history, what drives it and what it drives.', 'Evidence badges say where a measure comes from: observed in survey data, from research, calibrated, or assumed.']} />
       <div className="row" style={{ marginBottom: 12 }}>
         <input type="search" placeholder="Search variables" value={q} onChange={e => setQ(e.target.value)} />
         <select value={ent} onChange={e => setEnt(e.target.value)}>{['person', 'edge', 'unit', 'complex', 'world'].map(k => <option key={k}>{k}</option>)}</select>

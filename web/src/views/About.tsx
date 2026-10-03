@@ -1,5 +1,6 @@
 import { Evidence } from '../components'
 import { useStore } from '../store'
+import { PageHeader } from '../ui'
 
 const LAYERS: [string, string][] = [
   ['Population', 'Synthetic people drawn from survey-derived conditional tables and Gaussian copulas (within sex), calibrated to institutional totals. No agent is a survey respondent.'],
@@ -28,7 +29,7 @@ export default function About() {
   for (const m of Object.values(registry!.mechanisms) as any[]) counts[m.evidence] = (counts[m.evidence] ?? 0) + 1
   return (
     <div className="page">
-      <h1>About this model</h1>
+      <PageHeader id="about" eyebrow="The model" title="Evidence & sources" />
       <p className="sub">An event-driven, spatial social microsimulation of the BYU/UVU college ecosystem in Provo and Orem. It is a laboratory for asking “what tends to happen, to whom, and why” — not a forecast about any individual.</p>
       <div className="grid g2">
         <div className="card">

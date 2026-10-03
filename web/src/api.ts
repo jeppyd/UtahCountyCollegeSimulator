@@ -117,7 +117,20 @@ export const api = {
     const q = new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)]))
     return j(`/api/events?${q}`)
   },
-  async eventsSummary(u: Universe = 'base') { return STATIC ? j(`${D}/events_summary_${u}.json`) : j(`/api/events/summary?u=${u}`) },
+  async eventsSummary(u: Universe = 'base', since?: number) { return STATIC ? j(`${D}/events_summary_${u}.json`) : j(`/api/events/summary?u=${u}${since !== undefined ? `&since=${since}` : ''}`) },
+  async featured(u: Universe = 'base') {
+    if (STATIC) { try { return await j(`${D}/featured_${u}.json`) } catch { return [] } }
+    return j(`/api/people/featured?u=${u}`)
+  },
+  async brief(ids: number[], u: Universe = 'base') {
+    if (!ids.length) return []
+    if (STATIC) {
+      const out: any[] = []
+      for (const id of ids) { try { const p = await api.person(id, u); out.push({ id, name: p.name, headline: p.headline, present: true, events: (p.timeline ?? []).slice(-3).reverse() }) } catch { /* not exported */ } }
+      return out
+    }
+    return j(`/api/people/brief?ids=${ids.join(',')}&u=${u}`)
+  },
   async event(id: number) {
     if (STATIC) {
       const all = await j(`${D}/events.json`)
@@ -178,6 +191,15 @@ export const api = {
   async cohortExplain(filter: any, variable: string, u: Universe = 'base') {
     if (STATIC) throw new Error('static')
     return post('/api/cohort/explain', { filter, var: variable, u })
+  },
+  async historyInfo(u: Universe = 'base') { return STATIC ? j(`${D}/history_info_${u}.json`) : j(`/api/history/info?u=${u}`) },
+  async flows(body: any) {
+    if (STATIC) { const all = await j(`${D}/flows_${body.u ?? 'base'}.json`); const f = all[body.var]; if (!f) throw new Error('not in static export'); return f }
+    return post('/api/flows', body)
+  },
+  async cohortTimeline(body: any) {
+    if (STATIC) throw new Error('Group trajectories need the app (not available in the read-only snapshot)')
+    return post('/api/cohort_timeline', body)
   },
   async cohortServer(filter: any, u: Universe = 'base') { return post('/api/cohort/count', { filter, u, max_ids: 1e9 }) },
   async step(body: any) { return post('/api/step', body) },

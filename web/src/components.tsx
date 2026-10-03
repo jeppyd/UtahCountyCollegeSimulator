@@ -135,6 +135,12 @@ const OPS_NUM = [['between', 'between'], ['ge', '≥'], ['le', '≤'], ['gt', '>
 export function condLabel(c: Cond, reg: any): string {
   if (c.label) return c.label
   if (c.recent_event) return `${reg?.events?.[c.recent_event]?.label ?? c.recent_event} (last ${c.days ?? 90}d)`
+  if (c.transition) {
+    const t = c.transition
+    const nm = reg?.variables?.[t.var]?.label ?? t.var
+    const f = (x?: string[]) => (x?.length ? x.map(s => s.replace(/_/g, ' ')).join('/') : 'anything')
+    return `${nm}: ${f(t.from)} → ${f(t.to)}`
+  }
   if (c.household) return `co-residents ${c.share ?? '≥'} ${Math.round(100 * (c.value ?? 0.5))}% ${condLabel(c.household, reg)}`
   const spec = reg?.variables?.[c.var!]
   const name = spec?.label ?? c.var
@@ -274,6 +280,9 @@ export function Decomposition({ rows, scale }: { rows: { label: string; value: n
 // ---------------------------------------------------------------- icons
 const P = (d: string) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>
 export const Icons: Record<string, JSX.Element> = {
+  home: P('M3 11 12 3l9 8M5 10v10h5v-6h4v6h5V10'),
+  guide: P('M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 5v16M8 7h7M8 11h5'),
+  flows: P('M3 6h5c4 0 4 12 8 12h5M3 18h5c4 0 4-12 8-12h5'),
   overview: P('M3 13h4v8H3zM10 3h4v18h-4zM17 9h4v12h-4z'),
   map: P('M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14'),
   explore: P('M3 3v18h18M7 15l4-4 3 3 5-6'),

@@ -9,6 +9,8 @@ A filter is JSON:
   {"household": {"var": "activity", "op": "eq", "value": "active"}, "share": ">=", "value": 0.5}
                                                                    # share of co-residents matching
   {"var": "faith_belief", "op": "quantile_ge", "value": 0.8}       # top 20%
+  {"transition": {"var": "rel_status", "from": ["single"], "to": ["married"], "d0": 0, "d1": 120}}
+                                                                   # changed state between two days (history)
 Ops: eq, ne, lt, le, gt, ge, between, in, notin, isnull, notnull, quantile_ge, quantile_le.
 """
 from __future__ import annotations
@@ -26,6 +28,25 @@ def _codes(P, var, vals):
             out.append(spec.categories.index(v) if isinstance(v, str) else int(v))
         return out
     return vals
+
+
+NOT_HERE = "not here"
+
+
+def state_labels(P, var: str) -> list[str]:
+    """Labels for history codes of a categorical/bool variable (code 255 = not here)."""
+    spec = P.specs[var]
+    return list(spec.categories) if spec.dtype == "cat" else ["no", "yes"]
+
+
+def state_codes(P, var: str, labels) -> list[int]:
+    if labels is None:
+        return list(range(256))
+    labs = state_labels(P, var)
+    out = []
+    for lab in (labels if isinstance(labels, (list, tuple)) else [labels]):
+        out.append(255 if lab == NOT_HERE else labs.index(lab) if isinstance(lab, str) else int(lab))
+    return out
 
 
 def _cond(world, c: dict, sim=None) -> np.ndarray:
@@ -53,6 +74,14 @@ def _cond(world, c: dict, sim=None) -> np.ndarray:
         out = np.zeros(n, bool)
         out[log["a"][m]] = True
         return out
+    if "transition" in c:
+        t = c["transition"]
+        if sim is None or "history" not in sim.systems:
+            return np.zeros(n, bool)
+        H = sim.systems["history"]
+        x0, _ = H.values(t["var"], t.get("d0"))
+        x1, _ = H.values(t["var"], t.get("d1"))
+        return np.isin(x0, state_codes(P, t["var"], t.get("from"))) & np.isin(x1, state_codes(P, t["var"], t.get("to")))
     if "household" in c:
         inner = _cond(world, c["household"], sim)
         unit = P["unit_id"]
@@ -105,6 +134,11 @@ def evaluate_filter(world, filt: dict | None, sim=None, include_absent: bool = F
 def describe_filter(filt: dict | None) -> str:
     if not filt:
         return "everyone present"
+    if "transition" in filt:
+        t = filt["transition"]
+        fr = t.get("from") or ["anything"]
+        to = t.get("to") or ["anything"]
+        return f"{t['var']}: {'/'.join(map(str, fr))} → {'/'.join(map(str, to))} (day {t.get('d0')}→{t.get('d1', 'now')})"
     if "and" in filt:
         return " AND ".join(describe_filter(f) for f in filt["and"])
     if "or" in filt:

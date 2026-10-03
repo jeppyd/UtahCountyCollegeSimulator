@@ -118,6 +118,23 @@ class Calendar:
                 return (d - s).days / max(1, (e - s).days)
         return float("nan")
 
+    def season(self, day: int) -> str:
+        """Plain-language place in the BYU year: 'Fall semester · week 5 of 17', 'Christmas break', 'Summer break'."""
+        d = self.date(day)
+        md = f"{d.month:02d}-{d.day:02d}"
+        for t in self.byu_terms:
+            if t["start"] <= md <= t["end"]:
+                s = dt.date(d.year, int(t["start"][:2]), int(t["start"][3:]))
+                e = dt.date(d.year, int(t["end"][:2]), int(t["end"][3:]))
+                week, weeks = (d - s).days // 7 + 1, max(1, ((e - s).days + 6) // 7)
+                kind = "semester" if t["name"] in ("Fall", "Winter") else "term"
+                return f"{t['name']} {kind} · week {week} of {weeks}"
+        if d.month == 12 or (d.month == 1 and d.day < 8):
+            return "Christmas break"
+        if d.month == 8:
+            return "Late-summer break"
+        return "Between terms"
+
     def is_lease_turnover(self, day: int) -> bool:
         d = self.date(day)
         return f"{d.month:02d}-{d.day:02d}" in self.lease

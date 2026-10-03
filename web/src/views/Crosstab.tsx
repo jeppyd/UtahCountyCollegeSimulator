@@ -1,12 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { crosstab, fmt, groupsOf, useCohortData } from '../analysis'
 import { CohortBar, Evidence, VarPicker } from '../components'
 import { Cond, useStore } from '../store'
+import { Advanced, PageHeader } from '../ui'
 
-export default function Crosstab() {
+export default function Crosstab({ row0, col0 }: { row0?: string; col0?: string }) {
   const { registry, setCohort, cohort, setRoute } = useStore()
-  const [r, setR] = useState('activity')
-  const [c, setC] = useState('rel_status')
+  const [r, setR] = useState(row0 || 'activity')
+  const [c, setC] = useState(col0 || 'rel_status')
+  useEffect(() => { if (row0) setR(row0); if (col0) setC(col0) }, [row0, col0])
   const [norm, setNorm] = useState<'row' | 'col' | 'total' | 'count'>('row')
   const [bins, setBins] = useState(5)
   const data = useCohortData([r, c])
@@ -46,8 +48,14 @@ export default function Crosstab() {
   const maxV = tab ? Math.max(...tab.counts.flatMap((row, a) => row.map((_, b) => cellVal(a, b)))) : 1
   return (
     <div className="page">
-      <h1>Cross-tabs</h1>
-      <p className="sub">Survey-style cross-tabulation of any two variables (numeric ones are binned into quantiles). Shading is proportional to the cell value; click a cell to open those people.</p>
+      <PageHeader id="crosstab" eyebrow="Ask questions" title="Compare groups"
+        sub="A survey-style cross-tab: how one thing is distributed within each group of another."
+        tips={[
+          'Rows are the groups you compare; columns are the outcome. "Row %" answers: of the people in this row, what share fall in each column?',
+          'Numbers (like age or loneliness) are split into equal-sized bands automatically; change the number of bands with "bins".',
+          'Click any cell to make those people your group and see them in People.',
+          'Darker cells are larger shares. The strength-of-relationship score at the bottom runs from 0 (none) to 1 (perfect).',
+        ]} />
       <CohortBar n={data.n} />
       <div className="card">
         <div className="row" style={{ marginBottom: 10 }}>
@@ -74,12 +82,13 @@ export default function Crosstab() {
                 <tr><th style={{ position: 'static' }}>Total</th>{tab.colT.map((t, b) => <td key={b} className="num muted">{t.toLocaleString()}</td>)}<td className="num"><b>{tab.total.toLocaleString()}</b></td></tr>
               </tbody>
             </table>
-            <div className="row small tabular" style={{ marginTop: 10 }}>
+            <p className="small secondary" style={{ margin: '10px 0 0' }}>Strength of relationship: <b>{tab.cramer < 0.1 ? 'very weak' : tab.cramer < 0.2 ? 'weak' : tab.cramer < 0.35 ? 'moderate' : 'strong'}</b> (Cramér's V = {fmt(tab.cramer, 2)}).</p>
+            <Advanced><div className="row small tabular" style={{ marginTop: 10 }}>
               <span className="pill">χ² = {fmt(tab.chi2, 1)} (df {tab.dof})</span>
               <span className="pill">p ≈ {tab.p < 0.0001 ? '< 0.0001' : fmt(tab.p, 4)}</span>
               <span className="pill">Cramér's V = {fmt(tab.cramer, 3)}</span>
               <span className="muted">Large simulated N makes tiny differences "significant"; focus on effect size.</span>
-            </div>
+            </div></Advanced>
           </div>
         )}
       </div>

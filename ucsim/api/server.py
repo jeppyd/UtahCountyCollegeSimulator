@@ -22,7 +22,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from ..analysis import explain as X
-from ..analysis.person import profile, synthetic_name
+from ..analysis.person import headline, profile, synthetic_name
 from ..analysis.query import describe_filter, evaluate_filter
 from ..engine import runner
 from ..engine.interventions import load_presets
@@ -148,6 +148,11 @@ def status():
            "scale_agents_per_unit": 60000}
     if b is not None:
         w = b.w
+        cnt = np.bincount(b.log["type"], minlength=len(WS.registry.event_names))
+        ev = WS.registry.event_ids
+        out["totals"] = {k: int(cnt[ev[k]]) for k in ("new_friend", "close_friend", "first_date", "relationship_started", "engaged",
+                                                        "wedding", "breakup_received", "birth", "mission_departure", "graduation", "moved")}
+        out["season"] = b.cal.season(w.day)
         out.update({"day": w.day, "hour": w.hour, "date": str(w.date), "weekday": w.date.strftime("%A"),
                     "scale": w.scale, "seed": w.seed, "agents": int(w.P.n), "present": int(w.P["present"].sum()),
                     "edges": int(w.E.n), "events": int(b.log.n), "env": {k: v for k, v in w.env.items() if not isinstance(v, np.ndarray)},
@@ -297,6 +302,59 @@ def person_network(i: int, u: str = "base", max_nodes: int = 60):
                        "role": P.labels("role", P["role"][j:j + 1])[0], "rel": P.labels("rel_status", P["rel_status"][j:j + 1])[0],
                        "mood": float(P["mood"][j]), "loneliness": float(P["loneliness"][j])})
         return jresp(net)
+
+
+@app.get("/api/people/featured")
+def featured(u: str = "base", days: int = 30, k: int = 6):
+    """Eventful lives lately: people with the most salient recent events, spread across life domains."""
+    sim = WS.sim(u)
+    with WS.lock:
+        log, reg, P = sim.log, sim.reg, sim.w.P
+        sal = np.array([e.salience for e in reg.events.values()])
+        recent = (log["day"] >= sim.w.day - days) & (sal[log["type"]] >= 0.75) & (log["a"] >= 0)
+        idx = np.where(recent)[0]
+        if not len(idx):
+            return jresp([])
+        score = np.bincount(log["a"][idx], weights=sal[log["type"][idx]], minlength=P.n)
+        score[~P["present"].astype(bool)] = 0
+        cats = [e.category for e in reg.events.values()]
+        out, used = [], set()
+        for i in np.argsort(-score)[: 200]:
+            if score[i] <= 0 or len(out) >= k:
+                break
+            mine = idx[log["a"][idx] == i]
+            main_cat = cats[int(log["type"][mine[-1]])]
+            if main_cat in used and len(used) < 4:
+                continue  # prefer variety: romance, faith, school, family…
+            used.add(main_cat)
+            evs = [X.event_record(sim, int(e)) for e in mine[-4:][::-1]]
+            for r in evs:
+                r["a_name"] = synthetic_name(P, r["a"])
+                r["b_name"] = synthetic_name(P, r["b"]) if r["b"] is not None else None
+            out.append({"id": int(i), "name": synthetic_name(P, int(i)), "headline": headline(sim, int(i)), "events": evs, "theme": main_cat})
+        return jresp(out)
+
+
+@app.get("/api/people/brief")
+def people_brief(ids: str, u: str = "base"):
+    """Small cards for followed people: name, one-line headline, latest salient events."""
+    sim = WS.sim(u)
+    with WS.lock:
+        P, log, reg = sim.w.P, sim.log, sim.reg
+        sal = np.array([e.salience for e in reg.events.values()])
+        out = []
+        for t in ids.split(","):
+            if not t.strip().isdigit() or int(t) >= P.n:
+                continue
+            i = int(t)
+            mine = np.where(((log["a"] == i) | (log["b"] == i)) & (sal[log["type"]] >= 0.5))[0][-3:][::-1]
+            evs = [X.event_record(sim, int(e)) for e in mine]
+            for r in evs:
+                r["a_name"] = synthetic_name(P, r["a"])
+                r["b_name"] = synthetic_name(P, r["b"]) if r["b"] is not None else None
+            out.append({"id": i, "name": synthetic_name(P, i), "headline": headline(sim, i), "present": bool(P["present"][i]),
+                        "mood": float(P["mood"][i]), "loneliness": float(P["loneliness"][i]), "events": evs})
+        return jresp(out)
 
 
 @app.get("/api/people/search")
@@ -471,6 +529,91 @@ def cohort_count(body: dict = Body(...)):
         mask = evaluate_filter(sim.w, body.get("filter"), sim)
         return jresp({"n": int(mask.sum()), "description": describe_filter(body.get("filter")),
                       "ids": np.where(mask)[0][: int(body.get("max_ids", 0))].tolist()})
+
+
+# ----------------------------------------------------------------------------- history & flows
+from ..analysis.query import NOT_HERE, state_labels  # noqa: E402
+
+
+@app.get("/api/history/info")
+def history_info(u: str = "base"):
+    sim = WS.sim(u)
+    H = sim.systems["history"]
+    return jresp({"days": H.days(), "now": sim.w.day, "start_date": str(sim.cal.date(0)),
+                  "categorical": H.cat_vars, "numeric": H.num_vars})
+
+
+def _flow_mask(sim, filt):
+    if not filt:
+        return np.ones(sim.w.P.n, bool)
+    return evaluate_filter(sim.w, filt, sim, include_absent=True)
+
+
+@app.post("/api/flows")
+def flows(body: dict = Body(...)):
+    """Who moved between the states of a categorical variable across a sequence of days (Sankey)."""
+    sim = WS.sim(body.get("u", "base"))
+    var = body["var"]
+    with WS.lock:
+        H, P = sim.systems["history"], sim.w.P
+        if var not in H.cat_vars:
+            raise HTTPException(400, f"{var} is not tracked over time")
+        days = sorted({min(int(d), sim.w.day) for d in body.get("days", [0, sim.w.day])})
+        mask = _flow_mask(sim, body.get("filter"))
+        labels = state_labels(P, var) + [NOT_HERE]
+        def lab(code):
+            return NOT_HERE if code == 255 else labels[int(code)]
+        cols = [H.values(var, d if d < sim.w.day else None)[0][mask] for d in days]
+        ever = np.zeros(mask.sum(), bool)
+        for c in cols:
+            ever |= c != 255
+        cols = [c[ever] for c in cols]
+        columns = []
+        for d, c in zip(days, cols):
+            vals, cnt = np.unique(c, return_counts=True)
+            columns.append({"day": d, "date": str(sim.cal.date(d)), "nodes": [{"state": lab(v), "n": int(k)} for v, k in zip(vals, cnt)]})
+        links = []
+        for k in range(len(cols) - 1):
+            pair = cols[k].astype(np.int32) * 256 + cols[k + 1]
+            vals, cnt = np.unique(pair, return_counts=True)
+            for v, m in zip(vals, cnt):
+                links.append({"step": k, "from": lab(v // 256), "to": lab(v % 256), "n": int(m)})
+        return jresp({"var": var, "states": labels, "days": days, "columns": columns, "links": links, "total": int(ever.sum())})
+
+
+@app.post("/api/cohort_timeline")
+def cohort_timeline(body: dict = Body(...)):
+    """Average trajectory of today's cohort (people matching the filter now) vs everyone, at each snapshot."""
+    sim = WS.sim(body.get("u", "base"))
+    with WS.lock:
+        H, P = sim.systems["history"], sim.w.P
+        vars_ = [v for v in body.get("vars", []) if H.tracked(v)]
+        mask = _flow_mask(sim, body.get("filter"))
+        days = H.days() + ([sim.w.day] if not H.days() or H.days()[-1] < sim.w.day else [])
+        out = {"days": days, "dates": [str(sim.cal.date(d)) for d in days], "cohort": {}, "everyone": {}, "n": []}
+        for d in days:
+            dd = None if d >= sim.w.day else d
+            _, pres = H.values(vars_[0] if vars_ else H.cat_vars[0], dd)
+            out["n"].append(int((pres & mask).sum()))
+        for v in vars_:
+            cat = v in H.cat_vars
+            series_c, series_a = [], []
+            for d in days:
+                x, pres = H.values(v, None if d >= sim.w.day else d)
+                if cat:  # share in the "positive"/top category for bools, else distribution
+                    labs = state_labels(P, v)
+                    def shares(m):
+                        k = int(m.sum())
+                        return {labs[c]: float((x[m] == c).sum() / k) for c in range(len(labs))} if k else None
+                    series_c.append(shares(pres & mask)); series_a.append(shares(pres))
+                else:
+                    def mean(m):
+                        y = x[m]
+                        y = y[np.isfinite(y)]
+                        return float(y.mean()) if len(y) else None
+                    series_c.append(mean(pres & mask)); series_a.append(mean(pres))
+            out["cohort"][v], out["everyone"][v] = series_c, series_a
+        return jresp(out)
 
 
 # ----------------------------------------------------------------------------- compare universes

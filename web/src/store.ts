@@ -5,6 +5,7 @@ export type Cond = {
   var?: string; op?: string; value?: any
   recent_event?: string; days?: number
   household?: Cond; share?: string
+  transition?: { var: string; from?: string[]; to?: string[]; d0?: number; d1?: number }
   label?: string
 }
 
@@ -22,8 +23,22 @@ export type Registry = {
   events: Record<string, any>
 }
 
+export type Mode = 'simple' | 'advanced'
+
+function load<T>(key: string, fallback: T): T {
+  try { const v = localStorage.getItem(key); return v === null ? fallback : JSON.parse(v) } catch { return fallback }
+}
+function save(key: string, v: any) {
+  try { localStorage.setItem(key, JSON.stringify(v)) } catch { /* private mode */ }
+}
+
 type State = {
   registry: Registry | null
+  mode: Mode
+  following: Record<string, number[]>
+  setMode: (m: Mode) => void
+  toggleFollow: (id: number) => void
+  followed: () => number[]
   status: any
   presets: any
   route: string[]
@@ -44,11 +59,23 @@ type State = {
 
 function parseHash(): string[] {
   const h = window.location.hash.replace(/^#\/?/, '')
-  return h ? h.split('/') : ['overview']
+  return h ? h.split('/').map(decodeURIComponent) : ['home']
 }
 
 export const useStore = create<State>((set, get) => ({
   registry: null,
+  mode: load<Mode>('ucsim-mode', 'simple'),
+  following: load<Record<string, number[]>>('ucsim-following', {}),
+  setMode: (m) => { save('ucsim-mode', m); set({ mode: m }) },
+  // followed people are remembered per world (scale + seed), since ids belong to one synthesized world
+  toggleFollow: (id) => {
+    const key = worldKey(get().status)
+    const cur = get().following[key] ?? []
+    const next = { ...get().following, [key]: cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id] }
+    save('ucsim-following', next)
+    set({ following: next })
+  },
+  followed: () => get().following[worldKey(get().status)] ?? [],
   status: null,
   presets: null,
   route: parseHash(),
@@ -57,7 +84,7 @@ export const useStore = create<State>((set, get) => ({
   theme: (() => { try { return (localStorage.getItem('ucsim-theme') as any) || 'auto' } catch { return 'auto' } })(),
   dataVersion: 0,
   colCache: new Map(),
-  setRoute: (r) => { window.location.hash = '/' + r.join('/'); set({ route: r }) },
+  setRoute: (r) => { window.location.hash = '/' + r.map(encodeURIComponent).join('/'); set({ route: r }); document.querySelector('.main')?.scrollTo(0, 0) },
   setUniverse: (u) => set({ universe: u }),
   addCond: (c) => set({ cohort: [...get().cohort, c] }),
   removeCond: (i) => set({ cohort: get().cohort.filter((_, k) => k !== i) }),
@@ -95,3 +122,5 @@ export async function loadColumns(vars: string[], u: Universe): Promise<Record<s
 }
 
 export const isStatic = STATIC
+
+export function worldKey(status: any) { return `${status?.scale ?? '?'}-${status?.seed ?? '?'}` }

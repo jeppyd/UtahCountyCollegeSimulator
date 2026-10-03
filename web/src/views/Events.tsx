@@ -3,6 +3,7 @@ import { fmt } from '../analysis'
 import { api } from '../api'
 import { axisStyle, EChart, Loading, PersonLink, tokens } from '../components'
 import { useStore } from '../store'
+import { PageHeader } from '../ui'
 
 export default function Events({ eventId }: { eventId?: number }) {
   const { universe, dataVersion, status, setRoute, registry } = useStore()
@@ -28,8 +29,13 @@ export default function Events({ eventId }: { eventId?: number }) {
   if (eventId !== undefined) return <EventDetail id={eventId} />
   return (
     <div className="page">
-      <h1>Events</h1>
-      <p className="sub">Salient events form the simulation's memory and its causal provenance: each event records the event that caused it, so chains like <i>FHE group → first date → DTR → engagement → wedding → move → new ward</i> can be followed.</p>
+      <PageHeader id="events" eyebrow="Follow lives" title="Life events"
+        sub="Everything memorable that happens: first dates, breakups, faith crises, graduations, job losses. Each event remembers what caused it."
+        tips={[
+          'The summary ranks event types by how common they are and by how many further events they set off.',
+          'Click an event to see its chain of causes (what led to it) and its consequences (what it led to).',
+          'Filter the log by type to read a particular kind of story, e.g. all engagements.',
+        ]} />
       <div className="grid g2">
         <div className="card">
           <h3>Most frequent events</h3>

@@ -3,6 +3,7 @@ import { fmt, pct, values } from '../analysis'
 import { api } from '../api'
 import { axisStyle, EChart, PersonLink, series as seriesColor, Tile, tokens } from '../components'
 import { loadColumns, useStore } from '../store'
+import { PageHeader } from '../ui'
 
 const SERIES: [string, string][] = [
   ['loneliness', 'Loneliness'], ['mood', 'Mood (happiness)'], ['stress', 'Stress'], ['dates_30d', 'Dates in last 30 days'],
@@ -50,11 +51,14 @@ export default function Overview() {
   const [feed, setFeed] = useState<any[]>([])
   const [acts, setActs] = useState<any>(null)
   const [origins, setOrigins] = useState<any>(null)
+  const [romantic, setRomantic] = useState(false)
+  const route = useStore(st => st.route)
+  useEffect(() => { if (route[1] === 'origins') { setRomantic(true); setTimeout(() => document.getElementById('origins')?.scrollIntoView({ behavior: 'smooth' }), 300) } }, [route[1]])
   const startDate = useMemo(() => dayToDate(status.date, -status.day), [status.date, status.day])
   useEffect(() => {
     api.timeseries(SERIES.map(s => s[0])).then(setTs).catch(() => {})
     api.events({ min_salience: 0.75, limit: 30, u: universe }).then(r => setFeed(r.events)).catch(() => {})
-    api.origins(false, universe).then(setOrigins).catch(() => {})
+    api.origins(romantic, universe).then(setOrigins).catch(() => {})
     ;(async () => {
       const c = await loadColumns(['present', 'rel_status', 'dates_30d', 'loneliness', 'activity', 'n_friends', 'activity_now', 'lds_member', 'mood'], universe)
       const pres = c.present.data as Uint8Array
@@ -77,7 +81,7 @@ export default function Overview() {
       setTiles({ P, married: married / P, dates: dates / Math.max(single, 1), lon: lon / P, active: active / Math.max(lds, 1), fr: fr / P, mood: mood / P })
       setActs({ cats: c.activity_now.categories, counts: actCounts, P })
     })().catch(() => {})
-  }, [dataVersion, universe])
+  }, [dataVersion, universe, romantic])
 
   const actOpt = useMemo(() => {
     if (!acts) return null
@@ -107,12 +111,13 @@ export default function Overview() {
 
   return (
     <div className="page">
-      <h1>A living synthetic society</h1>
-      <p className="sub">
-        {status.present?.toLocaleString()} simulated students, spouses, young adults, faculty and neighbors living in real Provo and Orem housing,
-        meeting in classes, wards, FHE groups, apartments, workplaces and on apps. Every number below emerges from individual behavior —
-        click anything to see who and why.
-      </p>
+      <PageHeader id="dashboard" eyebrow="Watch the world" title="Vital signs"
+        sub={<>How {status.present?.toLocaleString()} people are doing over time. Every line comes from individual lives; click through to see who and why.</>}
+        tips={[
+          'Each chart is a population average per day. When a what-if world exists, both worlds are drawn and a line marks the split.',
+          'Below the trends: what everyone is doing right now, where friendships and romances began, and the latest big moments.',
+          'To see these trends for one group only (e.g. BYU women), use Flows over time → "How did this group get here?".',
+        ]} />
       {tiles && (
         <div className="grid g6" style={{ marginBottom: 14 }}>
           <Tile label="People present" value={tiles.P.toLocaleString()} />
@@ -132,9 +137,10 @@ export default function Overview() {
           <p className="hint">What everyone is doing in the current block of the day.</p>
           {actOpt && <EChart option={actOpt} height={260} />}
         </div>
-        <div className="card">
-          <h3>Where new relationships began</h3>
-          <p className="hint">Meeting context of every tie formed during the simulation (friends and acquaintances).</p>
+        <div className="card" id="origins">
+          <div className="row"><h3 style={{ flex: 1 }}>Where relationships began</h3>
+            <div className="seg"><button className={!romantic ? 'on' : ''} onClick={() => setRomantic(false)}>Friends</button><button className={romantic ? 'on' : ''} onClick={() => setRomantic(true)}>Romances</button></div></div>
+          <p className="hint">{romantic ? 'Where every couple (dated, dating or married) first met.' : 'Where each friendship formed during the simulation.'}</p>
           {origOpt && <EChart option={origOpt} height={260} />}
         </div>
         <div className="card">

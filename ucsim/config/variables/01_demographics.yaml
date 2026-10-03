@@ -96,6 +96,48 @@ variables:
     evidence: empirical
     init: "copula provostats.height_in (sex-specific marginals)"
     desc: Height. Matters because many women report a minimum-height requirement for partners (Dating & ProvoStats surveys).
+  weight_lb:
+    label: Weight
+    units: lb
+    range: [80, 420]
+    group: physical
+    init: "BMI × height²; BMI log-normal by sex and age, shifted slightly lower for an active Utah student population, and lower with regular exercise."
+    source: [CDC NHANES adult BMI distributions (approximate), Utah adult obesity below the US average]
+    evidence: extrapolated
+    desc: Body weight. Derived from BMI and height.
+  bmi:
+    label: Body-mass index
+    units: kg/m²
+    range: [15, 55]
+    group: physical
+    init: "log-normal; median ≈23 (women) and ≈24.5 (men) at age 20, rising with age; −0.3 per extra exercise day per week."
+    source: [CDC NHANES (approximate)]
+    evidence: extrapolated
+    desc: Body-mass index. Feeds weakly into perceived attractiveness (see attractiveness).
+  body_build:
+    label: Build
+    dtype: cat
+    categories: [slender, average, athletic, heavier]
+    group: physical
+    init: "from BMI and exercise: slender BMI<20.5; athletic if exercising 4+ days/week with BMI 20.5–27; heavier BMI≥28; else average."
+    evidence: hypothetical
+    desc: Plain-language body type for profiles and filters.
+  hair_color:
+    label: Hair color
+    dtype: cat
+    categories: [black, dark_brown, light_brown, blonde, red, gray]
+    group: physical
+    init: "by ethnicity (approximate US shares; Utah's mostly Northern-European ancestry gives more light hair); some gray after 40."
+    evidence: extrapolated
+    desc: Descriptive only; does not drive behavior in the model.
+  eye_color:
+    label: Eye color
+    dtype: cat
+    categories: [brown, hazel, green, blue, gray]
+    group: physical
+    init: "by ethnicity (approximate US shares, more blue/green among people of Northern-European ancestry)."
+    evidence: extrapolated
+    desc: Descriptive only; does not drive behavior in the model.
   role:
     label: Primary role
     dtype: cat

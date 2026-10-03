@@ -4,6 +4,7 @@ import { api } from '../api'
 import { axisStyle, CohortBar, cssVar, EChart, Loading } from '../components'
 import { CyGraph } from '../graph'
 import { useStore } from '../store'
+import { PageHeader } from '../ui'
 
 const COLOR_BY: Record<string, { label: string; cats: string[] }> = {
   activity: { label: 'Church activity', cats: ['non member', 'inactive', 'less active', 'active'] },
@@ -50,8 +51,9 @@ export default function NetworkView() {
   }, [deg])
   return (
     <div className="page">
-      <h1>Social network</h1>
-      <p className="sub">A sample of the friendship graph among the current cohort (ties at friend level or above). Clusters form around apartments, wards, classes and FHE groups; bridges connect them. Click a node to open the person.</p>
+      <PageHeader id="network" eyebrow="Watch the world" title="Friend network"
+        sub="A sample of who is friends with whom. Clusters form around apartments, wards, classes and FHE groups; a few people bridge them."
+        tips={['Each dot is a person, each line a friendship. Color the dots by church activity, school, sex or relationship status.', '"Same-group friendships" compares how often friends share a trait vs what random mixing would give (homophily).', 'Click a dot to open that person. Use the group bar to look at one part of the network.']} />
       <CohortBar n={deg.n} />
       <div className="grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 300px' }}>
         <div className="card">

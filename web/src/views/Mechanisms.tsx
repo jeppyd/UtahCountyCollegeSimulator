@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Evidence } from '../components'
 import { useStore } from '../store'
+import { PageHeader } from '../ui'
 import { MechBrief } from './CausalWeb'
 
 export default function Mechanisms({ id }: { id?: string }) {
@@ -38,8 +39,8 @@ export default function Mechanisms({ id }: { id?: string }) {
   for (const m of all) counts[m.evidence] = (counts[m.evidence] ?? 0) + 1
   return (
     <div className="page">
-      <h1>Mechanism registry</h1>
-      <p className="sub">{all.length} explicit behavioral relationships. Each has a mathematical form, parameters with plausible ranges, a target, sources, moderators and an honest evidence label — nothing important is buried in code.</p>
+      <PageHeader id="mechanisms" eyebrow="The model" title="Rules"
+        sub="Every behavioral rule in the model: what it affects, its formula and strengths, and the evidence behind it." />
       <div className="row" style={{ marginBottom: 12 }}>
         <input type="search" placeholder="Search mechanisms" value={q} onChange={e => setQ(e.target.value)} />
         {Object.keys(registry!.evidence_levels).map(k => <button key={k} className={`btn small ${ev === k ? 'primary' : ''}`} onClick={() => setEv(ev === k ? '' : k)}><Evidence level={k} /> {counts[k] ?? 0}</button>)}

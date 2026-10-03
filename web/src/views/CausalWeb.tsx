@@ -4,6 +4,7 @@ import { api } from '../api'
 import { cssVar, Evidence, Loading, VarPicker } from '../components'
 import { CyGraph } from '../graph'
 import { useStore } from '../store'
+import { PageHeader } from '../ui'
 
 const EV_VAR: Record<string, string> = { observed: '--ev-observed', empirical: '--ev-empirical', literature: '--ev-literature', calibrated: '--ev-calibrated', extrapolated: '--ev-extrapolated', hypothetical: '--ev-hypothetical' }
 
@@ -66,8 +67,9 @@ export default function CausalWeb({ focus }: { focus?: string }) {
   const raw = sel?.raw
   return (
     <div className="page">
-      <h1>Causal web</h1>
-      <p className="sub">The model's chain-of-consequence structure: variables (rounded boxes) feed mechanisms (diamonds, colored by evidence level) that set other variables; events (triangles) push states with decaying effects. When an intervention universe exists, node size shows how much each part moved.</p>
+      <PageHeader id="causal" eyebrow="What if?" title="Cause & effect"
+        sub="What affects what in the model. Measures (boxes) feed rules (diamonds) that change other measures; events (triangles) push feelings for a while."
+        tips={['Pick a measure to center on. "Causes" shows what drives it; "consequences" shows what it drives. Depth adds more steps.', 'Click a node to read it. Diamonds are colored by how well-supported the rule is.', 'After a what-if experiment, bigger nodes moved more, so you can see where the change traveled.']} />
       <div className="card">
         <div className="row" style={{ marginBottom: 10 }}>
           <span className="small muted">Focus</span><VarPicker value={root} onChange={setRoot} />

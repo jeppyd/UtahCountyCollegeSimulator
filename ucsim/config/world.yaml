@@ -6,19 +6,21 @@ default_scale: 0.3           # 1.0 ≈ 60k agents; group sizes (wards, classes, 
 
 population:                  # counts at scale 1.0
   byu:
-    students: 33500          # (approx) BYU Provo daytime enrollment ~34k
+    students: 35000          # BYU fall 2025 headcount 37,337; modeled ~94% (excludes evening/online-only)
     married_share: 0.25      # (approx) ~1 in 4 BYU students married
     grad_share: 0.09
     male_share: 0.50
     lds_share: 0.985
     freshman_share: 0.16
+    class_mix: {freshman: 0.17, sophomore: 0.19, junior: 0.22, senior: 0.33, graduate: 0.09}   # (approx) BYU Y-Facts pattern: large senior class
     with_parents_share: 0.06
   uvu:
-    students: 15000          # in-scope subset of ~45k: excludes concurrent-enrollment, online-only and most distant commuters
+    students: 16000          # in-scope subset of UVU's fall 2025 headcount 48,670: excludes concurrent-enrollment, online-only and most distant commuters
     married_share: 0.30      # (approx)
     male_share: 0.52
     lds_share: 0.72          # (assumption) lower than BYU; no ecclesiastical endorsement requirement
     with_parents_share: 0.33 # (assumption) many UVU students live with family in Utah County
+    class_mix: {freshman: 0.30, sophomore: 0.24, junior: 0.18, senior: 0.25, graduate: 0.03}   # (approx) open-admission: big first year
     active_tilt: 0.55        # odds multiplier on 'active' vs survey (survey over-represents active members)
   young_adults: 6000         # non-student 18-30s embedded in YSA wards / workplaces
   faculty: 1500
@@ -63,3 +65,11 @@ tuition:
   byu_lds_semester: 3500      # (approx)
   byu_nonlds_semester: 7000   # (approx)
   uvu_semester: 3100          # (approx) resident full-time
+
+history:                     # per-person snapshots for flows and trajectories (see engine/systems/history.py)
+  every_days: 14
+  categorical: [rel_status, activity, mission_status, living, school, enrolled, class_standing, academic_standing,
+                employed, faith_crisis, depressive_episode, app_user, temple_recommend]
+  numeric: [loneliness, mood, stress, belonging, anxiety, self_esteem, purpose, life_satisfaction, faith_belief,
+            faith_certainty, religious_identity, attend_rate, n_friends, n_close_friends, dates_30d, romantic_longing,
+            relationship_satisfaction, financial_stress, rent_burden, savings, gpa, coffee, alcohol]

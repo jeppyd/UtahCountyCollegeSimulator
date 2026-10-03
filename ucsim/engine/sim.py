@@ -26,7 +26,7 @@ class Simulation:
     def __init__(self, world: World, interventions: list | None = None, name: str = "baseline",
                  record: bool = True):
         from .systems import (academics, activity, economy, emotion, encounters, environment, faith, housing,
-                              lifecourse, network, norms, recorder, romance)
+                              history, lifecourse, network, norms, recorder, romance)
         self.w = world
         self.name = name
         self.reg = world.reg
@@ -52,6 +52,7 @@ class Simulation:
             "economy": economy.Economy(self),
             "housing": housing.Housing(self),
             "recorder": recorder.Recorder(self),
+            "history": history.History(self),
         }
         self._zcache_day = -999
         self._zcache: dict[str, tuple[float, float]] = {}
@@ -63,6 +64,7 @@ class Simulation:
         self._ranged = [(k, v.range[0], v.range[1]) for k, v in self.w.P.specs.items()
                         if v.range and v.dtype in ("f4", "f8")]
         self.clamp()
+        self.systems["history"].init()  # first snapshot = the world as built
 
     def clamp(self):
         """Invariant: every ranged float stays inside the registry's declared support."""
@@ -178,6 +180,7 @@ class Simulation:
         self.clamp()
         if self.record:
             self._run("recorder", S["recorder"].daily)
+        self._run("history", S["history"].daily)
         if d % 14 == 13:
             self.effects.prune(d)
 

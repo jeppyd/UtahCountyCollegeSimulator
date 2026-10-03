@@ -24,6 +24,8 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
+from .osm_housing import address_keys, load_contracted, load_osm, point_in_poly
+
 ROOT = Path(__file__).resolve().parents[2]
 EXT = ROOT / "data" / "external" / "ugrc"
 OUT = Path(__file__).resolve().parent / "data"
@@ -44,6 +46,12 @@ SPECIAL_COMPLEXES = {
     "Wymount Terrace": ("married", 900, 2, False, False, True),
     "Wyview Park": ("married", 700, 2, False, False, True),
 }
+
+
+def norm_name(name: str) -> str:
+    """Comparable complex name: lower case, without generic words ('The', 'Apartments', 'Apts', 'Condos')."""
+    n = re.sub(r"(?i)\b(the|apartments?|apts?|condos?|condominiums?|homes|townhomes)\b", " ", name or "")
+    return re.sub(r"[^a-z0-9]+", " ", n.lower()).strip()
 
 
 def _load(name):
@@ -139,60 +147,198 @@ def build():
         if c["PARCEL_ID"] in bnames and re.search(r"(?i)apart|condo|village|court|manor|place|park|terrace|lofts|halls", bnames[c["PARCEL_ID"]]):
             c["name"], c["name_src"] = bnames[c["PARCEL_ID"]], "ugrc_building_name"
 
+    for c in cx:
+        c["parcels"] = [c["PARCEL_ID"]]
+        c["contracted_official"] = False
+        c["osm_kind"] = None
+        c["extra_units"] = 0
+    WEAK = ("address", "ugrc_building_name")
+    dlon, dlat = d["lon"].to_numpy(), d["lat"].to_numpy()
+    dpar = d["PARCEL_ID"].to_list()
+
+    def new_complex(name, src, parcels, units, lon, lat, kind=None, extra=0):
+        cx.append({"PARCEL_ID": parcels[0] if parcels else None, "parcels": list(parcels), "lon": lon, "lat": lat, "units": int(units),
+                   "address": None, "city": str(city_of(np.array([lon]), np.array([lat]))[0]), "built": None, "sqft": None,
+                   "name": name, "name_src": src, "loc_src": src, "contracted_official": False, "osm_kind": kind, "extra_units": int(extra)})
+        return cx[-1]
+
+    # ---- (a) BYU's official contracted housing list, matched to exact UGRC address points
+    by_parcel = {c["PARCEL_ID"]: c for c in cx}
+    full = [str(a).upper() for a in addr["FullAdd"].to_list()]
+    apar, acity = addr["PARCEL_ID"].to_list(), addr["City"].to_list()
+    alons, alats = addr["lon"].to_list(), addr["lat"].to_list()
+    n_contracted = 0
+    for r in load_contracted():
+        keys = address_keys(r["address"])
+        rows = [k for k, a in enumerate(full) if acity[k] == "PROVO" and any(a == key or a.startswith(key + " ") for key in keys)]
+        pids = sorted({apar[k] for k in rows})
+        if not pids:
+            continue
+        alon = float(np.mean([alons[k] for k in rows]))
+        alat = float(np.mean([alats[k] for k in rows]))
+        n_contracted += 1
+        hit = [by_parcel[p] for p in pids if p in by_parcel]
+        if hit:
+            for c in hit:
+                c["name"], c["name_src"], c["contracted_official"] = r["name"], "byu_contracted_list", True
+        else:
+            m = np.isin(np.array(dpar, dtype=object), pids)
+            c = new_complex(r["name"], "byu_contracted_list", pids, max(1, int(m.sum())), alon, alat)
+            c["contracted_official"] = True
+
+    # ---- (b) OpenStreetMap outlines: name the parcels that sit inside a named apartment/condo/dorm outline
+    osm = [o for o in load_osm() if o["kind"] in ("apartments", "condos", "senior", "mobile_park", "dorm")]
+    clon = np.array([c["lon"] for c in cx])
+    clat = np.array([c["lat"] for c in cx])
+    used = set()
+    best_area = np.full(len(cx), np.inf)
+    for k, o in enumerate(osm):
+        x0, y0 = o["poly"].min(0)
+        x1, y1 = o["poly"].max(0)
+        cand = np.where((clon >= x0 - 3e-4) & (clon <= x1 + 3e-4) & (clat >= y0 - 3e-4) & (clat <= y1 + 3e-4))[0]
+        if not len(cand):
+            continue
+        ins = cand[point_in_poly(clon[cand], clat[cand], o["poly"])]
+        for i in ins:
+            if cx[i]["name_src"] in WEAK + ("osm",) and o["area"] < best_area[i]:
+                best_area[i] = o["area"]
+                cx[i]["name"], cx[i]["name_src"], cx[i]["osm_kind"] = o["name"], "osm", o["kind"]
+                used.add(k)
+            elif cx[i]["name_src"] not in WEAK + ("osm",):
+                cx[i]["osm_kind"] = cx[i]["osm_kind"] or o["kind"]
+                used.add(k)
+    # nearest named OSM building within 50 m for parcels still unnamed (address points often sit at the street)
+    blds = [(k, o) for k, o in enumerate(osm) if o["is_building"]]
+    if blds:
+        bl = np.array([o["lon"] for _, o in blds])
+        bt = np.array([o["lat"] for _, o in blds])
+        for i, c in enumerate(cx):
+            if c["name_src"] in WEAK:
+                dd = km_dist(bl, bt, c["lon"], c["lat"]) * 1000
+                j = int(np.argmin(dd))
+                if dd[j] < 50:
+                    k, o = blds[j]
+                    c["name"], c["name_src"], c["osm_kind"] = o["name"], "osm", o["kind"]
+                    used.add(k)
+
+    # ---- (c) merge parcels that belong to the same named complex
+    groups: dict[str, list[dict]] = {}
+    for c in cx:
+        if c["name"] and c["name_src"] != "address":
+            groups.setdefault(norm_name(c["name"]), []).append(c)
+    drop = set()
+    for g in groups.values():
+        if len(g) < 2:
+            continue
+        rank = {"byu_contracted_list": 0, "survey_geocode": 1, "osm": 2}
+        g.sort(key=lambda c: (rank.get(c["name_src"], 3), -c["units"]))
+        head = g[0]
+        for c in g[1:]:
+            if km_dist(c["lon"], c["lat"], head["lon"], head["lat"]) > 0.6:
+                continue
+            w0, w1 = head["units"], c["units"]
+            head["lon"] = (head["lon"] * w0 + c["lon"] * w1) / max(w0 + w1, 1)
+            head["lat"] = (head["lat"] * w0 + c["lat"] * w1) / max(w0 + w1, 1)
+            head["units"] += c["units"]
+            head["parcels"] += c["parcels"]
+            head["contracted_official"] |= c["contracted_official"]
+            head["extra_units"] += c["extra_units"]
+            drop.add(id(c))
+    cx = [c for c in cx if id(c) not in drop]
+
+    # ---- (d) named OSM complexes the county address points miss (e.g. one base address for a large building)
+    near_byu_dorms = km_dist(np.array([o["lon"] for o in osm]), np.array([o["lat"] for o in osm]), *BYU) < 1.3 if osm else np.array([])
+    taken = {p for c in cx for p in c["parcels"] if p}
+    named = {norm_name(c["name"]) for c in cx if c["name"]}
+    for k, o in enumerate(osm):
+        if k in used or o["kind"] not in ("apartments", "dorm", "condos") or norm_name(o["name"]) in named:
+            continue
+        if o["kind"] == "dorm" and near_byu_dorms[k]:
+            continue  # Helaman/Heritage Halls buildings are modeled as the two BYU hall complexes
+        x0, y0 = o["poly"].min(0)
+        x1, y1 = o["poly"].max(0)
+        box = np.where((dlon >= x0) & (dlon <= x1) & (dlat >= y0) & (dlat <= y1))[0]
+        inside = box[point_in_poly(dlon[box], dlat[box], o["poly"])] if len(box) else box
+        pids = sorted({dpar[i] for i in inside if dpar[i] not in taken})
+        n_dw = int(np.isin(np.array(dpar, dtype=object)[inside], pids).sum()) if len(inside) else 0
+        est = int(o["area"] * (o["levels"] or (3 if o["is_building"] else 2)) / 95) if o["is_building"] else 0
+        if n_dw == 0 and est < 12:
+            continue
+        units = max(n_dw, est)
+        new_complex(o["name"], "osm", pids, units, o["lon"], o["lat"], o["kind"], extra=min(400, max(0, est - n_dw)))
+        taken.update(pids)
+        named.add(norm_name(o["name"]))
+
+    # ---- (e) names reported in the surveys (geocoded with Nominatim) for anything still unnamed
     geocodes = json.loads(GEOCODES.read_text(encoding="utf-8")) if GEOCODES.exists() else {}
     survey_share = json.loads(PRIORS.read_text(encoding="utf-8"))["tables"]["complexes"]
     clon = np.array([c["lon"] for c in cx])
     clat = np.array([c["lat"] for c in cx])
     named_extra = []
     for name, g in geocodes.items():
-        if not g:
+        if not g or name in SPECIAL_COMPLEXES:
             continue
-        if name in SPECIAL_COMPLEXES:
+        hit = [c for c in cx if c["name"] and norm_name(c["name"]) == norm_name(name)]
+        if hit:
+            hit[0]["survey_share"] = survey_share.get(name, 0.0)
             continue
         dist = km_dist(clon, clat, g["lon"], g["lat"])
-        cand = np.where((dist < 0.22))[0]
-        cand = [i for i in cand if cx[i]["name_src"] != "survey_geocode"]
+        cand = [i for i in np.where(dist < 0.22)[0] if cx[i]["name_src"] in WEAK]
         if cand:
             i = max(cand, key=lambda k: cx[k]["units"] / (1 + 5 * dist[k]))
             cx[i]["name"], cx[i]["name_src"] = name, "survey_geocode"
             cx[i]["survey_share"] = survey_share.get(name, 0.0)
         else:
             named_extra.append((name, g))
+    special_loc = {}
+    for c in cx:
+        for sp in SPECIAL_COMPLEXES:
+            # "Helaman Hall 3" / "Wymount Terrace 12" match; "Heritage Court" (a separate south-Provo complex) does not
+            if c["name"] and norm_name(c["name"]).startswith(norm_name(sp)[:-1]) and km_dist(c["lon"], c["lat"], *BYU) < 1.6:
+                special_loc.setdefault(sp, []).append((c["lon"], c["lat"], c["units"]))
+                c["osm_kind"] = "special_dup"   # its address points duplicate the special's modeled units
+    KIND = {"condos": "condos", "senior": "senior", "mobile_park": "mobile_park", "special_dup": "special_dup"}
     complexes = []
     for c in cx:
         complexes.append(dict(
             name=c["name"] or (f"Apartments at {c['address'].title()}" if c["address"] else
                                f"{c['city']} apartment complex #{len(complexes) + 1}"),
             name_src=c["name_src"], lon=c["lon"], lat=c["lat"], units=int(c["units"]),
-            city=c["city"], parcel_id=c["PARCEL_ID"], built=c["built"], kind="apartments",
-            loc_src="ugrc_address_points", survey_share=float(c.get("survey_share", 0.0))))
+            city=c["city"], parcel_id=c["PARCEL_ID"], built=c["built"], kind=KIND.get(c["osm_kind"], "apartments"),
+            loc_src=c.get("loc_src", "ugrc_address_points"), survey_share=float(c.get("survey_share", 0.0)),
+            contracted_official=bool(c["contracted_official"]), extra_units=int(c["extra_units"]),
+            parcels="|".join(str(p) for p in c["parcels"] if p)))
     for name, g in named_extra:
         complexes.append(dict(name=name, name_src="survey_geocode", lon=g["lon"], lat=g["lat"],
                               units=max(20, int(400 * survey_share.get(name, 0.002) / 0.01)),
                               city=str(city_of(np.array([g["lon"]]), np.array([g["lat"]]))[0]), parcel_id=None,
-                              built=None, kind="apartments", loc_src="osm_nominatim", survey_share=survey_share.get(name, 0.0)))
+                              built=None, kind="apartments", loc_src="osm_nominatim", survey_share=survey_share.get(name, 0.0),
+                              contracted_official=False, extra_units=0, parcels=""))
     for name, (kind, beds, bpu, *_rest) in SPECIAL_COMPLEXES.items():
         g = geocodes.get(name)
+        if name in special_loc:  # real location from the named parcels / OSM outline
+            pts = np.array(special_loc[name], float)
+            g = {"lon": float(np.average(pts[:, 0], weights=pts[:, 2] + 1)), "lat": float(np.average(pts[:, 1], weights=pts[:, 2] + 1))}
         if not g:
             continue
         complexes.append(dict(name=name, name_src="survey_geocode", lon=g["lon"], lat=g["lat"], units=beds // bpu,
                               city="Provo", parcel_id=None, built=None, kind=kind, loc_src="osm_nominatim",
-                              survey_share=sum(v for k, v in survey_share.items() if k.startswith(name.split()[0]))))
+                              survey_share=sum(v for k, v in survey_share.items() if k.startswith(name.split()[0])),
+                              contracted_official=False, extra_units=0, parcels=""))
     cdf = pl.DataFrame(complexes, infer_schema_length=None).with_row_index("complex_id")
     cdf = cdf.with_columns(
         dist_byu=pl.Series(km_dist(cdf["lon"].to_numpy(), cdf["lat"].to_numpy(), *BYU)),
         dist_uvu=pl.Series(km_dist(cdf["lon"].to_numpy(), cdf["lat"].to_numpy(), *UVU)))
     # Contracted (approximate): survey-named complexes near BYU, and dense complexes very near campus.
+    # Contracted = BYU's halls + the properties on BYU's official 2026-27 contracted housing list.
     cdf = cdf.with_columns(
-        contracted=((pl.col("kind") == "byu_dorm") |
-                    ((pl.col("name_src") == "survey_geocode") & (pl.col("dist_byu") < 2.2) & (pl.col("kind") == "apartments")) |
-                    ((pl.col("dist_byu") < 1.0) & (pl.col("kind") == "apartments") & (pl.col("units") >= 12))),
+        contracted=(pl.col("kind") == "byu_dorm") | pl.col("contracted_official"),
         married_only=pl.col("kind") == "married",
     )
     cdf.write_parquet(OUT / "complexes.parquet")
 
     # Link dwellings to complexes by parcel
-    pid2cx = {r["parcel_id"]: r["complex_id"] for r in cdf.iter_rows(named=True) if r["parcel_id"]}
+    pid2cx = {p: r["complex_id"] for r in cdf.iter_rows(named=True) for p in (r["parcels"] or "").split("|") if p}
     d = d.with_columns(complex_id=pl.col("PARCEL_ID").replace_strict(pid2cx, default=None, return_dtype=pl.Int64))
     dw = d.select(
         pl.col("lon").cast(pl.Float32), pl.col("lat").cast(pl.Float32), "PARCEL_ID", "complex_id", "city", "kind",
@@ -269,6 +415,8 @@ def build():
     summary = {
         "dwellings": dw.height, "complexes": cdf.height,
         "named_complexes": int((cdf["name_src"] != "address").sum()),
+        "named_by_source": dict(cdf["name_src"].value_counts().iter_rows()),
+        "contracted_official_matched": n_contracted,
         "meetinghouses": mh.height, "venues": vdf.height,
         "dwellings_by_kind": dict(dw["kind"].value_counts().iter_rows()),
         "dwellings_by_city": dict(dw["city"].value_counts().iter_rows()),

@@ -190,7 +190,8 @@ def build_world(scale: float | None = None, seed: int = 1, verbose: bool = False
     for i in wp_ids:
         if unit_of[i] >= 0:
             H.free[unit_of[i]] = 0
-    # BYU single students: freshmen -> halls; others -> contracted apartments
+    # BYU single students: freshmen -> halls, else contracted apartments (BYU rule since fall 2022: first two
+    # semesters only); upperclassmen choose freely near campus, many staying in the contracted complexes they know.
     fresh = P.is_("class_standing", "freshman")
     for sex_label, sex_code in (("F", 1), ("M", 2)):
         sx = P.is_("sex", sex_label)
@@ -198,11 +199,15 @@ def build_world(scale: float | None = None, seed: int = 1, verbose: bool = False
         f_ids = f_ids[rng.random(len(f_ids)) < 0.75]
         dorm = units.unit_type == 0
         unit_of[f_ids] = H.fill_beds(f_ids, dorm, BYU, 1.0, sex_code)
+        rest = np.where(byu_stu & fresh & sx & (unit_of < 0))[0]
+        unit_of[rest] = H.fill_beds(rest, units.contracted & (units.unit_type != 0), BYU, 0.9, sex_code)
+        rest = np.where(byu_stu & sx & (unit_of < 0))[0]
+        rest = rest[rng.permutation(len(rest))]
+        stay = rest[rng.random(len(rest)) < 0.25]
+        unit_of[stay] = H.fill_beds(stay, units.contracted & (units.unit_type != 0), BYU, 0.9, sex_code)
         rest = np.where(byu_stu & sx & (unit_of < 0))[0]
         key = (P["activity"][rest] * 10 + P["class_standing"][rest]).astype(float)
-        unit_of[rest] = H.fill_beds(rest, units.contracted & (units.unit_type != 0), BYU, 0.9, sex_code, key)
-        rest = np.where(byu_stu & sx & (unit_of < 0))[0]
-        unit_of[rest] = H.fill_beds(rest, (units.unit_type == 1) | (units.unit_type == 2), BYU, 1.2, sex_code, key[:0] if False else None)
+        unit_of[rest] = H.fill_beds(rest, ((units.unit_type == 1) | (units.unit_type == 2)) & ~units.married_only, BYU, 1.2, sex_code, key)
         # UVU singles and young adults: non-contracted apartments, house shares
         for grp_mask, anchor, lam in ((uvu_stu, UVU, 1.6), (ya_s, (-111.68, 40.26), 3.0)):
             ids_ = np.where(grp_mask & sx & (unit_of < 0))[0]

@@ -23,6 +23,8 @@ class Environment:
             "app_appeal": 1.0,
             "coffee_permitted": False,
             "contracted_housing_required": True,
+            # Since fall 2022 the rule covers only single undergrads' first two semesters (freshmen); before, all years.
+            "contracted_housing_all_years": False,
             "mission_norm": 1.0,
             "men_initiate_norm": 1.0,
             "church_attendance_norm": 1.0,

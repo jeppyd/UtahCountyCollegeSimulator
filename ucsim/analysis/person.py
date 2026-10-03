@@ -9,9 +9,12 @@ FIRST_F = ["Emma", "Abigail", "Hannah", "Ellie", "Olivia", "Ava", "Sarah", "Rach
            "Kate", "Lauren", "Megan", "Rebecca", "Anna", "Claire", "Madison", "Jenna", "Sophie", "Grace", "Natalie", "Camille"]
 FIRST_M = ["Jacob", "Ethan", "Tyler", "Spencer", "Josh", "Caleb", "Sam", "Nathan", "Ben", "Isaac", "Tanner", "Jared", "Dallin",
            "Brigham", "Carter", "Logan", "Michael", "Daniel", "Austin", "Parker", "Hunter", "Mason", "Luke", "Andrew"]
-LAST = ["Anderson", "Christensen", "Jensen", "Larsen", "Peterson", "Smith", "Johnson", "Young", "Hansen", "Nielsen",
+LAST = ["Anderson", "Christensen", "Jensen", "Larsen", "Peterson", "Smith", "Johnson", "Bowen", "Hansen", "Nielsen",
         "Taylor", "Clark", "Allen", "Hall", "Walker", "Robinson", "Thompson", "Martinez", "Nguyen", "Garcia", "Kimball",
         "Cannon", "Richards", "Snow", "Lee", "Pratt", "Bennion", "Ashby", "Rasband", "Wilkinson"]
+
+
+from ..population.majors import label as major_label  # noqa: E402
 
 
 def synthetic_name(P, i: int) -> str:
@@ -51,7 +54,9 @@ def profile(sim, i: int) -> dict:
     sal = np.array([reg.events[reg.event_names[t]].salience for t in log["type"][mine]]) if len(mine) else np.array([])
     keep = mine[sal >= 0.45] if len(mine) else mine
     timeline = [event_record(sim, int(e)) for e in keep[-250:]]
+    me = synthetic_name(P, i)
     for ev in timeline:
+        ev["a_name"] = me
         if ev["b"] is not None:
             ev["b_name"] = synthetic_name(P, ev["b"])
     # composition of emotional states
@@ -66,6 +71,11 @@ def profile(sim, i: int) -> dict:
     exposures = [event_record(sim, int(e)) for e in mine if reg.event_names[log["type"][e]] == "intervention_exposure"]
     return {
         "id": i, "name": synthetic_name(P, i), "synthetic": True,
+        "major": major_label(int(P["major_id"][i])) if "major_id" in P else None,
+        "college": _val(P, "college", i) if "college" in P else None,
+        "looks": {"height_in": float(P["height_in"][i]), "weight_lb": float(P["weight_lb"][i]) if "weight_lb" in P else None,
+                  "build": _val(P, "body_build", i) if "body_build" in P else None,
+                  "hair": _val(P, "hair_color", i) if "hair_color" in P else None, "eyes": _val(P, "eye_color", i) if "eye_color" in P else None},
         "headline": headline(sim, i),
         "domains": domains,
         "partner": {"id": partner, "name": synthetic_name(P, partner)} if partner >= 0 else None,
@@ -77,10 +87,17 @@ def profile(sim, i: int) -> dict:
         "timeline": timeline,
         "why": why,
         "goals": goals(sim, i),
-        "network": ego_network(sim, i, max_nodes=40),
+        "network": _named(ego_network(sim, i, max_nodes=40), P),
         "exposures": exposures,
         "now": {"activity": _val(P, "activity_now", i), "lon": float(np.nan_to_num(P["loc_lon"][i])), "lat": float(np.nan_to_num(P["loc_lat"][i]))},
     }
+
+
+def _named(net: dict, P) -> dict:
+    for e in net.get("edges", []):
+        if not e.get("alter_tie"):
+            e["name"] = synthetic_name(P, int(e["target"]))
+    return net
 
 
 def headline(sim, i: int) -> str:
@@ -92,6 +109,12 @@ def headline(sim, i: int) -> str:
     act = _val(P, "activity", i).replace("_", " ")
     ms = _val(P, "mission_status", i)
     bits = [f"{age}-year-old {role}", rel]
+    if "major_id" in P and int(P["major_id"][i]) >= 0 and P["enrolled"][i]:
+        m = major_label(int(P["major_id"][i]))
+        if m and not m.startswith("Exploratory"):
+            bits[0] += f" studying {m}"
+        elif m:
+            bits[0] += " (undeclared)"
     if ms in ("returned", "early_returned"):
         bits.append("returned missionary" if ms == "returned" else "early-returned missionary")
     if ms == "serving":

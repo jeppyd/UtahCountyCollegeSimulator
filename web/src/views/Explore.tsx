@@ -1,13 +1,17 @@
-import { useMemo, useState } from 'react'
-import { fmt, groupsOf, histogram, isCategorical, mean, pearson, regress, summary, useCohortData, values } from '../analysis'
-import { axisStyle, CohortBar, EChart, Evidence, series, tokens, VarPicker } from '../components'
+import { useEffect, useMemo, useState } from 'react'
+import { fmt, groupsOf, histogram, isCategorical, pearson, regress, summary, useCohortData, values } from '../analysis'
+import { api, STATIC } from '../api'
+import { axisStyle, CohortBar, condLabel, Decomposition, EChart, Evidence, Loading, PersonLink, series, tokens, VarPicker } from '../components'
 import { Cond, useStore } from '../store'
+import { Advanced, PageHeader, useAdvanced } from '../ui'
 
-export default function Explore() {
+export default function Explore({ x0, y0, g0 }: { x0?: string; y0?: string; g0?: string }) {
   const { registry, addCond, status } = useStore()
-  const [x, setX] = useState('loneliness')
-  const [y, setY] = useState('')
-  const [g, setG] = useState('')
+  const adv = useAdvanced()
+  const [x, setX] = useState(x0 || 'loneliness')
+  const [y, setY] = useState(y0 || '')
+  const [g, setG] = useState(g0 || '')
+  useEffect(() => { if (x0) setX(x0); setY(y0 || ''); setG(g0 || '') }, [x0, y0, g0])
   const [compareU, setCompareU] = useState(false)
   const vars = [x, y, g].filter(Boolean)
   const data = useCohortData(vars)
@@ -155,8 +159,14 @@ export default function Explore() {
 
   return (
     <div className="page">
-      <h1>Explore</h1>
-      <p className="sub">Pick any variable from the registry. Charts adapt to its type; click bars to drill into a sub-cohort, click dots to open a person. The cohort persists across every view.</p>
+      <PageHeader id="explore" eyebrow="Ask questions" title="Explore a measure"
+        sub="See how any measure is spread across people, split it by groups, or relate it to a second measure."
+        tips={[
+          <>Choose a <b>measure</b>. Add <b>split by</b> to compare groups (e.g. loneliness by school), or <b>vs</b> to relate two measures (each dot is a person).</>,
+          'Click a bar to narrow your group to those people. Click a dot to open that person.',
+          <>With a group selected, the <b>Why is this group different?</b> panel breaks the gap into the model's forces and shows example lives.</>,
+          'Patterns here are associations inside the simulation. For causes, use the Why panel, a person\'s page, or Cause & effect.',
+        ]} />
       <CohortBar n={data.n} />
       <div className="card">
         <div className="row" style={{ marginBottom: 10 }}>
@@ -171,19 +181,76 @@ export default function Explore() {
         </div>
         {chart ? <EChart option={chart.option} height={380} onClick={chart.click} /> : <div className="empty">No data for this selection.</div>}
         {chart?.kind === 'hist' && chart.stats && (
-          <div className="row small tabular" style={{ marginTop: 8 }}>
-            {(['n', 'mean', 'sd', 'p10', 'q1', 'median', 'q3', 'p90'] as const).map(k => <span key={k} className="pill">{k} {fmt((chart.stats as any)[k], 3)}</span>)}
-          </div>
+          <>
+            <p className="small secondary" style={{ margin: '8px 0 0' }}>Average <b>{fmt(chart.stats.mean, 2)}</b>{sx?.units ? ` ${sx.units}` : ''}; the middle half of people fall between <b>{fmt(chart.stats.q1, 2)}</b> and <b>{fmt(chart.stats.q3, 2)}</b> ({chart.stats.n.toLocaleString()} people).</p>
+            <Advanced><div className="row small tabular" style={{ marginTop: 8 }}>
+              {(['n', 'mean', 'sd', 'p10', 'q1', 'median', 'q3', 'p90'] as const).map(k => <span key={k} className="pill">{k} {fmt((chart.stats as any)[k], 3)}</span>)}
+            </div></Advanced>
+          </>
         )}
-        {chart?.kind === 'scatter' && (
+        {chart?.kind === 'scatter' && !adv && (
+          <p className="small secondary" style={{ margin: '8px 0 0' }}>{strength(chart.r!.r)} ({chart.r!.r >= 0 ? 'higher' : 'lower'} {sx?.label.toLowerCase()} tends to go with {chart.r!.r >= 0 ? 'higher' : 'lower'} {sy?.label.toLowerCase()}; correlation {fmt(chart.r!.r, 2)}). This is an association, not proof of cause.</p>
+        )}
+        {chart?.kind === 'scatter' && adv && (
           <div className="row small tabular" style={{ marginTop: 8 }}>
             <span className="pill">Pearson r = {fmt(chart.r!.r, 3)}</span><span className="pill">slope {fmt(chart.fit!.slope, 4)}</span>
             <span className="pill">R² {fmt(chart.fit!.r2, 3)}</span><span className="pill">n = {chart.r!.n.toLocaleString()}</span>
             <span className="muted">Simulated association — not a causal estimate. Use the causal web and person "why" panels for mechanisms.</span>
           </div>
         )}
-        {chart?.kind === 'means' && <div className="small muted" style={{ marginTop: 6 }}>Bars show cohort means with 95% intervals.</div>}
+        {chart?.kind === 'means' && <div className="small muted" style={{ marginTop: 6 }}>Bars show group averages; the thin lines show 95% uncertainty.</div>}
       </div>
+      <WhyPanel v={x} />
+    </div>
+  )
+}
+
+function strength(r: number) {
+  const a = Math.abs(r)
+  return a < 0.1 ? 'Essentially no relationship' : a < 0.3 ? 'A weak relationship' : a < 0.5 ? 'A moderate relationship' : 'A strong relationship'
+}
+
+/** "Why is this group different?" — the cohort's gap from everyone, split into the model's forces, plus example lives. */
+function WhyPanel({ v }: { v: string }) {
+  const { cohort, universe, dataVersion, registry } = useStore()
+  const [res, setRes] = useState<any>(null)
+  const [err, setErr] = useState('')
+  const spec = registry!.variables[v]
+  useEffect(() => {
+    if (!cohort.length || STATIC) return
+    setRes(null); setErr('')
+    api.cohortExplain({ and: cohort }, v, universe).then(setRes).catch(e => setErr(String(e.message ?? e)))
+  }, [v, JSON.stringify(cohort), universe, dataVersion])
+  if (!cohort.length || STATIC) return null
+  const gap = res ? res.cohort_mean - res.population_mean : 0
+  return (
+    <div className="card" style={{ marginTop: 14 }}>
+      <h3>Why is this group different?</h3>
+      <p className="hint">Your group: {cohort.map(c => condLabel(c, registry)).join(' · ')}</p>
+      {err && <div className="banner">{err}</div>}
+      {!res && !err && <Loading what="Tracing causes" />}
+      {res && (
+        <div className="grid g2">
+          <div>
+            <p className="small" style={{ marginTop: 0 }}>Average {spec?.label.toLowerCase()} is <b>{fmt(res.cohort_mean, 3)}</b> in this group vs <b>{fmt(res.population_mean, 3)}</b> for everyone ({gap >= 0 ? '+' : ''}{fmt(gap, 3)}).</p>
+            {res.terms ? (
+              <>
+                <div className="small muted" style={{ marginBottom: 6 }}>Forces that make the difference (group minus everyone):</div>
+                <Decomposition rows={res.terms.slice(0, 8).map((t: any) => ({ label: t.label, value: t.gap, evidence: t.evidence ?? undefined }))} />
+                <p className="small muted">Red bars push {spec?.label.toLowerCase()} up for this group, blue bars push it down. Open <a href={`#/causal/${v}`}>Cause & effect</a> to see what drives each force.</p>
+              </>
+            ) : <p className="small muted">This measure isn't built from separate forces, so the model can't split the gap. Try a feeling like loneliness, happiness or stress.</p>}
+          </div>
+          <div>
+            <div className="small muted" style={{ marginBottom: 6 }}>Example lives from this group, from lowest to highest:</div>
+            {(res.representatives ?? []).map((r: any) => (
+              <div key={r.role} className="row small" style={{ padding: '4px 0', borderBottom: '1px solid var(--grid)' }}>
+                <span className="muted" style={{ width: 70 }}>{r.role}</span><PersonLink id={r.id} name={r.name} /><span className="spacer" /><span className="tabular">{fmt(r.value, 3)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

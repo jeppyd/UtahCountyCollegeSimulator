@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { api, Column, Universe } from './api'
 import { Cond, loadColumns, useStore, VarSpec } from './store'
 
-export const SERVER_ONLY = (c: Cond) => !!(c.recent_event || c.household)
+export const SERVER_ONLY = (c: Cond) => !!(c.recent_event || c.household || c.transition)
 
 export function condVars(conds: Cond[]): string[] {
   const s = new Set<string>(['present'])

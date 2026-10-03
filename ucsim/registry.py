@@ -116,6 +116,7 @@ class EventSpec:
     evidence: str
     desc: str = ""
     refs: list = field(default_factory=list)
+    story: str = ""   # sentence template for feeds and life stories: "{a} got engaged to {b}"
 
     def to_dict(self) -> dict:
         return copy.deepcopy(self.__dict__)

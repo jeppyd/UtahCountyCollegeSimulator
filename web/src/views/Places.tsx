@@ -3,6 +3,7 @@ import { fmt } from '../analysis'
 import { api } from '../api'
 import { axisStyle, EChart, Loading, PersonLink, VarPicker } from '../components'
 import { useStore } from '../store'
+import { PageHeader } from '../ui'
 
 export default function Places({ kind, id }: { kind?: string; id?: number }) {
   if (kind && id !== undefined) return <Institution kind={kind} id={id} />
@@ -19,8 +20,9 @@ function PlaceList() {
   const sorted = useMemo(() => [...rows].filter(r => r.n >= 5).sort((a, b) => sort * ((a.mean ?? 0) - (b.mean ?? 0))), [rows, sort])
   return (
     <div className="page">
-      <h1>Places & institutions</h1>
-      <p className="sub">Apartment complexes, wards, schools and employers are aggregates of the people in them. Compare any variable across places; click one for its full profile.</p>
+      <PageHeader id="places" eyebrow="Ask questions" title="Places"
+        sub="Apartment complexes, wards, schools and employers, described by the people in them."
+        tips={['Pick a measure to rank places by it (e.g. which complexes are loneliest).', 'Click a place for its profile: who lives there, how connected they are, and what has happened there recently.', 'The Map shows the same places geographically.']} />
       <div className="row" style={{ marginBottom: 12 }}>
         <div className="seg"><button className={tab === 'complex' ? 'on' : ''} onClick={() => setTab('complex')}>Housing complexes</button><button className={tab === 'ward' ? 'on' : ''} onClick={() => setTab('ward')}>Wards</button></div>
         <span className="small muted">compare by</span><VarPicker value={v} onChange={setV} filter={s => !!s.mappable && s.dtype !== 'cat'} />

@@ -31,14 +31,23 @@ function loadBuildings(): Promise<any[]> {
 }
 
 type Mode = 'people' | 'homes' | 'complexes' | 'wards'
+const MODE_HINT: Record<Mode, string> = {
+  people: 'Each dot is a person, where they are at this hour (class, work, church, a date…). Step the clock by an hour to watch them move.',
+  homes: 'Each dot is a person at home. Color by any measure to see neighborhoods differ; your group is highlighted.',
+  complexes: 'Each circle is an apartment complex or dorm, sized by residents and colored by their average. Click one to open it.',
+  wards: 'Each circle is a congregation (ward) at its meetinghouse, colored by its members\' average. Click one to open it.',
+}
 
-export default function MapView() {
+export default function MapView({ initial }: { initial?: string }) {
   const { universe, dataVersion, cohort, status, setRoute, theme } = useStore()
   const el = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const overlay = useRef<MapboxOverlay | null>(null)
-  const [mode, setMode] = useState<Mode>('people')
-  const [colorBy, setColorBy] = useState('activity_now')
+  // optional deep link "mode:variable", e.g. complexes:loneliness or homes:rent_burden
+  const [m0, v0] = (initial ?? '').split(':')
+  const [mode, setMode] = useState<Mode>((['people', 'homes', 'complexes', 'wards'].includes(m0) ? m0 : 'people') as Mode)
+  const [colorBy, setColorBy] = useState(v0 || 'activity_now')
+  useEffect(() => { if (m0 && ['people', 'homes', 'complexes', 'wards'].includes(m0)) setMode(m0 as Mode); if (v0) setColorBy(v0) }, [initial])
   const [diff, setDiff] = useState(false)
   const [basemap, setBasemap] = useState(!STATIC)
   const [showRoads, setShowRoads] = useState(true)
@@ -193,10 +202,10 @@ export default function MapView() {
     <div className="mapwrap">
       <div ref={el} style={{ position: 'absolute', inset: 0, background: 'var(--map-bg)' }} />
       <div className="card map-panel">
-        <h3>Map</h3>
-        <p className="hint">Real Provo/Orem geography (UGRC address points, parcels & footprints). Each dot is a synthetic person.</p>
+        <h3>Map of Provo & Orem</h3>
+        <p className="hint">{MODE_HINT[mode]}</p>
         <div className="seg" style={{ marginBottom: 8 }}>
-          {(['people', 'homes', 'complexes', 'wards'] as Mode[]).map(m => <button key={m} className={mode === m ? 'on' : ''} onClick={() => setMode(m)}>{m === 'people' ? 'Now' : m[0].toUpperCase() + m.slice(1)}</button>)}
+          {(['people', 'homes', 'complexes', 'wards'] as Mode[]).map(m => <button key={m} className={mode === m ? 'on' : ''} onClick={() => setMode(m)} title={MODE_HINT[m]}>{m === 'people' ? 'Right now' : m[0].toUpperCase() + m.slice(1)}</button>)}
         </div>
         <div style={{ marginBottom: 8 }}>
           <div className="small muted">Color by</div>

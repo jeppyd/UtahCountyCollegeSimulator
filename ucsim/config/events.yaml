@@ -333,6 +333,39 @@ events:
     effects:
       - {var: stress, mag: -0.05, sd: 0.4, half_life: 30}
     evidence: hypothetical
+  met_missionaries:
+    label: Started meeting with the missionaries
+    story: "{a} started meeting with the missionaries"
+    category: religion
+    salience: 0.7
+    effects:
+      - {var: purpose, mag: 0.03, sd: 0.8, half_life: 30}
+    evidence: hypothetical
+  baptized:
+    label: Was baptized
+    story: "{a} was baptized into the Church"
+    category: religion
+    salience: 1.0
+    effects:
+      - {var: belonging, mag: 0.1, sd: 0.5, half_life: 90}
+      - {var: purpose, mag: 0.08, sd: 0.5, half_life: 120}
+      - {var: mood, mag: 0.06, sd: 0.5, half_life: 30}
+    evidence: hypothetical
+  stopped_investigating:
+    label: Stopped the missionary lessons
+    story: "{a} stopped meeting with the missionaries"
+    category: religion
+    salience: 0.5
+    effects: []
+    evidence: hypothetical
+  joined_congregation:
+    label: Found a congregation
+    story: "{a} found a congregation to attend"
+    category: religion
+    salience: 0.6
+    effects:
+      - {var: belonging, mag: 0.05, sd: 0.5, half_life: 60}
+    evidence: hypothetical
   disaffiliated:
     label: Left the Church
     story: "{a} left the Church"
@@ -483,6 +516,14 @@ events:
       - {var: financial_stress, mag: -0.08, sd: 0.4, half_life: 60}
       - {var: purpose, mag: 0.03, sd: 0.4, half_life: 30}
     evidence: literature
+  quit_job:
+    label: Quit a job to focus on school
+    story: "{a} quit their job to focus on school"
+    category: work
+    salience: 0.4
+    effects:
+      - {var: stress, mag: -0.02, sd: 0.5, half_life: 14}
+    evidence: hypothetical
   job_lost:
     label: Lost job
     story: "{a} lost their job"

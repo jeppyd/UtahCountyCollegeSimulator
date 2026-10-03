@@ -72,3 +72,14 @@ relationships; social media as a network.
 - Use paired universes (same seed) or Monte Carlo with paired differences for intervention effects;
   single-run differences include butterfly effects that can be large for individuals and small on average.
 - See `VALIDATION.md` for where the model currently disagrees with the surveys.
+
+## Religious diversity (iteration 3)
+
+- Non-LDS affiliation shares (Catholic, Protestant, other Christian, Muslim, other faith, nonreligious) are
+  assumptions informed by Utah-wide surveys: about half of non-LDS young adults nonreligious, Hispanic
+  students leaning Catholic, about 35% of non-members raised LDS (mostly nonreligious now).
+- Religious non-members attend the nearest real congregation of their tradition (UGRC + OSM); Muslim
+  students meet through a student association (no mosque appears in the public layers for the area).
+- The religious-outsider feeling, missionary contact and conversion rules are hypothetical; conversion is
+  tuned to about 2–3% of non-members per year.
+- Same-sex engagement is strongly reduced while either partner is an active member (Church policy).

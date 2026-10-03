@@ -74,3 +74,36 @@ LLM layer stays deferred.
 **Bugs found**: Heritage Court (a south-Provo complex) matched "Heritage Halls" by first word; BYU students
 placed in "food retail" jobs at intramural fields; boolean masks over preallocated columns in the groups
 system; weddings listed twice in the Home feed.
+
+## Iteration 3
+
+**Decisions with the project owner**: next priority is trustworthy numbers; model non-LDS students in
+depth; map playback; make time simple to follow; then a final polish pass and a full project write-up.
+
+**What changed**
+- Trust: ACS 2020–24 married share by age/sex for Provo + Orem as the main benchmark; survey rows that are
+  composition-biased (by-age married share and by-age dating rates from singles-heavy samples) reclassified
+  as diagnostic; `scripts/calibrate.py` (coordinate search over 8 parameters, 2 seeds, common random
+  numbers; loss 1.40 → 1.21) with values written back to the rule files; `scripts/stability.py`; in-app
+  Model check page reading `ucsim/config/validation.json` and `stability.json`.
+- Religious diversity: affiliation, own religiosity, real congregations (UGRC + OSM), service attendance,
+  congregation contexts and ties, faith/secular student groups, outsider feeling (loneliness and belonging
+  terms), missionary contact, lessons and baptism, ex-members' affiliation, interfaith dating friction, two
+  new what-ifs (missionary outreach, interfaith welcome).
+- Time: Play/Pause with Watch/Fast pace (server-side pacing), Jump menu, academic-year ribbon (terms,
+  breaks, today, what-if split; click to run), map replays ("A day" from per-block frames; "Over months"
+  from history snapshots that now include home locations).
+- Couple dates per week by stage became calibratable parameters (`romance.couple_time`).
+- Four-year check findings and fixes: (1) the married share of students halved over four years; married
+  students were mostly seniors (credits had been assigned partly by age), so they graduated out together, and
+  every newcomer was single. Fixes: married newcomers now arrive with a spouse and share a home (before, a
+  quarter of married people had no spouse in the world), each fall brings new graduate students and older
+  transfers (mostly married), programs need 120–145 credits, married students and parents carry lighter
+  loads, and engagement was raised (the first calibration had lowered it to fit Census rows for ages 25–34,
+  which compare different populations and are now unscored). (2) Starting friend counts (an assumed 9 per
+  returning student) were above what the dynamics sustain (~5), so early numbers fell; the start now uses 6.
+  (3) BYU enrollment overshot its cap by year four; the intake now counts missionaries and returned
+  missionaries due during the school year.
+
+**Bugs found**: playback race between replay modes (clamped); a crashing view could blank the app (error
+boundary added); `pkill -f` in a shell matched its own command line (use ps/awk).

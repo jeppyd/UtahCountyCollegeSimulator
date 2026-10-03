@@ -12,7 +12,7 @@ const STATES = ['loneliness', 'mood', 'stress', 'belonging', 'romantic_longing',
 const THEMES: [string, string[]][] = [
   ['Money & housing', ['rent_up_20', 'tuition_up_20', 'construction_30', 'recession', 'contracted_housing_removed', 'contracted_housing_all_years', 'transit_improved']],
   ['Dating & marriage', ['new_dating_app', 'women_ask_more', 'marriage_norm_weaker', 'new_dance_hall']],
-  ['Faith & culture', ['coffee_permitted', 'church_attendance_decline', 'mission_participation_minus_15', 'pickleball_craze', 'stronger_peer_influence']],
+  ['Faith & culture', ['coffee_permitted', 'church_attendance_decline', 'mission_participation_minus_15', 'missionary_outreach', 'interfaith_welcome', 'pickleball_craze', 'stronger_peer_influence']],
   ['School & environment', ['enrollment_up_20', 'warmer_plus_5f']],
 ]
 const DURATIONS: [number, string][] = [[30, '1 month'], [112, '1 semester'], [365, '1 year'], [730, '2 years']]

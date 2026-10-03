@@ -19,14 +19,15 @@ from .activity import NONE
 
 DURATION = {"unit": 0.9, "complex": 0.25, "class": 0.15, "ward": 0.3, "fhe": 0.8, "work": 0.4, "gym": 0.15,
             "venue": 0.35, "gathering": 1.4, "campus": 0.2, "dance": 0.4, "outdoors": 0.5, "hangout": 1.6, "online": 0.3,
-            "club": 0.5, "team": 0.6, "institute": 0.35}
+            "club": 0.5, "team": 0.6, "institute": 0.35, "congregation": 0.35}
 LEISURE_W = {"unit": 1.0, "complex": 0.8, "class": 0.3, "ward": 0.6, "fhe": 0.9, "work": 0.35, "gym": 0.5,
              "venue": 1.0, "gathering": 1.0, "campus": 0.45, "dance": 1.0, "outdoors": 1.0, "hangout": 1.0, "online": 0.5,
-             "club": 0.85, "team": 0.95, "institute": 0.6}
+             "club": 0.85, "team": 0.95, "institute": 0.6, "congregation": 0.6}
 RATE_KEYS = ("unit", "complex", "class", "ward", "fhe", "work", "gym", "venue", "campus", "dance", "outdoors",
-             "club", "team", "institute")
+             "club", "team", "institute", "congregation")
 TIE_OF = {"class": Tie.CLASSMATE, "work": Tie.COWORKER, "ward": Tie.WARD, "fhe": Tie.FHE, "complex": Tie.NEIGHBOR,
-          "club": Tie.CLUBMATE, "team": Tie.TEAMMATE, "institute": Tie.INSTITUTE}
+          "club": Tie.CLUBMATE, "team": Tie.TEAMMATE, "institute": Tie.INSTITUTE,
+          "congregation": Tie.CONGREGATION}
 C = 3  # candidates sampled per interaction attempt
 
 

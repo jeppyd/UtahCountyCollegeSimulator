@@ -45,6 +45,10 @@ def clean(x):
     return x
 
 
+# measures available in the read-only snapshot's "over months" map replay (keep in sync with MapView.tsx)
+STATIC_FRAME_VARS = ["rel_status", "activity", "living", "affiliation", "loneliness", "faith_belief", "outsider"]
+
+
 def interesting_people(sim, k: int, extra: list[int]) -> list[int]:
     """People with eventful lives (by salient events), plus a random sample and named extras."""
     log, reg, P = sim.log, sim.reg, sim.w.P
@@ -160,6 +164,14 @@ def main():
     put("events.json", {"total": len(ev), "events": ev})
     for u in ("base", "alt"):
         put(f"events_summary_{u}.json", get("/api/events/summary", u=u).json())
+
+    # ---- time ribbon, map replays (a day; months for a few measures), model check
+    put("calendar.json", get("/api/calendar").json())
+    put("validation.json", get("/api/validation").json())
+    for u in ("base", "alt"):
+        (out / f"day_frames_{u}.bin").write_bytes(get("/api/positions/day", u=u).content)
+        for var in STATIC_FRAME_VARS:
+            (out / f"history_frames_{u}_{var}.bin").write_bytes(get("/api/history/frames", u=u, var=var, max_frames=24).content)
 
     # ---- flows over time: one "start -> middle -> now" Sankey per tracked variable
     for u in ("base", "alt"):

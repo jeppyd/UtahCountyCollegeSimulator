@@ -34,6 +34,12 @@ CLUBS = {
         "Pre-Law Society", "Aviation Club", "Ski & Snowboard Club", "Finance Club", "Cybersecurity Club",
         "Latter-day Saint Student Association", "Creative Writing Club", "Robotics Club", "Concert Choir", "Running Club"],
 }
+# faith and secular student groups for non-members (illustrative names), tagged with the affiliation they serve
+FAITH_CLUBS = {
+    1: [("Interfaith Student Association", "*")],
+    2: [("Catholic Newman Club", "Catholic"), ("Christian Fellowship", "Protestant"), ("Muslim Student Association", "Muslim"),
+        ("Secular Student Alliance", "Nonreligious"), ("Interfaith Student Council", "*")],
+}
 SPORTS = ["basketball", "volleyball", "flag football", "soccer", "ultimate frisbee", "pickleball", "softball", "dodgeball"]
 KIND_SIZE = {"club": 22, "team": 9, "institute": 24}
 ATTEND = {"club": 0.62, "team": 0.78, "institute": 0.66}
@@ -62,11 +68,11 @@ class Groups:
         enrolled = P["enrolled"]
         rows = []
 
-        def add(kind, school, name, lon, lat):
+        def add(kind, school, name, lon, lat, faith=""):
             # meets Tue-Thu (Monday is family home evening); clubs and institute some afternoons
             wd = int(rng.integers(1, 4))
             block = 2 if kind == "team" or rng.random() < 0.6 else 1
-            rows.append((kind, school, name, lon, lat, wd, block))
+            rows.append((kind, school, name, lon, lat, wd, block, faith))
 
         for s, (cx, cy) in ((1, BYU), (2, UVU)):
             n_stu = int((enrolled & (P["school"] == s)).sum())
@@ -75,6 +81,8 @@ class Groups:
             for k in range(n_clubs):
                 nm = names[k % len(names)] + ("" if k < len(names) else f" · section {k // len(names) + 1}")
                 add("club", s, nm, cx + rng.normal(0, 0.0025), cy + rng.normal(0, 0.002))
+            for nm, faith in FAITH_CLUBS[s]:
+                add("club", s, nm, cx + rng.normal(0, 0.0025), cy + rng.normal(0, 0.002), faith)
             share = 0.20 if s == 1 else 0.10
             n_teams = max(4, int(round(n_stu * share / KIND_SIZE["team"])))
             pname, px, py = PLACES[("team", s)]
@@ -91,12 +99,14 @@ class Groups:
         cols = list(zip(*rows))
         w.groups = {"kind": np.array(cols[0]), "school": np.array(cols[1], np.int8), "name": list(cols[2]),
                     "lon": np.array(cols[3]), "lat": np.array(cols[4]), "weekday": np.array(cols[5], np.int8),
-                    "block": np.array(cols[6], np.int8)}
+                    "block": np.array(cols[6], np.int8), "faith": np.array(cols[7], dtype=object)}
 
     def _index(self):
         G = self.sim.w.groups
-        self.by = {(k, s): np.where((G["kind"] == k) & (G["school"] == s))[0]
+        faith = np.asarray(G.get("faith", np.full(len(G["kind"]), "", dtype=object)), dtype=object)
+        self.by = {(k, s): np.where((G["kind"] == k) & (G["school"] == s) & (faith == ""))[0]
                    for k in ("club", "team", "institute") for s in (1, 2)}
+        self.faith_clubs = [(int(g), faith[g], int(G["school"][g])) for g in np.where(faith != "")[0]]
 
     def assign(self, ids: np.ndarray):
         """Decide club/team/institute membership for `ids` (new arrivals, or everyone at the start)."""
@@ -128,6 +138,22 @@ class Groups:
                 if m.any() and len(pool):
                     out[m] = rng.choice(pool, m.sum())
             P.cols[col][ids] = np.where(join, out, -1)
+        # non-members: faith and secular student groups (matching tradition first, then interfaith)
+        non = stu & ~P["lds_member"][ids]
+        if non.any() and self.faith_clubs:
+            cats = P.specs["affiliation"].categories
+            aff = np.array([cats[int(a)] for a in P["affiliation"][ids]], dtype=object)
+            orl = P["own_religiosity"][ids]
+            u = rng.random(len(ids))
+            for g, faith, s in self.faith_clubs:
+                boost = 1.0 + 0.5 * w.env.get("interfaith_welcome", 0.0)
+                if faith == "*":
+                    m = non & (sch == s) & (u < 0.05 * boost)
+                elif faith == "Nonreligious":
+                    m = non & (sch == s) & (aff == faith) & (u < (0.12 + 0.2 * sim.z("openness")[ids].clip(0, 1)) * boost)
+                else:
+                    m = non & (sch == s) & (aff == faith) & (u < (0.15 + 0.4 * orl) * boost)
+                P.cols["club_id"][ids[m]] = g
         self._count(ids)
         P.internal["grp_checked"][ids] = True
 

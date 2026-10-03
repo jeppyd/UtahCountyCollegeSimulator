@@ -88,3 +88,40 @@ mechanisms:
       leave_bias: {value: -0.3, range: [-1.5, 1.0]}
     evidence: hypothetical
     refs: ["Culture & Lifestyle: ~18% agree they are currently in a faith crisis; ranked reasons for leaving (doctrine, policy, history)"]
+  faith.other_attend:
+    label: Non-LDS service attendance
+    target: service_attend
+    sources: [own_religiosity, service_attend, stress, fatigue]
+    form: "P(attend this week) = logistic(base + βr·(own religiosity − 0.5) + βh·(service_attend − 0.4) − 0.8·fatigue − 0.6·(stress − 0.3)⁺); religious non-LDS find the nearest congregation of their tradition"
+    params:
+      base: {value: -0.6, range: [-1.5, 0.3]}
+      religiosity: {value: 3.0, range: [1.5, 4.5]}
+      habit: {value: 2.0, range: [1.0, 3.0]}
+    evidence: hypothetical
+    desc: Catholic, Protestant and other congregations are real places in Provo/Orem; attenders meet each other there like LDS ward members do.
+  faith.outsider:
+    label: Religious-outsider feeling
+    target: outsider
+    sources: [lds friends share, lds roommates share, school, being proselytized, faith or secular community]
+    form: "target = 0.12 + 0.35·LDS share of friends + 0.15·LDS share of roommates + 0.12·[BYU] + 0.15·[recently met missionaries] − 0.2·[a close friend who shares one's outlook] − 0.15·[own congregation or faith/secular club]; weekly EWMA"
+    params:
+      weight: {value: 0.25, range: [0.1, 0.5]}
+    evidence: hypothetical
+    refs: ["Minority-religion students in religiously homogeneous campuses report lower belonging (e.g., Bowman & Small 2012)"]
+  faith.missionary_contact:
+    label: Invited to meet the missionaries
+    target: investigating
+    sources: [LDS close friends, LDS partner, own_religiosity, openness]
+    form: "weekly h = rate·(LDS close friends with belief > 0.6 + 3·[dating an LDS member])·exp(0.3·openness − 1.5·own religiosity); lessons stop at 8%/week"
+    params:
+      rate: {value: 0.0008, range: [0.0003, 0.003]}
+    evidence: hypothetical
+  faith.conversion:
+    label: Baptism (conversion)
+    target: lds_member
+    sources: [investigating, LDS partner, LDS friend share, own_religiosity]
+    form: "weekly h = logistic(base + 2·[dating/engaged to an LDS member] + 1.5·LDS friend share − 2·own religiosity) while investigating (≈2–3% of non-members per year overall)"
+    params:
+      base: {value: -5.0, range: [-6.5, -3.5]}
+    evidence: hypothetical
+    desc: New converts start active with moderate belief and join a ward; their own path afterwards follows the same faith dynamics as everyone else.

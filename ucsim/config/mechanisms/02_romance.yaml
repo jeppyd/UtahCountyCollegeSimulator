@@ -42,7 +42,7 @@ mechanisms:
     moderators: [rejection_sensitivity]
     form: "P/day = logistic(base + βa·attraction + βm·motivation + βc·confidence − βrs·RS⁺·log(1+recent rejections) ± βmale·norm + βp·log(propensity)) × weekday factor"
     params:
-      base: {value: -4.5, range: [-5.5, -2.5]}
+      base: {value: -4, range: [-5.5, -2.5]}
       attraction: {value: 2.5, range: [1, 4]}
       motivation: {value: 1.5, range: [0.5, 2.5]}
       confidence: {value: 1.0, range: [0.3, 2.0]}
@@ -152,13 +152,25 @@ mechanisms:
       married_mult: {value: 0.03, range: [0.01, 0.08]}
     evidence: literature
     refs: ["Rusbult (1980, 1983): investment model of commitment"]
+  romance.couple_time:
+    label: Couple dates per week by stage
+    target: dates_30d
+    sources: [rel_status]
+    form: "dates scheduled each week = ⌊rate⌋ + Bernoulli(rate − ⌊rate⌋), on distinct days"
+    params:
+      talking: {value: 0.8, range: [0.3, 1.5]}
+      dating: {value: 1.45, range: [0.8, 2.2]}
+      engaged: {value: 1.58, range: [0.8, 3.0]}
+      married: {value: 1.07, range: [0.5, 1.4]}
+    evidence: calibrated
+    refs: ["Dating survey: dates per month by relationship stage and church activity"]
   romance.engage:
     label: Engagement & wedding timing
     target: [rel_status, age_at_marriage]
     sources: [relationship_commitment, ideal_months_engaged, activity, age, financial_stress, mission_status]
     form: "weekly h = logistic(base + βc·commitment + βt·clip((months − ideal)/4) + βa·both active LDS·marriage_norm + age term − 1.8·[man under 20] − 1.2·[LDS man under 21.5 who has not served] − 0.8·financial stress − 1.2·mismatch − 3·[same-sex couple with an active member]); wedding 2.5–4.5 months later for active LDS couples"
     params:
-      base: {value: -7.0, range: [-8.5, -5.5]}
+      base: {value: -5.8, range: [-8.0, -4.5]}
       commitment: {value: 3.0, range: [1.5, 4.5]}
       timing: {value: 0.8, range: [0.3, 1.5]}
       active_lds: {value: 1.2, range: [0.4, 2.0]}

@@ -38,6 +38,9 @@ class History:
             snap[v] = P[v][:n].astype(np.uint8).copy()
         for v in self.num_vars:
             snap[v] = P[v][:n].astype(self.num_dtype[v])
+        # where people lived, for map playback (float32 ≈ 1 m precision here)
+        snap["home_lon"] = P["home_lon"][:n].astype(np.float32)
+        snap["home_lat"] = P["home_lat"][:n].astype(np.float32)
         if self.snaps and self.snaps[-1]["day"] == snap["day"]:
             self.snaps[-1] = snap
         else:
@@ -88,6 +91,17 @@ class History:
             x[~pres] = np.nan
             return x, pres
         raise KeyError(f"{var} is not tracked in history")
+
+    def homes(self, s: dict) -> tuple[np.ndarray, np.ndarray]:
+        """Home coordinates for every current person at snapshot `s` (NaN if absent)."""
+        n = self.sim.w.P.n
+        m = s["n"]
+        lon = np.full(n, np.nan, np.float32)
+        lat = np.full(n, np.nan, np.float32)
+        if "home_lon" in s:
+            lon[:m] = np.where(s["present"], s["home_lon"], np.nan)
+            lat[:m] = np.where(s["present"], s["home_lat"], np.nan)
+        return lon, lat
 
     def nbytes(self) -> int:
         return sum(a.nbytes for s in self.snaps for a in s.values() if isinstance(a, np.ndarray))

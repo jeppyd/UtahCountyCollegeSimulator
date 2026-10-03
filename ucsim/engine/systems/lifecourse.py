@@ -4,6 +4,8 @@ from __future__ import annotations
 import numpy as np
 from scipy.special import expit
 
+from ..state import CTX_ID, Tie
+
 from ...population.synth import Synthesizer
 
 
@@ -54,7 +56,47 @@ class LifeCourse:
         P.internal["sleep_base"][ids] = P["sleep_hours"][ids]
         P.internal["attend_prob"][ids] = P["attend_rate"][ids]
         P.internal["last_date_day"][ids] = w.day - 30
+        if role != "spouse":
+            self._spouses_for(ids)
         return ids
+
+    def _spouses_for(self, ids):
+        """Married newcomers arrive with their spouse (a non-student "spouse" agent), as in the starting world."""
+        sim, w = self.sim, self.sim.w
+        P, E = w.P, w.E
+        mar = ids[P.is_("rel_status", "married")[ids] & (P["partner_id"][ids] < 0)]
+        if len(mar) == 0:
+            return
+        rng = np.random.default_rng([w.seed, 503, w.day, int(mar[0])])
+        k = len(mar)
+        male = P.is_("sex", "M")[mar]
+        gay = P["orientation"][mar] == P.code("orientation", "gay")
+        sp_male = np.where(gay, male, ~male)
+        sp_age = np.clip(P["age"][mar] + np.where(sp_male, 1.2, -1.2) + rng.normal(0, 1.5, k), 18.5, 45)
+        act = np.maximum(P["activity"][mar].astype(int) - 1, 0)
+        spouses = self._new_people("spouse", k, "none", {
+            "sex": np.where(sp_male, "M", "F"), "age": sp_age, "rel": np.full(k, "married"),
+            "lds": (P["lds_member"][mar] & (rng.random(k) < 0.96)).astype(int), "activity": act},
+            arrive_days=P.internal["arrive_day"][mar])
+        P.cols["enrolled"][spouses] = False
+        P.cols["class_standing"][spouses] = 0
+        P.cols["partner_id"][mar], P.cols["partner_id"][spouses] = spouses, mar
+        wed = w.day - (rng.uniform(1, 30, k) * 30.4).astype(int)
+        start = wed - (rng.uniform(7, 14, k) * 30.4).astype(int)
+        for x in (mar, spouses):
+            P.cols["married_day"][x] = wed
+            P.cols["rel_start_day"][x] = start
+            P.cols["engaged_day"][x] = wed - (rng.uniform(2, 5, k) * 30.4).astype(int)
+            P.cols["age_at_marriage"][x] = P["age"][x] - (w.day - wed) / 365.25
+        keys = E.make_keys(mar, spouses)
+        idx = E.upsert(keys)
+        E.cols["flags"][idx] |= np.uint32(Tie.SPOUSE | Tie.ROMANTIC | Tie.DATED | Tie.KISSED | Tie.PREEXISTING)
+        E.cols["stage"][idx] = 4
+        for col, mu in (("liking", 0.75), ("closeness", 0.8), ("trust", 0.75), ("att_lh", 0.7), ("att_hl", 0.7)):
+            E.cols[col][idx] = np.clip(rng.normal(mu, 0.1, k), 0, 1)
+        E.cols["origin_ctx"][idx] = CTX_ID["preexisting"]
+        E.cols["first_day"][idx] = start
+        E.cols["last_day"][idx] = w.day
 
     def _serving_pool(self):
         """Missionaries currently serving who will return to BYU/UVU during the next two years."""
@@ -89,6 +131,19 @@ class LifeCourse:
         # Admissions: BYU's enrollment is capped by its board, so the incoming class fills the gap to the
         # target; UVU (open enrollment) closes only half of any gap. Keeps multi-year runs at realistic size.
         pop = w.cfg["population"]
+        # new graduate students and older transfers (mostly married, arriving with spouses)
+        ng = int(round(cfg.get("byu_grad_and_transfer", 0) * s))
+        if ng:
+            grad = rng.random(ng) < 0.7
+            ids_g = self._new_people("byu_student", ng, "BYU", {
+                "age": np.where(grad, rng.uniform(23, 30, ng), rng.uniform(21, 25, ng)),
+                "rel": np.where(rng.random(ng) < np.where(grad, 0.65, 0.45), "married", "single"),
+                "lds": (rng.random(ng) < 0.97).astype(int), "activity": np.full(ng, 2), "_tag": 4},
+                arrive_days=w.day + rng.integers(0, 4, ng))
+            P.cols["class_standing"][ids_g] = np.where(grad[: len(ids_g)], P.code("class_standing", "graduate"), P.code("class_standing", "junior"))
+            P.cols["credits_done"][ids_g] = np.where(grad[: len(ids_g)], 0, rng.uniform(60, 89, len(ids_g)))
+            P.cols["mission_status"][ids_g] = np.where(P.is_("sex", "M")[ids_g] & (rng.random(len(ids_g)) < 0.75),
+                                                       P.code("mission_status", "returned"), P["mission_status"][ids_g])
         nb = self._intake("BYU", cfg["byu_freshmen"] * s, pop["byu"]["students"] * s, 1.0)
         nu = self._intake("UVU", cfg["uvu_new_students"] * s, pop["uvu"]["students"] * s, 0.5)
         women = rng.random(nb) < 0.5
@@ -126,8 +181,10 @@ class LifeCourse:
         role = P.code("role", "byu_student" if school == "BYU" else "uvu_student")
         mine = (P["role"] == role) & (P["school"] == P.code("school", school)) & ~P["graduated"] & (P["departure_day"] < 0)
         serving = P.is_("mission_status", "serving")
-        back_by_fall = serving & (P.internal["mission_return_day"][:n] <= day + 30)
-        arriving = ~P["present"] & (P.internal["arrive_day"][:n] >= day) & (P.internal["arrive_day"][:n] <= day + 30)
+        # count everyone who will be here this school year: missionaries home before winter semester and
+        # returned missionaries already scheduled to arrive (they come through the year)
+        back_by_fall = serving & (P.internal["mission_return_day"][:n] <= day + 140)
+        arriving = ~P["present"] & (P.internal["arrive_day"][:n] >= day) & (P.internal["arrive_day"][:n] <= day + 365)
         continuing = int((mine & ((P["present"] & ~serving) | back_by_fall | (arriving & ~serving))).sum())
         want = base + gain * (target - continuing - base)
         return int(round(np.clip(want, 0.5 * base, 2.0 * base)))
@@ -140,7 +197,13 @@ class LifeCourse:
         P.cols["present"][ids] = True
         need_home = ids[P["unit_id"][ids] < 0]
         if len(need_home):
-            sim.systems["housing"].place(need_home, reason="")
+            # married couples arriving together share a home; everyone else finds a bed
+            partner = P["partner_id"][need_home]
+            together = P.is_("rel_status", "married")[need_home] & (partner >= 0) & np.isin(partner, need_home)
+            for a in need_home[together & (need_home < np.where(partner >= 0, partner, -1))]:
+                sim.systems["housing"].place(np.array([a, P["partner_id"][a]]), married=True, reason="")
+            if (~together).any():
+                sim.systems["housing"].place(need_home[~together], reason="")
         self._fhe_for(ids)
         sim.emit(event, ids, cause=cause, mech="lifecourse.arrival")
 

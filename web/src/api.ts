@@ -4,7 +4,7 @@ declare const __STATIC__: boolean
 export const STATIC: boolean = typeof __STATIC__ !== 'undefined' && __STATIC__
 
 export type Universe = 'base' | 'alt'
-export type Column = { id: string; data: Float32Array | Uint8Array | Int32Array; categories?: string[]; bool?: boolean }
+export type Column = { id: string; data: Float32Array | Uint8Array | Int32Array; categories?: string[]; bool?: boolean; meta?: any }
 
 async function j<T = any>(url: string, init?: RequestInit): Promise<T> {
   const r = await fetch(url, init)
@@ -25,7 +25,7 @@ export function decodePack(buf: ArrayBuffer): Record<string, Column> {
     if (c.dtype === 'f32') data = new Float32Array(buf.slice(off, off + c.length * 4))
     else if (c.dtype === 'i32') data = new Int32Array(buf.slice(off, off + c.length * 4))
     else data = new Uint8Array(buf.slice(off, off + c.length))
-    out[c.id] = { id: c.id, data, categories: c.categories, bool: c.bool }
+    out[c.id] = { id: c.id, data, categories: c.categories, bool: c.bool, meta: c }
   }
   return out
 }
@@ -204,6 +204,12 @@ export const api = {
   async cohortServer(filter: any, u: Universe = 'base') { return post('/api/cohort/count', { filter, u, max_ids: 1e9 }) },
   async step(body: any) { return post('/api/step', body) },
   async cancel() { return post('/api/cancel', {}) },
+  async validation() { return STATIC ? j(`${D}/validation.json`) : j('/api/validation') },
+  async calendar() { return STATIC ? j(`${D}/calendar.json`) : j('/api/calendar') },
+  async dayFrames(u: Universe = 'base') { return STATIC ? bin(`${D}/day_frames_${u}.bin`) : bin(`/api/positions/day?u=${u}`) },
+  async historyFrames(variable: string, u: Universe = 'base') {
+    return STATIC ? bin(`${D}/history_frames_${u}_${variable}.bin`) : bin(`/api/history/frames?u=${u}&var=${variable}`)
+  },
   async fork(interventions: any[]) { return post('/api/fork', { interventions }) },
   async unfork() { return j('/api/fork', { method: 'DELETE' }) },
   async newWorld(scale: number, seed: number, warmup = 0) { return post('/api/world', { scale, seed, warmup }) },

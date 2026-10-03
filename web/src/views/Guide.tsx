@@ -5,7 +5,7 @@ import { GLOSSARY, PageHeader } from '../ui'
 
 const SECTIONS: [string, string][] = [
   ['idea', 'The big idea'], ['layers', 'Layers of the world'], ['person', 'What a person is made of'],
-  ['relationships', 'How relationships form'], ['feelings', 'How feelings work'], ['time', 'How time works'],
+  ['relationships', 'How relationships form'], ['feelings', 'How feelings work'], ['faith', 'Faith & religious diversity'], ['time', 'How time works'],
   ['whatif', 'What-if experiments'], ['evidence', 'How sure are we?'], ['where', 'Where to go for what'], ['glossary', 'Glossary'],
 ]
 
@@ -112,6 +112,24 @@ export default function Guide({ section }: { section?: string }) {
             </div>
           </Sec>
 
+          <Sec id="faith" title="Faith & religious diversity" lede="Most people here are Latter-day Saints, but not everyone: about 30% of UVU students and a few percent at BYU belong to another faith or none.">
+            <div className="grid g2">
+              <div className="card">
+                <h3>Latter-day Saints</h3>
+                <p className="small secondary" style={{ marginTop: 0 }}>Faith is many separate things: belief, certainty, identity, trust in leaders, orthodoxy, private devotion and church attendance (a habit). Friends and wards pull belief toward theirs, more so when someone is unsure. Spiritual experiences and challenges shift it; a faith crisis can end in renewal, a nuanced faith, or leaving. Activity (active, less active, inactive) follows attendance.</p>
+              </div>
+              <div className="card">
+                <h3>Other faiths and none</h3>
+                <p className="small secondary" style={{ marginTop: 0 }}>Catholic, Protestant and other believers attend real Provo and Orem congregations and meet people there; nonreligious students may join a secular student group. Anyone outside the LDS mainstream can feel like a <b>religious outsider</b>, more so with mostly-LDS friends and roommates or after being invited to meet the missionaries, less so with friends who share their outlook. LDS friends and partners invite some to take the missionary lessons; a few are baptized (about 2–3% of non-members a year).</p>
+              </div>
+            </div>
+            <div className="row" style={{ marginTop: 10 }}>
+              <button className="btn small" onClick={() => setRoute(['explore', 'belonging', '', 'affiliation'])}>Belonging by affiliation</button>
+              <button className="btn small" onClick={() => setRoute(['flows', 'activity'])}>Who drifts from activity</button>
+              <button className="btn small" onClick={() => setRoute(['lab', 'interfaith_welcome'])}>What-if: interfaith welcome</button>
+            </div>
+          </Sec>
+
           <Sec id="time" title="How time works" lede="Each system updates on its natural rhythm. Not everything changes every hour.">
             <div className="ribbon">
               <div><b>Hours</b>Each day has a morning (8am), afternoon (1pm) and evening (6pm) block: class, work, church, gym, dates, parties. People move on the map.</div>
@@ -121,7 +139,18 @@ export default function Guide({ section }: { section?: string }) {
               <div><b>Semesters</b>Grades, academic standing, graduation, majors, lease turnover in April and August.</div>
               <div><b>Years</b>New freshmen arrive Aug 20; summer sends many singles home; missionaries leave and return.</div>
             </div>
-            <p className="small muted" style={{ marginTop: 8 }}>The world starts on Aug 24, the first day of fall semester. Use the Run buttons at the top to move time forward.</p>
+            <div className="card" style={{ marginTop: 12 }}>
+              <h3>Using time</h3>
+              <dl className="dl">
+                <dt>▶ Play / ⏸ Pause</dt><dd>Top bar. Runs day after day until you pause. <b>Watch</b> goes about one simulated day per second so you can see pages update; <b>Fast</b> runs as fast as your computer allows.</dd>
+                <dt>+1 week, Jump ▾</dt><dd>Move time in fixed steps: an hour (watch the map move), a day, a month, a semester, a year, four years, or to a date you pick.</dd>
+                <dt>The calendar ribbon</dt><dd>The strip under the top bar is this academic year: shaded blocks are semesters and terms, the blue line is today, hatched means already happened, and a dashed line marks where a what-if world split off. Click any future date to run to it.</dd>
+                <dt>Replays on the map</dt><dd><b>▶ A day</b> replays the last full day: everyone glides from home to class and work, out for the evening, and home. <b>▶ Over months</b> replays the two-week snapshots, coloring homes by any tracked measure, so you can watch couples move in together or loneliness ease.</dd>
+                <dt>Looking back</dt><dd>Nothing is rewound. To compare then and now, use Flows over time (who changed between two dates), the trends on Vital signs, or a person's life story.</dd>
+              </dl>
+              <p className="small muted" style={{ marginBottom: 0 }}>The world starts on Aug 24, the first day of fall semester at BYU and UVU.</p>
+              <div className="row" style={{ marginTop: 8 }}><button className="btn small primary" onClick={() => setRoute(['map', 'day'])}>Replay a day on the map</button><button className="btn small" onClick={() => setRoute(['flows'])}>Flows over time</button></div>
+            </div>
           </Sec>
 
           <Sec id="whatif" title="What-if experiments" lede="When you change something, the simulator copies the whole world: the original keeps going as-is, and the copy gets the change.">
@@ -136,7 +165,8 @@ export default function Guide({ section }: { section?: string }) {
             <div className="card">
               <table className="data"><tbody>{Object.entries(reg.evidence_levels).map(([k, d]) => (
                 <tr key={k}><td style={{ width: 130 }}><Evidence level={k} /></td><td className="small secondary">{d}</td><td className="small muted tabular" style={{ width: 80 }}>{mechCount[k] ?? 0} rules</td></tr>))}</tbody></table>
-              <p className="small muted" style={{ marginBottom: 0 }}>The people are synthetic, built from aggregate patterns in four local surveys (never individual responses) plus published research. Results describe this model, not predictions about real people.</p>
+              <p className="small muted">The people are synthetic, built from aggregate patterns in four local surveys (never individual responses) plus published research. Results describe this model, not predictions about real people.</p>
+              <p className="small secondary" style={{ marginBottom: 0 }}>The model is checked against real data: the Census (who is married at each age in Provo and Orem), BYU and UVU enrollment, and dozens of survey patterns (dates per month, habits, faith practices). Key settings were tuned automatically to fit those checks. <a href="#/modelcheck" onClick={e => { e.preventDefault(); setRoute(['modelcheck']) }}>See the Model check →</a></p>
             </div>
           </Sec>
 
@@ -145,7 +175,7 @@ export default function Guide({ section }: { section?: string }) {
               <dl className="dl">
                 {([
                   ['"What\'s going on?"', 'Home and Vital signs show the big picture and trends.', 'dashboard'],
-                  ['"Where?"', 'The Map colors people, homes, complexes and wards by any measure.', 'map'],
+                  ['"Where?"', 'The Map colors people, homes, complexes and wards by any measure, and replays a day or the months so far.', 'map'],
                   ['"Who, specifically?"', 'People lets you search, sort and follow individuals; each person page explains their feelings.', 'people'],
                   ['"How is this measure spread out?"', 'Explore a measure: distribution, split by groups, relate two measures, and "why" for your group.', 'explore'],
                   ['"How does X differ by Y?"', 'Compare groups: survey-style cross-tabs; click any cell to see those people.', 'crosstab'],
@@ -153,6 +183,7 @@ export default function Guide({ section }: { section?: string }) {
                   ['"What happened and what caused it?"', 'Life events: counts, the most consequential events, and causal chains.', 'events'],
                   ['"What would happen if…?"', 'What-if lab: change something and compare two worlds.', 'lab'],
                   ['"What affects what?"', 'Cause & effect: the web of rules connecting every measure.', 'causal'],
+                  ['"Can I trust these numbers?"', 'Model check: how the simulation compares with the Census and the surveys, and whether it stays steady for years.', 'modelcheck'],
                 ] as [string, string, string][]).map(([q, a, r]) => [<dt key={q}>{q}</dt>, <dd key={q + 'd'}>{a} <a href={`#/${r}`} onClick={e => { e.preventDefault(); setRoute([r]) }}>Open →</a></dd>])}
               </dl>
               <p className="small muted" style={{ marginBottom: 0 }}><b>Your group follows you.</b> When you pick a group of people (a "cohort"), every page shows just them until you clear it. <b>Simple / Advanced</b> (bottom left) shows or hides the expert tools.</p>

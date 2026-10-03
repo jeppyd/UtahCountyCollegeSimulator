@@ -73,6 +73,8 @@ export default function PersonView({ id }: { id: number }) {
       {p.looks && <p className="small secondary" style={{ margin: '-8px 0 12px' }}>{looks(p.looks)}</p>}
       <div className="row" style={{ marginBottom: 14 }}>
         {pill('school')}{pill('class_standing')}
+        {vals.affiliation && vals.affiliation.value !== 'Latter-day Saint' && <span className="pill">Faith: <b>{vals.affiliation.value === 'Nonreligious' ? 'not religious' : vals.affiliation.value}</b></span>}
+        {p.congregation && <span className="pill">Attends: <b>{p.congregation}</b></span>}
         {p.major && <span className="pill">Major: <b>{p.major}</b></span>}
         {p.college && p.college !== 'none' && <span className="pill">{p.college}</span>}
         {pill('job_type')}{pill('origin_region')}

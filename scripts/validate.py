@@ -2,9 +2,12 @@
 
     python scripts/validate.py --scale 0.15 --days 365 --seed 1
 
-Writes docs/VALIDATION.md (and runs/validation.json). Every comparison is labeled:
-  input    – the variable is synthesized from the survey (checks the synthesizer, not the dynamics)
-  emergent – produced by simulated behavior (the real test)
+Writes docs/VALIDATION.md and ucsim/config/validation.json (shown in the app's Model check page).
+Every comparison is labeled:
+  benchmark  – official statistics (Census ACS for Provo + Orem): the most trustworthy targets
+  emergent   – produced by simulated behavior, compared with the surveys (the real test of dynamics)
+  input      – the variable is synthesized from the survey (checks the synthesizer, not the dynamics)
+  diagnostic – survey rows known to be biased (the dating surveys under-sample married people)
 Status bands use a tolerance of max(15% of target, 10% of target IQR, an absolute floor).
 """
 from __future__ import annotations
@@ -21,6 +24,8 @@ from ucsim.population.sampling import load_priors
 
 ROOT = Path(__file__).resolve().parents[1]
 ACT = {0: "inactive", 1: "less_active", 2: "active"}
+ACS = ROOT / "ucsim" / "config" / "sources" / "acs_married_share_provo_orem.json"
+OUT_JSON = ROOT / "ucsim" / "config" / "validation.json"
 
 
 def age_band(label: str) -> tuple[float, float]:
@@ -49,9 +54,11 @@ def band_mask(P, row):
 
 # target table → (simulated variable, transform, kind, absolute floor)
 CHECKS = {
-    "dates_month_by_sex_age": ("dates_30d", None, "emergent", 0.4),
+    # by-age rows mix singles and couples in the survey's (singles-heavy) proportions → diagnostic only;
+    # the rows stratified by relationship status below are robust to that composition bias
+    "dates_month_by_sex_age": ("dates_30d", None, "diagnostic", 0.4),
     "dates_month_by_sex_rel_activity": ("dates_30d", None, "emergent", 0.6),
-    "married_share_by_age_sex": ("rel_status", "married", "emergent", 0.04),
+    "married_share_by_age_sex": ("rel_status", "married", "diagnostic", 0.04),
     "n_relationships_by_sex_age": ("n_relationships", None, "input", 0.3),
     "n_kissed_by_sex_age": ("n_kissed", None, "input", 1.0),
     "gpa_by_school_sex": ("gpa", None, "emergent", 0.1),
@@ -100,6 +107,39 @@ def compare(sim, priors):
                               if k in ("sex", "rel", "activity", "age_band", "school_proxy"))
             rows.append({"table": table, "group": group, "var": var, "kind": kind, "target": target, "sim": got,
                          "diff": got - target, "tol": tol, "n_sim": n, "n_band": r.get("n_band"), "status": status(got - target, tol)})
+    return rows
+
+
+def benchmarks(sim):
+    """Married share by age and sex for everyone present, vs Census ACS for Provo + Orem residents."""
+    if not ACS.exists():
+        return []
+    P = sim.w.P
+    pres = P["present"].astype(bool)
+    rows = []
+    for r in json.loads(ACS.read_text(encoding="utf-8"))["rows"]:
+        lo, hi = age_band(r["age_band"])
+        m = pres & P.is_("sex", r["sex"]) & (P["age"] >= lo) & (P["age"] < hi)
+        n = int(m.sum())
+        if n < 25:
+            continue
+        got = float(P.is_("rel_status", "married")[m].mean())
+        tol = max(0.15 * r["married_share"], 0.04)
+        # from 25 on, Provo/Orem residents are mostly non-students the model does not include (single working
+        # adults), so those bands compare different populations: shown, not scored
+        kind = "benchmark" if r["age_band"] in ("18-19", "20-24") else "diagnostic"
+        rows.append({"table": "married_share_acs", "group": f"sex={r['sex']}, age={r['age_band']}", "var": "rel_status",
+                     "kind": kind, "target": r["married_share"], "sim": got, "diff": got - r["married_share"],
+                     "tol": tol, "n_sim": n, "n_band": f"ACS n={r['n']:,}", "status": status(got - r["married_share"], tol)})
+    # institutional married shares of enrolled students (BYU ≈ 25%, UVU ≈ 30%; world.yaml)
+    for school, key in (("BYU", "byu"), ("UVU", "uvu")):
+        t = float(sim.w.cfg["population"][key]["married_share"])
+        m = P["present"].astype(bool) & P["enrolled"].astype(bool) & P.is_("school", school)
+        if m.sum() >= 25:
+            got = float(P.is_("rel_status", "married")[m].mean())
+            rows.append({"table": "married_share_institutional", "group": f"school={school}", "var": "rel_status",
+                         "kind": "benchmark", "target": t, "sim": got, "diff": got - t, "tol": 0.04, "n_sim": int(m.sum()),
+                         "n_band": "institutional", "status": status(got - t, 0.04)})
     return rows
 
 
@@ -167,18 +207,21 @@ def main():
     # compare in the fall (day 60) and mid-winter semester (day 200, primary); the year-end snapshot
     # lands just after the new cohort arrives, which is not comparable to a mid-semester survey
     traj += trajectory(sim, 60, every=15)
-    early = compare(sim, priors)
+    early = benchmarks(sim) + compare(sim, priors)
     traj += trajectory(sim, 140, every=30)
-    final = compare(sim, priors)
+    final = benchmarks(sim) + compare(sim, priors)
     inst = institutional(sim)
     snap_day = sim.w.day
     traj += trajectory(sim, max(a.days - 200, 0), every=30)
     timing = {k: round(v, 2) for k, v in sorted(sim.timing.items(), key=lambda kv: -kv[1])}
     run_s = time.time() - t0 - build_s
 
-    counts = {s: sum(r["status"] == s for r in final) for s in ("pass", "warn", "fail")}
-    emer = [r for r in final if r["kind"] == "emergent"]
+    scored = [r for r in final if r["kind"] != "diagnostic"]
+    counts = {s: sum(r["status"] == s for r in scored) for s in ("pass", "warn", "fail")}
+    emer = [r for r in final if r["kind"] in ("emergent", "benchmark")]
     counts_e = {s: sum(r["status"] == s for r in emer) for s in ("pass", "warn", "fail")}
+    bench = [r for r in final if r["kind"] == "benchmark"]
+    counts_b = {s: sum(r["status"] == s for r in bench) for s in ("pass", "warn", "fail")}
     early_map = {(r["table"], r["group"]): r for r in early}
     for r in final:
         e = early_map.get((r["table"], r["group"]))
@@ -190,19 +233,23 @@ Generated by `scripts/validate.py --scale {a.scale} --days {a.days} --seed {a.se
 {sim.w.P.n:,} agent rows ({int(sim.w.P['present'].sum()):,} present at the end), build {build_s:.1f}s, simulation {run_s:.0f}s
 ({run_s / a.days:.2f}s per simulated day).
 
-**What this is.** Simulated group means compared with the survey aggregates (small cells suppressed) and the
-institutional targets in `world.yaml`. Rows marked *input* are synthesized from the same survey — agreement there
-checks the synthesizer. Rows marked *emergent* are produced by simulated behavior and are the real test.
+**What this is.** Simulated group means compared with official statistics, the survey aggregates (small cells
+suppressed) and the institutional targets in `world.yaml`. *Benchmark* rows are Census ACS figures for Provo + Orem
+(the most trustworthy). *Emergent* rows are produced by simulated behavior (the real test of the dynamics).
+*Input* rows are synthesized from the same survey (agreement checks the synthesizer). *Diagnostic* rows are
+survey cells known to be biased and are not scored.
 Tolerance per row = max(15% of target, 10% of the target's IQR, an absolute floor); **pass** ≤ 1×, **warn** ≤ 2×, **fail** beyond.
 
-**Caveat.** The surveys are convenience samples of mostly BYU students (married students and UVU are under-represented),
-so a mismatch can mean the survey is biased, not the model. Married shares are calibrated to institutional
-targets, not the survey (BYU survey 12% vs ~25% institutional).
+**Caveat.** The surveys are convenience samples of mostly single BYU students (married students and UVU are
+under-represented), so a mismatch can mean the survey is biased, not the model. Married shares are calibrated to
+the Census (ACS 2020-24: e.g. 60% of Provo/Orem women aged 25-29 are married, versus 35% of the dating-survey
+respondents aged 24-26).
 
 ## Summary at day {snap_day} ({sim.cal.date(snap_day)}, mid winter semester)
 
-All rows: {counts['pass']} pass · {counts['warn']} warn · {counts['fail']} fail.
-Emergent rows only: {counts_e['pass']} pass · {counts_e['warn']} warn · {counts_e['fail']} fail.
+Scored rows: {counts['pass']} pass · {counts['warn']} warn · {counts['fail']} fail.
+Census benchmarks: {counts_b['pass']} pass · {counts_b['warn']} warn · {counts_b['fail']} fail.
+Behavior (benchmark + emergent): {counts_e['pass']} pass · {counts_e['warn']} warn · {counts_e['fail']} fail.
 
 ## Institutional targets (day {snap_day})
 
@@ -218,27 +265,38 @@ Emergent rows only: {counts_e['pass']} pass · {counts_e['warn']} warn · {count
 {md_table([{'system': k, 'seconds': v} for k, v in timing.items()], ['system', 'seconds'])}
 ## Reading the remaining mismatches
 
-- **Married share among older students** (22+): the surveys under-sample married students (BYU survey 12%
-  married vs ≈25% institutionally), so their married share by age is biased low. The model is calibrated to
-  the institutional totals, which puts more of the married students in the older bands. Treat these rows
-  as a survey-bias diagnostic rather than a model failure.
+- **Dates per month by age** mixes singles and couples in the survey's proportions, so it is shown as
+  *diagnostic*; the rows by relationship status and church activity are the scored test.
+- **Census married share at 25+** is shown but not scored: most Provo/Orem residents of those ages are
+  non-students outside the model's scope (single working adults), so the populations differ.
+- **Married share by age**: the surveys under-sample married students (BYU survey 12% married vs ≈25%
+  institutionally), so the survey's married share by age is biased low; those rows are shown as *diagnostic*.
+  The Census rows are the benchmark the model is calibrated to.
 - **Dating frequency** is now within tolerance for most single and dating groups; engaged couples date
   somewhat more than reported, and older singles somewhat more often than the survey says.
 - *Input* rows (synthesized from the survey) that drift are changed by dynamics on purpose (e.g. work hours
   respond to financial strain); a large drift there points to a mechanism that needs a counterweight.
 
-## Known gaps (first iteration)
+## Calibration
 
-- Dating frequency and relationship progression are calibrated by hand against the dating survey; a formal
-  calibration loop (simulated method of moments over the mechanism parameter ranges) is on the roadmap.
+`scripts/calibrate.py` searches the ranges of the most influential parameters (asking out, kissing, couple time,
+engagement, breakups, job search) to minimize the weighted squared misfit across the benchmark, emergent and
+input rows above (two seeds, common random numbers). The chosen values are written back to the mechanism files.
+
+## Known gaps
+
+- The fit is to one year; the four-year check (`scripts/stability.py`) shows slower drifts that remain.
 - Several targets (GPA, sleep, app hours) depend on survey-derived starting values plus modest dynamics, so they
   agree partly by construction.
 - No administrative validation yet (actual marriage counts, enrollment flows, rent series).
 """
     (ROOT / "docs").mkdir(exist_ok=True)
     (ROOT / "docs" / "VALIDATION.md").write_text(doc, encoding="utf-8")
-    (ROOT / "runs").mkdir(exist_ok=True)
-    (ROOT / "runs" / "validation.json").write_text(json.dumps({"final": final, "institutional": inst, "trajectory": traj, "timing": timing}, default=float, indent=1), encoding="utf-8")
+    summary = {"generated": time.strftime("%Y-%m-%d"), "scale": a.scale, "seed": a.seed, "day": snap_day,
+               "date": str(sim.cal.date(snap_day)), "counts": counts, "counts_benchmark": counts_b, "counts_behavior": counts_e}
+    OUT_JSON.write_text(json.dumps({"summary": summary, "rows": final, "institutional": inst, "trajectory": traj},
+                                   default=lambda x: None if isinstance(x, float) and not np.isfinite(x) else float(x), indent=1),
+                        encoding="utf-8")
     print(f"wrote docs/VALIDATION.md — {counts}")
 
 

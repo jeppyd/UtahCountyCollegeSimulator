@@ -57,7 +57,9 @@ class Norms:
                        + p("norms.coffee.permitted_boost") * permitted * P["lds_member"])
                 quit_h = p("norms.quit.guilt") * P["guilt"] * prohib
             elif name == "alcohol":
+                muslim = P.is_("affiliation", "Muslim")
                 att = (p("norms.alcohol.base") - 2.5 * P["orthodoxy"] * lds_active - 1.2 * P["faith_belief"] * P["lds_member"]
+                       - P["own_religiosity"] * np.where(muslim, 3.5, 0.8) * ~P["lds_member"]
                        + 0.6 * P["moral_autonomy"] + 0.4 * sim.z("sensation_seeking") + 0.4 * (P["age"] >= 21))
                 quit_h = p("norms.quit.guilt") * P["guilt"] * P["orthodoxy"] * lds_active
             elif name == "pickleball":

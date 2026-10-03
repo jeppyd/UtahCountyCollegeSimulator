@@ -10,7 +10,8 @@ const FLOW_VARS: [string, string][] = [
   ['rel_status', 'Relationship status'], ['activity', 'Church activity'], ['mission_status', 'Mission status'], ['living', 'Living situation'],
   ['class_standing', 'Class standing'], ['academic_standing', 'Academic standing'], ['school', 'School'], ['enrolled', 'Enrolled in school'],
   ['employed', 'Has a job'], ['faith_crisis', 'In a faith crisis'], ['depressive_episode', 'In a depressive episode'],
-  ['app_user', 'Uses dating apps'], ['temple_recommend', 'Holds a temple recommend'],
+  ['app_user', 'Uses dating apps'], ['temple_recommend', 'Holds a temple recommend'], ['affiliation', 'Religious affiliation'],
+  ['investigating', 'Meeting with missionaries'],
 ]
 const TRAJ_VARS: [string, string][] = [
   ['loneliness', 'Loneliness'], ['mood', 'Happiness'], ['stress', 'Stress'], ['belonging', 'Belonging'], ['n_friends', 'Friends'],

@@ -65,6 +65,11 @@ class Academics:
         short = term in ("Spring", "Summer")
         part_time = P["credits_term"][ids] < 10
         credits = np.where(short, rng.integers(3, 8, len(ids)), np.where(part_time, rng.integers(6, 11, len(ids)), rng.integers(12, 17, len(ids))))
+        # married students and parents usually carry lighter loads (work, family)
+        married = P.is_("rel_status", "married")[ids]
+        kids = P["children"][ids] > 0
+        credits = np.where(~short & married, np.minimum(credits, rng.integers(9, 15, len(ids))), credits)
+        credits = np.where(~short & kids, np.minimum(credits, rng.integers(6, 13, len(ids))), credits)
         P.cols["credits_term"][ids] = credits
         n_cls = np.clip(np.round(credits / 3.3), 1, 5).astype(int)
         n_ge = np.minimum(np.where(P["class_standing"][ids] <= P.code("class_standing", "sophomore"), 2, 1), n_cls)
@@ -215,8 +220,8 @@ class Academics:
             P.cols["study_area"][ids[mc]] = rng.integers(0, areas - 1, mc.sum())
             sim.emit("major_change", ids[mc], mech="academics.term")
         # graduation
-        # programs need 120-135 credits (majors, minors, retakes); a fixed per-person requirement spreads graduations out
-        need = 120 + 15 * ((ids * 0.6180339887) % 1.0)
+        # programs need 120-145 credits (majors, minors, retakes); a fixed per-person requirement spreads graduations out
+        need = 120 + 25 * ((ids * 0.6180339887) % 1.0)
         grad = ((cd >= need) & ~grad_student) | (grad_student & (rng.random(len(ids)) < 0.22))
         if grad.any():
             gi = ids[grad]

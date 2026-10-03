@@ -1,0 +1,63 @@
+{
+ "source": "U.S. Census Bureau, American Community Survey 2020-2024 5-year estimates, table B12002 (sex by marital status by age), Provo city + Orem city, via the Census Reporter API",
+ "release": {
+  "id": "acs2024_5yr",
+  "name": "ACS 2024 5-year",
+  "years": "2020-2024"
+ },
+ "geos": [
+  "Orem, UT",
+  "Provo, UT"
+ ],
+ "definition": "married = now married (spouse present, separated, or other absent); denominators include never married, widowed, divorced",
+ "rows": [
+  {
+   "age_band": "18-19",
+   "sex": "M",
+   "married_share": 0.0155,
+   "n": 4762
+  },
+  {
+   "age_band": "18-19",
+   "sex": "F",
+   "married_share": 0.0287,
+   "n": 8078
+  },
+  {
+   "age_band": "20-24",
+   "sex": "M",
+   "married_share": 0.2574,
+   "n": 26251
+  },
+  {
+   "age_band": "20-24",
+   "sex": "F",
+   "married_share": 0.341,
+   "n": 25422
+  },
+  {
+   "age_band": "25-29",
+   "sex": "M",
+   "married_share": 0.5187,
+   "n": 12193
+  },
+  {
+   "age_band": "25-29",
+   "sex": "F",
+   "married_share": 0.5961,
+   "n": 10143
+  },
+  {
+   "age_band": "30-34",
+   "sex": "M",
+   "married_share": 0.6322,
+   "n": 6362
+  },
+  {
+   "age_band": "30-34",
+   "sex": "F",
+   "married_share": 0.6215,
+   "n": 5249
+  }
+ ]
+}

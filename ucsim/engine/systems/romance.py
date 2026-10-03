@@ -77,7 +77,10 @@ class Romance:
         lds_src = P["lds_member"][src]
         act_s = P["activity"][src].astype(float)
         act_d = P["activity"][dst].astype(float)
-        rel_fit = np.where(lds_src, -p("romance.attraction.religiosity_fit") * np.abs(act_s - act_d) / 3 * (0.4 + P["imp_spirituality"][src] / 5), 0)
+        rel_fit = np.where(lds_src, -p("romance.attraction.religiosity_fit") * np.abs(act_s - act_d) / 3 * (0.4 + P["imp_spirituality"][src] / 5),
+                           # non-members: a religious person prefers their own tradition; anyone may balk at a devout member
+                           -p("romance.attraction.religiosity_fit") * (0.7 * P["own_religiosity"][src] * (P["affiliation"][src] != P["affiliation"][dst])
+                                                                       + 0.25 * (act_d == 3)))
         rm = np.where(f_src & lds_src & (P["mission_status"][dst] >= P.code("mission_status", "returned")),
                       p("romance.attraction.rm_bonus") * (P["prefers_rm"][src] - 2) / 2, 0)
         shared = p("romance.attraction.shared_interests") * (P["imp_shared_interests"][src] / 5) * (
@@ -480,7 +483,8 @@ class Romance:
         att_a = E.attraction_from(eix, ids)
         att_b = E.attraction_from(eix, j)
         chem = E["chemistry"][eix]
-        rel_mis = np.abs(P["faith_belief"][ids] - P["faith_belief"][j]) + 0.3 * np.abs(P["activity"][ids].astype(float) - P["activity"][j]) / 3
+        rel_mis = (np.abs(P["faith_belief"][ids] - P["faith_belief"][j]) + 0.3 * np.abs(P["activity"][ids].astype(float) - P["activity"][j]) / 3
+                   + 0.5 * (P["affiliation"][ids] != P["affiliation"][j]) * np.maximum(P["own_religiosity"][ids], P["own_religiosity"][j]))
         stress = (P["stress"][ids] + P["stress"][j]) / 2
         conflict = E["conflict"][eix]
         rng = sim.streams.gen("rel_weekly", day)
@@ -502,8 +506,10 @@ class Romance:
         # couples' weekly "date night"), on distinct days; exclusive couples also hang out a lot
         code = {s_: P.code("rel_status", s_) for s_ in ("talking", "dating", "engaged", "married")}
         uk = sim.streams.uniform("kdates", day, len(ids))
-        k_dates = np.select([status == code["talking"], status == code["dating"], status == code["engaged"], status == code["married"]],
-                            [(uk < 0.8).astype(int), 1 + (uk < 0.45), 2 + (uk < 0.3), (uk < 0.85).astype(int)], 0)
+        rate = np.select([status == code["talking"], status == code["dating"], status == code["engaged"], status == code["married"]],
+                         [p("romance.couple_time.talking"), p("romance.couple_time.dating"), p("romance.couple_time.engaged"),
+                          p("romance.couple_time.married")], 0.0)
+        k_dates = (np.floor(rate) + (uk < rate - np.floor(rate))).astype(int)
         exclusive = np.isin(status, [code["talking"], code["dating"], code["engaged"]])
         has = k_dates > 0
         if has.any():

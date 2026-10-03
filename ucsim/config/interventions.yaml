@@ -80,6 +80,22 @@ interventions:
     target: contracted_housing_all_years
     op: set
     value: true
+  missionary_outreach:
+    name: More missionary outreach to students
+    description: Missionaries and members invite non-member friends twice as often — more lessons, some more baptisms, and more people feeling pressured.
+    confidence: speculative
+    target_type: param
+    target: faith.missionary_contact.rate
+    op: mul
+    value: 2.0
+  interfaith_welcome:
+    name: Campus interfaith welcome initiative
+    description: Schools and wards actively welcome people of other faiths and none — the religious-outsider feeling eases (−0.1 on its target) and faith/secular student groups grow.
+    confidence: speculative
+    target_type: world
+    target: interfaith_welcome
+    op: set
+    value: 1.0
   church_attendance_decline:
     name: Church attendance norm −20%
     description: A general secular drift lowers the attendance propensity of everyone by ~20% (odds).

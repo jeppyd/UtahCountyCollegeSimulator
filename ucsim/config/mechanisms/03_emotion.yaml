@@ -199,8 +199,29 @@ mechanisms:
     form: "β·romantic_longing"
     params: {beta: {value: 0.12, range: [0.03, 0.25]}}
     evidence: hypothetical
+  loneliness.outsider:
+    label: Religious-outsider feeling → loneliness
+    target: loneliness
+    sources: [outsider]
+    form: "β·outsider"
+    params: {beta: {value: 0.1, range: [0.03, 0.2]}}
+    evidence: hypothetical
   # ---------------------------------------------------------------- belonging
   belonging.setpoint: {label: Belonging baseline, target: belonging, sources: [], form: "0.5", evidence: calibrated}
+  belonging.outsider:
+    label: Religious-outsider feeling → lower belonging
+    target: belonging
+    sources: [outsider]
+    form: "−β·outsider"
+    params: {beta: {value: 0.15, range: [0.05, 0.3]}}
+    evidence: hypothetical
+  belonging.congregation:
+    label: Own congregation → belonging (non-LDS)
+    target: belonging
+    sources: [service_attend, congregation_id]
+    form: "β·(service_attend − 0.3) for those with a congregation"
+    params: {beta: {value: 0.2, range: [0.05, 0.4]}}
+    evidence: hypothetical
   belonging.ward:
     label: Ward belonging → overall belonging
     target: belonging

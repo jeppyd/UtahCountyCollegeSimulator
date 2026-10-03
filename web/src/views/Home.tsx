@@ -17,6 +17,8 @@ const QUESTIONS: Record<string, Q[]> = {
   'Faith': [
     { q: 'Who is drifting from church activity?', how: 'Flows between active, less active and inactive over time', route: ['flows', 'activity'] },
     { q: 'How does belief relate to attendance?', how: 'Each dot is a person: belief vs. how often they attend', route: ['explore', 'faith_belief', 'attend_rate'] },
+    { q: 'What is life like for students of other faiths, or none?', how: 'Belonging and loneliness by religious affiliation', route: ['explore', 'belonging', '', 'affiliation'] },
+    { q: 'Who joins the Church here, and why?', how: 'People baptized during the simulation and what led there', cohort: [{ var: 'converted', op: 'eq', value: true }], route: ['people'] },
     { q: 'What is life like during a faith crisis?', how: 'People currently in a crisis: mood, and what drives it', cohort: [{ var: 'faith_crisis', op: 'eq', value: true }], route: ['explore', 'mood'] },
   ],
   'Friends & wellbeing': [
@@ -106,6 +108,7 @@ export default function Home() {
           <button className="btn primary" onClick={() => setRoute(['guide'])}>How this world works (5 min)</button>
           <button className="btn" onClick={() => setRoute(['dashboard'])}>Vital signs</button>
           <button className="btn" onClick={() => setRoute(['map'])}>Open the map</button>
+          {status.day > 0 && <button className="btn" onClick={() => setRoute(['map', 'day'])} title="Replay the last day on the map">▶ Watch a day</button>}
         </div>
       </section>
 

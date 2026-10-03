@@ -18,6 +18,58 @@ variables:
     kind: attribute
     update: static
     init: "copula culture.convert (inverse)"
+  affiliation:
+    label: Religious affiliation
+    dtype: cat
+    categories: [Latter-day Saint, Catholic, Protestant, Other Christian, Muslim, Other faith, Nonreligious]
+    kind: attribute
+    update: event
+    desc: "Current religious identity. Non-LDS shares are assumptions informed by Utah-wide surveys (about half of non-LDS young adults nonreligious); Hispanic students lean Catholic; former members mostly nonreligious."
+    init: "Latter-day Saint for members; otherwise sampled by ethnicity and whether raised LDS."
+    source: [assumption informed by PRRI American Values Atlas (Utah)]
+    evidence: extrapolated
+    flags: [filter, chart, map, timeseries]
+  own_religiosity:
+    label: Importance of own faith (non-LDS)
+    desc: "How much a non-LDS person's own religion matters to them (0 for the nonreligious). Drives service attendance and interfaith dating friction."
+    init: "Beta(3, 2.5) for the religious, ~0.05 for the nonreligious."
+    evidence: hypothetical
+    flags: [filter, chart, map]
+  congregation_id:
+    label: Congregation (non-LDS)
+    dtype: i4
+    kind: state
+    update: event
+    flags: []
+    desc: "Non-LDS congregation the person attends (-1 none): real Catholic, Protestant and other congregations from UGRC and OpenStreetMap."
+  service_attend:
+    label: Attends own services (8-wk)
+    kind: habit
+    update: weekly
+    desc: Rolling share of weeks a non-LDS person attended their own congregation.
+    evidence: hypothetical
+    flags: [filter, chart, map, timeseries]
+  outsider:
+    label: Feels like a religious outsider
+    kind: state
+    update: weekly
+    desc: "Feeling of being outside Utah County's LDS mainstream: rises with mostly-LDS friends and roommates and with being proselytized; falls with friends who share one's outlook and a faith or secular community. Applies to non-members and to members who have stepped away."
+    evidence: hypothetical
+    flags: [filter, chart, map, timeseries]
+  investigating:
+    label: Meeting with missionaries
+    dtype: bool
+    kind: state
+    update: event
+    desc: A non-member currently taking the missionary lessons (usually introduced by LDS friends or a partner).
+    evidence: hypothetical
+  converted:
+    label: Joined the Church here
+    dtype: bool
+    kind: history
+    update: event
+    desc: Baptized during the simulation.
+    evidence: hypothetical
   activity:
     label: Church activity
     dtype: cat

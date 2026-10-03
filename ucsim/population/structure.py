@@ -408,7 +408,7 @@ def seed_network(P: PersonTable, E: EdgeStore, unit_of: np.ndarray, rng, day0: i
     ids = np.arange(n)
     fresh = P.is_("class_standing", "freshman")
     E_ = P["extraversion"]
-    mean_friends = np.where(fresh, 2.0, 9.0) * np.exp(0.25 * E_) * np.where(P["role"] >= P.code("role", "faculty"), 0.7, 1.0)
+    mean_friends = np.where(fresh, 2.0, 6.0) * np.exp(0.25 * E_) * np.where(P["role"] >= P.code("role", "faculty"), 0.7, 1.0)
     k = rng.poisson(mean_friends)
     src = np.repeat(ids, k)
     # focus selection for each stub

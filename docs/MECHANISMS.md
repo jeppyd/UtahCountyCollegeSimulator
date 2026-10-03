@@ -2,7 +2,7 @@
 
 Generated from `ucsim/config/mechanisms/*.yaml` and `events.yaml` by `scripts/gen_catalogs.py` — do not edit by hand.
 
-125 mechanisms. Evidence: **observed** 0, **empirical** 18, **literature** 49, **calibrated** 29, **extrapolated** 0, **hypothetical** 29.
+134 mechanisms. Evidence: **observed** 0, **empirical** 18, **literature** 49, **calibrated** 31, **extrapolated** 0, **hypothetical** 36.
 
 Every parameter can be overridden per run (`ParamSet`), targeted by an intervention (`target_type: param`) or swept.
 
@@ -290,6 +290,15 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Form**: β·romantic_longing
 - **Parameters**: `beta` = 0.12 (range 0.03–0.25)
 
+### `loneliness.outsider` — Religious-outsider feeling → loneliness
+
+*Evidence: hypothetical · timescale: daily · delay: none*
+
+- **Target**: `loneliness`
+- **Inputs**: `outsider`
+- **Form**: β·outsider
+- **Parameters**: `beta` = 0.1 (range 0.03–0.2)
+
 ### `belonging.setpoint` — Belonging baseline
 
 *Evidence: calibrated · timescale: daily · delay: none*
@@ -297,6 +306,24 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Target**: `belonging`
 - **Inputs**: —
 - **Form**: 0.5
+
+### `belonging.outsider` — Religious-outsider feeling → lower belonging
+
+*Evidence: hypothetical · timescale: daily · delay: none*
+
+- **Target**: `belonging`
+- **Inputs**: `outsider`
+- **Form**: −β·outsider
+- **Parameters**: `beta` = 0.15 (range 0.05–0.3)
+
+### `belonging.congregation` — Own congregation → belonging (non-LDS)
+
+*Evidence: hypothetical · timescale: daily · delay: none*
+
+- **Target**: `belonging`
+- **Inputs**: `service_attend`, `congregation_id`
+- **Form**: β·(service_attend − 0.3) for those with a congregation
+- **Parameters**: `beta` = 0.2 (range 0.05–0.4)
 
 ### `belonging.ward` — Ward belonging → overall belonging
 
@@ -657,7 +684,7 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Target**: `employed`
 - **Inputs**: `financial_stress`, `world.unemployment`
 - **Form**: monthly, for job seekers (students with fin stress > 0.5; non-students always): h = logistic(base + 2·(fin stress − 0.4))·(0.032/unemployment)^0.8
-- **Parameters**: `base` = -1.0 (range -2.0–0.0)
+- **Parameters**: `base` = -0.5 (range -2.0–0.0)
 
 ### `economy.work_more` — Financial strain → more work hours
 
@@ -753,6 +780,16 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Form**: monthly hazards: family crisis, death in family, car accident (car owners)
 - **Parameters**: `family_crisis` = 0.006 (range 0.002–0.012); `death` = 0.0015 (range 0.0005–0.003); `car_accident` = 0.008 (range 0.003–0.015)
 - *Ref*: College Life: ~1/3 report ≥1 at-fault car accident
+
+### `economy.quit` — Students quit jobs to focus on school
+
+*Evidence: calibrated · timescale: daily · delay: none*
+
+- **Target**: `employed`
+- **Inputs**: `financial_stress`, `academic_pressure`
+- **Form**: monthly P(quit) = base·(1 + 2·academic pressure) for employed students with financial stress < 0.3
+- **Parameters**: `base` = 0.05 (range 0.01–0.12)
+- **Notes**: Balances job-taking under financial strain so student work hours stay near the survey levels over a year.
 
 ## norms
 
@@ -900,6 +937,45 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Parameters**: `certainty_threshold` = 0.3 (range 0.2–0.45); `onset_rate` = 0.05 (range 0.01–0.1); `resolution_rate` = 0.03 (range 0.01–0.06); `leave_bias` = -0.3 (range -1.5–1.0)
 - *Ref*: Culture & Lifestyle: ~18% agree they are currently in a faith crisis; ranked reasons for leaving (doctrine, policy, history)
 
+### `faith.other_attend` — Non-LDS service attendance
+
+*Evidence: hypothetical · timescale: daily · delay: none*
+
+- **Target**: `service_attend`
+- **Inputs**: `own_religiosity`, `service_attend`, `stress`, `fatigue`
+- **Form**: P(attend this week) = logistic(base + βr·(own religiosity − 0.5) + βh·(service_attend − 0.4) − 0.8·fatigue − 0.6·(stress − 0.3)⁺); religious non-LDS find the nearest congregation of their tradition
+- **Parameters**: `base` = -0.6 (range -1.5–0.3); `religiosity` = 3.0 (range 1.5–4.5); `habit` = 2.0 (range 1.0–3.0)
+- **Notes**: Catholic, Protestant and other congregations are real places in Provo/Orem; attenders meet each other there like LDS ward members do.
+
+### `faith.outsider` — Religious-outsider feeling
+
+*Evidence: hypothetical · timescale: daily · delay: none*
+
+- **Target**: `outsider`
+- **Inputs**: `school`; other inputs: lds friends share, lds roommates share, being proselytized, faith or secular community
+- **Form**: target = 0.12 + 0.35·LDS share of friends + 0.15·LDS share of roommates + 0.12·[BYU] + 0.15·[recently met missionaries] − 0.2·[a close friend who shares one's outlook] − 0.15·[own congregation or faith/secular club]; weekly EWMA
+- **Parameters**: `weight` = 0.25 (range 0.1–0.5)
+- *Ref*: Minority-religion students in religiously homogeneous campuses report lower belonging (e.g., Bowman & Small 2012)
+
+### `faith.missionary_contact` — Invited to meet the missionaries
+
+*Evidence: hypothetical · timescale: daily · delay: none*
+
+- **Target**: `investigating`
+- **Inputs**: `own_religiosity`, `openness`; other inputs: LDS close friends, LDS partner
+- **Form**: weekly h = rate·(LDS close friends with belief > 0.6 + 3·[dating an LDS member])·exp(0.3·openness − 1.5·own religiosity); lessons stop at 8%/week
+- **Parameters**: `rate` = 0.0008 (range 0.0003–0.003)
+
+### `faith.conversion` — Baptism (conversion)
+
+*Evidence: hypothetical · timescale: daily · delay: none*
+
+- **Target**: `lds_member`
+- **Inputs**: `investigating`, `own_religiosity`; other inputs: LDS partner, LDS friend share
+- **Form**: weekly h = logistic(base + 2·[dating/engaged to an LDS member] + 1.5·LDS friend share − 2·own religiosity) while investigating (≈2–3% of non-members per year overall)
+- **Parameters**: `base` = -5.0 (range -6.5–-3.5)
+- **Notes**: New converts start active with moderate belief and join a ward; their own path afterwards follows the same faith dynamics as everyone else.
+
 ## romance
 
 ### `romance.attraction` — Initial romantic attraction
@@ -933,7 +1009,7 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Inputs**: `edge.attraction_lh`, `dating_motivation`, `self_esteem`, `rejection_sensitivity`, `rejections_recent`, `sex`, `dating_propensity`, `asks_for_numbers`
 - **Moderators**: `rejection_sensitivity`
 - **Form**: P/day = logistic(base + βa·attraction + βm·motivation + βc·confidence − βrs·RS⁺·log(1+recent rejections) ± βmale·norm + βp·log(propensity)) × weekday factor
-- **Parameters**: `base` = -4.5 (range -5.5–-2.5); `attraction` = 2.5 (range 1–4); `motivation` = 1.5 (range 0.5–2.5); `confidence` = 1.0 (range 0.3–2.0); `rejection_sensitivity` = 0.6 (range 0.2–1.2); `male` = 1.0 (range 0.3–1.8); `propensity` = 0.6 (range 0.2–1.0); `min_attraction` = 0.25 (range 0.1–0.4)
+- **Parameters**: `base` = -4 (range -5.5–-2.5); `attraction` = 2.5 (range 1–4); `motivation` = 1.5 (range 0.5–2.5); `confidence` = 1.0 (range 0.3–2.0); `rejection_sensitivity` = 0.6 (range 0.2–1.2); `male` = 1.0 (range 0.3–1.8); `propensity` = 0.6 (range 0.2–1.0); `min_attraction` = 0.25 (range 0.1–0.4)
 - **Notes**: Repeated rejection matters non-linearly — the log of recent rejections multiplies rejection sensitivity.
 - *Ref*: Dating survey: most agree men should make the first move
 - *Ref*: ProvoStats: dates per month by sex/relationship/activity
@@ -1030,14 +1106,24 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Parameters**: `base` = -2.8 (range -3.8–-1.5); `commitment` = 3.5 (range 2.0–5.0); `religious_mismatch` = 2.0 (range 0.5–3.0); `married_mult` = 0.03 (range 0.01–0.08)
 - *Ref*: Rusbult (1980, 1983): investment model of commitment
 
+### `romance.couple_time` — Couple dates per week by stage
+
+*Evidence: calibrated · timescale: daily · delay: none*
+
+- **Target**: `dates_30d`
+- **Inputs**: `rel_status`
+- **Form**: dates scheduled each week = ⌊rate⌋ + Bernoulli(rate − ⌊rate⌋), on distinct days
+- **Parameters**: `talking` = 0.8 (range 0.3–1.5); `dating` = 1.45 (range 0.8–2.2); `engaged` = 1.58 (range 0.8–3.0); `married` = 1.07 (range 0.5–1.4)
+- *Ref*: Dating survey: dates per month by relationship stage and church activity
+
 ### `romance.engage` — Engagement & wedding timing
 
 *Evidence: empirical · timescale: daily · delay: none*
 
 - **Target**: `rel_status`, `age_at_marriage`
 - **Inputs**: `relationship_commitment`, `ideal_months_engaged`, `activity`, `age`, `financial_stress`, `mission_status`
-- **Form**: weekly h = logistic(base + βc·commitment + βt·clip((months − ideal)/4) + βa·both active LDS·marriage_norm + age term − 1.8·[man under 20] − 1.2·[LDS man under 21.5 who has not served] − 0.8·financial stress − 1.2·mismatch); wedding 2.5–4.5 months later for active LDS couples
-- **Parameters**: `base` = -7.0 (range -8.5–-5.5); `commitment` = 3.0 (range 1.5–4.5); `timing` = 0.8 (range 0.3–1.5); `active_lds` = 1.2 (range 0.4–2.0)
+- **Form**: weekly h = logistic(base + βc·commitment + βt·clip((months − ideal)/4) + βa·both active LDS·marriage_norm + age term − 1.8·[man under 20] − 1.2·[LDS man under 21.5 who has not served] − 0.8·financial stress − 1.2·mismatch − 3·[same-sex couple with an active member]); wedding 2.5–4.5 months later for active LDS couples
+- **Parameters**: `base` = -5.8 (range -8.0–-4.5); `commitment` = 3.0 (range 1.5–4.5); `timing` = 0.8 (range 0.3–1.5); `active_lds` = 1.2 (range 0.4–2.0)
 - *Ref*: Dating & Culture surveys: months dated before engagement (median ≈ 6–8), age at marriage (median ≈ 22)
 
 ### `romance.sex` — Premarital sexual activity
@@ -1132,7 +1218,7 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Target**: `social_hours_week`
 - **Inputs**: `activity_now`
 - **Form**: Attempts per person per block ~ Poisson(rate[context] × sociability)
-- **Parameters**: `unit` = 1.6 (range 0.8–2.5); `complex` = 0.3 (range 0.1–0.6); `class` = 0.6 (range 0.2–1.2); `ward` = 1.2 (range 0.5–2.0); `fhe` = 2.0 (range 1.0–3.0); `work` = 1.0 (range 0.4–1.6); `gym` = 0.15 (range 0.05–0.4); `venue` = 0.12 (range 0.05–0.3); `gathering` = 2.5 (range 1.5–4.0); `campus` = 0.12 (range 0.05–0.3); `dance` = 1.2 (range 0.5–2.0); `outdoors` = 0.2 (range 0.05–0.5); `club` = 1.1 (range 0.5–1.8); `team` = 1.6 (range 0.8–2.4); `institute` = 0.8 (range 0.3–1.4)
+- **Parameters**: `unit` = 1.6 (range 0.8–2.5); `complex` = 0.3 (range 0.1–0.6); `class` = 0.6 (range 0.2–1.2); `ward` = 1.2 (range 0.5–2.0); `fhe` = 2.0 (range 1.0–3.0); `work` = 1.0 (range 0.4–1.6); `gym` = 0.15 (range 0.05–0.4); `venue` = 0.12 (range 0.05–0.3); `gathering` = 2.5 (range 1.5–4.0); `campus` = 0.12 (range 0.05–0.3); `dance` = 1.2 (range 0.5–2.0); `outdoors` = 0.2 (range 0.05–0.5); `club` = 1.1 (range 0.5–1.8); `team` = 1.6 (range 0.8–2.4); `institute` = 0.8 (range 0.3–1.4); `congregation` = 1.0 (range 0.4–1.6)
 - **Notes**: Opportunity structure — whom a person can meet depends on where they are.
 - *Ref*: Festinger, Schachter & Back (1950): propinquity in student housing
 - *Ref*: Kossinets & Watts (2006) Science: shared foci (classes) drive tie formation
@@ -1258,6 +1344,10 @@ Events push states with decaying effects (half-life in days) and carry causal pa
 | `faith_crisis_start` Faith crisis began | religion | 0.95 | stress: +0.12, 60; purpose: -0.1, 90; anxiety: +0.08, 60; belonging: -0.06, 90 | empirical |
 | `faith_renewed` Faith crisis resolved — renewed faith | religion | 0.9 | purpose: +0.1, 90; mood: +0.05, 30 | hypothetical |
 | `faith_nuanced` Faith crisis resolved — stayed with nuanced faith | religion | 0.85 | stress: -0.05, 30 | hypothetical |
+| `met_missionaries` Started meeting with the missionaries | religion | 0.7 | purpose: +0.03, 30 | hypothetical |
+| `baptized` Was baptized | religion | 1.0 | belonging: +0.1, 90; purpose: +0.08, 120; mood: +0.06, 30 | hypothetical |
+| `stopped_investigating` Stopped the missionary lessons | religion | 0.5 |  | hypothetical |
+| `joined_congregation` Found a congregation | religion | 0.6 | belonging: +0.05, 60 | hypothetical |
 | `disaffiliated` Left the Church | religion | 1.0 | stress: +0.08, 90; belonging: -0.08, 120; guilt: -0.06, 60; purpose: -0.04, 120 | hypothetical |
 | `stopped_attending` Stopped attending church | religion | 0.75 | belonging: -0.05, 60 | calibrated |
 | `returned_to_activity` Returned to church activity | religion | 0.75 | belonging: +0.06, 60; purpose: +0.04, 60 | calibrated |
@@ -1274,6 +1364,7 @@ Events push states with decaying effects (half-life in days) and carry causal pa
 | `dropout` Left school | academics | 0.9 | purpose: -0.06, 90; stress: +0.05, 45 | calibrated |
 | `term_started` New semester began | academics | 0.1 | academic_pressure: +0.05, 20 | calibrated |
 | `job_found` Got a job | work | 0.6 | financial_stress: -0.08, 60; purpose: +0.03, 30 | literature |
+| `quit_job` Quit a job to focus on school | work | 0.4 | stress: -0.02, 14 | hypothetical |
 | `job_lost` Lost job | work | 0.85 | financial_stress: +0.15, 60; mood: -0.08, 30; self_esteem: -0.06, 45 | literature |
 | `financial_hardship` Ran out of money | work | 0.75 | stress: +0.08, 30 | calibrated |
 | `moved` Moved | housing | 0.65 | stress: +0.05, 10; loneliness: +0.05, 21; belonging: -0.04, 30 | literature |

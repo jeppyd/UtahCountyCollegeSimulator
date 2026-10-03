@@ -84,6 +84,8 @@ def profile(sim, i: int) -> dict:
                  "living": _val(P, "living", i), "rent": float(P["rent"][i])},
         "ward": {"id": ward, "kind": str(w.wards["kind"][ward])} if ward >= 0 else None,
         "groups": groups_of(w, P, i),
+        "congregation": (w.congregations["name"][int(P["congregation_id"][i])]
+                         if "congregation_id" in P and int(P["congregation_id"][i]) >= 0 and getattr(w, "congregations", None) else None),
         "employer": {"id": emp, "name": str(w.employers["name"][emp]), "type": str(w.employers["type"][emp])} if emp >= 0 else None,
         "timeline": timeline,
         "why": why,
@@ -130,7 +132,10 @@ def headline(sim, i: int) -> str:
     if ms == "serving":
         bits.append("serving a mission")
     if P["lds_member"][i]:
-        bits.append(f"{act} Latter-day Saint")
+        bits.append(f"{act} Latter-day Saint" + (" (convert)" if "converted" in P and P["converted"][i] else ""))
+    elif "affiliation" in P:
+        aff = _val(P, "affiliation", i)
+        bits.append("not religious" if aff == "Nonreligious" else aff if aff != "Other faith" else "of another faith")
     living = _val(P, "living", i).replace("_", " ")
     bits.append(f"lives in {living}")
     return ", ".join(bits)

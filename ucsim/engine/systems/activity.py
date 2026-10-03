@@ -148,6 +148,11 @@ class Activity:
             cid[att] = P["ward_id"][att]
             act[att] = A["church"]
             busy |= att
+            oth = sim.systems["faith"].attending_other & present & ~busy
+            ctype[oth] = CTX_ID["congregation"]
+            cid[oth] = P["congregation_id"][oth]
+            act[oth] = A["church"]
+            busy |= oth
         # ---- class
         acad = sim.systems["academics"]
         if wd < 5 and not env["holiday"]:
@@ -205,6 +210,15 @@ class Activity:
         self.ctype, self.cid = ctype, cid
         P["activity_now"] = act
         self._locate(ctype, cid, act)
+        self._keep_frame(b)
+
+    def _keep_frame(self, b: int):
+        """Positions at each block of the day, kept for the map's day replay."""
+        P = self.sim.w.P
+        if not hasattr(self, "frames_today"):
+            self.frames_today, self.day_frames = {}, {}
+        self.frames_today[b] = (P["loc_lon"].astype(np.float32), P["loc_lat"].astype(np.float32),
+                                P["activity_now"].astype(np.uint8))
 
     def night(self):
         """End of day: everyone present goes home to sleep (keeps the map honest between days)."""
@@ -218,6 +232,10 @@ class Activity:
         ctype[home], cid[home], act[home] = CTX_ID["unit"], unit[home], A["home"]
         P["activity_now"] = act
         self._locate(ctype, cid, act)
+        self._keep_frame(3)
+        if len(self.frames_today) == 4:
+            self.day_frames = {"day": self.sim.w.day, **self.frames_today}
+        self.frames_today = {}
 
     def _drives(self):
         sim, P = self.sim, self.sim.w.P
@@ -395,6 +413,9 @@ class Activity:
             cx = w.complexes
             lon[m] = cx["lon"].to_numpy()[cid[m]]
             lat[m] = cx["lat"].to_numpy()[cid[m]]
+        m = ctype == CTX_ID["congregation"]
+        if m.any():
+            lon[m], lat[m] = w.congregations["lon"][cid[m]], w.congregations["lat"][cid[m]]
         for name in ("club", "team", "institute"):
             m = ctype == CTX_ID[name]
             if m.any():

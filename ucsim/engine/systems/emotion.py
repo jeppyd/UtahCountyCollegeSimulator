@@ -109,12 +109,15 @@ class Emotion:
             T["ward"] = -p("loneliness.ward.beta") * (P["ward_belonging"] - 0.5) * (P["activity"] >= 2)
             T["roommates"] = -p("loneliness.roommates.beta") * (P["roommate_cohesion"] - 0.5)
             T["romantic"] = p("loneliness.romantic.beta") * P["romantic_longing"]
+            T["outsider"] = p("loneliness.outsider.beta") * P["outsider"]
         elif s == "belonging":
             T["setpoint"] = np.full(n, 0.5)
             T["ward"] = p("belonging.ward.beta") * (P["ward_belonging"] - 0.5) * (P["activity"] >= 2)
             T["friends"] = p("belonging.friends.beta") * (np.log1p(P["n_friends"]) / np.log(15) - 0.5)
             T["roommates"] = 0.15 * (P["roommate_cohesion"] - 0.5)
             T["loneliness"] = -0.3 * (P["loneliness"] - 0.3)
+            T["outsider"] = -p("belonging.outsider.beta") * P["outsider"]
+            T["congregation"] = p("belonging.congregation.beta") * (P["service_attend"] - 0.3) * (P["congregation_id"] >= 0)
         elif s == "anxiety":
             T["setpoint"] = 0.18 + p("anxiety.setpoint.neuroticism") * z("neuroticism") + 0.12 * P["mh_anxiety"]
             T["stress"] = p("anxiety.stress.beta") * (P["stress"] - 0.25)

@@ -362,7 +362,29 @@ class Synthesizer:
         garments = np.clip(np.round(np.nan_to_num(cu["garments"], nan=0)), 0, 4)
         tr = (np.nan_to_num(cu["temple_recommend"]) > 0.5) & (lds == 1) & (act == 2)
         efy = np.nan_to_num(cu["efy_count"], nan=1)
-        put("raised_lds", (lds == 1) & ~(np.nan_to_num(cu["convert"]) > 0.5))
+        ex_member = (lds != 1) & (rng.random(n) < 0.35)     # many Utah County non-members were raised LDS (assumption)
+        put("raised_lds", ((lds == 1) & ~(np.nan_to_num(cu["convert"]) > 0.5)) | ex_member)
+        # ---------------- religious affiliation of non-members (assumption informed by Utah-wide surveys)
+        AFF = ["Catholic", "Protestant", "Other Christian", "Muslim", "Other faith", "Nonreligious"]
+        mix = {0: [0.15, 0.25, 0.05, 0.02, 0.03, 0.50],    # White / default
+               1: [0.55, 0.15, 0.05, 0.00, 0.00, 0.25],    # Hispanic
+               2: [0.10, 0.20, 0.00, 0.05, 0.20, 0.45],    # Asian
+               3: [0.10, 0.45, 0.00, 0.10, 0.00, 0.35],    # Black
+               4: [0.20, 0.30, 0.15, 0.00, 0.00, 0.35]}    # Pacific Islander
+        aff = np.full(n, "Latter-day Saint", dtype=object)
+        for i in np.where(lds != 1)[0]:
+            if ex_member[i]:
+                aff[i] = rng.choice(AFF, p=[0.03, 0.10, 0.04, 0.0, 0.03, 0.80])
+            else:
+                pr = np.array(mix.get(int(eth[i]), mix[0]), float)
+                if region[i] == "International":
+                    pr[3] += 0.08
+                aff[i] = rng.choice(AFF, p=pr / pr.sum())
+        put("affiliation", P.codes("affiliation", aff))
+        religious = (lds != 1) & (aff != "Nonreligious")
+        own = np.where(religious, rng.beta(3, 2.5, n), np.where(lds != 1, rng.beta(1, 12, n), 0.0))
+        put("own_religiosity", own.astype(np.float32))
+        put("service_attend", np.where(religious, np.clip(own * rng.uniform(0.3, 1.0, n), 0, 1), 0.0).astype(np.float32))
         endowed = (lds == 1) & ((mission == 1) | (rel == "married") | (age > 26))
         put("garments", np.where(endowed, garments, 0).astype(np.uint8))
         put("temple_recommend", tr)

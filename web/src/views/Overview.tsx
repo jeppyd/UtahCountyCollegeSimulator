@@ -28,11 +28,11 @@ export function TSChart({ data, v, label, height = 170, startDate, forkDay }: { 
     if (data.alt && data.alt[v]) series.push({ name: 'Intervention', type: 'line', showSymbol: false, lineStyle: { width: 2 }, data: data.alt.day.map((d: number, k: number) => [dayToDate(startDate, d), data.alt[v][k]]) })
     if (forkDay !== null && forkDay !== undefined && data.alt) series[0].markLine = { symbol: 'none', silent: true, lineStyle: { color: t.muted, type: 'solid', width: 1 }, label: { formatter: 'fork', color: t.muted, fontSize: 10 }, data: [{ xAxis: dayToDate(startDate, forkDay) }] }
     return {
-      grid: { left: 44, right: 12, top: series.length > 1 ? 28 : 14, bottom: 22 },
+      grid: { left: 8, right: 12, top: series.length > 1 ? 28 : 14, bottom: 22, containLabel: true },
       legend: series.length > 1 ? { top: 0, right: 0, textStyle: { color: t.text2, fontSize: 11 }, icon: 'roundRect', itemHeight: 3, itemWidth: 14 } : undefined,
       tooltip: { trigger: 'axis', valueFormatter: (x: number) => fmt(x, 3) },
       xAxis: { type: 'time', ...ax, splitLine: { show: false } },
-      yAxis: { type: 'value', scale: true, ...ax },
+      yAxis: { type: 'value', scale: true, ...ax, axisLabel: { ...ax.axisLabel, formatter: (v: number) => (Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : Number(v.toPrecision(3)).toString()) } },
       series,
     }
   }, [data, v, startDate, forkDay])

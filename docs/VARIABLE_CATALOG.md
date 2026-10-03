@@ -2,7 +2,7 @@
 
 Generated from `ucsim/config/variables/*.yaml` by `scripts/gen_catalogs.py` — do not edit by hand.
 
-288 variables. Evidence levels: **observed** 11, **empirical** 122, **literature** 32, **calibrated** 102, **extrapolated** 6, **hypothetical** 15.
+296 variables. Evidence levels: **observed** 11, **empirical** 123, **literature** 32, **calibrated** 102, **extrapolated** 7, **hypothetical** 21.
 
 Columns: id · label · type (categories or range) · kind · update cadence · evidence · source · description.
 
@@ -236,6 +236,13 @@ Columns: id · label · type (categories or range) · kind · update cadence · 
 |---|---|---|---|---|---|---|---|
 | `lds_member` | LDS member | bool [0, 1] | attribute | event | calibrated | provostats, institutional targets | Current membership in The Church of Jesus Christ of Latter-day Saints. |
 | `raised_lds` | Raised LDS | bool [0, 1] | attribute | static | empirical | culture-lifestyle |  |
+| `affiliation` | Religious affiliation | cat: Latter-day Saint, Catholic, Protestant, Other Christian, Muslim, Other faith, Nonreligious | attribute | event | extrapolated | assumption informed by PRRI American Values Atlas (Utah) | Current religious identity. Non-LDS shares are assumptions informed by Utah-wide surveys (about half of non-LDS young adults nonreligious); Hispanic students lean Catholic; former members mostly nonreligious. |
+| `own_religiosity` | Importance of own faith (non-LDS) | f4 [0, 1] | belief | weekly | hypothetical | culture-lifestyle | How much a non-LDS person's own religion matters to them (0 for the nonreligious). Drives service attendance and interfaith dating friction. |
+| `congregation_id` | Congregation (non-LDS) | i4 [0, 1] | state | event | empirical | culture-lifestyle | Non-LDS congregation the person attends (-1 none): real Catholic, Protestant and other congregations from UGRC and OpenStreetMap. |
+| `service_attend` | Attends own services (8-wk) | f4 [0, 1] | habit | weekly | hypothetical | culture-lifestyle | Rolling share of weeks a non-LDS person attended their own congregation. |
+| `outsider` | Feels like a religious outsider | f4 [0, 1] | state | weekly | hypothetical | culture-lifestyle | Feeling of being outside Utah County's LDS mainstream: rises with mostly-LDS friends and roommates and with being proselytized; falls with friends who share one's outlook and a faith or secular community. Applies to non-members and to members who have stepped away. |
+| `investigating` | Meeting with missionaries | bool [0, 1] | state | event | hypothetical | culture-lifestyle | A non-member currently taking the missionary lessons (usually introduced by LDS friends or a partner). |
+| `converted` | Joined the Church here | bool [0, 1] | history | event | hypothetical | culture-lifestyle | Baptized during the simulation. |
 | `activity` | Church activity | cat: non_member, inactive, less_active, active | habit | weekly | empirical | provostats | Activity category derived from the rolling sacrament-attendance rate (≥0.6 active, ≥0.15 less active). |
 | `faith_belief` | Belief in doctrine | f4 [0, 1] | belief | weekly | empirical | culture-lifestyle, provostats | Strength of belief in core church doctrine (latent). Updated weekly by social influence, spiritual experiences, faith challenges and belief–behavior dissonance. |
 | `faith_certainty` | Religious certainty | f4 [0, 1] | belief | weekly | calibrated | culture-lifestyle | Confidence in one's beliefs (distinct from belief level). Low certainty increases susceptibility to social influence. |
@@ -349,6 +356,7 @@ Columns: id · label · type (categories or range) · kind · update cadence · 
 | `world.app_appeal` | Dating-app appeal multiplier | f4 | state | daily | calibrated |  | Scales app adoption/engagement (e.g. a new app takes off). |
 | `world.coffee_permitted` | Coffee permitted by church | bool | state | daily | hypothetical |  | Word of Wisdom norm switch (hypothetical intervention). |
 | `world.contracted_housing_required` | BYU contracted-housing requirement | bool | state | daily | calibrated |  | Single first-year BYU undergraduates must live on campus or in BYU-contracted housing (BYU policy since fall 2022: first two semesters only). |
+| `world.interfaith_welcome` | Interfaith welcome initiative | f4 | state | daily | hypothetical |  | 0-1: how actively campuses and wards welcome people of other faiths and none (lowers the religious-outsider feeling). |
 | `world.contracted_housing_all_years` | Contracted housing for all years (pre-2022 rule) | bool | state | daily | hypothetical |  | When true, the requirement covers every single BYU undergraduate, as it did before fall 2022. |
 | `world.mission_norm` | Mission participation norm | f4 | state | daily | calibrated |  | Multiplier on mission-departure hazard. |
 | `world.men_initiate_norm` | Men-ask norm strength | f4 | state | daily | calibrated |  | How strongly dating initiation is expected of men. |

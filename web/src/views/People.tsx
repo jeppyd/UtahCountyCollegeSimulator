@@ -71,7 +71,7 @@ export default function People() {
         <>
           <div className="row" style={{ marginBottom: 8 }}>
             <span className="small muted">Quick groups:</span>
-            {QUICK.slice(0, 8).map(qk => <button key={qk.label} className="chip" onClick={() => setCohort(qk.conds)}>{qk.label}</button>)}
+            {QUICK.slice(0, 9).map(qk => <button key={qk.label} className="chip" onClick={() => setCohort(qk.conds)}>{qk.label}</button>)}
           </div>
           <CohortBar n={data.n} />
           {data.loading && !data.mask ? <Loading /> : (

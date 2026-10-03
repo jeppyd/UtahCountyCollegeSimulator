@@ -16,6 +16,15 @@ from .structure import (BYU, GEO, UVU, HousingAssigner, build_fhe_groups, build_
 from .synth import Synthesizer, load_world_cfg, zscore
 
 
+def load_congregations() -> dict:
+    """Non-LDS congregations (scripts/build_congregations.py) as column arrays."""
+    import json
+    f = GEO / "congregations.json"
+    rows = json.loads(f.read_text(encoding="utf-8")) if f.exists() else []
+    return {"name": [r["name"] for r in rows], "affiliation": [r["affiliation"] for r in rows],
+            "lon": np.array([r["lon"] for r in rows], float), "lat": np.array([r["lat"] for r in rows], float)}
+
+
 def build_world(scale: float | None = None, seed: int = 1, verbose: bool = False, overrides: dict | None = None) -> World:
     t0 = time.time()
     reg = get_registry()
@@ -305,6 +314,7 @@ def build_world(scale: float | None = None, seed: int = 1, verbose: bool = False
     world = World(reg=reg, params=params, cfg=cfg, scale=scale, seed=seed,
                   start_date=dt.date.fromisoformat(cfg["start_date"]), P=P, E=E, units=units, complexes=cx,
                   wards=wards, employers=employers, venues=venues, meetinghouses=mh)
+    world.congregations = load_congregations()
     world.meta["build_seconds"] = time.time() - t0
     world.meta["synthesizer"] = sy
     return world

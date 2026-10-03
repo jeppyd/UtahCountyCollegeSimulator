@@ -6,6 +6,7 @@ The React workstation (web/) talks to /api/*.  All heavy reads are columnar and 
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import struct
 import threading
@@ -105,9 +106,10 @@ class Workspace:
             traceback.print_exc()
             self.job = {"state": "error", "error": repr(e)}
 
-    def step(self, days: int = 0, hours: int = 0):
+    def step(self, days: int = 0, hours: int = 0, pace: float = 0.0):
+        """Advance both universes. `pace` = minimum seconds per simulated day (the slow "watch it" speed)."""
         try:
-            self.job = {"state": "running", "progress": 0, "total": days or 1, "started": time.time()}
+            self.job = {"state": "running", "progress": 0, "total": days or 1, "started": time.time(), "pace": pace}
             if hours and not days:
                 with self.lock:
                     for s in (self.base, self.alt):
@@ -116,6 +118,7 @@ class Workspace:
             for k in range(days):
                 if self.job.get("cancel"):
                     break
+                t_day = time.time()
                 with self.lock:
                     self.base.step_day()
                     if self.alt is not None:
@@ -124,6 +127,8 @@ class Workspace:
                             self.divergence.append(runner.divergence(self.base, self.alt))
                     self.compare_cache = None
                 self.job["progress"] = k + 1
+                while pace and time.time() - t_day < pace and not self.job.get("cancel"):
+                    time.sleep(0.05)
             self.job = {"state": "idle"}
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
@@ -186,8 +191,104 @@ def step(body: dict = Body(default={})):
     if "until_day" in body:
         days = max(0, int(body["until_day"]) - WS.base.w.day)
     hours = int(body.get("hours", 0))
-    threading.Thread(target=WS.step, args=(days, hours), daemon=True).start()
-    return {"ok": True, "days": days, "hours": hours}
+    pace = float(body.get("pace", 0.0))
+    threading.Thread(target=WS.step, args=(days, hours, pace), daemon=True).start()
+    return {"ok": True, "days": days, "hours": hours, "pace": pace}
+
+
+@app.get("/api/validation")
+def validation():
+    """The latest validation report and four-year stability check (scripts/validate.py, scripts/stability.py)."""
+    cfg = Path(__file__).resolve().parents[1] / "config"
+    out = {}
+    for key, name in (("validation", "validation.json"), ("stability", "stability.json")):
+        f = cfg / name
+        out[key] = json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
+    return jresp(out)
+
+
+@app.get("/api/calendar")
+def calendar():
+    """The academic year around today as labelled segments (terms and breaks), for the time ribbon."""
+    if WS.base is None:
+        raise HTTPException(404, "no world")
+    sim = WS.base
+    cal, day = sim.cal, sim.w.day
+    today = cal.date(day)
+    y0 = today.year if (today.month, today.day) >= (8, 24) else today.year - 1
+    start = dt.date(y0, 8, 24)
+    end = dt.date(y0 + 1, 8, 23)
+    segs = []
+    for t in cal.byu_terms:
+        yr = y0 if int(t["start"][:2]) >= 8 else y0 + 1
+        s = dt.date(yr, int(t["start"][:2]), int(t["start"][3:]))
+        e = dt.date(yr, int(t["end"][:2]), int(t["end"][3:]))
+        segs.append({"label": f"{t['name']} {'semester' if t['name'] in ('Fall', 'Winter') else 'term'}", "kind": "term",
+                     "start": (s - cal.start).days, "end": (e - cal.start).days})
+    segs.sort(key=lambda s: s["start"])
+    full, cur = [], (start - cal.start).days
+    for s in segs:
+        if s["start"] > cur:
+            gap = cal.date(cur)
+            label = "Christmas break" if gap.month == 12 else "Break" if s["start"] - cur < 14 else "Summer break"
+            full.append({"label": label, "kind": "break", "start": cur, "end": s["start"] - 1})
+        full.append(s)
+        cur = s["end"] + 1
+    last = (end - cal.start).days
+    if cur <= last:
+        full.append({"label": "Late-summer break", "kind": "break", "start": cur, "end": last})
+    fork_day = getattr(WS.alt, "meta_fork_day", None) if WS.alt is not None else None
+    return jresp({"year": f"{y0}-{str(y0 + 1)[2:]}", "start": (start - cal.start).days, "end": last, "today": day,
+                  "fork_day": fork_day, "segments": full, "start_date": str(cal.start)})
+
+
+@app.get("/api/positions/day")
+def positions_day(u: str = "base"):
+    """Where everyone was at 8am, 1pm, 6pm and night on the last full simulated day (map day replay)."""
+    sim = WS.sim(u)
+    with WS.lock:
+        fr = getattr(sim.systems["activity"], "day_frames", {}) or {}
+        if len(fr) < 5:
+            raise HTTPException(404, "run at least one full day first")
+        P = sim.w.P
+        n = P.n
+        cols = {}
+        for b in range(4):
+            lon, lat, act = fr[b]
+            pad = n - len(lon)
+            cols[f"lon{b}"] = (np.r_[lon, np.full(pad, np.nan, np.float32)].astype(np.float32), {})
+            cols[f"lat{b}"] = (np.r_[lat, np.full(pad, np.nan, np.float32)].astype(np.float32), {})
+            cols[f"act{b}"] = (np.r_[act, np.zeros(pad, np.uint8)].astype(np.uint8), {"categories": P.specs["activity_now"].categories})
+        cols["day"] = (np.array([fr["day"]], np.int32), {"date": str(sim.cal.date(fr["day"]))})
+        return Response(pack_columns(cols), media_type="application/octet-stream")
+
+
+@app.get("/api/history/frames")
+def history_frames(var: str = "rel_status", u: str = "base", max_frames: int = 40):
+    """Homes and one tracked variable at each history snapshot (map 'months go by' playback)."""
+    sim = WS.sim(u)
+    with WS.lock:
+        H, P = sim.systems["history"], sim.w.P
+        if not H.tracked(var):
+            raise HTTPException(400, f"{var} is not tracked over time")
+        snaps = H.snaps
+        if len(snaps) > max_frames:
+            idx = np.unique(np.linspace(0, len(snaps) - 1, max_frames).round().astype(int))
+            snaps = [snaps[i] for i in idx]
+        cols, days = {}, []
+        spec = P.specs[var]
+        for k, s in enumerate(snaps):
+            lon, lat = H.homes(s)
+            x, _ = H.values(var, s["day"])
+            cols[f"lon{k}"] = (lon, {})
+            cols[f"lat{k}"] = (lat, {})
+            if spec.dtype in ("cat", "bool"):
+                cols[f"v{k}"] = (x.astype(np.uint8), {"categories": spec.categories} if spec.dtype == "cat" else {"bool": True})
+            else:
+                cols[f"v{k}"] = (x.astype(np.float32), {})
+            days.append(s["day"])
+        cols["days"] = (np.array(days, np.int32), {"dates": [str(sim.cal.date(d)) for d in days]})
+        return Response(pack_columns(cols), media_type="application/octet-stream")
 
 
 @app.post("/api/cancel")
@@ -689,7 +790,12 @@ def venues():
     if sim is None:
         raise HTTPException(404)
     v = sim.w.venues
-    return jresp(v.select("venue_id", "name", "vtype", "lon", "lat").to_dicts())
+    rows = v.select("venue_id", "name", "vtype", "lon", "lat").to_dicts()
+    C = getattr(sim.w, "congregations", None) or {}
+    for k, nm in enumerate(C.get("name", [])):
+        rows.append({"venue_id": -1 - k, "name": f"{nm} ({C['affiliation'][k]})", "vtype": "congregation",
+                     "lon": float(C["lon"][k]), "lat": float(C["lat"][k])})
+    return jresp(rows)
 
 
 @app.get("/api/places/wards")

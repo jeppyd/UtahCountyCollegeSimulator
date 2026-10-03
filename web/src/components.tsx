@@ -174,6 +174,7 @@ export const QUICK: { label: string; conds: Cond[] }[] = [
   { label: 'Single women 18–23', conds: [{ var: 'sex', op: 'eq', value: 'F' }, { var: 'age', op: 'between', value: [18, 23] }, { var: 'rel_status', op: 'in', value: ['single', 'talking'] }] },
   { label: 'Returned missionaries', conds: [{ var: 'mission_status', op: 'in', value: ['returned', 'early_returned'] }] },
   { label: 'Active LDS', conds: [{ var: 'activity', op: 'eq', value: 'active' }] },
+  { label: 'Other faiths or none', conds: [{ var: 'lds_member', op: 'eq', value: false }] },
   { label: 'Married', conds: [{ var: 'rel_status', op: 'eq', value: 'married' }] },
   { label: 'Broken up (90 days)', conds: [{ recent_event: 'breakup_received', days: 90 }] },
   { label: 'Lonely (top 20%)', conds: [{ var: 'loneliness', op: 'quantile_ge', value: 0.8 }] },

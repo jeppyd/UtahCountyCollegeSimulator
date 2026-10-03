@@ -33,6 +33,7 @@ class World:
     env: dict = field(default_factory=dict)        # world-level variables (temp, unemployment, rent index…)
     sections: dict = field(default_factory=dict)   # class sections for the current term
     groups: dict = field(default_factory=dict)     # clubs, intramural teams, institute classes (systems/groups.py)
+    congregations: dict = field(default_factory=dict)  # non-LDS congregations (geo/data/congregations.json)
     meta: dict = field(default_factory=dict)
 
     @property

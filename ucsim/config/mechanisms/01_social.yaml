@@ -90,6 +90,7 @@ mechanisms:
       club: {value: 1.1, range: [0.5, 1.8]}
       team: {value: 1.6, range: [0.8, 2.4]}
       institute: {value: 0.8, range: [0.3, 1.4]}
+      congregation: {value: 1.0, range: [0.4, 1.6]}
     evidence: calibrated
     refs: ["Festinger, Schachter & Back (1950): propinquity in student housing", "Kossinets & Watts (2006) Science: shared foci (classes) drive tie formation"]
     desc: Opportunity structure — whom a person can meet depends on where they are.

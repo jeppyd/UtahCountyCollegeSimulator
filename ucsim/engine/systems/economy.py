@@ -113,6 +113,15 @@ class Economy:
             P.cols["employer_id"][ids] = (sim.u("emp")[ids] * len(emp["type"])).astype(int)
             sim.systems["activity"].assign_shifts(ids)
             sim.emit("job_found", ids, mech="economy.job_find")
+        # students with little money pressure and heavy coursework quit to focus on school
+        q = p("economy.quit.base") * (1 + 2 * P["academic_pressure"])
+        quit_ = present & P["employed"] & P["enrolled"] & (P["financial_stress"] < 0.3) & ~np.isin(P["job_type"], [9, 10]) & (sim.u("quit") < q)
+        if quit_.any():
+            ids = np.where(quit_)[0]
+            P.cols["employed"][ids] = False
+            P.cols["work_hours"][ids] = 0
+            P.internal["shift_mask"][ids] = 0
+            sim.emit("quit_job", ids, mech="economy.quit")
         # financial stress pushes students to work more (crowding out study)
         thr = p("economy.work_more.threshold")
         more = present & P["employed"] & P["enrolled"] & (P["financial_stress"] > thr) & (P["work_hours"] < 32)

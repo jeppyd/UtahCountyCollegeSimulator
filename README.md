@@ -47,14 +47,21 @@ python -m ucsim.ingest.priors                                          # data/ra
 
 ## Using it
 
-- **Clock**: step +1 hour … +1 year or run until a date (top bar).
-- **Cohort bar**: filter by any variable (or recent events, household composition); the cohort follows you across views.
-- **Map**: people where they are right now, homes, complexes and wards colored by any variable; diff mode between universes.
-- **People → Person**: each feeling decomposed into mechanism terms and recent events ("why"), goals, faith dimensions, ego network, life timeline, and the counterfactual life in the intervention universe.
-- **Explore / Cross-tabs**: distributions, scatter + regression, χ² and Cramér's V, drill into any bar.
-- **Events**: the log with causal chains (ancestors and consequences).
-- **Scenario lab**: queue presets or custom interventions (world / mechanism parameter / agent / new venue), branch a paired universe, compare outcomes with exact mechanism attribution, run Monte Carlo and parameter sweeps.
-- **Causal web, Variables, Mechanisms**: the model's structure with evidence levels on every node.
+Start on **Home** (this week in Provo, vital signs, ready-made questions) and the **Field guide** (how the
+world works, in plain language). The top bar has **▶ Play / ⏸ Pause** (Watch or Fast pace), **+1 week**
+and **Jump ▾**; the calendar ribbon under it shows the academic year and runs to any date you click.
+
+| I want to… | Go to |
+|---|---|
+| see the big picture | Home, Vital signs |
+| see where things happen | Map (people now, homes, complexes, wards, neighborhoods; ▶ replay a day or the months so far) |
+| follow individual lives | People → a person (story, feelings and why, relationships, faith, looks, clubs, congregation) |
+| ask research questions | Explore a measure, Compare groups, Flows over time, Places, Friend network |
+| try a what-if | What-if lab (presets or custom changes, saved experiments; Monte Carlo and sweeps in Advanced) |
+| check the model | Model check (Census and survey comparisons, four-year stability), Data dictionary, Rules, Evidence |
+
+The full guide to the project (use, model, code, data, validation, vision and ideas) is
+[docs/PROJECT_GUIDE.md](docs/PROJECT_GUIDE.md).
 
 ## Programmatic use
 
@@ -81,12 +88,13 @@ print(compare_universes(base, alt)["states"]["financial_stress"])
 | `ucsim/engine/` | state stores, clock, systems, interventions, runner |
 | `ucsim/analysis/`, `ucsim/api/` | query DSL, explanations, FastAPI server |
 | `web/` | React workstation |
-| `scripts/` | validation, static export, catalog generation, geodata |
+| `scripts/` | validation, calibration, stability, static export, catalog generation, data builders |
 | `tests/` | pytest suite (`python -m pytest`) |
-| `docs/` | [ARCHITECTURE](docs/ARCHITECTURE.md) · [DATA_SOURCES](docs/DATA_SOURCES.md) · [MODEL_ASSUMPTIONS](docs/MODEL_ASSUMPTIONS.md) · [VARIABLE_CATALOG](docs/VARIABLE_CATALOG.md) · [MECHANISMS](docs/MECHANISMS.md) · [VALIDATION](docs/VALIDATION.md) · [ROADMAP](docs/ROADMAP.md) · [DEVELOPMENT_LOG](docs/DEVELOPMENT_LOG.md) |
+| `docs/` | [PROJECT_GUIDE](docs/PROJECT_GUIDE.md) · [ARCHITECTURE](docs/ARCHITECTURE.md) · [DATA_SOURCES](docs/DATA_SOURCES.md) · [MODEL_ASSUMPTIONS](docs/MODEL_ASSUMPTIONS.md) · [VARIABLE_CATALOG](docs/VARIABLE_CATALOG.md) · [MECHANISMS](docs/MECHANISMS.md) · [VALIDATION](docs/VALIDATION.md) · [ROADMAP](docs/ROADMAP.md) · [DEVELOPMENT_LOG](docs/DEVELOPMENT_LOG.md) |
 
 ## Status
 
-First solid iteration: the full vertical slice runs end to end, with 38 tests and a one-year validation
-report. Calibration is hand-tuned so far; see `docs/VALIDATION.md` for where the model and surveys still
-disagree and `docs/ROADMAP.md` for what is next.
+Near-final: the full model runs end to end with a guided UI, real Provo/Orem places, religious diversity,
+map replays, an automated calibration loop against the Census and surveys, and a four-year stability check.
+See the in-app **Model check** (or `docs/VALIDATION.md`) for how well it matches real data and
+`docs/ROADMAP.md` for what is next. The natural-language (LLM) layer is deliberately deferred.

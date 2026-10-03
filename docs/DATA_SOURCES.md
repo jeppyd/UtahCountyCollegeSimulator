@@ -46,6 +46,8 @@ replaced with official figures where available (see `ROADMAP.md`).
 | OpenStreetMap via Overpass | named apartment / dormitory / residential outlines (`scripts/fetch_osm_housing.py`) | ODbL |
 | BYU Off-Campus Housing | 2026-27 Contracted Housing List: property names, sizes, addresses (`ucsim/geo/byu_contracted_2026_27.csv`; phone numbers not stored) | public listing |
 | Provo City GIS (ComDev/Neighborhoods) and Orem City GIS (Neighborhoods) | official neighborhood names and outlines only (`scripts/fetch_neighborhoods.py`) | public |
+| UGRC places of worship + OpenStreetMap places of worship | 21 non-LDS congregations (Catholic, Protestant, other Christian, other faiths) (`scripts/build_congregations.py` → `ucsim/geo/data/congregations.json`) | public / ODbL |
+| U.S. Census Bureau ACS 2020–2024 5-year, table B12002, Provo + Orem (via Census Reporter API) | married share by age and sex: the main external benchmark (`ucsim/config/sources/acs_married_share_provo_orem.json`) | public |
 | BYU University Advisement, "Majors List by Colleges & Departments 2025-2026"; UVU academic catalog (catalog.uvu.edu/programs) | majors and colleges (`scripts/build_majors.py` → `ucsim/config/majors.yaml`) | public |
 | OpenFreeMap | optional basemap tiles in the browser | ODbL / OSM |
 

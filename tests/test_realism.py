@@ -112,3 +112,41 @@ def test_flow_and_network_endpoints(api, ran):
     assert g["nodes"] is not None and ((E["flags"] & Tie.ROOMMATE) > 0).any()
     pj = api.get(f"/api/person/{int(np.where(ran.w.P['n_groups'] > 0)[0][0])}").json()
     assert pj["groups"] and pj["looks"]["height_in"] > 0
+
+
+def test_non_lds_affiliation_congregations_and_baptism(fresh):
+    from ucsim.engine.runner import new_simulation
+    sim = new_simulation(scale=0.04, seed=19)
+    P, C = sim.w.P, sim.w.congregations
+    assert len(C["name"]) >= 10 and "Catholic" in C["affiliation"]
+    lds = P["lds_member"]
+    assert (P.is_("affiliation", "Latter-day Saint") == lds).all()
+    uvu = P["enrolled"] & (P["school"] == 2)
+    assert 0.2 < (~lds[uvu]).mean() < 0.4
+    religious = ~lds & ~P.is_("affiliation", "Nonreligious") & ~P.is_("affiliation", "Muslim") & (P["own_religiosity"] > 0.3)
+    assert (P["congregation_id"][religious] >= 0).mean() > 0.9
+    assert (P["congregation_id"][lds] == -1).all()
+    sim.run_days(14)
+    non = np.where(~P["lds_member"] & P["present"])[0][:3]
+    sim.systems["faith"].baptize(non)
+    assert P["lds_member"][non].all() and P["converted"][non].all()
+    assert (P["ward_id"][non] >= 0).all() and P.is_("activity", "active")[non].all()
+    assert (P.is_("affiliation", "Latter-day Saint")[non]).all()
+
+
+def test_married_newcomers_arrive_with_spouses():
+    from ucsim.engine.runner import new_simulation
+    sim = new_simulation(scale=0.03, seed=23)
+    P = sim.w.P
+    n0 = P.n
+    sim.systems["lifecourse"]._annual_cohort()       # this fall's new students (incl. graduate students)
+    sim.run_days(5)
+    new = np.arange(n0, P.n)
+    mar = new[P.is_("rel_status", "married")[new] & P["present"][new]]
+    assert len(mar) > 0
+    partner = P["partner_id"][mar]
+    assert (partner >= 0).all()
+    assert (P["partner_id"][partner] == mar).all()
+    assert (P["unit_id"][mar] == P["unit_id"][partner]).mean() > 0.95
+    grads = new[P.is_("class_standing", "graduate")[new]]
+    assert len(grads) > 0

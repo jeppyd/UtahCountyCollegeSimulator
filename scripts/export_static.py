@@ -225,6 +225,11 @@ def main():
         put("sweep.json", {"state": "none"})
 
     put("index.json", index)
+    # static hosts may not serve raw binaries: ship every .bin (data and map layers) as base64 text
+    import base64
+    for f in list(out.parent.rglob("*.bin")):
+        f.with_name(f.name + ".txt").write_bytes(base64.b64encode(f.read_bytes()))
+        f.unlink()
     total = sum(sizes.values())
     big = sorted(sizes.items(), key=lambda kv: -kv[1])[:6]
     print(f"exported {len(sizes)} files, {total / 1e6:.1f} MB in {time.time() - t0:.0f}s; largest: {[(k, round(v / 1e6, 2)) for k, v in big]}")

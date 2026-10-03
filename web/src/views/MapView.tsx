@@ -3,7 +3,7 @@ import { GeoJsonLayer, LineLayer, ScatterplotLayer, SolidPolygonLayer } from '@d
 import maplibregl from 'maplibre-gl'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { cohortMask, fmt, quantile } from '../analysis'
-import { api, Column, STATIC } from '../api'
+import { api, Column, fetchBytes, STATIC } from '../api'
 import { CohortBar, cssVar, divColor, hexRgb, seqColor, VarPicker } from '../components'
 import { nameOf } from '../names'
 import { loadColumns, useStore } from '../store'
@@ -13,7 +13,7 @@ const CENTER: [number, number] = [-111.672, 40.262]
 
 let buildingsCache: Promise<any[]> | null = null
 function loadBuildings(): Promise<any[]> {
-  if (!buildingsCache) buildingsCache = fetch(api.geo('buildings.bin')).then(r => r.arrayBuffer()).then(buf => {
+  if (!buildingsCache) buildingsCache = fetchBytes(api.geo('buildings.bin')).then(buf => {
     const dv = new DataView(buf)
     const n = dv.getInt32(0, true)
     const lon0 = dv.getFloat64(4, true), lat0 = dv.getFloat64(12, true)

@@ -130,7 +130,7 @@ function Compare() {
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="row">
           <div><h3>Intervention universe (branched on day {status.fork_day})</h3>
-            <div className="row small">{c.interventions.map((i: any, k: number) => <span key={k} className="pill">{i.name ?? i.preset ?? `${i.target} ${i.op} ${i.value}`}</span>)}</div></div>
+            <div className="row small">{[...new Set<string>(c.interventions.map((i: any) => i.name ?? i.preset ?? `${i.target} ${i.op} ${i.value}`))].map(label => <span key={label} className="pill">{label}</span>)}</div></div>
           <span className="spacer" />
           {!STATIC && <button className="btn" onClick={async () => { await api.unfork(); await refreshStatus() }}>Discard intervention universe</button>}
         </div>

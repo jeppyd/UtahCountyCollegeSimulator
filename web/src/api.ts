@@ -30,10 +30,23 @@ export function decodePack(buf: ArrayBuffer): Record<string, Column> {
   return out
 }
 
-async function bin(url: string) {
+// Static hosts may refuse raw binary files, so the static export ships each .bin as base64 text (.bin.txt).
+export async function fetchBytes(url: string): Promise<ArrayBuffer> {
+  if (STATIC && url.endsWith('.bin')) {
+    const r = await fetch(url + '.txt')
+    if (!r.ok) throw new Error(`${r.status} ${url}`)
+    const s = atob((await r.text()).trim())
+    const out = new Uint8Array(s.length)
+    for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i)
+    return out.buffer
+  }
   const r = await fetch(url)
   if (!r.ok) throw new Error(`${r.status} ${url}`)
-  return decodePack(await r.arrayBuffer())
+  return r.arrayBuffer()
+}
+
+async function bin(url: string) {
+  return decodePack(await fetchBytes(url))
 }
 
 // ---------------------------------------------------------------- static helpers

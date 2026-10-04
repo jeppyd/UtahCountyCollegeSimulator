@@ -16,13 +16,17 @@ places, make friends, date, marry, doubt, believe, struggle with money, feel lon
 missions, graduate and move away. Every meaningful change is recorded as an event with the rule that
 caused it and the event that led to it, so any outcome can be traced back to its causes.
 
-Three kinds of use, all in one app:
+It is built as **the engine of a professional social simulation with the interface of a simulation game**.
+The normal experience is a loop: *wonder "what if…?" → change something → let time run → watch the world
+react → notice something → click it → follow the chain → compare the other world → change something
+else.* The research tools are all still there, one layer down.
 
 | Use | Where in the app | Example |
 |---|---|---|
-| **What-if experiments** | What-if lab | "If rent rose 20%, what happens to dating and loneliness over a semester?" |
-| **Research questions** | Explore a measure, Compare groups, Flows over time, Places | "Do clubs and intramurals make students less lonely?" |
-| **Following individual lives** | People, a person's page, Follow | "Why is this person lonely? What happened to them this year?" |
+| **What-if experiments** | What if…? (anywhere), What-if | "If rent rose 20%, what happens to dating and loneliness over a semester, and to whom?" |
+| **Exploring the data** | Explore (every field), Places, Relationships, Events | "How is loneliness spread out, how has it changed, and who is loneliest?" |
+| **Following individual lives** | People, a person's page, Follow, Pin | "Why is this person lonely? What would their life look like in the other world?" |
+| **Research** | Research desk | Cross-tabs, flows, cause & effect, Monte Carlo, sweeps, validation |
 
 Design principles that run through everything:
 
@@ -53,49 +57,61 @@ cd web && npm install && npm run build && cd ..
 python -m ucsim.api.server            # open http://127.0.0.1:8000
 ```
 
-The first screen builds a world: pick a **scale** (share of the real community: 0.05 ≈ 3k people for quick
-looks, 0.15 ≈ 9k, 0.3 ≈ 18k, 1.0 ≈ 60k), a seed, and warm-up days. Use **World ⚙** later to rebuild.
+The title screen builds a world: pick a **size** (share of the real community: Quick ≈ 3k people, Standard
+≈ 9k, Detailed ≈ 18k, Full ≈ 60k), a **world number** (the random seed: the same number always gives the
+same people and history) and warm-up days. Settings (the gear) rebuilds later.
 
 **Read-only snapshot.** `scripts/export_static.py` exports a pre-run world (with a what-if branch) as a
-static site that runs in any browser, including the published demo page. Running time needs the app.
+static site that runs in any browser, including the published demo page: every page, both worlds and the
+butterfly views work; running time, making changes and searching people by name need the app.
 
 ---
 
 ## 3. Using the app
 
 ### The shell
-- **Top bar**: date and place in the academic year; **▶ Play / ⏸ Pause** with a **Watch** pace (about one
-  simulated day per second) or **Fast**; **+1 week**; **Jump ▾** (+1 hour, day, month, semester, year,
-  four years, or run until a date); the **Original / What-if** switch when a what-if world exists; world
-  settings; theme.
-- **Calendar ribbon** under the top bar: this academic year's semesters, terms and breaks, today (blue line),
-  what has already happened (hatched), and where a what-if world split off (dashed line). Click any future
-  date to run there, normally or at the watchable pace.
-- **Simple / Advanced** (bottom left): Simple hides expert tools (rules list, custom interventions, Monte
-  Carlo, sweeps, raw tables) and uses plain language throughout.
-- **Cohort bar** on analysis pages: a group of people (e.g. "single UVU women 20–23 who broke up in the last
-  90 days") that follows you from page to page until cleared.
+- **The clock** (top left): date, time of day (the sky turns to night) and place in the semester; it glows
+  green while time runs.
+- **Speeds**: **⏸ ▶ ▶▶ ▶▶▶** (pause; about a day per 1.4 s; about two days a second; as fast as possible).
+  **+1d**, **+1w** and **Jump ▾** (an hour, a month, a semester, a year, four years, a date).
+- **The world lens**: once a What-if world exists, **Original / What-if / Compare** decides what every page
+  shows. Compare puts the worlds side by side (Original blue, What-if orange) everywhere: charts overlay both,
+  tables gain a second column, people pages show both lives.
+- **The butterfly meter**: the share of people whose lives differ between the worlds; click for the What-if page.
+- **Search anything** (`/` or `Ctrl K`): every field, person, place, event type, what-if idea, page and action.
+- **What if…?** (or Change more): the drawer for changing the world, from anywhere.
+- **Calendar ribbon** under the top bar: semesters and breaks, today, the past (hatched), the split (dashed).
+  Click a future date to run there.
+- **News pop-ups**: the biggest moments appear as time runs (followed people first); after any jump of a
+  week or more a **recap** card sums up what happened, including how far the worlds drifted. Toggle in settings.
+- **The filter** ("Showing: …") on Explore, People, Map and Relationships: a group of people that follows you
+  across pages until cleared. In Compare, the filter picks people in the Original and follows the same people
+  into the What-if.
+- **Keys**: Space play/pause, 1/2/3 lens, `.` +1 day, `>` +1 week, `/` search, Esc close.
+- **Settings** (gear): theme, news pop-ups, **research details** (formulas, evidence labels and parameters
+  inside pages), build a new world.
 
-### Pages
-| Page | What it answers |
+### The world (places you can go)
+| Area | What it answers |
 |---|---|
-| **Home** | What happened this week (story feed), vital signs with trends, a gallery of ready-made questions, people you follow, lives worth following. |
-| **Field guide** | How the world works, in plain language: layers, what a person is made of, how relationships, feelings and faith work, how time works and how to use it, what-if experiments, how sure we are, where to go for what, glossary. |
-| **Vital signs** | Population trends over time for both worlds; what people are doing right now; where friendships and romances began. |
-| **Map** | People where they are right now; homes, complexes and wards colored by any measure; neighborhoods, venues and congregations; difference between worlds. **▶ A day** replays the last full day (8am, 1pm, 6pm, night); **▶ Over months** replays the two-week snapshots with homes colored by any tracked measure. |
-| **Friend network** | A sampled friendship graph, colored by church activity, school, sex or relationship; filter by tie type (roommates, classmates, ward, clubs, teams, institute, congregation, couples); same-group mixing (homophily). |
-| **People / Person** | Search and follow people. A person page tells their story (events with "why?" chains), how they feel and why (each feeling split into its causes), relationships, faith, personality, physical description, major, home and neighborhood, clubs, congregation, and how their life differs in the what-if world. |
-| **Life events** | Every event with counts, filters and causal chains (what led to it, what followed). |
-| **Explore a measure** | Distribution of any measure, split by a group, or plotted against another; "Why is this group different?" breaks a gap into the model's forces with example lives. |
-| **Compare groups** | Survey-style cross-tabs with strength of association; click a cell to make those people your group. |
-| **Flows over time** | Sankey diagrams of who moved between states (single → dating → married; active → less active; affiliations; living situations) and the trajectories of today's group. Pick a band to study exactly those people. |
-| **Places** | Complexes and wards ranked by any measure; profiles of each place: who lives there, how connected they are, what happened there. |
-| **What-if lab** | Three steps: choose changes (presets grouped by theme, or custom ones in Advanced), how long to watch, then see what changed in plain language with the rules responsible and the people most affected. Save combinations to rerun. Advanced: many runs (Monte Carlo) and parameter sweeps. |
-| **Cause & effect** | The web of rules connecting every measure. |
-| **Model check** | How the simulation compares with the Census and the surveys, row by row, and whether it stays steady over four years. |
-| **Data dictionary / Rules / Evidence & sources** | Every measure and rule with its definition, formula, parameters, evidence and references; data sources and limitations. |
+| **World** | The landing page: a living map of everyone moving through yesterday (8am → 1pm → 6pm → night, colored by activity), headlines (a few of each kind), what people did in each part of the day, this week's counts (pairs counted once), what's moving (biggest four-week changes), the two worlds (or one-click what-ifs), your pinned board, lives worth following, curiosities. |
+| **Map** | People now or at home colored by any field; complexes and wards; neighborhoods, venues and congregations; ▶ replay a day or the months. In Compare, each person is colored by how much their own value differs between the worlds. |
+| **People / a person** | Search, sort, follow, pin. A person is a life: *Now* (meters for how they're doing, what they want, standing among everyone, where they belong), *Their people* (ego network, how they met), *Feelings* (each split into its causes), *School & work*, *Faith*, *Money & home*, *Story*, *History* (two-weekly life strips and trajectories, both worlds), *Other life* (both headlines, the first fork in their road with its chain of causes, what differs now, friends gained and lost, both lives since the split), *Everything*. |
+| **Relationships** | Couples by stage (newest first, how they met), the friendship network, how people meet and what holds friendships together; in Compare, couples and friendships that exist in only one world. |
+| **Places / Events** | Places ranked by any field, with profiles; in Compare, where the What-if changed things most. Every event type with counts in both worlds and a readable story log with "why?" chains. |
+| **What-if** | Without a What-if world: the change builder. With one: the butterfly view — *Overview* (drift over time, lives that changed most, biggest changes, events, couples), *All fields* (every field side by side, ranked by a standardized shift or by how many people changed, with a line of the difference since the split), *Events*, *Lives*, *Relationships*, *Places*, *Why* (each feeling's change split into rules, and the rules doing the most work). |
+| **Explore** | The field pane: 217 fields in 13 drawers (Feelings, Friends & social life, Dating & romance, What they look for, Faith, Values & intimacy, School, Work & money, Home & neighborhood, Habits & interests, Personality, Background & body, Right now), searchable, with live values or Original → What-if changes. For the chosen field: key numbers, *Right now* (distribution), *Over time* (weekly for any field and group; your filter's own trajectory for the 41 fields kept per person), the butterfly person by person, *Compare groups*, *Relate to another field*, *The people behind it*, *What drives it* (rules in and out, with evidence, and events that shift it), and "why is your group different?". Pin any field to your board. |
+| **Research desk** | Vital signs, flows over time, cross-tabs, cause & effect, experiments (Monte Carlo and sweeps), model check, data dictionary, rules, evidence & sources. |
+| **How it works** | How to play, then the model in plain language: layers, what a person is made of, relationships, feelings, faith, time, what-ifs, how sure we are, where to go for what, glossary. |
 
----
+### Changing the world
+The drawer has three tabs. **Ideas**: 20 ready-made scenarios grouped by theme, each with a confidence label.
+**Levers**: sliders for world settings (rent, tuition at each school, wages, unemployment, housing supply,
+incoming students, transit, dating-app appeal, the expectation that men ask, pressure to marry young, social
+media, church attendance norm, mission participation, interfaith welcome, coffee, the contracted-housing rules,
+temperature). **People & rules**: nudge a field for a group of people once (e.g. raise belief for lonely
+freshmen), or make one of the model's rules stronger or weaker. Pick how long to run, then **Split the world**.
+With a What-if running you can **Add to What-if** (more changes from today) or **Start a new What-if**.
 
 ## 4. The model
 
@@ -255,19 +271,32 @@ ucsim/                      Python package
     systems/                environment, lifecourse, academics, activity, groups, encounters, network,
                             romance, emotion, faith, norms, economy, housing, recorder, history
   analysis/                 query.py (cohort DSL incl. transitions), explain.py (attribution, ego nets,
-                            goals), person.py (profiles)
-  api/server.py             FastAPI app: ~45 endpoints, binary columnar transport for large arrays
+                            goals), person.py (profiles), butterfly.py (Original vs What-if: every field,
+                            diverged lives, one person's two lives, couples/friendships, places),
+                            fields.py (field summaries and timelines, person history, the pulse, couples)
+  api/server.py             FastAPI app: ~60 endpoints, binary columnar transport for large arrays
   app.py                    desktop launcher (pywebview window, free port, self-test)
 web/                        React + TypeScript (Vite)
-  src/App.tsx               shell, navigation, routes, error boundary
-  src/time.tsx              play/pause, jumps, calendar ribbon
-  src/store.ts              zustand store (route, cohort, mode, follows, caches)
+  src/App.tsx               shell: HUD, world navigation + research desk, routes, keys, error boundary
+  src/hud.tsx               clock/sky, speeds, jumps, world lens, butterfly meter, settings; timeCtl
+  src/game.tsx, game.css    game building blocks: lens switch, universe badges, meters, sparklines, icons
+  src/fields.ts             the field catalog: drawers, formatting (values, averages, deltas), pair events
+  src/palette.tsx           search anything (Ctrl K)
+  src/toasts.tsx            live news, divergence milestones, time-skip recaps
+  src/nav.ts                the places of the world and the research desk
+  src/time.tsx              the calendar ribbon
+  src/store.ts              zustand store (route, lens, filter, follows, pins, toasts, caches)
   src/api.ts                API client (+ static-snapshot fallbacks)
   src/ui.tsx, components.tsx, analysis.ts, graph.tsx, names.ts
-  src/views/*.tsx           one file per page (Home, Guide, Overview, MapView, Flows, Lab, ModelCheck, …)
+  src/views/                World, MapView, People, PersonView, Relationships, Places, Events,
+                            whatif/ (Change builder + drawer, WhatIf butterfly view), explore/ (FieldPane,
+                            FieldCanvas, FieldExplorer), research pages (Overview, Flows, Crosstab,
+                            CausalWeb, Experiments, ModelCheck, Variables, Mechanisms, About), Guide,
+                            WorldSetup (title and loading screens)
 scripts/                    validate, calibrate, stability, export_static, gen_catalogs, fetch_* /
                             build_* data builders
-tests/                      pytest: engine, population, interventions, analysis/API/privacy, realism
+tests/                      pytest: engine, population, interventions, analysis/API/privacy, realism,
+                            butterfly (game-layer reads and endpoints)
 packaging/                  PyInstaller spec, Inno Setup installer, icon
 .github/workflows/          Windows installer build + self-test + release
 docs/                       this guide and the other references
@@ -324,16 +353,20 @@ a mental-health program, a club fair) and see plausible consequences, with hones
 claim traceable to evidence.
 
 ### Quick wins (high value, low effort)
-1. **Uncertainty by default in the What-if lab**: run 4–8 seeds in the background after a what-if and show
-   ranges on the change cards.
+1. **Uncertainty by default in the What-if view**: run 4–8 seeds in the background after a what-if and show
+   ranges on the change cards and the all-fields scan.
 2. **Calibrate more parameters on a schedule** (friendship formation, loneliness setpoint, faith influence)
    and add the four-year drift to the calibration loss.
-3. **Side-by-side groups**: compare two cohorts on the same chart (e.g. BYU vs UVU, LDS vs not).
-4. **Export**: one-click CSV/PNG for every chart and a "report" page that assembles chosen charts with notes.
+3. **Two filters at once**: compare two groups on the same chart (e.g. BYU vs UVU, LDS vs not) in Explore.
+4. **Export**: one-click CSV/PNG for every chart, and a printable "report" of your pinned board with notes.
 5. **Saved worlds**: save and reload a whole world and its what-if from the UI.
-6. **Search everywhere**: a command palette to jump to any person, measure, place or question.
+6. **Per-person history for more fields**: snapshots are kept for 41 fields; a compact store (8-bit
+   quantized) could cover all 217, so any filter could be followed over time.
 7. **Hourly map scrubber**: show the 8am/1pm/6pm/night frames as named stops on the "A day" slider.
 8. **Real employers**: replace generic "Tech/office" employers with named large employers near each site.
+
+(Done in the game-interface pass: search everywhere, pinned boards, the all-fields comparison, the
+person-level counterfactual with its first fork, time-skip recaps.)
 
 ### Creative ideas for the future
 - **Narrated lives** (the deferred LLM layer): a person's year written as a short story from their event
@@ -344,6 +377,9 @@ claim traceable to evidence.
   Conference weekends, the first snow at Sundance, finals week) as calendar-driven shocks.
 - **Policy sandboxes**: an "administrator mode" for housing offices or ward councils with budgets and
   trade-offs; a "student mode" game where you guide one person through four years.
+- **Challenges**: goals to reach with as few changes as possible ("cut loneliness among freshmen by a tenth
+  without raising rent burden"), scored by the butterfly view, with a leaderboard of strategies.
+- **A third world**: fork the What-if again to compare two policies against the same Original.
 - **Dating-app lab**: different matching algorithms and their effects on who meets whom.
 - **Network epidemiology**: illness or ideas spreading through co-presence and friendship, visible on the map.
 - **Mental-health programs**: peer support, counseling capacity, and outreach targeting tested as what-ifs.

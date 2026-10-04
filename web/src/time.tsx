@@ -1,5 +1,5 @@
-// Time controls: play/pause with a watchable or fast pace, quick steps, and the academic-year ribbon
-// (terms, breaks, today, the what-if split) that you can click to run to a date.
+// The academic-year ribbon (terms, breaks, today, the what-if split) that you can click to run to a date.
+// Play/pause and speed live in the HUD (hud.tsx).
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, STATIC } from './api'
 import { useStore } from './store'
@@ -10,88 +10,6 @@ const dayToIso = (start: string, d: number) => {
   const t = new Date(start + 'T12:00:00')
   t.setDate(t.getDate() + d)
   return t.toISOString().slice(0, 10)
-}
-
-function useOutside(ref: React.RefObject<HTMLElement>, fn: () => void) {
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) fn() }
-    document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [ref, fn])
-}
-
-/** Play / pause, pace, and quick steps. */
-export function TimeControls() {
-  const { status, refreshStatus, mode } = useStore()
-  const job = status?.job ?? {}
-  const running = job.state === 'running'
-  const building = job.state === 'building'
-  const [pace, setPace] = useState<'watch' | 'fast'>(() => (localStorage.getItem('ucsim-pace') as any) || 'watch')
-  const [moreOpen, setMoreOpen] = useState(false)
-  const [until, setUntil] = useState('')
-  const [msg, setMsg] = useState('')
-  const moreRef = useRef<HTMLDivElement>(null)
-  useOutside(moreRef, () => setMoreOpen(false))
-  const playing = running && (job.total ?? 0) >= 3000
-  const step = async (body: any) => {
-    setMoreOpen(false)
-    try { await api.step(body); setTimeout(() => refreshStatus(), 150) } catch (e: any) { setMsg(String(e.message ?? e)) }
-  }
-  const play = () => step({ days: 3650, pace: pace === 'watch' ? 1.0 : 0 })
-  const pause = async () => { await api.cancel(); setTimeout(() => refreshStatus(), 250) }
-  const setP = (p: 'watch' | 'fast') => { setPace(p); try { localStorage.setItem('ucsim-pace', p) } catch { /* private mode */ } }
-  if (STATIC) return <span className="pill">Read-only snapshot · install the app to run time forward</span>
-  const busy = running || building
-  return (
-    <div className="controls" role="group" aria-label="Time">
-      {running
-        ? <button className="btn small primary play" onClick={pause} title="Stop time here">⏸ Pause</button>
-        : <button className="btn small primary play" onClick={play} disabled={building} title={pace === 'watch' ? 'Run day by day, slowly enough to watch pages update' : 'Run as fast as the computer allows'}>▶ Play</button>}
-      <div className="seg small-seg" title="How fast Play runs">
-        <button className={pace === 'watch' ? 'on' : ''} onClick={() => setP('watch')} disabled={running}>Watch</button>
-        <button className={pace === 'fast' ? 'on' : ''} onClick={() => setP('fast')} disabled={running}>Fast</button>
-      </div>
-      {running && !playing && (
-        <>
-          <div className="progress"><i style={{ width: `${(100 * (job.progress ?? 0)) / (job.total || 1)}%` }} /></div>
-          <span className="small muted tabular">{job.progress}/{job.total} days</span>
-        </>
-      )}
-      {playing && <span className="small muted tabular live-dot">running · +{job.progress} days</span>}
-      {!running && (
-        <>
-          {mode === 'advanced' && <button className="btn small" disabled={busy} onClick={() => step({ days: 1 })}>+1 day</button>}
-          <button className="btn small" disabled={busy} onClick={() => step({ days: 7 })}>+1 week</button>
-          <div className="menu-wrap" ref={moreRef}>
-            <button className="btn small" disabled={busy} onClick={() => setMoreOpen(!moreOpen)} aria-expanded={moreOpen}>Jump ▾</button>
-            {moreOpen && (
-              <div className="menu">
-                <button onClick={() => step({ hours: 1 })}>+1 hour <span className="muted">watch the map move</span></button>
-                <button onClick={() => step({ days: 1 })}>+1 day</button>
-                <button onClick={() => step({ days: 30 })}>+1 month</button>
-                <button onClick={() => step({ days: 112 })}>+1 semester <span className="muted">≈16 weeks</span></button>
-                <button onClick={() => step({ days: 365 })}>+1 year</button>
-                <button onClick={() => step({ days: 1461 })}>+4 years <span className="muted">a whole college career</span></button>
-                <div className="menu-sep" />
-                <div className="menu-row">
-                  <label className="small muted" htmlFor="run-until">Run until</label>
-                  <input id="run-until" type="date" value={until} onChange={e => setUntil(e.target.value)} />
-                  <button className="btn small primary" disabled={!until} onClick={() => {
-                    const d0 = new Date(status.date + 'T12:00:00'), d1 = new Date(until + 'T12:00:00')
-                    step({ days: Math.max(0, Math.round((+d1 - +d0) / 864e5)) })
-                  }}>Go</button>
-                </div>
-                <p className="small muted" style={{ margin: '6px 8px 2px', maxWidth: 260 }}>Tip: click any future date on the calendar ribbon below to run to it.</p>
-              </div>
-            )}
-          </div>
-        </>
-      )}
-      {building && <span className="small muted">{job.phase === 'warming up' ? `New world: warming up ${job.progress}/${job.total}` : 'Building new world…'}</span>}
-      {job.state === 'error' && <span className="pill" style={{ color: 'var(--critical)' }}>error: {job.error}</span>}
-      {msg && <span className="pill" onClick={() => setMsg('')} style={{ color: 'var(--critical)', cursor: 'pointer' }}>{msg} ✕</span>}
-    </div>
-  )
 }
 
 /** The academic year as a ribbon: terms and breaks, today, the what-if split; click ahead to run there. */

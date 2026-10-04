@@ -138,22 +138,59 @@ def main():
     put("compare.json", cmp)
     put("causal_graph.json", get("/api/causal_graph").json())
 
+    # ---- the game layer: fields, the butterfly comparison, the world's pulse
+    put("fields_info.json", get("/api/fields/info").json())
+    for u in ("base", "alt"):
+        put(f"fields_summary_{u}.json", clean(get("/api/fields/summary", u=u).json()))
+        put(f"pulse_{u}.json", clean(get("/api/pulse", u=u).json()))
+        put(f"relationships_{u}.json", clean(get("/api/relationships", u=u, limit=200).json()))
+    tl: dict = {"fork_day": getattr(WS.alt, "meta_fork_day", None)}
+    for u, sim in (("base", WS.base), ("alt", WS.alt)):
+        F = sim.systems["recorder"].fields
+        obj = {"days": F["days"]}
+        for g, G in F["groups"].items():
+            gobj = {"n": G["n"]}
+            for v in sim.systems["recorder"].field_vars:
+                spec = sim.w.P.specs[v]
+                if spec.dtype == "cat":
+                    gobj[v] = {"shares": {c: [None if r is None else r[j] for r in G[v]] for j, c in enumerate(spec.categories)}}
+                else:
+                    gobj[v] = {"mean": G[v], **({"pct": F["pct"][v]} if g == "all" and v in F["pct"] else {})}
+            obj[g] = gobj
+        tl[u] = obj
+    put("field_timelines.json", clean(tl))
+    cf = get("/api/compare/fields").json()
+    put("compare_fields.json", clean(cf))
+    diverged = get("/api/compare/people", k=60).json()
+    put("compare_people.json", clean(diverged))
+    put("compare_relationships.json", clean(get("/api/compare/relationships", k=60).json()))
+    places = {}
+    for kind in ("complex", "ward", "neighborhood", "school"):
+        for var in ("loneliness", "mood", "rent_burden", "financial_stress", "n_friends", "dates_30d", "attend_rate", "faith_belief", "belonging", "stress"):
+            places[f"{kind}:{var}"] = get("/api/compare/places", kind=kind, var=var).json()
+    put("compare_places.json", clean(places))
+
     # ---- people
     extra = [r["id"] for rows in cmp.get("most_affected", {}).values() for r in rows[:6]]
+    extra += [r["id"] for r in diverged["people"][:40]]
     featured = {u: get("/api/people/featured", u=u).json() for u in ("base", "alt")}
     for u, rows in featured.items():
         put(f"featured_{u}.json", rows)
         extra += [r["id"] for r in rows]
     people = interesting_people(WS.base, a.people, extra)
     shard, shard_no = {}, 0
+    compare_person = {}
     for k, i in enumerate(people):
         p = get(f"/api/person/{i}").json()
         p["network_full"] = get(f"/api/person/{i}/network").json()
+        p["history"] = clean(get(f"/api/person/{i}/history").json())
+        compare_person[str(i)] = clean(get(f"/api/compare/person/{i}").json())
         shard[str(i)] = p
         index["people"][str(i)] = shard_no
         if len(shard) == 24 or k == len(people) - 1:
             put(f"people/{shard_no}.json", shard)
             shard, shard_no = {}, shard_no + 1
+    put("compare_person.json", compare_person)
 
     # ---- events: recent salient events with their causal chains
     ev = get("/api/events", min_salience=0.55, limit=1500).json()["events"]

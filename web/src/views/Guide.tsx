@@ -1,10 +1,11 @@
 import { ReactNode, useEffect, useMemo } from 'react'
 import { Evidence } from '../components'
+import { G, UBadge } from '../game'
 import { useStore } from '../store'
 import { GLOSSARY, PageHeader } from '../ui'
 
 const SECTIONS: [string, string][] = [
-  ['idea', 'The big idea'], ['layers', 'Layers of the world'], ['person', 'What a person is made of'],
+  ['play', 'How to play'], ['idea', 'The big idea'], ['layers', 'Layers of the world'], ['person', 'What a person is made of'],
   ['relationships', 'How relationships form'], ['feelings', 'How feelings work'], ['faith', 'Faith & religious diversity'], ['time', 'How time works'],
   ['whatif', 'What-if experiments'], ['evidence', 'How sure are we?'], ['where', 'Where to go for what'], ['glossary', 'Glossary'],
 ]
@@ -22,7 +23,7 @@ const KINDS: { kind: string; title: string; speed: string; body: string }[] = [
 ]
 
 export default function Guide({ section }: { section?: string }) {
-  const { registry, status, setRoute } = useStore()
+  const { registry, status, setRoute, openDrawer } = useStore()
   const reg = registry!
   useEffect(() => { if (section) document.getElementById(section)?.scrollIntoView() }, [section])
   const vars = useMemo(() => Object.values(reg.variables), [reg])
@@ -33,13 +34,54 @@ export default function Guide({ section }: { section?: string }) {
   const chip = (id: string) => reg.variables[id] ? <button key={id} className="chip" onClick={() => setRoute(['variables', id])}>{reg.variables[id].label}</button> : null
   return (
     <div className="page">
-      <PageHeader id="guide" eyebrow="Field guide" title="How this world works"
-        sub="A five-minute tour of what is being simulated, how the pieces fit together, and where to go in the app for each kind of question." />
+      <PageHeader id="guide" eyebrow="How it works" title="How to play, and how this world works"
+        sub="A short tour: the controls, the places you can go, what is being simulated, how the pieces fit together, and how sure we are about each part." />
       <div className="guide">
         <nav className="guide-toc" aria-label="Guide sections">
           {SECTIONS.map(([id, t]) => <a key={id} href={`#/guide/${id}`} onClick={e => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }) }}>{t}</a>)}
         </nav>
         <div>
+          <Sec id="play" title="How to play" lede="A serious social simulation underneath; a simulation game in your hands. The whole game is one loop:">
+            <div className="loop" style={{ marginBottom: 14 }}>
+              {['Wonder “what if…?”', 'Change something', 'Let time run', 'Watch the world react', 'Notice something', 'Click it', 'Follow the chain', 'Compare the other world', 'Change something else'].map((s, k, a) => [
+                <span key={s} className="step">{s}</span>, k < a.length - 1 ? <span key={s + 'a'} className="arrow">→</span> : null])}
+            </div>
+            <div className="grid g2">
+              <div className="card">
+                <h3>The top bar</h3>
+                <dl className="dl">
+                  <dt>{G.sun} The clock</dt><dd>Today's date in the simulation, the time of day (the sky turns to night) and where we are in the semester. A green glow means time is running.</dd>
+                  <dt>⏸ ▶ ▶▶ ▶▶▶</dt><dd>Pause, or run at speed 1 (about a day every second and a half, slow enough to read the news), speed 2, or speed 3 (as fast as your computer allows). <b>+1d</b>, <b>+1w</b> and <b>Jump ▾</b> step by a day, a week, a month, a semester, a year or to a date.</dd>
+                  <dt><UBadge u="base" /> <UBadge u="alt" /> Compare</dt><dd>Once you have made a change there are two worlds. This switch decides which one every page shows: the Original, the What-if, or both side by side (Compare).</dd>
+                  <dt>{G.butterfly} The butterfly meter</dt><dd>How many lives differ between the two worlds right now. Click it for the full butterfly view.</dd>
+                  <dt>{G.search} Search anything</dt><dd>Every field, person, place, event type, what-if idea, page and action. Press <span className="kbd">/</span> or <span className="kbd">Ctrl K</span>.</dd>
+                </dl>
+              </div>
+              <div className="card">
+                <h3>The places you can go</h3>
+                <dl className="dl">
+                  <dt>{G.globe} World</dt><dd>The living home page: a map of everyone moving through yesterday, the headlines, this week's counts, what's moving, lives to follow, your pinned board, and the two worlds.</dd>
+                  <dt>{G.map} Map</dt><dd>Everyone where they are, or at home colored by anything; replay a day or the months; in Compare, color each person by how different their life is.</dd>
+                  <dt>{G.people} People</dt><dd>Find, sort and follow individuals. Each person is a life: feelings and why, their people, school and work, faith, money and home, their story, their history, and their other life in the What-if.</dd>
+                  <dt>{G.rings} Relationships</dt><dd>Couples, the friendship network, how people meet, and the couples that exist in only one world.</dd>
+                  <dt>{G.places} Places · {G.events} Events</dt><dd>Complexes, wards and schools by the people in them; and every event with its chain of causes.</dd>
+                  <dt>{G.butterfly} What-if</dt><dd>Change the world and follow the butterfly: every field that moved, events more or less common, lives that diverged, couples, places, and the rules behind it.</dd>
+                  <dt>{G.explore} Explore</dt><dd>All {Object.values(reg.variables).filter(v => v.entity === 'person' && (v.flags ?? []).includes('chart')).length} fields in friendly drawers. Click one: right now, over time, by group, against another field, the people behind it, and what drives it. <b>Pin</b> it to your board.</dd>
+                  <dt>{G.desk} Research desk</dt><dd>The deeper layers: vital-sign trends, flows, cross-tabs, cause & effect, Monte Carlo and sweeps, model check, data dictionary, rules and sources.</dd>
+                </dl>
+              </div>
+            </div>
+            <div className="card" style={{ marginTop: 12 }}>
+              <h3>Handy keys</h3>
+              <p className="small secondary" style={{ margin: 0 }}><span className="kbd">Space</span> play / pause · <span className="kbd">1</span> Original · <span className="kbd">2</span> What-if · <span className="kbd">3</span> Compare · <span className="kbd">.</span> +1 day · <span className="kbd">&gt;</span> +1 week · <span className="kbd">/</span> search · <span className="kbd">Esc</span> close. Your <b>filter</b> (“Showing: …”) follows you across pages until you clear it. Settings (the gear) holds the theme, news pop-ups and research details.</p>
+              <div className="row" style={{ marginTop: 10 }}>
+                <button className="btn primary" onClick={() => openDrawer({})}>{G.butterfly} Make your first change</button>
+                <button className="btn" onClick={() => setRoute(['explore', 'loneliness'])}>{G.explore} Browse every field</button>
+                <button className="btn" onClick={() => setRoute(['world'])}>{G.globe} Back to the world</button>
+              </div>
+            </div>
+          </Sec>
+
           <Sec id="idea" title="The big idea">
             <p className="lede">This is a miniature Provo and Orem. About {status.present?.toLocaleString()} synthetic people live in real apartments and houses, go to class, work and church, meet each other, date, marry, doubt, believe, struggle with money and feel lonely or connected. Nothing is scripted: the patterns you see come from individual people following the model's rules.</p>
             <p className="lede">You can change something about their world, run time forward, and trace any result back to the people and the reasons behind it:</p>
@@ -57,7 +99,7 @@ export default function Guide({ section }: { section?: string }) {
                 body="Real Provo/Orem streets and buildings: about 63,000 homes and 590 apartment complexes (about 200 with their real names from OpenStreetMap and BYU's contracted-housing list, plus the dorms and married housing), 151 LDS meetinghouses, 712 restaurants, parks, gyms, theaters and trailheads, plus the BYU and UVU campuses." />
               <Layer c="--s7" name="Groups" small="where people meet" go={() => setRoute(['places'])}
                 body="Households and roommates, wards and FHE groups, class sections, workplaces, clubs, intramural teams, institute classes, gatherings in apartments, and dating apps. Being in the same group is how people get the chance to meet." />
-              <Layer c="--s3" name="Relationships" small={`${n('edge')} measures per tie`} go={() => setRoute(['network'])}
+              <Layer c="--s3" name="Relationships" small={`${n('edge')} measures per tie`} go={() => setRoute(['relationships'])}
                 body="Every pair who has met is a tie with its own history: familiarity, liking, closeness, trust, conflict, attraction in each direction, hours together, how and where they met, and who introduced them." />
               <Layer c="--s1" name="People" small={`${person.length} measures each`} go={() => setRoute(['people'])}
                 body="Each person has a background, personality, beliefs, habits, circumstances, feelings and a life history (see below). People are not stereotypes: an active member can doubt, a drinker can believe, an extravert can be lonely." />
@@ -124,9 +166,9 @@ export default function Guide({ section }: { section?: string }) {
               </div>
             </div>
             <div className="row" style={{ marginTop: 10 }}>
-              <button className="btn small" onClick={() => setRoute(['explore', 'belonging', '', 'affiliation'])}>Belonging by affiliation</button>
+              <button className="btn small" onClick={() => setRoute(['explore', 'belonging', 'affiliation'])}>Belonging by affiliation</button>
               <button className="btn small" onClick={() => setRoute(['flows', 'activity'])}>Who drifts from activity</button>
-              <button className="btn small" onClick={() => setRoute(['lab', 'interfaith_welcome'])}>What-if: interfaith welcome</button>
+              <button className="btn small" onClick={() => openDrawer({ preset: 'interfaith_welcome' })}>What-if: interfaith welcome</button>
             </div>
           </Sec>
 
@@ -142,23 +184,37 @@ export default function Guide({ section }: { section?: string }) {
             <div className="card" style={{ marginTop: 12 }}>
               <h3>Using time</h3>
               <dl className="dl">
-                <dt>▶ Play / ⏸ Pause</dt><dd>Top bar. Runs day after day until you pause. <b>Watch</b> goes about one simulated day per second so you can see pages update; <b>Fast</b> runs as fast as your computer allows.</dd>
-                <dt>+1 week, Jump ▾</dt><dd>Move time in fixed steps: an hour (watch the map move), a day, a month, a semester, a year, four years, or to a date you pick.</dd>
+                <dt>⏸ ▶ ▶▶ ▶▶▶</dt><dd>Top bar. Pause, or run day after day at speed 1 (slow enough to read the news as it pops up), 2, or 3 (as fast as your computer allows). <span className="kbd">Space</span> toggles.</dd>
+                <dt>+1d, +1w, Jump ▾</dt><dd>Move time in fixed steps: an hour (watch the map move), a day, a week, a month, a semester, a year, four years, or to a date you pick.</dd>
                 <dt>The calendar ribbon</dt><dd>The strip under the top bar is this academic year: shaded blocks are semesters and terms, the blue line is today, hatched means already happened, and a dashed line marks where a what-if world split off. Click any future date to run to it.</dd>
                 <dt>Replays on the map</dt><dd><b>▶ A day</b> replays the last full day: everyone glides from home to class and work, out for the evening, and home. <b>▶ Over months</b> replays the two-week snapshots, coloring homes by any tracked measure, so you can watch couples move in together or loneliness ease.</dd>
-                <dt>Looking back</dt><dd>Nothing is rewound. To compare then and now, use Flows over time (who changed between two dates), the trends on Vital signs, or a person's life story.</dd>
+                <dt>Looking back</dt><dd>Nothing is rewound. Every field has an <b>Over time</b> chart in Explore (weekly averages for everyone and standard groups; two-weekly snapshots of every person for key fields), each person has a <b>History</b> tab, and Flows show who changed between two dates.</dd>
               </dl>
               <p className="small muted" style={{ marginBottom: 0 }}>The world starts on Aug 24, the first day of fall semester at BYU and UVU.</p>
               <div className="row" style={{ marginTop: 8 }}><button className="btn small primary" onClick={() => setRoute(['map', 'day'])}>Replay a day on the map</button><button className="btn small" onClick={() => setRoute(['flows'])}>Flows over time</button></div>
             </div>
           </Sec>
 
-          <Sec id="whatif" title="What-if experiments" lede="When you change something, the simulator copies the whole world: the original keeps going as-is, and the copy gets the change.">
-            <div className="card">
-              <p className="small secondary" style={{ marginTop: 0 }}>Both copies use the same "dice" (random numbers), so at first they stay identical except for the change. Small differences then spread through friendships, dates and moves: the butterfly effect. Comparing the two worlds tells you what the change caused, and the attribution panel splits each difference into the rules that produced it.</p>
-              <p className="small secondary" style={{ marginBottom: 0 }}>One run is one possible future. In Advanced mode, <b>Many runs</b> repeats an experiment with different dice to show the range of outcomes, and <b>Sweeps</b> tries a range of strengths (e.g. rent +0%, +10%, +20%, +30%).</p>
-              <div className="row" style={{ marginTop: 10 }}><button className="btn primary" onClick={() => setRoute(['lab'])}>Try one now</button></div>
+          <Sec id="whatif" title="What-if experiments" lede="When you change something, the simulator copies the whole world: the Original keeps going as-is, and the What-if copy gets the change.">
+            <div className="grid g2">
+              <div className="card">
+                <h3>Two worlds, same dice</h3>
+                <p className="small secondary" style={{ marginTop: 0 }}>Both copies use the same "dice" (random numbers), so at first they stay identical except for the change. Small differences then spread through friendships, dates and moves: the butterfly effect. Because every person exists in both worlds, the simulator can show not just how averages moved, but exactly whose lives changed, and why.</p>
+                <p className="small secondary" style={{ marginBottom: 0 }}>Changes come three ways: <b>Ideas</b> (ready-made scenarios with a confidence label), <b>Levers</b> (rent, tuition, wages, dating-app appeal, marriage pressure, mission participation, coffee, housing rules, weather…), and <b>People & rules</b> (nudge a group of people, or make one of the model's rules stronger or weaker). You can keep adding changes to the What-if world as it runs.</p>
+              </div>
+              <div className="card">
+                <h3>Following the butterfly</h3>
+                <dl className="dl">
+                  <dt>Overview</dt><dd>How far the worlds have drifted, the biggest changes, events, and lives.</dd>
+                  <dt>All fields</dt><dd>Every field side by side, ranked by how much it shifted (a standardized size) or by how many people changed.</dd>
+                  <dt>Lives</dt><dd>The people whose lives diverged most. Open one to see the first fork in their road and the chain of causes behind it.</dd>
+                  <dt>Relationships · Places</dt><dd>Couples and friendships that exist in only one world; complexes, wards and neighborhoods that changed.</dd>
+                  <dt>Why</dt><dd>Each feeling's change split exactly into the model's rules, with evidence labels.</dd>
+                </dl>
+              </div>
             </div>
+            <p className="small secondary">One run is one possible future. <b>Research desk → Experiments</b> repeats an experiment with different dice (Monte Carlo) to show the range of outcomes, and sweeps a setting across a range of strengths.</p>
+            <div className="row"><button className="btn primary" onClick={() => openDrawer({})}>{G.butterfly} Try one now</button></div>
           </Sec>
 
           <Sec id="evidence" title="How sure are we?" lede="Every rule and measure carries a label saying how well-grounded it is. Hypothetical rules are allowed (this is a playground) but they're always marked.">
@@ -174,19 +230,20 @@ export default function Guide({ section }: { section?: string }) {
             <div className="card">
               <dl className="dl">
                 {([
-                  ['"What\'s going on?"', 'Home and Vital signs show the big picture and trends.', 'dashboard'],
+                  ['"What\'s going on?"', 'The World page shows the news, the week, what\'s moving and the two worlds; Vital signs (research desk) charts the big trends.', 'world'],
                   ['"Where?"', 'The Map colors people, homes, complexes and wards by any measure, and replays a day or the months so far.', 'map'],
-                  ['"Who, specifically?"', 'People lets you search, sort and follow individuals; each person page explains their feelings.', 'people'],
-                  ['"How is this measure spread out?"', 'Explore a measure: distribution, split by groups, relate two measures, and "why" for your group.', 'explore'],
-                  ['"How does X differ by Y?"', 'Compare groups: survey-style cross-tabs; click any cell to see those people.', 'crosstab'],
+                  ['"Who, specifically?"', 'People lets you search, sort and follow individuals; each person page is a whole life, with the why behind each feeling.', 'people'],
+                  ['"What does the model track, and how is it spread out?"', 'Explore: every field in friendly drawers, with its distribution, history, groups, related fields, people and drivers.', 'explore'],
+                  ['"Who is with whom?"', 'Relationships: couples, the friendship network and how people meet.', 'relationships'],
+                  ['"How does X differ by Y?"', 'Cross-tabs (research desk): survey-style tables; click any cell to see those people.', 'crosstab'],
                   ['"How do people change over time?"', 'Flows over time: who moved from one state to another, and their stories.', 'flows'],
-                  ['"What happened and what caused it?"', 'Life events: counts, the most consequential events, and causal chains.', 'events'],
-                  ['"What would happen if…?"', 'What-if lab: change something and compare two worlds.', 'lab'],
+                  ['"What happened and what caused it?"', 'Events: counts, the most consequential events, and causal chains.', 'events'],
+                  ['"What would happen if…?"', 'What-if: change something, let both worlds run, and follow the butterfly effect.', 'whatif'],
                   ['"What affects what?"', 'Cause & effect: the web of rules connecting every measure.', 'causal'],
                   ['"Can I trust these numbers?"', 'Model check: how the simulation compares with the Census and the surveys, and whether it stays steady for years.', 'modelcheck'],
                 ] as [string, string, string][]).map(([q, a, r]) => [<dt key={q}>{q}</dt>, <dd key={q + 'd'}>{a} <a href={`#/${r}`} onClick={e => { e.preventDefault(); setRoute([r]) }}>Open →</a></dd>])}
               </dl>
-              <p className="small muted" style={{ marginBottom: 0 }}><b>Your group follows you.</b> When you pick a group of people (a "cohort"), every page shows just them until you clear it. <b>Simple / Advanced</b> (bottom left) shows or hides the expert tools.</p>
+              <p className="small muted" style={{ marginBottom: 0 }}><b>Your filter follows you.</b> When you narrow to a group of people (“Showing: single BYU women…”), every page shows just them until you clear it. <b>Research details</b> (in settings) shows formulas, evidence labels and parameters inside pages.</p>
             </div>
           </Sec>
 

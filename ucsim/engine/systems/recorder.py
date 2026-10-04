@@ -1,8 +1,16 @@
-"""Daily aggregate time series (variables, events, mechanism terms) for analysis and comparison."""
+"""Aggregate time series for analysis and comparison.
+
+* daily: key variables, event counts and mechanism terms (the "vital signs")
+* weekly: every chartable person field — means or category shares for each standard group, and
+  percentiles for everyone — so any field can be followed over time and across universes.
+"""
 from __future__ import annotations
 
 import numpy as np
 import polars as pl
+
+FIELD_EVERY = 7
+PCTS = (10, 25, 50, 75, 90)
 
 
 class Recorder:
@@ -14,10 +22,48 @@ class Recorder:
         self.event_rows: list[dict] = []
         self.term_rows: list[dict] = []
         self._ev_cursor = 0
+        self.fields: dict = {"days": [], "groups": {}, "pct": {}}
 
     def init(self):
         reg = self.sim.reg
         self.vars = [v.id for v in reg.person_vars() if "timeseries" in v.flags]
+        self.field_vars = [v.id for v in reg.person_vars()
+                           if "chart" in v.flags and v.dtype != "str" and not v.id.endswith("_id")]
+        self.field_snapshot(self.sim.w.day)
+
+    # ------------------------------------------------------------------ weekly field aggregates
+    def field_snapshot(self, label_day: int):
+        """Group means / category shares of every chartable field (the state on the morning of label_day)."""
+        P = self.sim.w.P
+        F = self.fields
+        if F["days"] and F["days"][-1] == label_day:
+            return
+        F["days"].append(int(label_day))
+        groups = self._groups()
+        for g, m in groups.items():
+            G = F["groups"].setdefault(g, {"n": []})
+            k = int(m.sum())
+            G["n"].append(k)
+            for v in self.field_vars:
+                spec = P.specs[v]
+                x = P[v][m]
+                if spec.dtype == "cat":
+                    val = (np.bincount(x, minlength=len(spec.categories))[: len(spec.categories)] / k).round(5).tolist() if k else None
+                elif spec.dtype == "bool":
+                    val = round(float(x.mean()), 5) if k else None
+                else:
+                    xf = x.astype(np.float64)
+                    ok = np.isfinite(xf)
+                    val = round(float(xf[ok].mean()), 5) if ok.any() else None
+                G.setdefault(v, []).append(val)
+        m = groups["all"]
+        for v in self.field_vars:
+            spec = P.specs[v]
+            if spec.dtype in ("cat", "bool"):
+                continue
+            xf = P[v][m].astype(np.float64)
+            xf = xf[np.isfinite(xf)]
+            F["pct"].setdefault(v, []).append(np.percentile(xf, PCTS).round(5).tolist() if len(xf) else None)
 
     def _groups(self):
         P = self.sim.w.P
@@ -82,6 +128,8 @@ class Recorder:
         st = E["stage"]
         self.rows.append({"day": day, "group": "_network", "n": int(E.n), "friend_ties": int((st >= 3).sum()),
                           "close_ties": int((st >= 4).sum())})
+        if (day + 1) % FIELD_EVERY == 0:
+            self.field_snapshot(day + 1)
 
     def frame(self) -> pl.DataFrame:
         return pl.DataFrame(self.rows, infer_schema_length=None)

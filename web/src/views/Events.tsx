@@ -2,51 +2,63 @@ import { useEffect, useMemo, useState } from 'react'
 import { fmt } from '../analysis'
 import { api } from '../api'
 import { axisStyle, EChart, Loading, PersonLink, tokens } from '../components'
-import { useStore } from '../store'
-import { PageHeader } from '../ui'
+import { G, UBadge, uColor } from '../game'
+import { useLens, useStore } from '../store'
+import { Story } from '../ui'
 
-export default function Events({ eventId }: { eventId?: number }) {
-  const { universe, dataVersion, status, setRoute, registry } = useStore()
+export default function Events({ eventId, type0 }: { eventId?: number; type0?: string }) {
+  const { dataVersion, status, setRoute, registry } = useStore()
+  const { u, compare, hasAlt } = useLens()
+  const universe = compare ? 'base' : u
   const [summary, setSummary] = useState<any>(null)
+  const [summaryAlt, setSummaryAlt] = useState<any>(null)
   const [log, setLog] = useState<any>(null)
-  const [type, setType] = useState('')
+  const [type, setType] = useState(type0 ?? '')
+  const [logU, setLogU] = useState<'base' | 'alt'>('base')
+  useEffect(() => { if (type0 !== undefined) { setType(type0); setPage(0) } }, [type0])
   const [minSal, setMinSal] = useState(0.5)
   const [page, setPage] = useState(0)
+  const lu = compare ? logU : universe
   useEffect(() => { api.eventsSummary(universe).then(setSummary).catch(() => {}) }, [universe, dataVersion])
-  useEffect(() => { api.events({ u: universe, type, min_salience: minSal, limit: 100, offset: page * 100 }).then(setLog).catch(() => {}) }, [universe, type, minSal, page, dataVersion])
+  useEffect(() => { if (compare) api.eventsSummary('alt').then(setSummaryAlt).catch(() => {}); else setSummaryAlt(null) }, [compare, dataVersion])
+  useEffect(() => { api.events({ u: lu, type, min_salience: type ? 0 : minSal, limit: 100, offset: page * 100 }).then(setLog).catch(() => {}) }, [lu, type, minSal, page, dataVersion])
   const opt = useMemo(() => {
     if (!summary) return null
     const ax = axisStyle()
-    const rows = summary.types.slice(0, 28)
+    const rows = summary.types.filter((r: any) => r.type !== 'intervention_exposure').slice(0, 28)
+    const alt = summaryAlt ? Object.fromEntries(summaryAlt.types.map((r: any) => [r.type, r.count])) : null
     return {
-      grid: { left: 190, right: 60, top: 6, bottom: 6 },
-      tooltip: { trigger: 'item', formatter: (p: any) => { const r = rows[p.dataIndex]; return `<b>${r.label}</b> (${r.category})<br/>${r.count.toLocaleString()} events<br/>${r.children.toLocaleString()} directly caused events` } },
+      grid: { left: 8, right: 60, top: alt ? 26 : 6, bottom: 6, containLabel: true },
+      legend: alt ? { top: 0, textStyle: { color: tokens().text2 } } : undefined,
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: (ps: any) => { const r = rows[ps[0].dataIndex]; return `<b>${r.label}</b> (${r.category})<br/>${r.count.toLocaleString()} events${alt ? ` · What-if ${(alt[r.type] ?? 0).toLocaleString()}` : ''}<br/>${r.children.toLocaleString()} directly caused events` } },
       xAxis: { type: 'value', show: false },
-      yAxis: { type: 'category', inverse: true, data: rows.map((r: any) => r.label), ...ax, axisLine: { show: false } },
-      series: [{ type: 'bar', barWidth: 12, data: rows.map((r: any) => r.count), itemStyle: { borderRadius: [0, 4, 4, 0] }, label: { show: true, position: 'right', color: tokens().text2, fontSize: 11, formatter: (p: any) => p.value.toLocaleString() } }],
+      yAxis: { type: 'category', inverse: true, data: rows.map((r: any) => r.label), ...ax, axisLine: { show: false }, axisLabel: { ...ax.axisLabel, width: 170, overflow: 'truncate' } },
+      series: [{ name: 'Original', type: 'bar', barMaxWidth: 12, data: rows.map((r: any) => r.count), itemStyle: { color: uColor(alt ? 'base' : universe), borderRadius: [0, 4, 4, 0] }, label: { show: !alt, position: 'right', color: tokens().text2, fontSize: 11, formatter: (p: any) => p.value.toLocaleString() } },
+        ...(alt ? [{ name: 'What-if', type: 'bar', barMaxWidth: 12, data: rows.map((r: any) => alt[r.type] ?? 0), itemStyle: { color: uColor('alt'), borderRadius: [0, 4, 4, 0] } }] : [])],
+      _rows: rows,
     }
-  }, [summary])
+  }, [summary, summaryAlt])
   if (eventId !== undefined) return <EventDetail id={eventId} />
+  const tlabel = type ? registry?.events?.[type]?.label : ''
   return (
     <div className="page">
-      <PageHeader id="events" eyebrow="Follow lives" title="Life events"
-        sub="Everything memorable that happens: first dates, breakups, faith crises, graduations, job losses. Each event remembers what caused it."
-        tips={[
-          'The summary ranks event types by how common they are and by how many further events they set off.',
-          'Click an event to see its chain of causes (what led to it) and its consequences (what it led to).',
-          'Filter the log by type to read a particular kind of story, e.g. all engagements.',
-        ]} />
+      <div className="scene-head" style={{ ['--sc' as any]: 'var(--s2)' }}>
+        <span className="sh-icon">{G.events}</span>
+        <div className="sh-text"><h1>{tlabel ? `Every “${tlabel.toLowerCase()}”` : 'Events'}</h1><p>Everything memorable that happens: first dates, breakups, faith crises, graduations, job losses, baptisms. Each event remembers what caused it: click one to follow the chain.</p></div>
+        {hasAlt && <span className="lens-note">{compare ? <>Counting <UBadge u="base" /> and <UBadge u="alt" /></> : <UBadge u={u} />}</span>}
+      </div>
       <div className="grid g2">
         <div className="card">
           <h3>Most frequent events</h3>
-          <p className="hint">Since the start of the run ({status.day} days). Hover for how many downstream events each type directly caused.</p>
-          {opt ? <EChart option={opt} height={560} onClick={(p: any) => { setType(summary.types[p.dataIndex].type); setPage(0) }} /> : <Loading />}
+          <p className="hint">Since the start of the run ({status.day} days); two-person events (dates, engagements, weddings) count once for each person. Click a bar to read those stories.</p>
+          {opt ? <EChart option={opt} height={summaryAlt ? 760 : 560} onClick={(p: any) => { setType((opt as any)._rows[p.dataIndex].type); setPage(0) }} /> : <Loading />}
         </div>
         <div className="card">
           <div className="card-head">
-            <div><h3>Event log</h3><p className="hint">{log?.total?.toLocaleString() ?? '…'} events · newest first</p></div>
+            <div><h3>The stories</h3><p className="hint">{log?.total?.toLocaleString() ?? '…'} events · newest first</p></div>
             <div className="row">
-              <select value={type} onChange={e => { setType(e.target.value); setPage(0) }}>
+              {compare && <div className="seg small-seg"><button className={logU === 'base' ? 'on' : ''} onClick={() => setLogU('base')}>Original</button><button className={logU === 'alt' ? 'on' : ''} onClick={() => setLogU('alt')}>What-if</button></div>}
+              <select value={type} onChange={e => { setType(e.target.value); setPage(0); if (e.target.value) setRoute(['events', 'type', e.target.value]); else setRoute(['events']) }}>
                 <option value="">All types</option>
                 {registry && Object.values(registry.events).sort((a: any, b: any) => a.label.localeCompare(b.label)).map((e: any) => <option key={e.id} value={e.id}>{e.label}</option>)}
               </select>
@@ -54,12 +66,12 @@ export default function Events({ eventId }: { eventId?: number }) {
             </div>
           </div>
           <div className="scroll" style={{ maxHeight: 520 }}>
-            <table className="data"><thead><tr><th>Date</th><th>Event</th><th>Who</th><th>Caused by</th></tr></thead>
-              <tbody>{log?.events.map((e: any) => (
-                <tr key={e.id} className="click" onClick={() => setRoute(['events', String(e.id)])}>
-                  <td className="small tabular">{e.date}</td><td>{e.label}</td>
-                  <td className="small"><PersonLink id={e.a} name={e.a_name} />{e.b_name && <> · <PersonLink id={e.b} name={e.b_name} /></>}</td>
-                  <td className="small muted">{e.cause !== null ? `#${e.cause}` : ''}{e.mechanism ? ` · ${e.mechanism}` : ''}</td>
+            <table className="data"><thead><tr><th>Date</th><th>What happened</th><th /></tr></thead>
+              <tbody>{dedupePairs(log?.events ?? []).map((e: any) => (
+                <tr key={e.id}>
+                  <td className="small tabular" style={{ whiteSpace: 'nowrap' }}>{new Date(e.date + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: '2-digit' })}</td>
+                  <td><Story e={e} /></td>
+                  <td className="small">{lu === 'base' && <a href={`#/events/${e.id}`}>why?</a>}</td>
                 </tr>))}</tbody>
             </table>
           </div>
@@ -81,6 +93,17 @@ export default function Events({ eventId }: { eventId?: number }) {
       )}
     </div>
   )
+}
+
+/** Two-person events are logged once per person; show each pair once. */
+function dedupePairs(evs: any[]) {
+  const seen = new Set<string>()
+  return evs.filter(e => {
+    const k = e.b == null ? `${e.id}` : `${e.type}|${e.day}|${Math.min(e.a, e.b)}|${Math.max(e.a, e.b)}`
+    if (seen.has(k)) return false
+    seen.add(k)
+    return true
+  })
 }
 
 function EventDetail({ id }: { id: number }) {

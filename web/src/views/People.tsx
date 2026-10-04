@@ -3,16 +3,19 @@ import { fmt, useCohortData } from '../analysis'
 import { api, STATIC } from '../api'
 import { CohortBar, Loading, QUICK } from '../components'
 import { nameOf } from '../names'
-import { useStore } from '../store'
-import { FollowButton, PageHeader, Story } from '../ui'
+import { G, UBadge } from '../game'
+import { useLens, useStore } from '../store'
+import { FollowButton, Story } from '../ui'
 
 const COLS: [string, string][] = [['age', 'Age'], ['role', 'Role'], ['rel_status', 'Relationship'], ['activity', 'Church activity'],
   ['mission_status', 'Mission'], ['living', 'Living'], ['n_friends', 'Friends'], ['loneliness', 'Loneliness'], ['mood', 'Happiness'], ['dates_30d', 'Dates/month']]
 const NUM = ['age', 'n_friends', 'loneliness', 'mood', 'dates_30d']
 
 export default function People() {
-  const { setRoute, setCohort, followed, following, universe, dataVersion } = useStore()
-  const data = useCohortData(['sex', ...COLS.map(c => c[0])])
+  const { setRoute, setCohort, followed, following, dataVersion } = useStore()
+  const { u: universe, compare, hasAlt } = useLens()
+  const data = useCohortData(['sex', ...COLS.map(c => c[0])], { universe })
+  const alt = useCohortData(COLS.map(c => c[0]), { universe: 'alt', enabled: compare })
   const [tab, setTab] = useState<'all' | 'following'>('all')
   const [sort, setSort] = useState<[string, number]>(['loneliness', -1])
   const [q, setQ] = useState('')
@@ -40,24 +43,25 @@ export default function People() {
   const fmtCell = (v: string, i: number) => {
     const c = data.cols[v]
     if (!c) return ''
-    if (c.categories) return c.categories[c.data[i]].replace(/_/g, ' ')
-    return fmt(c.data[i], v === 'age' ? 0 : v === 'n_friends' ? 0 : 2)
+    const one = (col: any) => (col.categories ? col.categories[col.data[i]].replace(/_/g, ' ') : fmt(col.data[i], v === 'age' ? 0 : v === 'n_friends' ? 0 : 2))
+    const a = compare ? alt.cols[v] : null
+    if (a && i < a.data.length && a.data[i] !== c.data[i] && !(Number.isNaN(a.data[i]) && Number.isNaN(c.data[i]))) return <>{one(c)}<span className="u-alt-t"> → {one(a)}</span></>
+    return one(c)
   }
   return (
     <div className="page">
-      <PageHeader id="people" eyebrow="Follow lives" title="People"
-        sub="Every row is a synthetic person (generated names, never real respondents). Find someone interesting, open their life, and follow them as time runs."
-        tips={[
-          'Narrow the list with a quick group below (or "+ condition" for anything), search by name, and click a column to sort (e.g. loneliest first).',
-          'Click a person to open their life story, feelings (and why), relationships and faith.',
-          <>Press <b>☆ Follow</b> on anyone: they appear on Home and in the Following tab, with their latest news after every run.</>,
-        ]} />
+      <div className="scene-head" style={{ ['--sc' as any]: 'var(--s7)' }}>
+        <span className="sh-icon">{G.people}</span>
+        <div className="sh-text"><h1>People</h1><p>Every row is a synthetic person (generated names, never real respondents). Narrow the list, sort by anything, open a life, and follow the ones you care about: their news pops up as time runs.</p></div>
+        {hasAlt && <span className="lens-note">{compare ? <><UBadge u="base" /> → <UBadge u="alt" /> differences shown in orange</> : <UBadge u={universe} />}</span>}
+        {hasAlt && <button className="btn small" onClick={() => setRoute(['whatif', 'lives'])}>{G.butterfly} Lives that changed most</button>}
+      </div>
       <div className="seg" style={{ marginBottom: 12 }}>
         <button className={tab === 'all' ? 'on' : ''} onClick={() => setTab('all')}>Everyone</button>
         <button className={tab === 'following' ? 'on' : ''} onClick={() => setTab('following')}>Following ({ids.length})</button>
       </div>
       {tab === 'following' ? (
-        ids.length === 0 ? <div className="card empty">You aren't following anyone yet. Open a person and press ☆ Follow, or pick someone from <a href="#/home">Lives worth following</a> on Home.</div>
+        ids.length === 0 ? <div className="card empty">You aren't following anyone yet. Open a person and press ☆ Follow, or pick someone from <a href="#/world">Lives worth following</a> on the World page.</div>
           : mine === null ? <Loading what="Catching up on their lives" /> : (
             <div className="grid g3">{mine.map(p => (
               <div key={p.id} className="card person-card" onClick={() => setRoute(['person', String(p.id)])}>

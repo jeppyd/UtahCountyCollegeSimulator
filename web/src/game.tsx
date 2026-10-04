@@ -124,11 +124,25 @@ export function Spark({ a, b, width = 110, height = 30, mark, color }: { a: (num
 // ---------------------------------------------------------------- async
 export function useAsync<T>(fn: () => Promise<T>, deps: any[], keepOld = true): { data: T | null; error: string; loading: boolean } {
   const [st, setSt] = useState<{ data: T | null; error: string; loading: boolean }>({ data: null, error: '', loading: true })
+  // At most one request per hook in flight: if the inputs change meanwhile, fetch once more when it lands
+  // (never a queue of stale requests while time runs).
+  const flight = useRef<{ busy: boolean; again: (() => void) | null }>({ busy: false, again: null })
   useEffect(() => {
     let alive = true
-    setSt(s => ({ data: keepOld ? s.data : null, error: '', loading: true }))
-    fn().then(d => { if (alive) setSt({ data: d, error: '', loading: false }) })
-      .catch(e => { if (alive) setSt({ data: null, error: String(e?.message ?? e), loading: false }) })
+    const go = () => {
+      flight.current.busy = true
+      setSt(s => ({ data: keepOld ? s.data : null, error: '', loading: true }))
+      fn().then(d => { if (alive) setSt({ data: d, error: '', loading: false }) })
+        .catch(e => { if (alive) setSt(s => ({ data: keepOld ? s.data : null, error: String(e?.message ?? e), loading: false })) })
+        .finally(() => {
+          flight.current.busy = false
+          const next = flight.current.again
+          flight.current.again = null
+          next?.()
+        })
+    }
+    if (flight.current.busy) flight.current.again = go
+    else go()
     return () => { alive = false }
   }, deps)
   return st

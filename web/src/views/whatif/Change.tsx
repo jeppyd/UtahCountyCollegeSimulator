@@ -5,6 +5,7 @@ import { api, STATIC } from '../../api'
 import { fmt } from '../../analysis'
 import { condLabel, VarPicker } from '../../components'
 import { G } from '../../game'
+import { timeCtl } from '../../hud'
 import { useStore } from '../../store'
 
 export const THEMES: [string, string[]][] = [
@@ -73,13 +74,15 @@ export function ChangeBuilder({ preset, onDone, inline = false }: { preset?: str
     setBusy(true); setErr('')
     try {
       const specs = queue.map(q => q.spec)
+      // if time is running, pause it first so the split happens on a finished day and the new run can start
+      if (useStore.getState().status?.job?.state === 'running') { await api.cancel(); await timeCtl.waitIdle() }
       if (how === 'add') await api.forkAdd(specs)
       else await api.fork(specs)
-      if (days > 0) await api.step({ days })
+      setQueue([])
       await refreshStatus()
       setLens('compare')
       setRoute(['whatif'])
-      setQueue([])
+      if (days > 0) await timeCtl.step({ days })
       onDone?.()
     } catch (e: any) { setErr(String(e.message ?? e)) }
     setBusy(false)

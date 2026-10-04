@@ -70,13 +70,59 @@ def column_array(P, var: str) -> tuple[np.ndarray, dict]:
     return x.astype(np.float32), {}
 
 
+class FairLock:
+    """A re-entrant lock handed out in arrival order.
+
+    A run re-takes the workspace lock for every simulated day.  With a plain RLock the run thread wins that race
+    almost every time, so page requests (the What-if comparisons, the map, people) waited for the whole run.  Here
+    every request queued during a day goes before the next day starts."""
+
+    def __init__(self):
+        self._cv = threading.Condition(threading.Lock())
+        self._owner = None
+        self._depth = 0
+        self._next = 0      # next ticket to hand out
+        self._serving = 0   # ticket whose turn it is
+
+    def acquire(self):
+        me = threading.get_ident()
+        with self._cv:
+            if self._owner == me:
+                self._depth += 1
+                return True
+            ticket = self._next
+            self._next += 1
+            while self._serving != ticket or self._owner is not None:
+                self._cv.wait()
+            self._owner, self._depth = me, 1
+            return True
+
+    def release(self):
+        with self._cv:
+            if self._owner != threading.get_ident():
+                raise RuntimeError("release of a lock this thread does not hold")
+            self._depth -= 1
+            if self._depth == 0:
+                self._owner = None
+                self._serving += 1
+                self._cv.notify_all()
+
+    def __enter__(self):
+        return self.acquire()
+
+    def __exit__(self, *exc):
+        self.release()
+
+
 class Workspace:
     def __init__(self):
-        self.lock = threading.RLock()
+        self.lock = FairLock()
+        self.job_lock = threading.Lock()   # makes "is anything running? then start" atomic
         self.base = None
         self.alt = None
         self.divergence: list[dict] = []
         self.job = {"state": "idle"}
+        self.last_job: dict | None = None   # how the previous run or build ended (shown in the HUD)
         self.mc = None
         self.sweep_result = None
         self.compare_cache = None
@@ -89,29 +135,48 @@ class Workspace:
             raise HTTPException(404, f"universe '{u}' not available")
         return s
 
+    def busy(self) -> bool:
+        return self.job.get("state") in ("running", "building")
+
+    def start_job(self, job: dict, target, *args) -> bool:
+        """Claim the job slot and start `target` in the background; False if something is already running.
+        Claiming happens before the thread starts, so two quick clicks can never start two runs at once."""
+        with self.job_lock:
+            if self.busy():
+                return False
+            now = time.time()
+            self.job = {**job, "progress": 0, "started": now, "updated": now}
+        threading.Thread(target=target, args=args, daemon=True).start()
+        return True
+
+    def finish_job(self, kind: str, reason: str, **extra):
+        j = self.job
+        self.last_job = {"kind": kind, "reason": reason, "progress": j.get("progress", 0), "total": j.get("total", 0),
+                         "ended": time.time(), "seconds": round(time.time() - j.get("started", time.time()), 1), **extra}
+        self.job = {"state": "error", "error": extra.get("error", "")} if reason == "error" else {"state": "idle"}
+
     def build(self, scale: float, seed: int, warmup: int = 0):
         """Synthesize a new world (replacing the current one and any intervention universe), then warm it up."""
-        self.job = {"state": "building", "phase": "synthesizing", "progress": 0, "total": max(warmup, 1),
-                    "scale": scale, "seed": seed, "started": time.time()}
+        self.job.update(phase="synthesizing")
         try:
             sim = runner.new_simulation(scale=scale, seed=seed)
             for k in range(warmup):
                 if self.job.get("cancel"):
                     break
-                self.job.update(phase="warming up", progress=k)
+                self.job.update(phase="warming up", progress=k, updated=time.time())
                 sim.step_day()
             with self.lock:
                 self.base, self.alt, self.divergence, self.compare_cache = sim, None, [], None
                 self.world_id += 1
-            self.job = {"state": "idle"}
+            self.finish_job("build", "done")
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
-            self.job = {"state": "error", "error": repr(e)}
+            self.finish_job("build", "error", error=repr(e))
 
     def step(self, days: int = 0, hours: int = 0, pace: float = 0.0):
         """Advance both universes. `pace` = minimum seconds per simulated day (the slow "watch it" speed)."""
+        world = "Original"
         try:
-            self.job = {"state": "running", "progress": 0, "total": days or 1, "started": time.time(), "pace": pace}
             if hours and not days:
                 with self.lock:
                     for s in (self.base, self.alt):
@@ -122,19 +187,24 @@ class Workspace:
                     break
                 t_day = time.time()
                 with self.lock:
+                    world = "Original"
                     self.base.step_day()
-                    if self.alt is not None:
-                        self.alt.step_day()
+                    alt = self.alt
+                    if alt is not None:
+                        world = "What-if"
+                        alt.step_day()
+                        while alt.w.day < self.base.w.day:   # catch up if an earlier error left the What-if behind
+                            alt.step_day()
                         if self.base.w.day % 3 == 0 or days <= 14:
-                            self.divergence.append(runner.divergence(self.base, self.alt))
+                            self.divergence.append(runner.divergence(self.base, alt))
                     self.compare_cache = None
-                self.job["progress"] = k + 1
+                self.job.update(progress=k + 1, updated=time.time(), day_seconds=round(time.time() - t_day, 2))
                 while pace and time.time() - t_day < pace and not self.job.get("cancel"):
                     time.sleep(0.05)
-            self.job = {"state": "idle"}
+            self.finish_job("run", "paused" if self.job.get("cancel") and self.job.get("progress", 0) < days else "done")
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
-            self.job = {"state": "error", "error": repr(e)}
+            self.finish_job("run", "error", error=f"the {world} world hit an error on day {self.base.w.day}: {e!r}")
 
 
 WS = Workspace()
@@ -149,39 +219,47 @@ def registry():
 
 
 @app.get("/api/status")
-def status():
-    b = WS.base
-    out = {"job": WS.job, "has_alt": WS.alt is not None, "has_world": b is not None, "world_id": WS.world_id,
-           "scale_agents_per_unit": 60000}
-    if b is not None:
-        w = b.w
-        cnt = np.bincount(b.log["type"], minlength=len(WS.registry.event_names))
+async def status():
+    """The clock, the job and headline counts.  Runs on the event loop (never queues behind other requests or the
+    workspace lock) and reads without locking, so the clock and the pause button keep working during a long run."""
+    b, alt = WS.base, WS.alt
+    out = {"job": dict(WS.job), "last_job": WS.last_job, "has_alt": alt is not None, "has_world": b is not None,
+           "world_id": WS.world_id, "scale_agents_per_unit": 60000}
+    if b is None:
+        return jresp(out)
+    try:
+        w, log = b.w, b.log
+        n_ev = int(log.n)
+        cnt = np.bincount(log.cols["type"][:n_ev], minlength=len(WS.registry.event_names))
         ev = WS.registry.event_ids
         out["totals"] = {k: int(cnt[ev[k]]) for k in ("new_friend", "close_friend", "first_date", "relationship_started", "engaged",
                                                         "wedding", "breakup_received", "birth", "mission_departure", "graduation", "moved")}
         out["season"] = b.cal.season(w.day)
+        divergence = WS.divergence
         out.update({"day": w.day, "hour": w.hour, "date": str(w.date), "weekday": w.date.strftime("%A"),
                     "scale": w.scale, "seed": w.seed, "agents": int(w.P.n), "present": int(w.P["present"].sum()),
-                    "edges": int(w.E.n), "events": int(b.log.n), "env": {k: v for k, v in w.env.items() if not isinstance(v, np.ndarray)},
-                    "alt_interventions": WS.alt.interventions if WS.alt is not None else [],
-                    "fork_day": getattr(WS.alt, "meta_fork_day", None) if WS.alt is not None else None,
-                    "divergence": WS.divergence[-1] if WS.alt is not None and WS.divergence else None,
-                    "last_event_id": int(b.log.n) - 1,
-                    "timing": b.timing})
+                    "edges": int(w.E.n), "events": n_ev, "env": {k: v for k, v in dict(w.env).items() if not isinstance(v, np.ndarray)},
+                    "alt_interventions": list(alt.interventions) if alt is not None else [],
+                    "fork_day": getattr(alt, "meta_fork_day", None) if alt is not None else None,
+                    "divergence": divergence[-1] if alt is not None and divergence else None,
+                    "last_event_id": n_ev - 1,
+                    "timing": dict(b.timing)})
+    except Exception as e:  # noqa: BLE001  (a read raced a day in progress; the next poll will be complete)
+        out["partial"] = repr(e)
     return jresp(out)
 
 
 @app.post("/api/world")
 def new_world(body: dict = Body(default={})):
     """Build a new world in the background: {"scale": 0.02–1, "seed": int, "warmup": days}."""
-    if WS.job.get("state") in ("running", "building"):
-        raise HTTPException(409, "the simulator is busy; pause it first")
     scale = float(body.get("scale", 0.3))
     if not 0.01 <= scale <= 1.0:
         raise HTTPException(400, "scale must be between 0.01 and 1")
     seed = int(body.get("seed", 1))
     warmup = max(0, min(int(body.get("warmup", 0)), 365))
-    threading.Thread(target=WS.build, args=(scale, seed, warmup), daemon=True).start()
+    job = {"state": "building", "phase": "queued", "total": max(warmup, 1), "scale": scale, "seed": seed}
+    if not WS.start_job(job, WS.build, scale, seed, warmup):
+        raise HTTPException(409, "the simulator is busy; pause it first")
     return {"ok": True}
 
 
@@ -189,14 +267,14 @@ def new_world(body: dict = Body(default={})):
 def step(body: dict = Body(default={})):
     if WS.base is None:
         raise HTTPException(400, "no world")
-    if WS.job.get("state") == "running":
-        raise HTTPException(409, "already running")
     days = int(body.get("days", 0))
     if "until_day" in body:
-        days = max(0, int(body["until_day"]) - WS.base.w.day)
-    hours = int(body.get("hours", 0))
-    pace = float(body.get("pace", 0.0))
-    threading.Thread(target=WS.step, args=(days, hours, pace), daemon=True).start()
+        days = int(body["until_day"]) - WS.base.w.day
+    days = max(0, min(days, 3650))
+    hours = max(0, min(int(body.get("hours", 0)), 24))
+    pace = max(0.0, min(float(body.get("pace", 0.0)), 10.0))
+    if not WS.start_job({"state": "running", "total": days or 1, "pace": pace}, WS.step, days, hours, pace):
+        raise HTTPException(409, "time is already running; pause it first")
     return {"ok": True, "days": days, "hours": hours, "pace": pace}
 
 
@@ -296,9 +374,10 @@ def history_frames(var: str = "rel_status", u: str = "base", max_frames: int = 4
 
 
 @app.post("/api/cancel")
-def cancel():
+async def cancel():
+    """Pause: the current run stops after the day in progress.  On the event loop, so it is never stuck in a queue."""
     WS.job["cancel"] = True
-    return {"ok": True}
+    return {"ok": True, "state": WS.job.get("state")}
 
 
 @app.get("/api/interventions/presets")
@@ -310,6 +389,8 @@ def presets():
 def fork(body: dict = Body(...)):
     if WS.base is None:
         raise HTTPException(400, "no world")
+    if WS.job.get("state") == "building":
+        raise HTTPException(409, "a new world is being built; wait for it to finish")
     with WS.lock:
         WS.alt = runner.fork(WS.base, body.get("interventions", []))
         WS.divergence = [runner.divergence(WS.base, WS.alt)]
@@ -322,6 +403,7 @@ def unfork():
     with WS.lock:
         WS.alt = None
         WS.divergence = []
+        WS.compare_cache = None
     return {"ok": True}
 
 
@@ -729,21 +811,38 @@ def _need_alt():
         raise HTTPException(404, "no what-if world; make a change first")
 
 
+_memo: dict = {"tag": None}
+
+
+def _cached(key: tuple, fn):
+    """Reuse a comparison until either world moves, so pages polling during a run don't recompute it.
+    Call with WS.lock held."""
+    alt = WS.alt
+    tag = (WS.world_id, WS.base.w.day, WS.base.w.hour, id(alt), alt.w.day, len(alt.interventions))
+    if _memo["tag"] != tag:
+        _memo.clear()
+        _memo["tag"] = tag
+    if key not in _memo:
+        _memo[key] = fn()
+    return _memo[key]
+
+
 @app.get("/api/compare/fields")
 def compare_fields():
     """Every chartable field, Original vs What-if: averages or shares, effect size, how many people changed,
     and the difference over time since the split."""
     _need_alt()
     with WS.lock:
-        return jresp(B.compare_fields(WS.base, WS.alt))
+        return jresp(_cached(("fields",), lambda: B.compare_fields(WS.base, WS.alt)))
 
 
 @app.get("/api/compare/people")
 def compare_people(k: int = 40):
     """The people whose lives diverged most between the two worlds, and why."""
     _need_alt()
+    k = max(1, min(k, 200))
     with WS.lock:
-        return jresp(B.diverged_people(WS.base, WS.alt, k=min(k, 200)))
+        return jresp(_cached(("people", k), lambda: B.diverged_people(WS.base, WS.alt, k=k)))
 
 
 @app.get("/api/compare/person/{i}")
@@ -760,8 +859,9 @@ def compare_person(i: int):
 def compare_relationships(k: int = 40):
     """Couples and friendships that exist in only one of the two worlds."""
     _need_alt()
+    k = max(1, min(k, 200))
     with WS.lock:
-        return jresp(B.compare_relationships(WS.base, WS.alt, k=min(k, 200)))
+        return jresp(_cached(("relationships", k), lambda: B.compare_relationships(WS.base, WS.alt, k=k)))
 
 
 @app.get("/api/compare/places")
@@ -772,7 +872,7 @@ def compare_places(kind: str = "complex", var: str = "loneliness"):
     with WS.lock:
         if var not in WS.base.w.P.specs:
             raise HTTPException(400, f"unknown field {var}")
-        return jresp(B.compare_places(WS.base, WS.alt, kind, var))
+        return jresp(_cached(("places", kind, var), lambda: B.compare_places(WS.base, WS.alt, kind, var)))
 
 
 @app.post("/api/fork/add")
@@ -1157,6 +1257,7 @@ def main():
     args = ap.parse_args()
     if args.scale is not None:
         print(f"Building world (scale {args.scale}, seed {args.seed}, warmup {args.warmup} days) …")
+        WS.job = {"state": "building", "phase": "synthesizing", "progress": 0, "total": max(args.warmup, 1), "started": time.time()}
         WS.build(args.scale, args.seed, args.warmup)
     from ..app import free_port
     port = free_port(args.port, args.host)  # Windows may reserve the requested port; fall back to a free one

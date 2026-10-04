@@ -83,6 +83,14 @@ start day, ramp and duration.
   (what people did in each block of the last day, the week's events, diversified headlines, four-week
   movers, featured lives), couples.
 - `api/server.py` — ~60 endpoints; columns travel as a packed binary format (`pack_columns` ↔ `web/src/api.ts:decodePack`), so the browser filters and charts ~10–50k agents client-side.
+  Runs and world builds happen on a background thread, one at a time (`Workspace.start_job` claims the slot
+  before the thread starts). The run takes the workspace lock once per simulated day; the lock is a FIFO
+  `FairLock`, so page requests queued during a day are answered before the next day starts (a plain lock let
+  the run re-take it every day and pages waited for the whole run). `/api/status` and `/api/cancel` run on the
+  event loop without the lock, so the clock and Pause always respond. Comparisons are memoized until either
+  world moves; a run that fails records which world and day in `last_job` and stops, and the What-if catches
+  up on the next run if it was left a day behind. In the browser, pages reload at most every 2.5 s while time
+  runs and at once when it stops; `useAsync` keeps one request per view in flight; requests time out.
 
 ## Workstation (`web/`)
 

@@ -6,10 +6,23 @@ export const STATIC: boolean = typeof __STATIC__ !== 'undefined' && __STATIC__
 export type Universe = 'base' | 'alt'
 export type Column = { id: string; data: Float32Array | Uint8Array | Int32Array; categories?: string[]; bool?: boolean; meta?: any }
 
-async function j<T = any>(url: string, init?: RequestInit): Promise<T> {
-  const r = await fetch(url, init)
-  if (!r.ok) throw new Error(`${r.status} ${url}: ${(await r.text()).slice(0, 200)}`)
-  return r.json()
+// A request that hangs (a stalled server, a sleeping laptop) fails with a message instead of spinning forever.
+async function j<T = any>(url: string, init?: RequestInit, timeoutMs = 120000): Promise<T> {
+  const ctl = new AbortController()
+  const t = setTimeout(() => ctl.abort(), timeoutMs)
+  try {
+    const r = await fetch(url, { ...init, signal: ctl.signal })
+    if (!r.ok) {
+      const txt = await r.text()
+      let msg = txt.slice(0, 200)
+      try { msg = JSON.parse(txt).detail ?? msg } catch { /* not JSON */ }
+      throw new Error(r.status === 409 ? msg : `${r.status} ${url}: ${msg}`)
+    }
+    return await r.json()
+  } catch (e: any) {
+    if (e?.name === 'AbortError') throw new Error(`The simulator did not answer within ${Math.round(timeoutMs / 1000)} s (${url.replace(/\?.*/, '')})`)
+    throw e
+  } finally { clearTimeout(t) }
 }
 const post = (url: string, body: any) => j(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
@@ -63,7 +76,7 @@ function bundle(path: string) {
 }
 
 export const api = {
-  async status() { return STATIC ? j(`${D}/status.json`) : j('/api/status') },
+  async status() { return STATIC ? j(`${D}/status.json`) : j('/api/status', undefined, 15000) },
   async registry() { return STATIC ? j(`${D}/registry.json`) : j('/api/registry') },
   async presets() { return STATIC ? j(`${D}/presets.json`) : j('/api/interventions/presets') },
 

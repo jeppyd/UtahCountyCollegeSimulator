@@ -87,11 +87,17 @@ export function RecapWatcher() {
       const s0 = start.current
       start.current = null
       const days = status.day - s0.day
+      const lj = status.last_job
+      if (lj?.reason === 'error') {
+        toast({ kind: 'info', title: 'Time stopped: the simulation hit an error', body: `${lj.error ?? ''} Both worlds are kept as they were after the last finished day; you can keep exploring or run again.`, ttl: 20000 })
+        return
+      }
       if (days < 7 || !news) return
+      const cut = lj?.reason === 'paused' && s0.total < 3000 ? ` (paused after ${lj.progress} of ${lj.total})` : 
       api.eventsSummary(u, s0.day).then((sum: any) => {
         const rows = RECAP.map(([k, l]) => { const r = sum.types?.find((x: any) => x.type === k); const n = r ? pairs(k, r.count) : 0; return { k, l, n, c: r?.category } }).filter(r => r.n > 0).slice(0, 8)
         const d1 = status.divergence?.any_state_diff ?? null
-        toast({ kind: 'recap', title: `${days} days went by`, body: JSON.stringify({ rows, from: s0.day, to: status.day, date0: dateOf(status, s0.day), date1: status.date, div: hasAlt && d1 !== null ? [s0.div, d1] : null, u }), route: ['world'], ttl: 15000 })
+        toast({ kind: 'recap', title: `${days} days went by${cut}`, body: JSON.stringify({ rows, from: s0.day, to: status.day, date0: dateOf(status, s0.day), date1: status.date, div: hasAlt && d1 !== null ? [s0.div, d1] : null, u }), route: ['world'], ttl: 15000 })
       }).catch(() => {})
     }
   }, [state, status?.day])

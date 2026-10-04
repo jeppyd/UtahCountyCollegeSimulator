@@ -135,9 +135,11 @@ function useKeys() {
       if (st.palette || st.drawer) return
       if (e.key === '/') { e.preventDefault(); st.setPalette(true); return }
       if (STATIC) { if (['1', '2', '3'].includes(e.key) && st.status?.has_alt) st.setLens((['base', 'alt', 'compare'] as const)[Number(e.key) - 1]); return }
-      if (e.key === ' ') { e.preventDefault(); timeCtl.toggle(); return }
-      if (e.key === '.') { timeCtl.step({ days: 1 }); return }
-      if (e.key === '>') { timeCtl.step({ days: 7 }); return }
+      const report = (p: Promise<any>) => p.catch((err: any) => st.toast({ kind: 'info', title: String(err?.message ?? err), ttl: 6000 }))
+      const idle = st.status?.job?.state !== 'running'
+      if (e.key === ' ') { e.preventDefault(); report(timeCtl.toggle()); return }
+      if (e.key === '.') { if (idle) report(timeCtl.step({ days: 1 })); return }
+      if (e.key === '>') { if (idle) report(timeCtl.step({ days: 7 })); return }
       if (['1', '2', '3'].includes(e.key) && st.status?.has_alt) st.setLens((['base', 'alt', 'compare'] as const)[Number(e.key) - 1])
     }
     window.addEventListener('keydown', h)

@@ -21,12 +21,15 @@ export function useOutside(ref: React.RefObject<HTMLElement>, fn: () => void) {
 type TimeCtl = { speed: number; waitIdle: () => Promise<void>; play: (speed?: number) => Promise<void>; pause: () => Promise<void>; step: (body: any) => Promise<void>; toggle: () => Promise<void> }
 export const timeCtl: TimeCtl = {
   speed: (() => { try { return Number(localStorage.getItem('ucsim-speed') ?? '0') } catch { return 0 } })(),
-  async waitIdle() {
-    for (let k = 0; k < 40; k++) {
-      const s = await useStore.getState().refreshStatus()
-      if (s.job?.state !== 'running') return
-      await new Promise(r => setTimeout(r, 120))
+  // A pause takes effect when the day in progress ends, which can take several seconds in a full-size world.
+  async waitIdle(maxMs = 90000) {
+    const t0 = Date.now()
+    while (Date.now() - t0 < maxMs) {
+      const s = await useStore.getState().refreshStatus().catch(() => null)
+      if (s && s.job?.state !== 'running') return
+      await new Promise(r => setTimeout(r, 250))
     }
+    throw new Error('Time is still finishing the current day; try again in a moment.')
   },
   async play(speed = timeCtl.speed) {
     timeCtl.speed = speed
@@ -34,14 +37,15 @@ export const timeCtl: TimeCtl = {
     const st = useStore.getState().status
     if (st?.job?.state === 'running') { await api.cancel(); await timeCtl.waitIdle() }
     await api.step({ days: 3650, pace: SPEEDS[speed][0] })
-    setTimeout(() => useStore.getState().refreshStatus(), 150)
+    await useStore.getState().refreshStatus().catch(() => {})
   },
-  async pause() { await api.cancel(); setTimeout(() => useStore.getState().refreshStatus(), 250) },
+  async pause() { await api.cancel(); await useStore.getState().refreshStatus().catch(() => {}) },
   async step(body: any) {
     const st = useStore.getState().status
-    if (st?.job?.state === 'running' || st?.job?.state === 'building') return
+    if (st?.job?.state === 'building') throw new Error('A new world is still being built.')
+    if (st?.job?.state === 'running') { await api.cancel(); await timeCtl.waitIdle() }
     await api.step(body)
-    setTimeout(() => useStore.getState().refreshStatus(), 150)
+    await useStore.getState().refreshStatus().catch(() => {})
   },
   toggle() {
     const st = useStore.getState().status

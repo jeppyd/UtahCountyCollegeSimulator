@@ -138,3 +138,22 @@ engagements, weddings, friendships) are logged once per person; counts shown as 
 living map's first animation frame could start before its clock (negative time); talking couples had no
 start day, so the newest-first list put them first; headlines could be flooded by one event type (now a few
 of each type and category).
+
+### Fix: runs stalling the What-if pages
+
+**Report**: after making a What-if change and running a semester, the comparison tabs never loaded, the
+app seemed stuck, and the run appeared to stop.
+
+**Cause**: the run thread released and immediately re-took the workspace lock every simulated day, and
+Python's lock let it win almost every time, so each page request waited for the entire run (69 s for a
+semester at the Standard size, minutes at Full). Those stuck requests also filled the browser's six
+connections, so the clock and the Pause button stopped updating. Smaller races made it worse: two quick
+clicks could start two runs; Play could give up waiting for a pause after 5 s and leave time stopped; a
+split made while time was playing failed to start its run.
+
+**Fix**: a first-come-first-served lock, the clock and Pause served outside the queue, a single job slot
+claimed atomically, throttled refreshes during runs, one request per view in flight, request timeouts,
+memoized comparisons, visible errors (which world, which day) and a paused-after-N-days recap.
+`tests/test_timeline_jobs.py` covers fairness, mid-run reads, double starts, pause and a failing run.
+Measured: during a semester run every What-if tab loads in under 1.5 s and the clock keeps moving.
+

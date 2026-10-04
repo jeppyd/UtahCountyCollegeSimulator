@@ -58,8 +58,11 @@ function Butterfly({ tab }: { tab: string }) {
         </div>
         <div className="bf-actions">
           {!STATIC && <>
-            <button className="btn" disabled={running} onClick={() => timeCtl.step({ days: 7 })}>Run 1 week</button>
-            <button className="btn" disabled={running} onClick={() => timeCtl.step({ days: 30 })}>Run 1 month</button>
+            {running ? <button className="btn" onClick={() => timeCtl.pause()}>{G.pause} Pause</button> : <>
+              <button className="btn" onClick={() => timeCtl.step({ days: 7 })}>Run 1 week</button>
+              <button className="btn" onClick={() => timeCtl.step({ days: 30 })}>Run 1 month</button>
+              <button className="btn" onClick={() => timeCtl.step({ days: 112 })}>Run 1 semester</button>
+            </>}
             <button className="btn" onClick={() => openDrawer({})}>{G.plus} Change more</button>
             <button className="btn ghost" onClick={async () => { if (confirm('Discard the What-if world and go back to one world?')) { await api.unfork(); await refreshStatus() } }}>End experiment</button>
           </>}
@@ -68,7 +71,9 @@ function Butterfly({ tab }: { tab: string }) {
       <div className="tabs" style={{ marginBottom: 14 }}>
         {TABS.map(([k, l, i]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setRoute(['whatif', k])}>{G[i]} {l}</button>)}
       </div>
-      {since === 0 && <div className="banner">The worlds have only just split. Run time forward (▶ in the top bar, or the buttons above) and watch them drift apart.</div>}
+      {running && <div className="banner live-dot">Both worlds are running ({status.job?.total >= 3000 ? `+${status.job?.progress ?? 0} days` : `day ${status.job?.progress ?? 0} of ${status.job?.total}`}). These comparisons refresh every few seconds as they go.</div>}
+      {since > 0 && d === 0 && <div className="banner">No lives differ yet. Some changes only act on a schedule: rent and bills are settled on the 1st of the month, tuition at the start of a term, moves when leases end. Until your change touches someone, the two worlds stay identical.</div>}
+      {!running && since === 0 && <div className="banner">The worlds have only just split. Run time forward (▶ in the top bar, or the buttons above) and watch them drift apart.</div>}
       {tab === 'overview' && <Overview c={c.data} f={f.data} />}
       {tab === 'fields' && <AllFields f={f.data} />}
       {tab === 'events' && <EventsDiff c={c.data} />}
@@ -82,9 +87,9 @@ function Butterfly({ tab }: { tab: string }) {
 
 // ------------------------------------------------------------------ overview
 function Overview({ c, f }: { c: any; f: any }) {
-  const { status, registry, setRoute } = useStore()
-  const ppl = useAsync(() => api.comparePeople(6), [status.day])
-  const rel = useAsync(() => api.compareRelationships(), [status.day])
+  const { status, dataVersion, registry, setRoute } = useStore()
+  const ppl = useAsync(() => api.comparePeople(6), [dataVersion])
+  const rel = useAsync(() => api.compareRelationships(), [dataVersion])
   const divOpt = useMemo(() => {
     if (!c?.divergence?.length) return null
     const ax = axisStyle(), t = tokens()
@@ -282,8 +287,8 @@ function EventsDiff({ c }: { c: any }) {
 
 // ------------------------------------------------------------------ lives
 function Lives() {
-  const { status, setRoute } = useStore()
-  const p = useAsync(() => api.comparePeople(60), [status.day])
+  const { status, dataVersion, setRoute } = useStore()
+  const p = useAsync(() => api.comparePeople(60), [dataVersion])
   const d: any = p.data
   if (!d) return <div className="empty">{p.error || 'Finding the lives that diverged…'}</div>
   return (
@@ -316,8 +321,8 @@ function Lives() {
 
 // ------------------------------------------------------------------ relationships
 function Rel() {
-  const { status, setRoute } = useStore()
-  const r = useAsync(() => api.compareRelationships(), [status.day])
+  const { status, dataVersion, setRoute } = useStore()
+  const r = useAsync(() => api.compareRelationships(), [dataVersion])
   const d: any = r.data
   if (!d) return <div className="empty">{r.error || 'Comparing couples and friendships…'}</div>
   const ax = axisStyle(), t = tokens()
@@ -362,10 +367,10 @@ function Rel() {
 
 // ------------------------------------------------------------------ places
 function PlacesDiff() {
-  const { status, setRoute, registry } = useStore()
+  const { status, dataVersion, setRoute, registry } = useStore()
   const [kind, setKind] = useState('complex')
   const [v, setV] = useState('loneliness')
-  const r = useAsync(() => api.comparePlaces(kind, v), [kind, v, status.day])
+  const r = useAsync(() => api.comparePlaces(kind, v), [kind, v, dataVersion])
   const rows: any[] = (r.data as any) ?? []
   const spec = registry!.variables[v]
   const m = Math.max(1e-6, ...rows.map(x => Math.abs(x.delta ?? 0)))

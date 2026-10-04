@@ -48,7 +48,7 @@ export function Palette() {
     const go = (r: string[]) => () => { setRoute(r); close() }
     const out: Item[] = []
     for (const g of NAV) for (const n of g.items) out.push({ kind: 'Go to', label: n.label, sub: n.hint, icon: n.icon, run: go([n.id]), key: `nav:${n.id}` })
-    const act = (label: string, sub: string, icon: string, fn: () => any) => out.push({ kind: 'Action', label, sub, icon, run: () => { close(); fn() }, key: `act:${label}` })
+    const act = (label: string, sub: string, icon: string, fn: () => any) => out.push({ kind: 'Action', label, sub, icon, run: () => { close(); Promise.resolve().then(fn).catch((err: any) => useStore.getState().toast({ kind: 'info', title: String(err?.message ?? err), ttl: 6000 })) }, key: `act:${label}` })
     if (!STATIC) {
       act('Play', 'Run time at your last speed', 'play', () => timeCtl.play())
       act('Pause', 'Stop time', 'pause', () => timeCtl.pause())

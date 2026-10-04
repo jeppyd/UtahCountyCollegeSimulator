@@ -82,6 +82,9 @@ function parseHash(): string[] {
 }
 
 let toastId = 1
+let statusInflight: Promise<any> | null = null
+let lastBump = 0
+const LIVE_REFRESH_MS = 2500
 const pinKey = (p: Pin) => (p.kind === 'field' ? `f:${p.var}:${p.group ?? ''}` : `p:${p.id}`)
 
 export const useStore = create<State>((set, get) => ({
@@ -134,16 +137,29 @@ export const useStore = create<State>((set, get) => ({
     else document.documentElement.setAttribute('data-theme', t)
     set({ theme: t })
   },
-  refreshStatus: async () => {
-    const s = await api.status()
-    const prev = get().status
-    const changed = !prev || prev.world_id !== s.world_id || prev.day !== s.day || prev.hour !== s.hour || prev.has_alt !== s.has_alt || prev.agents !== s.agents
-      || JSON.stringify(prev.alt_interventions ?? []) !== JSON.stringify(s.alt_interventions ?? [])
-    set({ status: s })
-    if (changed) set({ colCache: new Map(), dataVersion: get().dataVersion + 1 })
-    if (!s.has_alt && get().lens !== 'base') get().setLens('base')
-    if (s.has_alt && ((prev && !prev.has_alt) || (!prev && STATIC))) get().setLens('compare')   // a fresh what-if (or the snapshot): show both worlds
-    return s
+  refreshStatus: () => {
+    // one status request at a time: callers that ask while one is in flight share its answer
+    if (statusInflight) return statusInflight
+    statusInflight = (async () => {
+      const s = await api.status()
+      const prev = get().status
+      const structural = !prev || prev.world_id !== s.world_id || prev.has_alt !== s.has_alt || prev.agents !== s.agents
+        || prev.job?.state !== s.job?.state || prev.fork_day !== s.fork_day
+        || JSON.stringify(prev.alt_interventions ?? []) !== JSON.stringify(s.alt_interventions ?? [])
+      const moved = !!prev && (prev.day !== s.day || prev.hour !== s.hour)
+      set({ status: s })
+      // While time runs, pages reload their data every few seconds rather than every simulated day, so requests never
+      // pile up behind the run; when the run ends (a job-state change) they reload at once.
+      const now = Date.now()
+      if (structural || (moved && (s.job?.state !== 'running' || now - lastBump >= LIVE_REFRESH_MS))) {
+        lastBump = now
+        set({ colCache: new Map(), dataVersion: get().dataVersion + 1 })
+      }
+      if (!s.has_alt && get().lens !== 'base') get().setLens('base')
+      if (s.has_alt && ((prev && !prev.has_alt) || (!prev && STATIC))) get().setLens('compare')   // a fresh what-if (or the snapshot): show both worlds
+      return s
+    })().finally(() => { statusInflight = null })
+    return statusInflight
   },
   bump: () => set({ colCache: new Map(), dataVersion: get().dataVersion + 1 }),
   setPalette: (v) => set({ palette: v }),

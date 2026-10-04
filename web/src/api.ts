@@ -210,6 +210,41 @@ export const api = {
   async historyFrames(variable: string, u: Universe = 'base') {
     return STATIC ? bin(`${D}/history_frames_${u}_${variable}.bin`) : bin(`/api/history/frames?u=${u}&var=${variable}`)
   },
+  // ---- the game layer: fields, the butterfly comparison, the world's pulse
+  async fieldsInfo() { return STATIC ? j(`${D}/fields_info.json`) : j('/api/fields/info') },
+  async fieldsSummary(u: Universe = 'base') { return STATIC ? j(`${D}/fields_summary_${u}.json`) : j(`/api/fields/summary?u=${u}`) },
+  async fieldTimeline(variable: string, group = 'all') {
+    if (STATIC) {
+      const all = await j(`${D}/field_timelines.json`)
+      const out: any = { var: variable, group, fork_day: all.fork_day }
+      for (const u of ['base', 'alt']) { const t = all[u]?.[group]?.[variable]; if (t) out[u] = { days: all[u].days, n: all[u][group].n, ...t } }
+      if (!out.base) throw new Error('not recorded in the snapshot')
+      return out
+    }
+    return j(`/api/fields/timeline?var=${variable}&group=${group}`)
+  },
+  async compareFields() { return STATIC ? j(`${D}/compare_fields.json`) : j('/api/compare/fields') },
+  async comparePeople(k = 40) { return STATIC ? j(`${D}/compare_people.json`) : j(`/api/compare/people?k=${k}`) },
+  async comparePerson(id: number) {
+    if (STATIC) { const all = await j(`${D}/compare_person.json`); const r = all[String(id)]; if (!r) throw new Error('not included in the snapshot'); return r }
+    return j(`/api/compare/person/${id}`)
+  },
+  async compareRelationships() { return STATIC ? j(`${D}/compare_relationships.json`) : j('/api/compare/relationships') },
+  async comparePlaces(kind: string, variable: string) {
+    if (STATIC) { const all = await j(`${D}/compare_places.json`); const r = all[`${kind}:${variable}`]; if (!r) throw new Error('not included in the snapshot'); return r }
+    return j(`/api/compare/places?kind=${kind}&var=${variable}`)
+  },
+  async personHistory(id: number) {
+    if (STATIC) { const p = await api.person(id, 'base'); if (!p.history) throw new Error('not included in the snapshot'); return p.history }
+    return j(`/api/person/${id}/history`)
+  },
+  async pulse(u: Universe = 'base') { return STATIC ? j(`${D}/pulse_${u}.json`) : j(`/api/pulse?u=${u}`) },
+  async relationships(u: Universe = 'base', status = '') {
+    if (STATIC) { const r = await j(`${D}/relationships_${u}.json`); return status ? { ...r, couples: r.couples.filter((c: any) => c.status === status) } : r }
+    return j(`/api/relationships?u=${u}&status=${status}&limit=80`)
+  },
+  async searchPeople(q: string, u: Universe = 'base') { return STATIC ? [] : j(`/api/people/search?q=${encodeURIComponent(q)}&u=${u}&limit=8`) },
+  async forkAdd(interventions: any[]) { return post('/api/fork/add', { interventions }) },
   async fork(interventions: any[]) { return post('/api/fork', { interventions }) },
   async unfork() { return j('/api/fork', { method: 'DELETE' }) },
   async newWorld(scale: number, seed: number, warmup = 0) { return post('/api/world', { scale, seed, warmup }) },

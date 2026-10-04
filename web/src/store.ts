@@ -24,6 +24,10 @@ export type Registry = {
 }
 
 export type Mode = 'simple' | 'advanced'
+/** Which world every page shows: the Original, the What-if, or both side by side. */
+export type Lens = 'base' | 'alt' | 'compare'
+export type Pin = { kind: 'field'; var: string; group?: string } | { kind: 'person'; id: number; name?: string }
+export type Toast = { id: number; kind: 'event' | 'world' | 'info'; title: string; body?: string; category?: string; route?: string[]; ttl?: number }
 
 function load<T>(key: string, fallback: T): T {
   try { const v = localStorage.getItem(key); return v === null ? fallback : JSON.parse(v) } catch { return fallback }
@@ -36,18 +40,28 @@ type State = {
   registry: Registry | null
   mode: Mode
   following: Record<string, number[]>
+  pins: Record<string, Pin[]>
   setMode: (m: Mode) => void
   toggleFollow: (id: number) => void
   followed: () => number[]
+  togglePin: (p: Pin) => void
+  pinned: () => Pin[]
+  isPinned: (p: Pin) => boolean
   status: any
   presets: any
   route: string[]
+  lens: Lens
   universe: Universe
   cohort: Cond[]
   theme: 'auto' | 'light' | 'dark'
   dataVersion: number
   colCache: Map<string, Column>
+  palette: boolean
+  drawer: null | { tab?: string; preset?: string }
+  toasts: Toast[]
+  news: boolean
   setRoute: (r: string[]) => void
+  setLens: (l: Lens) => void
   setUniverse: (u: Universe) => void
   addCond: (c: Cond) => void
   removeCond: (i: number) => void
@@ -55,19 +69,28 @@ type State = {
   setTheme: (t: 'auto' | 'light' | 'dark') => void
   refreshStatus: () => Promise<any>
   bump: () => void
+  setPalette: (v: boolean) => void
+  openDrawer: (d: null | { tab?: string; preset?: string }) => void
+  toast: (t: Omit<Toast, 'id'>) => void
+  dismiss: (id: number) => void
+  setNews: (v: boolean) => void
 }
 
 function parseHash(): string[] {
   const h = window.location.hash.replace(/^#\/?/, '')
-  return h ? h.split('/').map(decodeURIComponent) : ['home']
+  return h ? h.split('/').map(decodeURIComponent) : ['world']
 }
+
+let toastId = 1
+const pinKey = (p: Pin) => (p.kind === 'field' ? `f:${p.var}:${p.group ?? ''}` : `p:${p.id}`)
 
 export const useStore = create<State>((set, get) => ({
   registry: null,
   mode: load<Mode>('ucsim-mode', 'simple'),
   following: load<Record<string, number[]>>('ucsim-following', {}),
+  pins: load<Record<string, Pin[]>>('ucsim-pins', {}),
   setMode: (m) => { save('ucsim-mode', m); set({ mode: m }) },
-  // followed people are remembered per world (scale + seed), since ids belong to one synthesized world
+  // followed people and pins are remembered per world (scale + seed), since ids belong to one synthesized world
   toggleFollow: (id) => {
     const key = worldKey(get().status)
     const cur = get().following[key] ?? []
@@ -76,16 +99,32 @@ export const useStore = create<State>((set, get) => ({
     set({ following: next })
   },
   followed: () => get().following[worldKey(get().status)] ?? [],
+  togglePin: (p) => {
+    const key = worldKey(get().status)
+    const cur = get().pins[key] ?? []
+    const k = pinKey(p)
+    const next = { ...get().pins, [key]: cur.some(x => pinKey(x) === k) ? cur.filter(x => pinKey(x) !== k) : [...cur, p] }
+    save('ucsim-pins', next)
+    set({ pins: next })
+  },
+  pinned: () => get().pins[worldKey(get().status)] ?? [],
+  isPinned: (p) => (get().pins[worldKey(get().status)] ?? []).some(x => pinKey(x) === pinKey(p)),
   status: null,
   presets: null,
   route: parseHash(),
+  lens: 'base',
   universe: 'base',
   cohort: [],
   theme: (() => { try { return (localStorage.getItem('ucsim-theme') as any) || 'auto' } catch { return 'auto' } })(),
   dataVersion: 0,
   colCache: new Map(),
+  palette: false,
+  drawer: null,
+  toasts: [],
+  news: load<boolean>('ucsim-news', true),
   setRoute: (r) => { window.location.hash = '/' + r.map(encodeURIComponent).join('/'); set({ route: r }); document.querySelector('.main')?.scrollTo(0, 0) },
-  setUniverse: (u) => set({ universe: u }),
+  setLens: (l) => set({ lens: l, universe: l === 'alt' ? 'alt' : 'base' }),
+  setUniverse: (u) => get().setLens(u),
   addCond: (c) => set({ cohort: [...get().cohort, c] }),
   removeCond: (i) => set({ cohort: get().cohort.filter((_, k) => k !== i) }),
   setCohort: (c) => set({ cohort: c }),
@@ -99,12 +138,23 @@ export const useStore = create<State>((set, get) => ({
     const s = await api.status()
     const prev = get().status
     const changed = !prev || prev.world_id !== s.world_id || prev.day !== s.day || prev.hour !== s.hour || prev.has_alt !== s.has_alt || prev.agents !== s.agents
+      || JSON.stringify(prev.alt_interventions ?? []) !== JSON.stringify(s.alt_interventions ?? [])
     set({ status: s })
     if (changed) set({ colCache: new Map(), dataVersion: get().dataVersion + 1 })
-    if (!s.has_alt && get().universe === 'alt') set({ universe: 'base' })
+    if (!s.has_alt && get().lens !== 'base') get().setLens('base')
+    if (s.has_alt && prev && !prev.has_alt) get().setLens('compare')   // a fresh what-if: show both worlds
     return s
   },
   bump: () => set({ colCache: new Map(), dataVersion: get().dataVersion + 1 }),
+  setPalette: (v) => set({ palette: v }),
+  openDrawer: (d) => set({ drawer: d }),
+  toast: (t) => {
+    const id = toastId++
+    set({ toasts: [...get().toasts, { ...t, id }].slice(-3) })
+    setTimeout(() => get().dismiss(id), t.ttl ?? 7000)
+  },
+  dismiss: (id) => set({ toasts: get().toasts.filter(t => t.id !== id) }),
+  setNews: (v) => { save('ucsim-news', v); set({ news: v }) },
 }))
 
 window.addEventListener('hashchange', () => useStore.setState({ route: parseHash() }))
@@ -119,6 +169,14 @@ export async function loadColumns(vars: string[], u: Universe): Promise<Record<s
   const out: Record<string, Column> = {}
   for (const v of vars) { const c = colCache.get(`${u}:${v}`); if (c) out[v] = c }
   return out
+}
+
+/** The current world lens: which universe to load data from, and whether to show both. */
+export function useLens() {
+  const lens = useStore(s => s.lens)
+  const hasAlt = useStore(s => !!s.status?.has_alt)
+  const l: Lens = hasAlt ? lens : 'base'
+  return { lens: l, u: (l === 'alt' ? 'alt' : 'base') as Universe, compare: l === 'compare', hasAlt }
 }
 
 export const isStatic = STATIC

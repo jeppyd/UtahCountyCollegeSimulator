@@ -6,7 +6,7 @@ import { cohortMask, fmt, quantile } from '../analysis'
 import { api, Column, fetchBytes, STATIC } from '../api'
 import { CohortBar, cssVar, divColor, hexRgb, seqColor, VarPicker } from '../components'
 import { nameOf } from '../names'
-import { loadColumns, useStore } from '../store'
+import { loadColumns, useLens, useStore } from '../store'
 
 const BLANK_STYLE = (bg: string): any => ({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': bg } }] })
 const CENTER: [number, number] = [-111.672, 40.262]
@@ -45,7 +45,8 @@ const MODE_HINT: Record<Mode, string> = {
 }
 
 export default function MapView({ initial }: { initial?: string }) {
-  const { universe, dataVersion, cohort, status, setRoute, theme } = useStore()
+  const { dataVersion, cohort, status, setRoute, theme } = useStore()
+  const { u: universe, compare } = useLens()
   const el = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const overlay = useRef<MapboxOverlay | null>(null)
@@ -64,7 +65,8 @@ export default function MapView({ initial }: { initial?: string }) {
   const [pbVar, setPbVar] = useState('rel_status')
   const [tracked, setTracked] = useState<{ cat: string[]; num: string[] }>({ cat: [], num: [] })
   const playback = mode === 'day' || mode === 'months'
-  const [diff, setDiff] = useState(false)
+  const [diff, setDiff] = useState(compare)
+  useEffect(() => { setDiff(compare) }, [compare])
   const [basemap, setBasemap] = useState(!STATIC)
   const [showRoads, setShowRoads] = useState(true)
   const [showBldg, setShowBldg] = useState(true)
@@ -191,13 +193,13 @@ export default function MapView({ initial }: { initial?: string }) {
     if (!pts) return null
     const spec = reg.variables[pts.varName]
     const col: Column = pts.col
-    if (diff && pts.other) {
+    if (diff && pts.other && !col.categories && !col.bool) {
       const a = col.data, b = pts.other.data
       const d: number[] = []
       for (let i = 0; i < a.length; i++) if (!Number.isNaN(a[i]) && !Number.isNaN(b[i])) d.push(Math.abs(b[i] - a[i]))
       const s = d.sort((x, y) => x - y)
       const m = quantile(s, 0.98) || 1
-      const sign = universe === 'base' ? 1 : -1
+      const sign = universe === 'base' ? 1 : -1  // always What-if minus Original
       return { fn: (i: number) => divColor(sign * (b[i] - a[i]) / m), legend: { kind: 'div', m } }
     }
     if (col.categories || col.bool) {
@@ -320,8 +322,11 @@ export default function MapView({ initial }: { initial?: string }) {
             <VarPicker value={colorBy === 'activity_now' ? 'loneliness' : colorBy} onChange={setColorBy} filter={v => !!v.mappable && v.dtype !== 'cat'} />
           )}
         </div>
+        {compare && (mode === 'people' || mode === 'homes') && (colorBy === 'activity_now' || reg.variables[colorBy]?.dtype === 'cat' || reg.variables[colorBy]?.dtype === 'bool') && (
+          <div className="banner small">Compare: pick a numeric measure (e.g. loneliness, rent burden) to color each person by how different it is in the What-if world.</div>
+        )}
         {status.has_alt && (mode === 'people' || mode === 'homes') && colorBy !== 'activity_now' && (
-          <label className="inline small"><input type="checkbox" checked={diff} onChange={e => setDiff(e.target.checked)} /> show intervention − baseline difference</label>
+          <label className="inline small"><input type="checkbox" checked={diff} onChange={e => setDiff(e.target.checked)} /> color by the What-if − Original difference</label>
         )}
         <div className="row small" style={{ marginTop: 6 }}>
           <label className="inline"><input type="checkbox" checked={highlight} onChange={e => setHighlight(e.target.checked)} />highlight cohort</label>
@@ -348,7 +353,7 @@ export default function MapView({ initial }: { initial?: string }) {
           {legend.kind === 'cat' && legend.cats!.map((c: string, k: number) => <div key={c} className="row"><span className="dot" style={{ background: `var(--s${k + 1})` }} />{c.replace(/_/g, ' ')}</div>)}
           {legend.kind === 'cat' && legend.more && <div className="row"><span className="dot" style={{ background: 'var(--text-muted)' }} />other</div>}
           {legend.kind === 'seq' && <><div style={{ height: 10, borderRadius: 3, background: 'linear-gradient(90deg,#cde2fb,#9ec5f4,#6da7ec,#3987e5,#256abf,#184f95,#0d366b)' }} /><div className="row tabular" style={{ justifyContent: 'space-between' }}><span>{fmt(legend.lo, 2)}</span><span>{reg.variables[colorBy]?.label}</span><span>{fmt(legend.hi, 2)}</span></div></>}
-          {legend.kind === 'div' && <><div style={{ height: 10, borderRadius: 3, background: 'linear-gradient(90deg,#2a78d6,#d9d8d2,#e34948)' }} /><div className="row tabular" style={{ justifyContent: 'space-between' }}><span>−{fmt(legend.m, 2)}</span><span>intervention − baseline</span><span>+{fmt(legend.m, 2)}</span></div></>}
+          {legend.kind === 'div' && <><div style={{ height: 10, borderRadius: 3, background: 'linear-gradient(90deg,#2a78d6,#d9d8d2,#e34948)' }} /><div className="row tabular" style={{ justifyContent: 'space-between' }}><span>−{fmt(legend.m, 2)}</span><span>What-if − Original</span><span>+{fmt(legend.m, 2)}</span></div></>}
         </div>
       )}
       {playback && pb && (

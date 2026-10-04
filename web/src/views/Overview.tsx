@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fmt, pct, values } from '../analysis'
 import { api } from '../api'
-import { axisStyle, EChart, PersonLink, series as seriesColor, Tile, tokens } from '../components'
+import { axisStyle, cssVar, EChart, PersonLink, series as seriesColor, Tile, tokens } from '../components'
 import { loadColumns, useStore } from '../store'
 import { PageHeader } from '../ui'
 
@@ -24,9 +24,9 @@ export function TSChart({ data, v, label, height = 170, startDate, forkDay }: { 
     const ax = axisStyle()
     const base = data?.base
     if (!base || !base[v]) return null
-    const series: any[] = [{ name: 'Baseline', type: 'line', showSymbol: false, lineStyle: { width: 2 }, data: base.day.map((d: number, k: number) => [dayToDate(startDate, d), base[v][k]]) }]
-    if (data.alt && data.alt[v]) series.push({ name: 'Intervention', type: 'line', showSymbol: false, lineStyle: { width: 2 }, data: data.alt.day.map((d: number, k: number) => [dayToDate(startDate, d), data.alt[v][k]]) })
-    if (forkDay !== null && forkDay !== undefined && data.alt) series[0].markLine = { symbol: 'none', silent: true, lineStyle: { color: t.muted, type: 'solid', width: 1 }, label: { formatter: 'fork', color: t.muted, fontSize: 10 }, data: [{ xAxis: dayToDate(startDate, forkDay) }] }
+    const series: any[] = [{ name: 'Original', type: 'line', showSymbol: false, lineStyle: { width: 2, color: cssVar('--u-base') }, itemStyle: { color: cssVar('--u-base') }, data: base.day.map((d: number, k: number) => [dayToDate(startDate, d), base[v][k]]) }]
+    if (data.alt && data.alt[v]) series.push({ name: 'What-if', type: 'line', showSymbol: false, lineStyle: { width: 2, color: cssVar('--u-alt') }, itemStyle: { color: cssVar('--u-alt') }, data: data.alt.day.map((d: number, k: number) => [dayToDate(startDate, d), data.alt[v][k]]) })
+    if (forkDay !== null && forkDay !== undefined && data.alt) series[0].markLine = { symbol: 'none', silent: true, lineStyle: { color: t.muted, type: 'solid', width: 1 }, label: { formatter: 'split', color: t.muted, fontSize: 10 }, data: [{ xAxis: dayToDate(startDate, forkDay) }] }
     return {
       grid: { left: 8, right: 12, top: series.length > 1 ? 28 : 14, bottom: 22, containLabel: true },
       legend: series.length > 1 ? { top: 0, right: 0, textStyle: { color: t.text2, fontSize: 11 }, icon: 'roundRect', itemHeight: 3, itemWidth: 14 } : undefined,
@@ -111,12 +111,12 @@ export default function Overview() {
 
   return (
     <div className="page">
-      <PageHeader id="dashboard" eyebrow="Watch the world" title="Vital signs"
+      <PageHeader id="dashboard" eyebrow="Research desk" title="Vital signs"
         sub={<>How {status.present?.toLocaleString()} people are doing over time. Every line comes from individual lives; click through to see who and why.</>}
         tips={[
-          'Each chart is a population average per day. When a what-if world exists, both worlds are drawn and a line marks the split.',
+          'Each chart is a population average per day. When a What-if world exists, both worlds are drawn (Original blue, What-if orange) and a dashed line marks the split.',
           'Below the trends: what everyone is doing right now, where friendships and romances began, and the latest big moments.',
-          'To see these trends for one group only (e.g. BYU women), use Flows over time → "How did this group get here?".',
+          'For any other field, or one group only, open Explore: every field has an Over time chart.',
         ]} />
       {tiles && (
         <div className="grid g6" style={{ marginBottom: 14 }}>

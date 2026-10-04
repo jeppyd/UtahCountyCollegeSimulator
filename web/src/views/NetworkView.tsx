@@ -17,7 +17,7 @@ const TIES: [string, string][] = [['', 'all ties'], ['roommate', 'roommates'], [
   ['ward', 'ward members'], ['fhe', 'FHE group'], ['neighbor', 'neighbors'], ['clubmate', 'club members'], ['teammate', 'intramural teammates'],
   ['institute', 'institute classmates'], ['introduced', 'met through a friend'], ['romantic', 'couples']]
 
-export default function NetworkView() {
+export default function NetworkView({ embedded = false }: { embedded?: boolean }) {
   const { cohort, universe, dataVersion, setRoute } = useStore()
   const [g, setG] = useState<any>(null)
   const [by, setBy] = useState('activity')
@@ -55,10 +55,11 @@ export default function NetworkView() {
     return { grid: { left: 44, right: 10, top: 10, bottom: 28 }, tooltip: { trigger: 'axis' }, xAxis: { type: 'category', data: h.edges.slice(0, -1).map(e => fmt(e, 0)), name: 'friends', ...ax }, yAxis: { type: 'value', ...ax }, series: [{ type: 'bar', barCategoryGap: '8%', data: h.counts, itemStyle: { borderRadius: [3, 3, 0, 0] } }] }
   }, [deg])
   return (
-    <div className="page">
-      <PageHeader id="network" eyebrow="Watch the world" title="Friend network"
+    <div className={embedded ? '' : 'page'}>
+      {!embedded && <PageHeader id="network" eyebrow="Relationships" title="Friend network"
         sub="A sample of who is friends with whom. Clusters form around apartments, wards, classes and FHE groups; a few people bridge them."
-        tips={['Each dot is a person, each line a friendship. Color the dots by church activity, school, sex or relationship status.', '"Same-group friendships" compares how often friends share a trait vs what random mixing would give (homophily).', 'Click a dot to open that person. Use the group bar to look at one part of the network.']} />
+        tips={['Each dot is a person, each line a friendship. Color the dots by church activity, school, sex or relationship status.', '"Same-group friendships" compares how often friends share a trait vs what random mixing would give (homophily).', 'Click a dot to open that person. Use the group bar to look at one part of the network.']} />}
+      {embedded && <p className="small secondary" style={{ marginTop: 0 }}>A sample of who is friends with whom: clusters form around apartments, wards, classes and FHE groups, and a few people bridge them. Click a dot to open that life. Your filter narrows it to one part of the network.</p>}
       <CohortBar n={deg.n} />
       <div className="grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 300px' }}>
         <div className="card">

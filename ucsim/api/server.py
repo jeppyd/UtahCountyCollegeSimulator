@@ -22,7 +22,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from ..analysis import butterfly as B
 from ..analysis import explain as X
+from ..analysis import fields as F
 from ..analysis.person import headline, profile, synthetic_name
 from ..analysis.query import describe_filter, evaluate_filter
 from ..engine import runner
@@ -163,6 +165,8 @@ def status():
                     "edges": int(w.E.n), "events": int(b.log.n), "env": {k: v for k, v in w.env.items() if not isinstance(v, np.ndarray)},
                     "alt_interventions": WS.alt.interventions if WS.alt is not None else [],
                     "fork_day": getattr(WS.alt, "meta_fork_day", None) if WS.alt is not None else None,
+                    "divergence": WS.divergence[-1] if WS.alt is not None and WS.divergence else None,
+                    "last_event_id": int(b.log.n) - 1,
                     "timing": b.timing})
     return jresp(out)
 
@@ -410,30 +414,7 @@ def featured(u: str = "base", days: int = 30, k: int = 6):
     """Eventful lives lately: people with the most salient recent events, spread across life domains."""
     sim = WS.sim(u)
     with WS.lock:
-        log, reg, P = sim.log, sim.reg, sim.w.P
-        sal = np.array([e.salience for e in reg.events.values()])
-        recent = (log["day"] >= sim.w.day - days) & (sal[log["type"]] >= 0.75) & (log["a"] >= 0)
-        idx = np.where(recent)[0]
-        if not len(idx):
-            return jresp([])
-        score = np.bincount(log["a"][idx], weights=sal[log["type"][idx]], minlength=P.n)
-        score[~P["present"].astype(bool)] = 0
-        cats = [e.category for e in reg.events.values()]
-        out, used = [], set()
-        for i in np.argsort(-score)[: 200]:
-            if score[i] <= 0 or len(out) >= k:
-                break
-            mine = idx[log["a"][idx] == i]
-            main_cat = cats[int(log["type"][mine[-1]])]
-            if main_cat in used and len(used) < 4:
-                continue  # prefer variety: romance, faith, school, family…
-            used.add(main_cat)
-            evs = [X.event_record(sim, int(e)) for e in mine[-4:][::-1]]
-            for r in evs:
-                r["a_name"] = synthetic_name(P, r["a"])
-                r["b_name"] = synthetic_name(P, r["b"]) if r["b"] is not None else None
-            out.append({"id": int(i), "name": synthetic_name(P, int(i)), "headline": headline(sim, int(i)), "events": evs, "theme": main_cat})
-        return jresp(out)
+        return jresp(F.featured_people(sim, days, k))
 
 
 @app.get("/api/people/brief")
@@ -481,11 +462,13 @@ def search(q: str = "", u: str = "base", limit: int = 20):
 # ----------------------------------------------------------------------------- events & provenance
 @app.get("/api/events")
 def events(u: str = "base", type: str = "", agent: int = -1, since: int = -100000, limit: int = 200, offset: int = 0,
-           min_salience: float = 0.0):
+           min_salience: float = 0.0, after_id: int = -1):
     sim = WS.sim(u)
     with WS.lock:
         log = sim.log
         m = log["day"] >= since
+        if after_id >= 0:
+            m &= np.arange(log.n) > after_id
         if type:
             codes = [sim.reg.event_ids[t] for t in type.split(",") if t in sim.reg.event_ids]
             m &= np.isin(log["type"], codes)
@@ -733,6 +716,150 @@ def compare():
                     r["name"] = synthetic_name(WS.base.w.P, r["id"])
             WS.compare_cache = c
         return jresp(WS.compare_cache)
+
+
+def _need_alt():
+    if WS.alt is None or WS.base is None:
+        raise HTTPException(404, "no what-if world; make a change first")
+
+
+@app.get("/api/compare/fields")
+def compare_fields():
+    """Every chartable field, Original vs What-if: averages or shares, effect size, how many people changed,
+    and the difference over time since the split."""
+    _need_alt()
+    with WS.lock:
+        return jresp(B.compare_fields(WS.base, WS.alt))
+
+
+@app.get("/api/compare/people")
+def compare_people(k: int = 40):
+    """The people whose lives diverged most between the two worlds, and why."""
+    _need_alt()
+    with WS.lock:
+        return jresp(B.diverged_people(WS.base, WS.alt, k=min(k, 200)))
+
+
+@app.get("/api/compare/person/{i}")
+def compare_person(i: int):
+    """One person's two lives since the split, the first fork in their road and the chain of causes behind it."""
+    _need_alt()
+    with WS.lock:
+        if i < 0 or i >= min(WS.base.w.P.n, WS.alt.w.P.n):
+            raise HTTPException(404, "no such person in both worlds")
+        return jresp(B.person_divergence(WS.base, WS.alt, i))
+
+
+@app.get("/api/compare/relationships")
+def compare_relationships(k: int = 40):
+    """Couples and friendships that exist in only one of the two worlds."""
+    _need_alt()
+    with WS.lock:
+        return jresp(B.compare_relationships(WS.base, WS.alt, k=min(k, 200)))
+
+
+@app.get("/api/compare/places")
+def compare_places(kind: str = "complex", var: str = "loneliness"):
+    _need_alt()
+    if kind not in ("complex", "ward", "neighborhood", "school"):
+        raise HTTPException(400, "kind must be complex|ward|neighborhood|school")
+    with WS.lock:
+        if var not in WS.base.w.P.specs:
+            raise HTTPException(400, f"unknown field {var}")
+        return jresp(B.compare_places(WS.base, WS.alt, kind, var))
+
+
+@app.post("/api/fork/add")
+def fork_add(body: dict = Body(...)):
+    """Add more changes to the existing What-if world, starting today (the Original is untouched)."""
+    _need_alt()
+    from ..engine.interventions import expand
+    with WS.lock:
+        alt = WS.alt
+        man = alt.systems["environment"].manager
+        added = []
+        for spec in body.get("interventions", []):
+            for atom in expand(spec):
+                atom["start_day"] = max(int(atom.get("start_day", 0)), alt.w.day)
+                atom.setdefault("ramp_days", 0)
+                atom.setdefault("duration_days", None)
+                atom.setdefault("op", "set")
+                man.items.append(atom)
+                alt.interventions.append(atom)
+                added.append(atom)
+        WS.compare_cache = None
+    return jresp({"ok": True, "added": len(added)})
+
+
+# ----------------------------------------------------------------------------- fields (the explorer)
+@app.get("/api/fields/info")
+def fields_info():
+    """Which fields are recorded over time, and how often."""
+    if WS.base is None:
+        raise HTTPException(404, "no world")
+    rec, H = WS.base.systems["recorder"], WS.base.systems["history"]
+    return jresp({"weekly": rec.field_vars, "daily": rec.vars, "person_history": {"categorical": H.cat_vars, "numeric": H.num_vars},
+                  "weekly_every": 7, "history_every": H.every, "groups": list(rec.GROUPS), "start_date": str(WS.base.cal.date(0))})
+
+
+@app.get("/api/fields/summary")
+def fields_summary(u: str = "base"):
+    """The current value of every chartable field (for the field browser)."""
+    sim = WS.sim(u)
+    with WS.lock:
+        return jresp(F.summary(sim, sim.systems["recorder"].field_vars))
+
+
+@app.get("/api/fields/timeline")
+def fields_timeline(var: str, group: str = "all"):
+    """A field over time for a standard group, in each world that exists."""
+    out = {"var": var, "group": group}
+    for name, sim in (("base", WS.base), ("alt", WS.alt)):
+        if sim is None:
+            continue
+        with WS.lock:
+            t = F.timeline(sim, var, group)
+        if t is not None:
+            out[name] = t
+    if "base" not in out:
+        raise HTTPException(404, f"{var} is not recorded over time")
+    out["fork_day"] = getattr(WS.alt, "meta_fork_day", None) if WS.alt is not None else None
+    return jresp(out)
+
+
+@app.get("/api/person/{i}/history")
+def person_history(i: int):
+    """One person's tracked states every two weeks, in each world."""
+    out = {}
+    for name, sim in (("base", WS.base), ("alt", WS.alt)):
+        if sim is None or i >= sim.w.P.n:
+            continue
+        with WS.lock:
+            out[name] = F.person_history(sim, i)
+    if not out:
+        raise HTTPException(404, "no such person")
+    out["fork_day"] = getattr(WS.alt, "meta_fork_day", None) if WS.alt is not None else None
+    return jresp(out)
+
+
+@app.get("/api/pulse")
+def pulse(u: str = "base"):
+    """The world right now: what people are doing, the day's and week's events, headlines, what's moving, lives to follow."""
+    sim = WS.sim(u)
+    with WS.lock:
+        out = F.pulse(sim, F.featured_people(sim))
+        out["interventions"] = WS.alt.interventions if WS.alt is not None else []
+        out["fork_day"] = getattr(WS.alt, "meta_fork_day", None) if WS.alt is not None else None
+        out["divergence"] = WS.divergence[-1] if WS.divergence else None
+        return jresp(out)
+
+
+@app.get("/api/relationships")
+def relationships(u: str = "base", status: str = "", limit: int = 60):
+    """Couples (newest first) and the kinds of ties that make up the friendship network."""
+    sim = WS.sim(u)
+    with WS.lock:
+        return jresp(F.relationships(sim, status, min(limit, 500)))
 
 
 @app.get("/api/causal_graph")

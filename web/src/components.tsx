@@ -154,12 +154,12 @@ export function CohortBar({ n, total }: { n?: number; total?: number }) {
   const [adding, setAdding] = useState(false)
   return (
     <div className="cohort-bar">
-      <b style={{ fontSize: 13 }}>Cohort</b>
-      {cohort.length === 0 && <span className="muted small">everyone present</span>}
+      <b style={{ fontSize: 13 }}>Showing</b>
+      {cohort.length === 0 && <span className="muted small">everyone in Provo–Orem now</span>}
       {cohort.map((c, i) => (
         <span key={i} className="cond">{condLabel(c, registry)}<button onClick={() => removeCond(i)} aria-label="remove">×</button></span>
       ))}
-      <button className="btn small" onClick={() => setAdding(!adding)}>+ condition</button>
+      <button className="btn small" onClick={() => setAdding(!adding)}>+ filter</button>
       {cohort.length > 0 && <button className="btn small ghost" onClick={() => setCohort([])}>clear</button>}
       <span className="spacer" />
       {n !== undefined && <span className="pill tabular">{n.toLocaleString()} people{total ? ` · ${(100 * n / total).toFixed(1)}%` : ''}</span>}
@@ -262,7 +262,9 @@ function CondEditor({ onDone }: { onDone: () => void }) {
 
 // ---------------------------------------------------------------- additive decomposition bars
 export function Decomposition({ rows, scale }: { rows: { label: string; value: number; evidence?: string; title?: string }[]; scale?: number }) {
-  const m = scale ?? Math.max(0.05, ...rows.map(r => Math.abs(r.value)))
+  const big = Math.max(...rows.map(r => Math.abs(r.value)), 0)
+  const m = scale ?? Math.max(big < 0.05 ? big * 1.05 || 1e-6 : 0.05, big)
+  const dg = big >= 0.01 ? 3 : big >= 0.001 ? 4 : 5
   return (
     <div className="decomp">
       {rows.map((r, k) => {
@@ -271,7 +273,7 @@ export function Decomposition({ rows, scale }: { rows: { label: string; value: n
         return [
           <div key={`l${k}`} title={r.title} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label} {r.evidence && <Evidence level={r.evidence} />}</div>,
           <div key={`b${k}`} className="bar"><span className="zero" /><i style={{ left: `${left}%`, width: `${Math.max(w, 0.5)}%`, background: r.value >= 0 ? 'var(--s8)' : 'var(--s1)' }} /></div>,
-          <div key={`v${k}`} className="tabular small" style={{ textAlign: 'right' }}>{r.value >= 0 ? '+' : ''}{r.value.toFixed(3)}</div>,
+          <div key={`v${k}`} className="tabular small" style={{ textAlign: 'right' }}>{r.value >= 0 ? '+' : ''}{r.value.toFixed(dg)}</div>,
         ]
       })}
     </div>

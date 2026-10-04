@@ -748,11 +748,17 @@ class Romance:
         if len(a) == 0:
             return
         ok = P["present"][a] & P["present"][b]
-        # a partner away on the day (a trip home, a mission farewell): the wedding moves a week rather than vanishing
-        late = ~ok
+        # a partner away on the day (a trip home, a mission farewell): the wedding moves a week rather than vanishing;
+        # if one of them has left the area for good, the engagement ends
+        gone = ~ok & ((P["departure_day"][a] >= 0) | (P["departure_day"][b] >= 0))
+        late = ~ok & ~gone
         if late.any():
             P.internal["wedding_planned"][a[late]] = day + 7
             P.internal["wedding_planned"][b[late]] = day + 7
+        if gone.any():
+            ga, gb = a[gone], b[gone]
+            ge = E.upsert(EdgeStore.make_keys(ga, gb))
+            self._end(ga, gb, E.attraction_from(ge, ga), E.attraction_from(ge, gb))
         a, b = a[ok], b[ok]
         for x in (a, b):
             P.cols["rel_status"][x] = P.code("rel_status", "married")

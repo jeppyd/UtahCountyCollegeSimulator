@@ -234,6 +234,11 @@ class LifeCourse:
             if (~together).any():
                 sim.systems["housing"].place(need_home[~together], reason="")
         self._fhe_for(ids)
+        mind = sim.systems.get("mind")
+        if mind is not None and "mind_ready" in P.internal:   # an inner life from day one (cares, expectations)
+            fresh = ids[~P.internal["mind_ready"][ids]]
+            if len(fresh):
+                mind.setup(fresh)
         sim.emit(event, ids, cause=cause, mech="lifecourse.arrival")
 
     def _fhe_for(self, ids):

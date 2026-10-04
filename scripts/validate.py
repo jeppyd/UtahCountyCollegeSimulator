@@ -143,6 +143,23 @@ def patterns(sim):
         pi = float(np.mean(P["perceived_friend_belief"][lds_doubt] - P["friend_belief_actual"][lds_doubt]))
         row("pluralistic_ignorance_doubters", "members with belief < 0.45", 0.05, pi, 0.05, "diagnostic",
             "doubters overestimate peers' belief (Prentice & Miller 1993 direction)")
+    # event sequence timing: months from a couple's first date to their engagement (couples formed during the run)
+    ce, cf = sim.reg.event_ids["engaged"], sim.reg.event_ids["first_date"]
+    em = np.where(log["type"] == ce)[0]
+    fm = np.where(log["type"] == cf)[0]
+    if len(em) >= 10 and len(fm):
+        first = {}
+        for e in fm:
+            k = (min(int(log["a"][e]), int(log["b"][e])), max(int(log["a"][e]), int(log["b"][e])))
+            first.setdefault(k, int(log["day"][e]))
+        months = []
+        for e in em:
+            k = (min(int(log["a"][e]), int(log["b"][e])), max(int(log["a"][e]), int(log["b"][e])))
+            if k in first:
+                months.append((int(log["day"][e]) - first[k]) / 30.4)
+        if len(months) >= 10:
+            row("courtship_months_to_engagement", f"{len(months) // 2} couples who met during the run", 7.0, float(np.median(months)),
+                2.5, "diagnostic", "Dating/Culture surveys: ~6–8 months typical for active LDS couples (first date → engagement)")
     dep = float(P["depressive_episode"][pres].mean())
     row("depressive_episode_prevalence", "everyone present", 0.08, dep, 0.04, "diagnostic",
         "point prevalence ~6-10% (NSDUH 18-25 past-year MDE ≈19%; assumption)")
@@ -299,7 +316,8 @@ def main():
     hold = [r for r in final if r.get("holdout")]
     counts_h = {s: sum(r["status"] == s for r in hold) for s in ("pass", "warn", "fail")}
     pat = [r for r in final if r["kind"] in ("pattern",) or r["table"] in ("liking_gap_new_acquaintances", "pluralistic_ignorance_doubters",
-                                                                            "weddings_between_semesters", "depressive_episode_prevalence")]
+                                                                            "weddings_between_semesters", "depressive_episode_prevalence",
+                                                                            "courtship_months_to_engagement")]
     survey_rows = [r for r in final if r not in pat]
     early_map = {(r["table"], r["group"]): r for r in early}
     for r in final:
@@ -371,7 +389,12 @@ slightly negative (Nickell bias), so read signs near zero with care. The same es
 - **Dating frequency** is now within tolerance for most single and dating groups; engaged couples date
   somewhat more than reported, and older singles somewhat more often than the survey says.
 - *Input* rows (synthesized from the survey) that drift are changed by dynamics on purpose (e.g. work hours
-  respond to financial strain); a large drift there points to a mechanism that needs a counterweight.
+  respond to financial strain); a large drift there points to a mechanism that needs a counterweight. BYU work
+  hours start above the survey and rise ~1.5 h over the winter (unchanged from the previous release).
+- **Social events per month** are now a realized 30-day count of gatherings, dances, ward/FHE activities and
+  clubs (they used to be the static survey value, scored as if emergent). Singles attend ~5.6 a month in the
+  simulation versus ~8 in ProvoStats: an honest gap in how much organized social life the model generates.
+- **Courtship** (first date → engagement) runs faster than the 6–8 months the surveys describe as typical.
 
 ## Calibration
 
@@ -381,7 +404,12 @@ input rows above (two seeds, common random numbers). The chosen values are writt
 
 ## Known gaps
 
-- The fit is to one year; the four-year check (`scripts/stability.py`) shows slower drifts that remain.
+- The fit is to one year; the four-year check (`scripts/stability.py`) shows slower drifts that remain — chiefly the
+  married share of *enrolled students*, which settles near 17–20% by years 3–4 (institutional ≈25%) while the
+  married stock overall holds (`scripts/accounting.py`): married students graduate into non-student roles faster
+  than new student marriages replace them.
+- The inner-life mechanisms (`docs/MIND.md`) are mostly hypothetical in strength; their structural patterns are
+  checked above, and `scripts/uncertainty.py` shows how much a What-if result depends on them.
 - Several targets (GPA, sleep, app hours) depend on survey-derived starting values plus modest dynamics, so they
   agree partly by construction.
 - No administrative validation yet (actual marriage counts, enrollment flows, rent series).

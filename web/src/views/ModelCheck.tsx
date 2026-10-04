@@ -30,6 +30,7 @@ const TABLE_LABEL: Record<string, string> = {
   liking_gap_new_acquaintances: 'Liking gap: new acquaintances underestimate interest',
   pluralistic_ignorance_doubters: 'Doubters overestimate how strongly friends believe',
   depressive_episode_prevalence: 'Point prevalence of depressive episodes',
+  courtship_months_to_engagement: 'Months from first date to engagement (median)',
 }
 const LONG_LABEL: Record<string, string> = {
   n_close_friends: 'close friends', loneliness: 'loneliness', dates_30d: 'dates', attend_rate: 'church attendance', faith_belief: 'belief',

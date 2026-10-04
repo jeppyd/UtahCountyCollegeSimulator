@@ -82,7 +82,7 @@ mechanisms:
     sources: [support_actual, neuroticism, attachment_anxiety, loneliness]
     form: "perceived = logistic(r·logit(actual) + (1 − r)·0.4 − β_N·z_N − β_A·z_attach_anx − β_L·(loneliness − 0.33) + β_lens·personal lens)"
     params:
-      reality: {value: 0.25, range: [0.1, 0.6]}
+      reality: {value: 0.125, range: [0.1, 0.6]}
       neuroticism: {value: 0.35, range: [0.1, 0.6]}
       attachment: {value: 0.3, range: [0.1, 0.5]}
       loneliness: {value: 1.0, range: [0.3, 2.0]}

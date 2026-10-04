@@ -102,7 +102,7 @@ mechanisms:
     sources: [attraction, dates, kiss_first_date_ok, scared_initiate_kiss, sensation_seeking]
     form: "P(first kiss with partner) = logistic(base + βa·min attraction + 0.6·log(dates) + βok·first-date OK − 0.3·scared + 0.3·SS)"
     params:
-      base: {value: -2.6, range: [-4, -1.5]}
+      base: {value: -3.23, range: [-4, -1.5]}
       attraction: {value: 3.0, range: [1.5, 4.5]}
       first_date_ok: {value: 0.8, range: [0.2, 1.4]}
     evidence: empirical
@@ -153,7 +153,7 @@ mechanisms:
     sources: [relationship_commitment, religious mismatch, conflict]
     form: "weekly h = logistic(base − βc·commitment + βm·mismatch + 1.5·conflict); ×0.25 engaged; ×married_mult married. Initiator = less-attracted partner."
     params:
-      base: {value: -2.8, range: [-3.8, -1.5]}   # ~8-10% of dating couples split per month (was ~20%)
+      base: {value: -2.22, range: [-3.8, -1.5]}   # ~8-10% of dating couples split per month (was ~20%)
       commitment: {value: 3.5, range: [2.0, 5.0]}
       religious_mismatch: {value: 2.0, range: [0.5, 3.0]}
       married_mult: {value: 0.03, range: [0.01, 0.08]}

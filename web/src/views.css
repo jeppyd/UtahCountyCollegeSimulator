@@ -225,3 +225,47 @@ button.kpi { text-align: left; font: inherit; color: inherit; cursor: pointer; }
 .size-card.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
 .size-card small { color: var(--text-muted); }
 .ts-card .hint { color: var(--text-muted); font-size: 12px; margin: 6px 0 0; }
+
+/* ---------------------------------------------------------------- inner life (views/InnerLife.tsx) */
+.motives, .cope-learned { display: grid; gap: 7px; }
+.motive { display: grid; grid-template-columns: minmax(110px, 1.2fr) 2.4fr 44px; align-items: center; gap: 10px; font-size: 13px; }
+.motive.top .mo-label { font-weight: 700; }
+.mo-track { position: relative; height: 12px; border-radius: 6px; background: var(--surface-2); overflow: hidden; }
+.mo-cares { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: color-mix(in srgb, var(--s7) 22%, var(--surface-2)); outline: 1px solid color-mix(in srgb, var(--s7) 45%, transparent); }
+.mo-cares b { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--s3) 70%, var(--surface-1)); border-radius: 6px 0 0 6px; }
+.motive.top .mo-cares { outline-color: var(--s7); }
+.mo-plain { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--s1) 55%, var(--surface-1)); border-radius: 6px; }
+.mo-drive { text-align: right; color: var(--text-secondary); }
+.tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; background: var(--surface-2); border: 1px solid var(--border); }
+.tag.good { border-color: color-mix(in srgb, var(--good) 55%, transparent); }
+.tag.bad { border-color: color-mix(in srgb, var(--critical) 55%, transparent); }
+.tag.mid { border-color: color-mix(in srgb, var(--warning) 55%, transparent); }
+.plan-now { padding: 8px 0 2px; }
+.belief-track { position: relative; display: block; height: 14px; border-radius: 7px; background: var(--surface-2); min-width: 90px; }
+.belief-track i { position: absolute; top: 2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; }
+.bt-believed { background: var(--s7); z-index: 2; }
+.bt-actual { background: var(--surface-1); border: 2px solid var(--text-secondary); box-sizing: border-box; z-index: 1; }
+.bt-gap { position: absolute; top: 6px; height: 2px; background: color-mix(in srgb, var(--s8) 60%, transparent); }
+.memories { display: grid; gap: 8px; }
+.memory { display: grid; grid-template-columns: 22px 1fr 54px; gap: 8px; align-items: center; }
+.mem-body { min-width: 0; }
+.mem-val { position: relative; height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.mem-val i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--axis, #999); }
+.mem-val.pos i { background: var(--s3); }
+.mem-val.neg i { background: var(--s8); }
+.lesson { padding: 6px 0; border-bottom: 1px solid var(--border); }
+.lesson:last-child { border-bottom: 0; }
+.routine { width: 100%; border-collapse: separate; border-spacing: 3px; table-layout: fixed; }
+.routine th { font-weight: 550; font-size: 11px; color: var(--text-secondary); }
+.routine td { height: 30px; border-radius: 6px; font-size: 10.5px; text-align: center; background: var(--surface-2); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0 2px; }
+@media (max-width: 720px) { .motive { grid-template-columns: 1fr 1.6fr 40px; } .beliefs td:last-child, .beliefs th:last-child { display: none; } }
+.unc-split { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--surface-2); }
+.unc-split i { background: color-mix(in srgb, var(--s1) 65%, var(--surface-1)); }
+.unc-split b { background: color-mix(in srgb, var(--s4) 75%, var(--surface-1)); }
+.unc-key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; }
+.unc-key.chance { background: color-mix(in srgb, var(--s1) 65%, var(--surface-1)); }
+.unc-key.assume { background: color-mix(in srgb, var(--s4) 75%, var(--surface-1)); }
+.kpis.footprint { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .kpis.footprint { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.kpis.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) { .kpis.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

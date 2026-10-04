@@ -199,7 +199,13 @@ class Mind:
             P.internal[c][:n] = 0
         self.last_social = P.internal["social_today"][:n].copy()
         P.internal["social_today"][:n] = False
-        # felt fulfilment → drives → top priority
+        self.update_drives()
+
+    def update_drives(self):
+        """Felt fulfilment → drives (importance × unmet) → top priority."""
+        P = self.sim.w.P
+        n = P.n
+        pres = P["present"]
         sat = self.satisfactions()
         P["sat_fun"] = sat["fun"].astype(np.float32)
         P["sat_health"] = sat["health"].astype(np.float32)
@@ -242,6 +248,7 @@ class Mind:
         P = w.P
         ids = np.where(P["present"])[0]
         self._cares(ids, blend=sim.p("mind.importance.drift"))
+        self.update_drives()            # importance moved: keep drives consistent with it
         self.weekly_perception()
         self.weekly_memory()
 

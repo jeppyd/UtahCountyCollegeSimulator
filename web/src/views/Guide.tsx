@@ -6,7 +6,8 @@ import { GLOSSARY, PageHeader } from '../ui'
 
 const SECTIONS: [string, string][] = [
   ['play', 'How to play'], ['idea', 'The big idea'], ['layers', 'Layers of the world'], ['person', 'What a person is made of'],
-  ['relationships', 'How relationships form'], ['feelings', 'How feelings work'], ['faith', 'Faith & religious diversity'], ['time', 'How time works'],
+  ['relationships', 'How relationships form'], ['feelings', 'How feelings work'], ['mind', 'Inner lives'], ['places', 'Places with a culture'],
+  ['faith', 'Faith & religious diversity'], ['time', 'How time works'],
   ['whatif', 'What-if experiments'], ['evidence', 'How sure are we?'], ['where', 'Where to go for what'], ['glossary', 'Glossary'],
 ]
 
@@ -151,6 +152,36 @@ export default function Guide({ section }: { section?: string }) {
                 </ul>
               </div>
               <div className="card"><h3>An event's ripple fades over time</h3><p className="hint">Example: a breakup's effect on mood, with a 3-week half-life.</p><Decay /></div>
+            </div>
+          </Sec>
+
+          <Sec id="mind" title="Inner lives" lede="Between who someone is and what they do sits a mind: what they care about, what they expect, what they believe about others, what they remember, how they cope and what they are trying to do. Open any person's Inner life tab.">
+            <div className="grid g2">
+              <div className="card">
+                <h3>From state to behavior, step by step</h3>
+                <ul className="small secondary" style={{ paddingLeft: 18, margin: '6px 0 0' }}>
+                  <li><b>Cares:</b> eight concerns (friends, love, school or career, money, faith, rest, fun, fitness), weighted by personality, values and situation. They shift slowly.</li>
+                  <li><b>Drives:</b> how much a concern matters × how unmet it feels. Drives compete: money worries and exams pull effort away from dating and fun.</li>
+                  <li><b>Expectations:</b> learned from experience — a run of rejections lowers the expected chance of a yes, which makes asking less likely; cold gatherings teach people to expect less warmth.</li>
+                  <li><b>Perception:</b> people act on what they believe, which can be wrong — the support they think they have, what their friends really believe, whether a crush likes them back.</li>
+                  <li><b>Plans and routines:</b> weekly intentions (ask someone out, reconnect with a friend, study more…) that are carried out about half the time, and free-time habits that settle into a weekly shape.</li>
+                </ul>
+              </div>
+              <div className="card">
+                <h3>When life gets hard</h3>
+                <ul className="small secondary" style={{ paddingLeft: 18, margin: '6px 0 0' }}>
+                  <li>An event is <b>appraised</b>: it hits harder when it touches something the person cares about, and when they feel little support.</li>
+                  <li>If strain stays high they <b>cope</b> — reaching out, tackling the problem, turning to faith, keeping busy, or pulling back — depending on temperament, what is available and what has worked for them before.</li>
+                  <li>Coping changes behavior, and its relief depends on what actually happens: reaching out helps only if friends are there. People learn which ways of coping work for them.</li>
+                  <li><b>Memory</b> keeps the important moments; memories fade unless re-lived, and rumination re-lives the painful ones.</li>
+                </ul>
+              </div>
+            </div>
+          </Sec>
+
+          <Sec id="places" title="Places with a culture" lede="Apartments, complexes and wards develop cultures from the people in them — and those cultures shape the next people.">
+            <div className="card">
+              <p className="small secondary" style={{ margin: 0 }}>A complex where residents host game nights becomes known as social; friends drop by more, invitations there get accepted more, and outgoing movers choose it at the next lease turnover. A devout complex raises the attendance norm residents perceive; a warm ward brings newcomers in faster. Cultures have memory, so they outlast the people who built them. That loop — people shape places, places shape people — runs on its own. See any complex's culture under Places.</p>
             </div>
           </Sec>
 

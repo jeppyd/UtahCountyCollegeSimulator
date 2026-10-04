@@ -23,11 +23,24 @@ const TABLE_LABEL: Record<string, string> = {
   alcohol_by_activity: 'Drinks alcohol, by church activity',
   temple_per_year_by_activity: 'Temple visits per year, by church activity',
   scripture_minutes_by_activity: 'Scripture minutes per day, by church activity',
+  perceived_vs_actual_support: 'Perceived vs actual support (correlation)',
+  friend_network_clustering: 'Friendship network clustering',
+  intentions_carried_out: 'Share of intentions carried out',
+  weddings_between_semesters: 'Weddings that fall between semesters',
+  liking_gap_new_acquaintances: 'Liking gap: new acquaintances underestimate interest',
+  pluralistic_ignorance_doubters: 'Doubters overestimate how strongly friends believe',
+  depressive_episode_prevalence: 'Point prevalence of depressive episodes',
+}
+const LONG_LABEL: Record<string, string> = {
+  n_close_friends: 'close friends', loneliness: 'loneliness', dates_30d: 'dates', attend_rate: 'church attendance', faith_belief: 'belief',
+  stress: 'stress', perceived_support: 'perceived support', expect_social: 'expected warmth', financial_stress: 'money stress',
+  social_events_month: 'social events',
 }
 const KIND: Record<string, { label: string; hint: string }> = {
   benchmark: { label: 'Census', hint: 'Official statistics: the strongest test' },
   emergent: { label: 'Behavior', hint: 'Produced by the simulated behavior, compared with the surveys' },
   input: { label: 'Starting values', hint: 'Synthesized from the surveys; checks the population builder and later drift' },
+  pattern: { label: 'Patterns', hint: 'Structural signatures from the research literature: perception gaps, network clustering, the intention–behavior gap' },
   diagnostic: { label: 'Not scored', hint: 'Survey cells known to be biased (the dating surveys over-sample singles)' },
 }
 const STATUS: Record<string, { icon: string; label: string; color: string }> = {
@@ -93,10 +106,11 @@ export default function ModelCheck() {
         ]} />
       {!v ? <div className="banner">No validation report yet. Run <span className="kbd">python scripts/validate.py</span>.</div> : (
         <>
-          <div className="grid g4" style={{ marginBottom: 14 }}>
+          <div className="grid g5" style={{ marginBottom: 14 }}>
             <div className="card tile"><div className="label">Census benchmarks</div><div className="value">{cb.pass ?? 0} / {(cb.pass ?? 0) + (cb.warn ?? 0) + (cb.fail ?? 0)}</div><div className="small muted">match within tolerance</div></div>
             <div className="card tile"><div className="label">Behavior checks</div><div className="value">{ce.pass ?? 0} ✓ · {ce.warn ?? 0} ~ · {ce.fail ?? 0} ✕</div><div className="small muted">match · close · off</div></div>
             <div className="card tile"><div className="label">All scored checks</div><div className="value">{c.pass ?? 0} ✓ · {c.warn ?? 0} ~ · {c.fail ?? 0} ✕</div><div className="small muted">{rows.filter(r => r.kind === 'diagnostic').length} more shown but not scored</div></div>
+            {v.summary.counts_holdout && <div className="card tile"><div className="label">Held out of calibration</div><div className="value">{v.summary.counts_holdout.pass ?? 0} ✓ · {v.summary.counts_holdout.warn ?? 0} ~ · {v.summary.counts_holdout.fail ?? 0} ✕</div><div className="small muted">tables the tuning never saw</div></div>}
             <div className="card tile"><div className="label">Last checked</div><div className="value" style={{ fontSize: 18 }}>{v.summary.generated}</div><div className="small muted">simulated to {v.summary.date} · scale {v.summary.scale}</div></div>
           </div>
           {acsOpt && (
@@ -125,7 +139,7 @@ export default function ModelCheck() {
                 <table className="data small">
                   <thead><tr><th>group</th><th className="num">real data</th><th className="num">simulation</th><th className="num">allowed gap</th><th>result</th></tr></thead>
                   <tbody>{rs.map((r: any) => (
-                    <tr key={r.group}><td>{r.group.replace(/_/g, ' ')}</td><td className="num tabular">{fmt(r.target, 3)}</td><td className="num tabular">{fmt(r.sim, 3)}</td>
+                    <tr key={r.group}><td>{r.group.replace(/_/g, ' ')}{r.holdout ? <span className="pill" style={{ marginLeft: 6 }} title="Never used to tune the model">held out</span> : null}{r.n_band && /[a-z]/.test(r.n_band) && !/^ACS|institutional/.test(r.n_band) ? <div className="muted">{r.n_band}</div> : null}</td><td className="num tabular">{fmt(r.target, 3)}</td><td className="num tabular">{fmt(r.sim, 3)}</td>
                       <td className="num tabular muted">±{fmt(r.tol, 2)}</td>
                       <td>{r.kind === 'diagnostic' ? <span className="muted">not scored</span> : <span style={{ color: STATUS[r.status]?.color, fontWeight: 600 }}>{STATUS[r.status]?.icon} {STATUS[r.status]?.label ?? r.status}</span>}</td></tr>
                   ))}</tbody>
@@ -135,6 +149,18 @@ export default function ModelCheck() {
           </div>
         </>
       )}
+      {v?.longitudinal?.length > 0 && (
+        <div className="card" style={{ marginBottom: 14 }}>
+          <h3>Within a person vs between people</h3>
+          <p className="hint">A strong correlation across people (“lonely people have fewer close friends”) need not mean that a change in one person's friendships changes their loneliness later. From two-weekly snapshots of the same people, <b>between</b> correlates people's averages; <b>X → Y</b> is how a person's own rise in X predicts their later Y (and the reverse), on standardized deviations from their own average. Real panel studies typically find such within-person effects small (≈ .03 small, .07 medium, .12 large) even where correlations are strong — the simulation shows the same gap. The same estimator can run on real survey waves.</p>
+          <table className="data small">
+            <thead><tr><th>X</th><th>Y</th><th className="num">across people</th><th className="num">between averages</th><th className="num">X → Y</th><th className="num">Y → X</th></tr></thead>
+            <tbody>{v.longitudinal.map((r: any) => (
+              <tr key={r.x + r.y}><td>{LONG_LABEL[r.x] ?? r.x}</td><td>{LONG_LABEL[r.y] ?? r.y}</td><td className="num tabular">{fmt(r.cross_sectional_r, 2)}</td><td className="num tabular">{fmt(r.between_r, 2)}</td><td className="num tabular"><b>{fmt(r.x_to_y, 3)}</b></td><td className="num tabular"><b>{fmt(r.y_to_x, 3)}</b></td></tr>))}</tbody>
+          </table>
+        </div>
+      )}
+      {d?.accounting && <Accounting a={d.accounting} />}
       <div className="card" style={{ marginBottom: 14 }}>
         <h3>Does it stay steady over four years?</h3>
         {!st ? <p className="hint">No four-year check yet. Run <span className="kbd">python scripts/stability.py</span>.</p> : (
@@ -159,3 +185,27 @@ export default function ModelCheck() {
     </div>
   )
 }
+
+const ACC_LABEL: Record<string, string> = { present: 'People present', serving_missionaries: 'Serving missionaries', married: 'Married people',
+  depressive_episode: 'In a depressive episode', lds_members: 'Latter-day Saint members' }
+
+/** Stock-flow accounting: do stocks change by exactly what their logged inflows and outflows say? */
+function Accounting({ a }: { a: any }) {
+  const yrs: any[] = a.years_table ?? []
+  if (!yrs.length) return null
+  const stocks = Object.keys(yrs[0].balance)
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <h3>Do the books balance? Stocks and flows</h3>
+      <p className="hint">Year by year (same calendar day each year, scale {a.scale}): each stock's change against the inflows and outflows logged as events. The residual is change no logged event explains — for people present it should be zero; for married people and members it is migration (couples and members arriving or leaving). {a.equilibria?.serving_missionaries ? <>The missionary stock starts at {a.equilibria.serving_missionaries.now} and its flows imply an equilibrium of {a.equilibria.serving_missionaries.implied}.</> : null}</p>
+      <div style={{ overflowX: 'auto' }}>
+        <table className="data small">
+          <thead><tr><th>stock</th>{yrs.map((y: any) => <th key={y.from} className="num">day {y.from} → {y.to}</th>)}</tr></thead>
+          <tbody>{stocks.map(s => (
+            <tr key={s}><td>{ACC_LABEL[s] ?? s}</td>{yrs.map((y: any) => { const b = y.balance[s]; return <td key={y.from} className="num tabular" title={`in ${b.in} · out ${b.out} · residual ${b.residual}`}>{b.delta >= 0 ? '+' : ''}{b.delta} <span className="muted">(+{b.in} −{b.out}{b.residual ? `, ${b.residual >= 0 ? '+' : ''}${b.residual} other` : ''})</span></td> })}</tr>))}</tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+

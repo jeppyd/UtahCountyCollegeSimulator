@@ -83,3 +83,43 @@ relationships; social media as a network.
 - The religious-outsider feeling, missionary contact and conversion rules are hypothetical; conversion is
   tuned to about 2–3% of non-members per year.
 - Same-sex engagement is strongly reduced while either partner is an active member (Church policy).
+
+## The inner life and place cultures (iteration 5)
+
+Details and references: `docs/MIND.md`; every rule is in `config/mechanisms/07_mind.yaml`–`10_culture.yaml`.
+
+- **Eight concerns** (friends, partnership, school/career, money, faith, rest, fun, fitness) are a structural
+  choice. Their importance comes from survey-grounded traits and circumstances with assumed weights; it drifts
+  weekly (10% toward its target) so priorities follow identity and life stage.
+- **Felt fulfilment** reads existing composed feelings (1 − loneliness, 1 − financial stress, …) except fun and
+  fitness, which compare recent outings and gym visits with the person's own appetite. Drives = importance ×
+  unmet. Drive weights in free-time choice were set so their average pull matches the direct terms they replaced.
+- **Expectations** are learned by prediction error from the person's own outcomes; starting values come from
+  traits. **Academic confidence** follows class rank of term grades and affects GPA only through effort.
+- **Perception**: perceived support blends actual support (weight `reality`) with a stable personal lens and
+  trait biases (target correlation with actual ≈ .4); doubters conceal toward the local norm unless they have
+  confided; romantic interest is read from noisy signals with projection (35%), a liking gap with strangers and
+  male over-perception. Magnitudes are hypothetical; directions follow the literature.
+- **Appraisal** scales registered event effects by relevance (importance of the concern the event's category
+  touches) and, for harmful effects, by coping potential; both factors average ≈ 1 so population means of event
+  effects are preserved.
+- **Coping** episodes start when strain stays past tolerance (about a quarter of people are coping at a given
+  time, ~3 episodes per person per year at the current thresholds — an assumption, not a measured rate).
+  Relief magnitudes are hypothetical, ordered support ≈ active > religious > distraction > withdrawal.
+- **Intentions** form weekly when a drive is strong enough; about half are carried out (calibrated to Sheeran
+  2002's "about half"). **Routines** strengthen by α = 0.12 per repetition of a weekly slot.
+- **Memory** keeps salient events (salience ≥ 0.3) with power-law forgetting (d = 0.5), at most 40 per person.
+- **Place cultures** have inertia (apartment 20%/week, complex 8%, ward 10%); their feedbacks (hosting,
+  reputation, norms, housing sorting, ward warmth) are hypothetical in strength and can each be switched off by
+  setting the parameter to 0.
+
+## Demography and accounting (iteration 5)
+
+- Non-student young adults (graduates who stay, dropouts) leave after an exponential stay with mean 1.6 years,
+  chosen so that stock stays near its configured size; real durations are not measured here.
+- The serving-missionary pool at the start equals the flow equilibrium of the call hazard (≈10.5k full scale);
+  call rates themselves follow ProvoStats mission-service shares (high for women, as the survey reports).
+- BYU's admissions controller projects the late-October census, counting students away for the summer.
+- Student weddings move to the next break with probability 0.7 (assumption: local practice).
+- The starting friendship network re-wires 60% of seeded ties to friends of friends (clustering ≈ .14 at the
+  start, rising with dynamics), with slightly more seeded ties so friend counts are unchanged.

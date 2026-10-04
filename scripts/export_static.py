@@ -184,6 +184,7 @@ def main():
         p = get(f"/api/person/{i}").json()
         p["network_full"] = get(f"/api/person/{i}/network").json()
         p["history"] = clean(get(f"/api/person/{i}/history").json())
+        p["inner"] = clean(get(f"/api/person/{i}/inner").json())
         compare_person[str(i)] = clean(get(f"/api/compare/person/{i}").json())
         shard[str(i)] = p
         index["people"][str(i)] = shard_no

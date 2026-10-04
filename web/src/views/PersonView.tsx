@@ -9,6 +9,7 @@ import { CatIcon, G, Meter, UBadge, uColor, useAsync } from '../game'
 import { CyGraph } from '../graph'
 import { useLens, useStore } from '../store'
 import { CATEGORY_LABEL, FollowButton, Story, useAdvanced } from '../ui'
+import { InnerLife } from './InnerLife'
 
 const FEEL = ['mood', 'loneliness', 'stress', 'anxiety', 'belonging', 'self_esteem', 'purpose', 'guilt', 'fatigue', 'financial_stress', 'academic_pressure', 'romantic_longing']
 const BIG5 = ['extraversion', 'agreeableness', 'conscientiousness', 'neuroticism', 'openness', 'sensation_seeking', 'self_control', 'attachment_anxiety', 'attachment_avoidance', 'social_anxiety', 'rejection_sensitivity', 'conformity', 'empathy']
@@ -17,7 +18,7 @@ const SCHOOL = ['school', 'enrolled', 'class_standing', 'study_area', 'college',
 const WORK = ['employed', 'job_type', 'work_hours', 'wage', 'monthly_income', 'parental_support', 'savings', 'debt', 'owns_car', 'summer_sales']
 const HOME = ['living', 'rent', 'rent_burden', 'city', 'neighborhood', 'dist_campus_km', 'commute_min', 'roommate_cohesion']
 const DATING = ['rel_status', 'dates_30d', 'dates_total', 'n_relationships', 'n_breakups', 'app_user', 'app_hours', 'dating_motivation', 'relationship_satisfaction', 'relationship_commitment', 'wants_relationship']
-const TABS: [string, string, string][] = [['now', 'Now', 'sun'], ['people', 'Their people', 'rings'], ['feel', 'Feelings', 'heart'], ['school', 'School & work', 'school'],
+const TABS: [string, string, string][] = [['now', 'Now', 'sun'], ['inner', 'Inner life', 'mind'], ['people', 'Their people', 'rings'], ['feel', 'Feelings', 'heart'], ['school', 'School & work', 'school'],
   ['faith', 'Faith', 'faith'], ['money', 'Money & home', 'key'], ['story', 'Story', 'book'], ['history', 'History', 'trend'], ['other', 'Other life', 'butterfly'], ['all', 'Everything', 'id']]
 
 export default function PersonView({ id, tab: tab0 }: { id: number; tab?: string }) {
@@ -118,6 +119,7 @@ export default function PersonView({ id, tab: tab0 }: { id: number; tab?: string
         </div>
       )}
 
+      {tab === 'inner' && <InnerLife id={id} first={first} />}
       {tab === 'people' && <TheirPeople p={p} first={first} />}
 
       {tab === 'feel' && (

@@ -127,6 +127,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   demographics: 'Demographics & background', personality: 'Personality', religion: 'Religion & faith',
   values_sexuality: 'Values, sexuality & intimacy', dating: 'Dating & relationships', social_emotion: 'Social life & wellbeing',
   habits_interests: 'Habits & interests', academics_work: 'School, work, money & place', preferences_dates: 'Date preferences',
+  mind: 'Inner life: motives, beliefs, coping, plans',
 }
 
 // ---------------------------------------------------------------- cohort builder

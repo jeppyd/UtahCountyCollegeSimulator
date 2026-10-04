@@ -157,3 +157,35 @@ interventions:
     target: faith.influence.base
     op: mul
     value: 2.0
+  open_conversations_about_doubt:
+    name: Doubts can be voiced openly
+    description: A culture where members talk openly about questions (concealment of doubt halves). Pluralistic ignorance shrinks — people see what friends actually believe — which changes how belief spreads through the network, in both directions.
+    confidence: speculative
+    target_type: param
+    target: mind.pluralistic_ignorance.concealment
+    op: mul
+    value: 0.4
+  peer_support_program:
+    name: Peer-support and help-seeking program
+    description: Students learn to reach out when they struggle (support-seeking becomes a more natural first move in hard times). Works through the coping chain — and only helps people who have someone to reach.
+    confidence: speculative
+    parts:
+      - {target_type: param, target: coping.choice.support_base, op: add, value: 0.8}
+      - {target_type: param, target: coping.relief.support, op: mul, value: 1.2}
+  complex_game_nights:
+    name: Weekly game nights in every complex
+    description: Apartment complexes sponsor get-togethers (hosting +50% everywhere, and social complexes become more inviting). Watch apartment cultures, friendships and dating opportunities shift.
+    confidence: plausible
+    parts:
+      - {target_type: param, target: activity.gathering.host_weekday, op: mul, value: 1.5}
+      - {target_type: param, target: activity.gathering.host_friday, op: mul, value: 1.5}
+      - {target_type: param, target: culture.feedback.reputation, op: mul, value: 1.5}
+  rumination_skills:
+    name: Skills training against rumination
+    description: A program (e.g. cognitive-behavioral skills) that lowers the tendency to dwell on negative events by 30% among people who ruminate most. Tests the memory → mood pathway.
+    confidence: speculative
+    target_type: agent
+    target: rumination
+    op: mul
+    value: 0.7
+    population: {var: rumination, op: quantile_ge, value: 0.7}

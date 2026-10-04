@@ -45,7 +45,10 @@ class Romance:
         eng = np.where(P.is_("rel_status", "engaged") & (P["partner_id"] >= 0))[0]
         if len(eng):
             a = eng[eng < P["partner_id"][eng]]
-            lead = (10 + 110 * np.random.default_rng([self.sim.w.seed, 88]).random(len(a))).astype(int)
+            rng0 = np.random.default_rng([self.sim.w.seed, 88])
+            lead = (10 + 110 * rng0.random(len(a))).astype(int)
+            students = P["enrolled"][a] | P["enrolled"][P["partner_id"][a]]
+            lead = self._break_date(lead, students, rng0.random(len(a)))
             P.internal["wedding_planned"][a] = lead
             P.internal["wedding_planned"][P["partner_id"][a]] = lead
         self.weekly()
@@ -599,8 +602,11 @@ class Romance:
                 P.cols["rel_status"][x] = P.code("rel_status", "engaged")
                 P.cols["engaged_day"][x] = day
             lead = np.where(both_active[eng], rng.uniform(70, 140, eng.sum()), rng.uniform(120, 300, eng.sum())).astype(int)
-            P.internal["wedding_planned"][a_] = day + lead
-            P.internal["wedding_planned"][b_] = day + lead
+            # student couples usually marry between semesters: move the date to the next break if one starts soon after
+            students = P["enrolled"][a_] | P["enrolled"][b_]
+            wed = self._break_date(day + lead, students, rng.random(eng.sum()))
+            P.internal["wedding_planned"][a_] = wed
+            P.internal["wedding_planned"][b_] = wed
             ev = sim.emit("engaged", a_, b=b_, cause=P.internal["rel_event"][a_], mech="romance.engage")
             sim.emit("engaged", b_, b=a_, cause=P.internal["rel_event"][a_], mech="romance.engage")
             P.internal["rel_event"][a_] = ev
@@ -638,6 +644,25 @@ class Romance:
             sx = unmarried_pair & ~sexual & (rng.random(len(ids)) < h_sex)
             if sx.any():
                 self._sex(ids[sx], j[sx], eix[sx])
+
+    def _break_date(self, want: np.ndarray, students: np.ndarray, u: np.ndarray) -> np.ndarray:
+        """Wedding dates for student couples snap (with probability `romance.wedding.break_share`) to the next
+        stretch between semesters — the end of winter semester through summer, or Christmas break — if it
+        begins within 75 days of the date they would otherwise pick."""
+        cal = self.sim.cal
+        out = want.copy()
+        share = self.sim.p("romance.wedding.break_share")
+        for k in np.where(students & (u < share))[0]:
+            d0 = int(want[k])
+            for d in range(d0, d0 + 76):
+                dt = cal.date(d)
+                md = (dt.month, dt.day)
+                in_break = ((4, 23) <= md <= (8, 22)) or md >= (12, 18) or md <= (1, 5)
+                if in_break:
+                    # spread across the break's first weeks (Saturdays are the usual wedding day)
+                    out[k] = d + int((u[k] / max(share, 1e-9)) * 28) // 7 * 7 + (5 - cal.weekday(d)) % 7
+                    break
+        return out
 
     def _sex(self, a, b, eix):
         sim, w = self.sim, self.sim.w
@@ -723,6 +748,11 @@ class Romance:
         if len(a) == 0:
             return
         ok = P["present"][a] & P["present"][b]
+        # a partner away on the day (a trip home, a mission farewell): the wedding moves a week rather than vanishing
+        late = ~ok
+        if late.any():
+            P.internal["wedding_planned"][a[late]] = day + 7
+            P.internal["wedding_planned"][b[late]] = day + 7
         a, b = a[ok], b[ok]
         for x in (a, b):
             P.cols["rel_status"][x] = P.code("rel_status", "married")

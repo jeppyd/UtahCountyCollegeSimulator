@@ -160,7 +160,11 @@ class Faith:
             sim.emit("faith_challenge", np.where(ch)[0], mech="faith.challenge")
         # ---- belief update
         susc = p("faith.influence.base") * (1 - cert) * np.exp(0.3 * sim.z("conformity"))
-        d_social = susc * (self.friend_belief - belief)
+        gap = self.friend_belief - belief
+        if p("faith.influence.form") >= 0.5:
+            # alternative form — bounded confidence (Hegselmann & Krause 2002): views far from one's own barely move it
+            susc = susc * np.where(np.abs(gap) <= p("faith.influence.bound"), 1.0, 0.2)
+        d_social = susc * gap
         d_events = 0.03 * sp - p("faith.challenge.belief_hit") * ch * (1 - cert)
         # dissonance: persistent guilt over standards → belief erosion for low-identity/high-autonomy agents,
         # otherwise behavior change (handled in norms) and repentance (romance)

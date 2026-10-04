@@ -398,6 +398,35 @@ def build_workplaces(P: PersonTable, venues: pl.DataFrame, rng, scale: float):
     return {"lon": np.array(emp_lon), "lat": np.array(emp_lat), "type": np.array(emp_type), "name": names}
 
 
+def _close_triads(keys: np.ndarray, n: int, rng, share: float) -> np.ndarray:
+    """Re-wire `share` of the ties to friends of friends (same total), closing triangles."""
+    if len(keys) == 0 or share <= 0:
+        return keys
+    a, b = EdgeStore.split(keys)
+    m = len(keys)
+    keep = rng.random(m) >= share
+    ka, kb = a[keep], b[keep]
+    src = np.r_[ka, kb]
+    dst = np.r_[kb, ka]
+    order = np.argsort(src, kind="stable")
+    src, dst = src[order], dst[order]
+    indptr = np.zeros(n + 1, np.int64)
+    np.add.at(indptr, src + 1, 1)
+    indptr = np.cumsum(indptr)
+    deg = np.diff(indptr)
+    # each re-wired tie: its first endpoint reaches a friend's friend (two random steps)
+    s0 = a[~keep]
+    ok = deg[s0] > 0
+    s0 = s0[ok]
+    f = dst[indptr[s0] + (rng.random(len(s0)) * deg[s0]).astype(np.int64)]
+    ok = deg[f] > 0
+    s0, f = s0[ok], f[ok]
+    g = dst[indptr[f] + (rng.random(len(f)) * deg[f]).astype(np.int64)]
+    ok = g != s0
+    new = EdgeStore.make_keys(s0[ok], g[ok])
+    return np.unique(np.r_[keys[keep], new])
+
+
 def seed_network(P: PersonTable, E: EdgeStore, unit_of: np.ndarray, rng, day0: int):
     """Pre-existing ties at simulation start (returning students arrive with friends).
 
@@ -408,7 +437,7 @@ def seed_network(P: PersonTable, E: EdgeStore, unit_of: np.ndarray, rng, day0: i
     ids = np.arange(n)
     fresh = P.is_("class_standing", "freshman")
     E_ = P["extraversion"]
-    mean_friends = np.where(fresh, 2.0, 6.0) * np.exp(0.25 * E_) * np.where(P["role"] >= P.code("role", "faculty"), 0.7, 1.0)
+    mean_friends = np.where(fresh, 2.3, 7.0) * np.exp(0.25 * E_) * np.where(P["role"] >= P.code("role", "faculty"), 0.7, 1.0)
     k = rng.poisson(mean_friends)
     src = np.repeat(ids, k)
     # focus selection for each stub
@@ -441,6 +470,11 @@ def seed_network(P: PersonTable, E: EdgeStore, unit_of: np.ndarray, rng, day0: i
     src, dst = src[ok], dst[ok]
     keys = EdgeStore.make_keys(src, dst)
     keys = np.unique(keys)
+    # Friendship groups are cliquish (Moody 2001; student networks cluster at ~.2–.3): a share of each person's
+    # ties goes to a friend of a friend rather than a random member of a large focus (ward, major), as in
+    # Holme–Kim triad-formation steps. Without this the starting network had clustering ≈ .01 and its random
+    # ties persisted for months.
+    keys = _close_triads(keys, n, rng, share=0.6)
     keys = keys[E.find(keys) < 0]  # partners/spouses already have their own tie
     m = len(keys)
     stage = rng.choice([2, 3, 4], m, p=[0.5, 0.35, 0.15]).astype(np.uint8)

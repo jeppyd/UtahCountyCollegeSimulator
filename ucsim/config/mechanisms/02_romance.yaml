@@ -203,3 +203,14 @@ mechanisms:
       base: {value: -1.5, range: [-3, 0]}
     evidence: empirical
     refs: ["Culture & Lifestyle: adult repentance meetings and bishop-experience ratings"]
+  romance.wedding:
+    label: Student weddings fall between semesters
+    target: married_day
+    sources: [enrolled, engaged_day]
+    form: "at engagement, with probability break_share a student couple's wedding moves to the next break (late April–August or Christmas) starting within 75 days of the date they would otherwise pick, on a Saturday in its first month"
+    params:
+      break_share: {value: 0.7, range: [0.4, 0.9]}
+    evidence: hypothetical
+    refs: ["BYU academic calendar; local practice of marrying between semesters (assumption, not measured here)"]
+    desc: Gives weddings the seasonal rhythm of a student town (summer and Christmas peaks) instead of an even spread.
+

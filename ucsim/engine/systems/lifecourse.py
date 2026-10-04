@@ -325,7 +325,7 @@ class LifeCourse:
         sim, w = self.sim, self.sim.w
         P = w.P
         n = P.n
-        cand = P["present"] & (P["school"] == 1) & ~P.is_("rel_status", "married") & ~P["family_local"] & \
+        cand = P["present"] & (P["school"] == 1) & ~P.isin("rel_status", ["married", "engaged"]) & ~P["family_local"] & \
             P.isin("class_standing", ["freshman", "sophomore", "junior", "senior"])
         go = cand & (sim.u("summer") < 1 - w.cfg["calendar"]["spring_summer_presence"])
         ids = np.where(go)[0]

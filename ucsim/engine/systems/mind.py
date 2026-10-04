@@ -292,7 +292,8 @@ class Mind:
         lds = P["lds_member"]
         pressure = 0.35 + 0.55 * P["perceived_norm"]
         lam = p("mind.pluralistic_ignorance.concealment")
-        expressed = np.where(lds, belief + lam * (1 - P["moral_autonomy"]) * (pressure - belief), belief)
+        # only the deviant side conceals: doubters present more belief than they hold; the devout do not understate
+        expressed = np.where(lds, belief + lam * (1 - P["moral_autonomy"]) * np.clip(pressure - belief, 0, None), belief)
         f = (st >= 2) & pres[lo] & pres[hi]
         c = clo[f] + 0.05
         d = np.clip(E["disclosure"][f], 0, 1).astype(np.float64)

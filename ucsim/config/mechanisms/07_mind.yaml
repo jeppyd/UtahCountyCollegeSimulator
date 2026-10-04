@@ -95,7 +95,7 @@ mechanisms:
     label: Concealed doubt and misread norms
     target: [perceived_friend_belief, friend_belief_actual]
     sources: [faith_belief, moral_autonomy, perceived_norm, closeness]
-    form: "expressed = belief + λ·(1 − autonomy)·(local pressure − belief) for members; perceived friends' belief = Σ closeness·(disclosure·belief + (1 − disclosure)·expressed) / Σ closeness"
+    form: "expressed = belief + λ·(1 − autonomy)·max(0, local pressure − belief) for members (only doubt is concealed); perceived friends' belief = Σ closeness·(disclosure·belief + (1 − disclosure)·expressed) / Σ closeness"
     params:
       concealment: {value: 0.5, range: [0.0, 0.9]}
     evidence: literature

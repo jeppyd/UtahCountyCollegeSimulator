@@ -42,11 +42,17 @@ mechanisms:
     target: faith_belief
     sources: [perceived_friend_belief, faith_certainty, conformity]
     moderators: [faith_certainty, conformity]
-    form: "Δbelief = β·(1 − certainty)·exp(0.3·conformity)·(what they perceive friends believe − belief), weekly (perception per mind.pluralistic_ignorance)"
+    form: "Δbelief = β·(1 − certainty)·exp(0.3·conformity)·(what they perceive friends believe − belief), weekly (perception per mind.pluralistic_ignorance); alternative form (form = 1): bounded confidence — the pull drops to 20% when the gap exceeds `bound`"
     params:
       base: {value: 0.03, range: [0.0, 0.08]}
+      form: {value: 0, range: [0, 1], dist: choice, options: [0, 1], structural: true}
+      bound: {value: 0.3, range: [0.15, 0.5]}
     evidence: literature
-    refs: ["DeGroot-type opinion dynamics; uncertainty increases susceptibility to influence (general social-influence finding)"]
+    refs: ["DeGroot-type opinion dynamics; uncertainty increases susceptibility to influence (general social-influence finding)",
+           "Hegselmann & Krause (2002): bounded-confidence opinion dynamics (the alternative form)"]
+    desc: >-
+      Model uncertainty, not just parameter uncertainty: assimilation (form 0, default) and bounded confidence (form 1) are both
+      defensible; uncertainty ensembles draw the form so conclusions that depend on it are flagged.
   faith.spiritual:
     label: Spiritual experiences
     target: [faith_belief, faith_certainty, purpose]

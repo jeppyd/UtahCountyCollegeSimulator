@@ -129,7 +129,7 @@ class Economy:
             sim.emit("quit_job", ids, mech="economy.quit")
         # financial stress pushes students to work more (crowding out study)
         thr = p("economy.work_more.threshold")
-        more = present & P["employed"] & P["enrolled"] & ((P["financial_stress"] > thr) | trying) & (P["work_hours"] < 32)
+        more = present & P["employed"] & P["enrolled"] & ((P["financial_stress"] > thr) | (trying & (P["financial_stress"] > thr - 0.15))) & (P["work_hours"] < 32)
         if more.any():
             ids = np.where(more)[0]
             P.cols["work_hours"][ids] += 3

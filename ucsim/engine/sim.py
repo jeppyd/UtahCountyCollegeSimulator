@@ -27,7 +27,7 @@ class Simulation:
     def __init__(self, world: World, interventions: list | None = None, name: str = "baseline",
                  record: bool = True):
         from .systems import (academics, activity, economy, emotion, encounters, environment, faith, groups, housing,
-                              history, lifecourse, mind, coping, network, norms, recorder, romance)
+                              history, lifecourse, mind, coping, network, norms, plans, recorder, romance, routine)
         self.w = world
         self.name = name
         self.reg = world.reg
@@ -54,6 +54,8 @@ class Simulation:
             "norms": norms.Norms(self),
             "mind": mind.Mind(self),
             "coping": coping.Coping(self),
+            "plans": plans.Plans(self),
+            "routine": routine.Routine(self),
             "economy": economy.Economy(self),
             "housing": housing.Housing(self),
             "recorder": recorder.Recorder(self),
@@ -62,7 +64,7 @@ class Simulation:
         self._zcache_day = -999
         self._zcache: dict[str, tuple[float, float]] = {}
         for name in ("environment", "housing", "activity", "groups", "network", "academics", "encounters", "economy",
-                     "romance", "faith", "norms", "mind", "coping", "emotion", "lifecourse", "recorder"):
+                     "romance", "faith", "norms", "mind", "coping", "plans", "routine", "emotion", "lifecourse", "recorder"):
             sysobj = self.systems[name]
             if hasattr(sysobj, "init"):
                 sysobj.init()
@@ -199,6 +201,7 @@ class Simulation:
         self._run("romance", S["romance"].daily)
         self._run("mind", S["mind"].daily)
         self._run("coping", S["coping"].daily)
+        self._run("plans", S["plans"].daily)
         self._run("emotion", S["emotion"].daily)
         self._run("norms", S["norms"].daily)
         if wd == 6:  # Sunday night: weekly systems
@@ -207,6 +210,8 @@ class Simulation:
             self._run("faith", S["faith"].weekly)
             self._run("norms", S["norms"].weekly)
             self._run("romance", S["romance"].weekly)
+            self._run("plans", S["plans"].weekly)
+            self._run("routine", S["routine"].weekly)
             self._run("academics", S["academics"].weekly)
             self._run("emotion", S["emotion"].weekly)
         if self.cal.date(d + 1).day == 1:  # last day of month

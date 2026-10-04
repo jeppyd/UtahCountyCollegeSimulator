@@ -290,6 +290,9 @@ class Activity:
         cop = sim.systems.get("coping")
         if cop is not None:
             U += cop.choice_bias(idx)
+        plans = sim.systems.get("plans")
+        if plans is not None:
+            U += plans.choice_bias(idx)
         g = sim.streams.gen(f"disc{b}", w.day).gumbel(size=(P.n, 8))[idx]
         choice = np.argmax(U + g, axis=1)
         self.last_choice[idx] = choice
@@ -362,7 +365,7 @@ class Activity:
         inv = nbr[np.repeat(indptr[hosts], k) + off]
         close = w.E["closeness"][eidx[np.repeat(indptr[hosts], k) + off]]
         pa = expit(p("activity.gathering.accept_base") + 2.0 * close + 0.4 * sim.z("extraversion")[inv]
-                   - 1.5 * P["fatigue"][inv] + 0.8 * appr[inv])
+                   - 1.5 * P["fatigue"][inv] + 0.8 * appr[inv] + sim.systems["plans"].accept_boost()[inv])
         go = present[inv] & ~busy[inv] & (rng.random(len(inv)) < pa)
         inv, h_rep = inv[go], h_rep[go]
         inv, first = np.unique(inv, return_index=True)

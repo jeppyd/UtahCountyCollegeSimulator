@@ -195,6 +195,7 @@ class Mind:
             P.cols["expect_social"][np.where(has)[0]] = np.clip(cur + alpha * (signal - cur), 0.02, 0.98)
         for c in ("fun_today", "gym_today", "soc_v_sum", "soc_v_n"):
             P.internal[c][:n] = 0
+        self.last_social = P.internal["social_today"][:n].copy()
         P.internal["social_today"][:n] = False
         # felt fulfilment → drives → top priority
         sat = self.satisfactions()

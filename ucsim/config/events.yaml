@@ -663,3 +663,12 @@ events:
     salience: 0.5
     effects: []
     evidence: calibrated
+  plan_abandoned:
+    label: Gave up on a plan
+    story: "{a} gave up on a plan"
+    category: plans
+    salience: 0.3
+    effects:
+      - {var: mood, mag: -0.01, sd: 0.4, half_life: 3}
+    evidence: structural
+    desc: "Value = the intention (1 ask out, 2 reconnect, 3 meet people, 4 study more, 5 find work, 6 return to church). Logged only when something concrete changed the plan: the target became unavailable or priorities shifted."

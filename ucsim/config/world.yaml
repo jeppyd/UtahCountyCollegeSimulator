@@ -40,6 +40,12 @@ mission:
   male_months: 24
   female_months: 18
   early_return_rate: 0.08    # (assumption; literature on early-returned missionaries suggests a minority)
+  # Missionaries from this ecosystem serving when the run starts (full scale). Calibrated to the flow equilibrium
+  # of the call hazard (calls/yr × mean service ≈ 5.8k × 1.85 yr; scripts/accounting.py) so the stock does not
+  # drift upward for two years after the start, as it did when only BYU returners were seeded.
+  serving_pool: 10500
+  serving_pool_male_share: 0.53
+  serving_pool_school_mix: {BYU: 0.78, UVU: 0.19, none: 0.03}
 
 calendar:                    # month-day boundaries (approx BYU calendar)
   byu_terms:

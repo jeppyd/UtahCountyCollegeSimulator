@@ -377,6 +377,14 @@ events:
       - {var: guilt, mag: -0.06, sd: 0.6, half_life: 60}
       - {var: purpose, mag: -0.04, sd: 1.0, half_life: 120}
     evidence: hypothetical
+  resigned_membership:
+    label: Removed name from Church records
+    story: "{a} had their name removed from Church records"
+    category: religion
+    salience: 0.6
+    effects: []
+    evidence: hypothetical
+    desc: The formal exit (a minority of those who leave). Logged separately so membership stocks balance.
   stopped_attending:
     label: Stopped attending church
     story: "{a} stopped going to church"

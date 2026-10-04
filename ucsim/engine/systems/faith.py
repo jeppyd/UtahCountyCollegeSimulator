@@ -213,7 +213,9 @@ class Faith:
                                                            np.where(alt < 0.95, P.code("affiliation", "Protestant"),
                                                                     P.code("affiliation", "Other faith")))
                     P.cols["ward_id"][gone] = -1
-                sim.emit("disaffiliated", lv, cause=cause[outcome == 2], mech="faith.crisis")
+                dis = sim.emit("disaffiliated", lv, cause=cause[outcome == 2], mech="faith.crisis")
+                if len(gone):
+                    sim.emit("resigned_membership", gone, cause=dis[resign], mech="faith.crisis")
         # ---- activity category from attendance
         old = P["activity"].copy()
         rate = P["attend_rate"]

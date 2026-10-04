@@ -68,7 +68,7 @@ def test_agent_intervention_targets_only_cohort(fresh):
     alt.step_day()
     base.step_day()
     P0, P1 = base.w.P, alt.w.P
-    men = P1.is_("sex", "M")
+    men = P1.is_("sex", "M") & P1["present"].astype(bool)   # agent interventions reach people who are here
     assert (P1["porn_use"][men] == 0).all() or np.mean(P1["porn_use"][men] == 0) > 0.95
     women = ~men & P1["present"].astype(bool)
     assert np.mean(P0["porn_use"][women] == P1["porn_use"][women]) > 0.9

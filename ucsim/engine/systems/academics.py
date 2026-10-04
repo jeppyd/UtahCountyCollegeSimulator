@@ -240,3 +240,4 @@ class Academics:
             P.cols["enrolled"][di] = False
             P.cols["role"][di] = P.code("role", "young_adult")
             sim.emit("dropout", di, mech="academics.dropout")
+            sim.systems["lifecourse"].schedule_stay(di)

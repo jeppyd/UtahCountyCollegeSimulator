@@ -40,6 +40,27 @@ class Emotion:
         self.weekly()
         for _ in range(4):
             self.daily(settle=True)
+        P.internal["mood_8w"][: P.n] = P["mood"]
+        self._equilibrium_episodes()
+
+    def _hazards(self):
+        """Weekly onset and remission probabilities of a depressive episode (mental_health.depression)."""
+        sim, P = self.sim, self.sim.w.P
+        n = P.n
+        m8 = P.internal["mood_8w"][:n]
+        onset = expit(-7.9 + 14.0 * np.clip(0.42 - m8, 0, None) + 0.9 * P["mh_depression"] + 0.35 * sim.z("neuroticism")
+                      + 2.0 * np.clip(P["loneliness"] - 0.5, 0, None))
+        remit = 0.09 + 0.3 * np.clip(m8 - 0.4, 0, None)
+        return onset, remit
+
+    def _equilibrium_episodes(self):
+        """Start each person in an episode with their stationary probability onset/(onset + remission),
+        instead of everyone well: a cold start made prevalence climb for months (scripts/accounting.py)."""
+        P = self.sim.w.P
+        onset, remit = self._hazards()
+        p_stat = onset / np.maximum(onset + remit, 1e-9)
+        u = np.random.default_rng([self.sim.w.seed, 909]).random(P.n)
+        P["depressive_episode"] = P["present"] & (u < p_stat)
 
     def p(self, name):
         return self.sim.p(name)
@@ -214,11 +235,9 @@ class Emotion:
         P.internal["mood_8w"][:n] = 0.88 * P.internal["mood_8w"][:n] + 0.12 * P["mood"]
         # depressive episodes: onset rises steeply when sustained mood is low (threshold non-linearity)
         u = sim.u("depress")
-        m8 = P.internal["mood_8w"][:n]
-        onset = expit(-7.9 + 14.0 * np.clip(0.42 - m8, 0, None) + 0.9 * P["mh_depression"] + 0.35 * sim.z("neuroticism")
-                      + 2.0 * np.clip(P["loneliness"] - 0.5, 0, None))
+        onset, remit = self._hazards()
         start = P["present"] & ~P["depressive_episode"] & (u < onset)
-        stop = P["depressive_episode"] & (u < 0.09 + 0.3 * np.clip(m8 - 0.4, 0, None))
+        stop = P["depressive_episode"] & (u < remit)
         if start.any():
             P.cols["depressive_episode"][np.where(start)[0]] = True
             sim.emit("depressive_episode_start", np.where(start)[0], mech="mental_health.depression")

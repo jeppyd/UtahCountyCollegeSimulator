@@ -23,6 +23,20 @@ class LifeCourse:
             P.add_internal(c, dt, f)
         P["birth_day"] = (-(P["age"] * 365.25)).astype(np.int32)
         self._serving_pool()
+        # the starting non-student young adults are part-way through their stay (exponential: memoryless)
+        ya = np.where(P.is_("role", "young_adult") & P["present"] & (P.internal["leave_day"][: P.n] < 0))[0]
+        self.schedule_stay(ya)
+
+    def schedule_stay(self, ids: np.ndarray):
+        """Non-students (graduates who stay, dropouts, young adults) leave after an exponential stay."""
+        sim, w = self.sim, self.sim.w
+        P = w.P
+        ids = ids[P.internal["leave_day"][ids] < 0]
+        if len(ids) == 0:
+            return
+        mean_days = 365.25 * sim.p("lifecourse.stay.young_adult_years")
+        u = np.clip(sim.u("stay_len")[ids], 1e-6, 1 - 1e-6)
+        P.internal["leave_day"][ids] = w.day + 30 + (-np.log(u) * mean_days).astype(int)
 
     # ------------------------------------------------------------------ cohorts
     def _synth(self, tag: int) -> Synthesizer:
@@ -99,28 +113,38 @@ class LifeCourse:
         E.cols["last_day"][idx] = w.day
 
     def _serving_pool(self):
-        """Missionaries currently serving who will return to BYU/UVU during the next two years."""
+        """Missionaries from this ecosystem who are serving when the run starts.
+
+        Sized to the flow equilibrium of the call hazard (config `mission.serving_pool`, see
+        scripts/accounting.py): a pool smaller than calls/yr × mean service made the serving stock
+        double over the first two years. Return days are spread uniformly over the service length."""
         sim, w = self.sim, self.sim.w
         P = w.P
         cfg = w.cfg
-        n = int(round(cfg["flows"]["byu_rm_returners"] * w.scale * 0.55 * 2))
-        if n <= 0:
-            return
+        mcfg = cfg["mission"]
+        total = mcfg.get("serving_pool", cfg["flows"]["byu_rm_returners"] * 0.55 * 2)
+        mix = mcfg.get("serving_pool_school_mix", {"BYU": 1.0})
         rng = np.random.default_rng([w.seed, 501])
-        men = rng.random(n) < 0.68
-        sex = np.where(men, "M", "F")
-        age = np.where(men, rng.uniform(18.6, 20.6, n), rng.uniform(19.2, 21.0, n))
-        ids = self._new_people("byu_student", n, "BYU", {"sex": sex, "age": age, "rel": np.full(n, "single"),
-                                                          "lds": np.ones(n, int), "activity": np.full(n, 2)},
-                               arrive_days=np.full(n, -1))
-        P.cols["mission_status"][ids] = P.code("mission_status", "serving")
-        months = np.where(men, 24, 18)
-        ret = (rng.uniform(0, 1, n) * months * 30.4).astype(int) + 1
-        P.internal["mission_return_day"][ids] = ret
-        P.cols["class_standing"][ids] = np.where(rng.random(n) < 0.6, P.code("class_standing", "freshman"), P.code("class_standing", "sophomore"))
-        P.cols["credits_done"][ids] = np.where(P["class_standing"][ids] == P.code("class_standing", "freshman"), rng.uniform(0, 28, n), rng.uniform(30, 55, n))
-        P.cols["enrolled"][ids] = False
-        P.cols["n_kissed"][ids] = np.minimum(P["n_kissed"][ids], rng.integers(0, 4, n))
+        for k, (school, share) in enumerate(mix.items()):
+            n = int(round(total * share * w.scale))
+            if n <= 0:
+                continue
+            role = {"BYU": "byu_student", "UVU": "uvu_student"}.get(school, "young_adult")
+            men = rng.random(n) < mcfg.get("serving_pool_male_share", 0.68)
+            sex = np.where(men, "M", "F")
+            age = np.where(men, rng.uniform(18.6, 20.6, n), rng.uniform(19.2, 21.0, n))
+            ids = self._new_people(role, n, school, {"sex": sex, "age": age, "rel": np.full(n, "single"),
+                                                     "lds": np.ones(n, int), "activity": np.full(n, 2), "_tag": 5 + k},
+                                   arrive_days=np.full(n, -1))
+            P.cols["mission_status"][ids] = P.code("mission_status", "serving")
+            months = np.where(men, mcfg["male_months"], mcfg["female_months"])
+            ret = (rng.uniform(0, 1, n) * months * 30.4).astype(int) + 1
+            P.internal["mission_return_day"][ids] = ret
+            if role != "young_adult":
+                P.cols["class_standing"][ids] = np.where(rng.random(n) < 0.6, P.code("class_standing", "freshman"), P.code("class_standing", "sophomore"))
+                P.cols["credits_done"][ids] = np.where(P["class_standing"][ids] == P.code("class_standing", "freshman"), rng.uniform(0, 28, n), rng.uniform(30, 55, n))
+            P.cols["enrolled"][ids] = False
+            P.cols["n_kissed"][ids] = np.minimum(P["n_kissed"][ids], rng.integers(0, 4, n))
 
     def _annual_cohort(self):
         sim, w = self.sim, self.sim.w
@@ -181,11 +205,16 @@ class LifeCourse:
         role = P.code("role", "byu_student" if school == "BYU" else "uvu_student")
         mine = (P["role"] == role) & (P["school"] == P.code("school", school)) & ~P["graduated"] & (P["departure_day"] < 0)
         serving = P.is_("mission_status", "serving")
-        # count everyone who will be here this school year: missionaries home before winter semester and
-        # returned missionaries already scheduled to arrive (they come through the year)
-        back_by_fall = serving & (P.internal["mission_return_day"][:n] <= day + 140)
-        arriving = ~P["present"] & (P.internal["arrive_day"][:n] >= day) & (P.internal["arrive_day"][:n] <= day + 365)
-        continuing = int((mine & ((P["present"] & ~serving) | back_by_fall | (arriving & ~serving))).sum())
+        # project the fall census (late October, ~65 days after intake): continuing students, missionaries
+        # home by then and returned missionaries scheduled to arrive by then. A longer horizon over-counted
+        # people who arrive after the census; a shorter one let year-round mission returns push BYU past its cap.
+        horizon = day + 65
+        back_by_fall = serving & (P.internal["mission_return_day"][:n] <= horizon)
+        arriving = ~P["present"] & (P.internal["arrive_day"][:n] >= day) & (P.internal["arrive_day"][:n] <= horizon)
+        # students away for the summer come back around the intake day; they are continuing students
+        summer = ~P["present"] & P.internal["summer_away"][:n] & (P.internal["summer_return"][:n] >= 0) & \
+            (P.internal["summer_return"][:n] <= horizon)
+        continuing = int((mine & ((P["present"] & ~serving) | back_by_fall | (arriving & ~serving) | summer)).sum())
         want = base + gain * (target - continuing - base)
         return int(round(np.clip(want, 0.5 * base, 2.0 * base)))
 
@@ -346,6 +375,22 @@ class LifeCourse:
     def _leave(self, ids):
         sim, w = self.sim, self.sim.w
         P = w.P
+        # married couples move together: wait while the spouse is still enrolled, otherwise take them along
+        part = P["partner_id"][ids]
+        married = P.is_("rel_status", "married")[ids] & (part >= 0)
+        sp = np.where(married, part, 0)
+        wait = married & P["present"][sp] & P["enrolled"][sp] & ~P["enrolled"][ids]
+        if wait.any():
+            P.internal["leave_day"][ids[wait]] = w.day + 120
+            ids = ids[~wait]
+            married, sp = married[~wait], sp[~wait]
+        along = sp[married & P["present"][sp]]
+        along = along[~np.isin(along, ids)]
+        if len(along):
+            P.internal["leave_day"][along] = -1
+            ids = np.r_[ids, along]
+        if len(ids) == 0:
+            return
         sim.systems["romance"].handle_departure(ids)
         housing = sim.systems["housing"]
         for i in ids:
@@ -371,6 +416,7 @@ class LifeCourse:
         P.internal["leave_day"][sp] = np.maximum(P.internal["leave_day"][sp], w.day + 25)
         stay = ids[~leave]
         P.cols["role"][stay] = P.code("role", "young_adult")
+        self.schedule_stay(stay)
         del events
 
     # ------------------------------------------------------------------ monthly

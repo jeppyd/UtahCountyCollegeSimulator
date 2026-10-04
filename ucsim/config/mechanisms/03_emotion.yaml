@@ -143,6 +143,16 @@ mechanisms:
     params: {beta: {value: 0.25, range: [0.1, 0.4]}}
     evidence: literature
     refs: ["Meyer (2003) Psychol Bull: minority stress model"]
+  stress.support_buffer:
+    label: Perceived support buffers stressors
+    target: stress
+    sources: [perceived_support, academic_pressure, financial_stress, relationship_satisfaction, faith_crisis]
+    form: "−β·(perceived support − 0.35)·(academic + financial + relationship + faith-crisis terms)"
+    params: {beta: {value: 0.5, range: [0.2, 0.9]}}
+    evidence: literature
+    refs: ["Cohen & Wills (1985): the stress-buffering hypothesis — support matters most under stress",
+           "Perceived (not received) support carries the buffering effect (Lakey & Orehek 2011)"]
+    desc: An interaction, not a main effect — someone with no stressors gains nothing; someone under strain who feels backed gains a lot.
   # ---------------------------------------------------------------- loneliness
   loneliness.setpoint:
     label: Trait loneliness set-point
@@ -169,8 +179,18 @@ mechanisms:
     target: loneliness
     sources: [n_close_friends]
     form: "−β·log(1+n_close)/log 6"
-    params: {beta: {value: 0.07, range: [0.03, 0.15]}}
+    params: {beta: {value: 0.05, range: [0.02, 0.12]}}
     evidence: literature
+    desc: Lowered from 0.07 when the perceived-support term took over part of what close friends do for loneliness.
+  loneliness.perceived_support:
+    label: Believing support is there eases loneliness
+    target: loneliness
+    sources: [perceived_support]
+    form: "−β·(perceived support − 0.45)"
+    params: {beta: {value: 0.12, range: [0.05, 0.25]}}
+    evidence: literature
+    refs: ["Loneliness is perceived social isolation, distinct from network size (Hawkley & Cacioppo 2010)",
+           "Perceived support predicts wellbeing better than received support (Uchino 2009)"]
   loneliness.partner:
     label: Partner buffers loneliness
     target: loneliness

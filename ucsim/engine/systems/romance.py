@@ -144,12 +144,14 @@ class Romance:
         lds_active = P.is_("activity", "active")
         age_norm = np.clip((age - 19.5) / 3, 0, 1) * np.clip((31 - age) / 5, 0, 1)
         rm_recent = (P.is_("mission_status", "returned")) & (age < 24)
+        # how much a partner is missed (the partnership drive) against what else is pressing (mind.drive)
+        competing = (P["drive_achievement"] + P["drive_security"] + P["drive_rest"]) / 0.55
         mot = expit(p("romance.motivation.base")
                     + p("romance.motivation.wants") * (P["wants_relationship"] - 2.5) / 1.5
-                    + p("romance.motivation.longing") * P["romantic_longing"]
+                    + p("romance.motivation.longing") * P["drive_partnership"] / 0.55
                     + p("romance.motivation.marriage_norm") * w.env["marriage_norm"] * age_norm * lds_active
                     + 0.4 * rm_recent + 0.25 * sim.z("extraversion")
-                    - 0.8 * P["depressive_episode"] - 0.5 * P["academic_pressure"] - 0.4 * P["fatigue"])
+                    - 0.8 * P["depressive_episode"] - p("romance.motivation.competing") * competing)
         P["dating_motivation"] = np.where(self.seeking_mask(), mot, 0.0).astype(np.float32)
         self._weddings()
         self._confessions()
@@ -185,13 +187,21 @@ class Romance:
         ids, tgt = ids[okt], tgt[okt]
         male = P["sex"][ids] == P.code("sex", "M")
         dow_mult = np.array([1.2, 1.2, 1.1, 1.0, 0.7, 0.4, 0.3])[wd]
+        # what they believe the other feels (perceived, not actual) and what they have learned to expect
+        ek = E.find(EdgeStore.make_keys(ids, tgt))
+        believed = np.where(ek >= 0, E.belief_from(np.maximum(ek, 0), ids), 0.0)
+        exp_yes = np.clip(P["expect_accept"][ids], 0.03, 0.97)
         logit = (p("romance.ask.base") + p("romance.ask.attraction") * catt[ids]
                  + p("romance.ask.motivation") * (P["dating_motivation"][ids] - 0.5)
                  + p("romance.ask.confidence") * (P["self_esteem"][ids] - 0.5)
-                 - p("romance.ask.rejection_sensitivity") * np.clip(sim.z("rejection_sensitivity")[ids], 0, None) * np.log1p(P["rejections_recent"][ids])
+                 + p("romance.ask.expectation") * (np.log(exp_yes / (1 - exp_yes)) - 0.405)
+                 + p("mind.romantic_perception.ask_weight") * (believed - 0.15)
                  + np.where(male, p("romance.ask.male") * w.env["men_initiate_norm"], -p("romance.ask.male") * w.env["men_initiate_norm"] * 0.9)
                  + p("romance.ask.propensity") * np.log(P["dating_propensity"][ids] + 0.5)
                  + 0.25 * (P["asks_for_numbers"][ids] - 2) / 2)
+        plans = sim.systems.get("plans")
+        if plans is not None:
+            logit = logit + plans.ask_boost(ids, tgt)
         u = sim.u("ask")[ids]
         go = u < expit(logit) * dow_mult
         ids, tgt = ids[go], tgt[go]
@@ -217,6 +227,11 @@ class Romance:
         ua = sim.u("accept")[tgt]
         yes = ua < acc
         ask_ev = sim.emit("asked_out", ids, b=tgt, value=a_ij, mech="romance.ask")
+        mind = sim.systems["mind"]
+        mind.learn_ask(ids, yes)
+        mind.reveal(eix, ids, tgt, np.where(yes, 0.4, 1.0))
+        if plans is not None:
+            plans.asked(ids, tgt, yes, ask_ev)
         # rejections
         no = ~yes
         if no.any():
@@ -299,6 +314,7 @@ class Romance:
             E.cols["att_lh"][ni] = self.initial_attraction(lo, hi)
             E.cols["att_hl"][ni] = self.initial_attraction(hi, lo)
             E.cols["origin_ctx"][ni] = CTX_ID["app"]
+            sim.systems["mind"].init_beliefs(ni, lo, hi)
         E.cols["flags"][eix] |= Tie.APP_MATCH
         ev = sim.emit("app_match", ids, b=tgt, mech="romance.app")
         # the match turns into a date with probability ~ conversation success
@@ -341,8 +357,14 @@ class Romance:
             cur = E.attraction_from(eix, src)
             directed = pair_normal(w.seed, src, dst, 31, directed=True)
             E.set_attraction_from(eix, src, np.clip(cur + eta * (q + 0.3 * directed), -1, 1))
+        # a date is far more informative than a passing conversation about how the other feels
+        mind = sim.systems["mind"]
+        dr = p("mind.romantic_perception.date_reveal")
+        mind.reveal(eix, a, b, dr)
+        mind.reveal(eix, b, a, dr)
         E.cols["dates"][eix] += 1
         E.cols["flags"][eix] |= Tie.DATED
+        E.cols["shared"][eix] += 1
         E.cols["hours"][eix] += 2.5
         E.cols["hours_leisure"][eix] += 2.5
         E.cols["last_day"][eix] = day
@@ -408,6 +430,8 @@ class Romance:
         sim, w = self.sim, self.sim.w
         P, E = w.P, w.E
         E.cols["flags"][eix] |= Tie.KISSED
+        sim.systems["mind"].reveal(eix, a, b, 1.0)
+        sim.systems["mind"].reveal(eix, b, a, 1.0)
         for x, y in ((a, b), (b, a)):
             first_ever = P["n_kissed"][x] == 0
             P.cols["n_kissed"][x] += 1

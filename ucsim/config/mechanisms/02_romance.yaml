@@ -26,33 +26,40 @@ mechanisms:
   romance.motivation:
     label: Dating motivation
     target: dating_motivation
-    sources: [wants_relationship, romantic_longing, age, activity, mission_status, extraversion, depressive_episode, academic_pressure, fatigue]
-    form: "m = logistic(base + βw·wants + βl·longing + βn·marriage_norm·age_norm·active + 0.4·recent RM + 0.25·E − …)"
+    sources: [wants_relationship, drive_partnership, age, activity, mission_status, extraversion, depressive_episode,
+              drive_achievement, drive_security, drive_rest]
+    form: "m = logistic(base + βw·wants + βl·partnership drive/0.55 + βn·marriage_norm·age_norm·active + 0.4·recent RM + 0.25·E − 0.8·depressed − βc·(achievement + security + rest drives)/0.55)"
     params:
       base: {value: -0.5, range: [-1.5, 0.5]}
       wants: {value: 1.0, range: [0.4, 1.6]}
       longing: {value: 1.5, range: [0.5, 2.5]}
       marriage_norm: {value: 1.0, range: [0.3, 1.8]}
+      competing: {value: 0.4, range: [0.1, 0.9]}
     evidence: hypothetical
-    desc: Encodes the strong LDS young-adult marriage norm (returned missionaries are expected to date toward marriage).
+    desc: >-
+      Encodes the strong LDS young-adult marriage norm (returned missionaries are expected to date toward marriage). Longing
+      enters through the partnership drive (how much a partner matters × how much they miss one), and coursework, money and
+      exhaustion compete through their drives instead of separate direct terms.
   romance.ask:
     label: Asking someone out
     target: dates_30d
-    sources: [crush attraction, dating_motivation, self_esteem, rejection_sensitivity, rejections_recent, sex, dating_propensity, asks_for_numbers]
-    moderators: [rejection_sensitivity]
-    form: "P/day = logistic(base + βa·attraction + βm·motivation + βc·confidence − βrs·RS⁺·log(1+recent rejections) ± βmale·norm + βp·log(propensity)) × weekday factor"
+    sources: [crush attraction, dating_motivation, self_esteem, expect_accept, sex, dating_propensity, asks_for_numbers]
+    form: "P/day = logistic(base + βa·attraction + βm·motivation + βc·confidence + βe·(logit expected yes − logit 0.6) + βb·(believed interest − 0.15) ± βmale·norm + βp·log(propensity)) × weekday factor"
     params:
       base: {value: -4, range: [-5.5, -2.5]}
       attraction: {value: 2.5, range: [1, 4]}
       motivation: {value: 1.5, range: [0.5, 2.5]}
       confidence: {value: 1.0, range: [0.3, 2.0]}
-      rejection_sensitivity: {value: 0.6, range: [0.2, 1.2]}
+      expectation: {value: 0.6, range: [0.2, 1.2]}
       male: {value: 1.0, range: [0.3, 1.8]}
       propensity: {value: 0.6, range: [0.2, 1.0]}
       min_attraction: {value: 0.25, range: [0.1, 0.4]}
     evidence: empirical
     refs: ["Dating survey: most agree men should make the first move", "ProvoStats: dates per month by sex/relationship/activity"]
-    desc: Repeated rejection matters non-linearly — the log of recent rejections multiplies rejection sensitivity.
+    desc: >-
+      People ask when they are attracted, motivated and expect a yes — from their learned expectation (mind.expect_accept) and
+      their read of the other's interest (mind.romantic_perception), not the other's true feelings. Rejection works through
+      the expectation it teaches.
   romance.accept:
     label: Accepting a date
     target: dates_30d

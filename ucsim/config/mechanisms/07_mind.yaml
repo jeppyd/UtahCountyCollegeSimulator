@@ -1,0 +1,124 @@
+# The mind: motives, drives, learned expectations and perception (engine/systems/mind.py).
+# Each mechanism states what it replaces where it reroutes an older direct rule.
+system: mind
+mechanisms:
+  mind.importance:
+    label: What matters to someone (motive importance)
+    target: [cares_connection, cares_partnership, cares_achievement, cares_security, cares_faith, cares_rest, cares_fun, cares_health]
+    sources: [extraversion, agreeableness, attachment_anxiety, attachment_avoidance, social_events_month, wants_relationship, activity,
+              age, rel_status, conscientiousness, academic_ability, enrolled, parent_income, children, neuroticism, religious_identity,
+              faith_belief, own_religiosity, sensation_seeking, openness, workouts_week, sports, marriage_norm]
+    form: "cares_m = logistic(trait/value/circumstance index_m); weekly drift toward the target at rate `drift` (priorities change when identity or circumstances do)"
+    params:
+      marriage_norm: {value: 1.0, range: [0.4, 1.6]}
+      drift: {value: 0.1, range: [0.03, 0.25]}
+    evidence: structural
+    refs: ["Deci & Ryan (2000): self-determination theory — relatedness, competence, autonomy",
+           "Kenrick et al. (2010): fundamental social motives",
+           "Schwartz (1992): value priorities are stable but shift with life stage"]
+    desc: Eight concerns rather than hundreds of direct arrows. Weights are a structural assumption; their inputs are the survey-grounded traits.
+  mind.drive:
+    label: Drives and the top priority (importance × unmet)
+    target: [drive_connection, drive_partnership, drive_achievement, drive_security, drive_faith, drive_rest, drive_fun, drive_health, top_priority, sat_fun, sat_health]
+    sources: [loneliness, romantic_longing, relationship_satisfaction, academic_pressure, self_eff_academic, financial_stress, guilt,
+              religious_identity, attend_rate, private_practice, own_religiosity, service_attend, outsider, fatigue]
+    form: "drive_m = cares_m × (1 − felt fulfilment_m); fulfilment reads the felt state (1 − loneliness, 1 − financial stress, …) or recent experience (outings, workouts vs appetite)"
+    evidence: structural
+    refs: ["Cacioppo & Hawkley (2009): loneliness as an aversive signal that motivates reconnection (a 'social hunger')",
+           "Homeostatic need models (e.g. Hull; Berridge 2004 on wanting)"]
+    desc: The shared currency that lets subsystems compete — money worries and coursework pull effort away from dating and fun through the same drives.
+  mind.choice:
+    label: Drives steer free-time choices
+    target: activity_now
+    sources: [drive_connection, drive_partnership, drive_achievement, drive_rest, drive_fun, drive_health, expect_social, coping_strategy, routine_strength]
+    form: "U(option) = habit/trait base + Σ_m w_m·drive_m·gain(option, m) + routine bonus + coping bias + Gumbel noise; gains: home→rest, campus→achievement, gym→health, venue/outdoors→fun, dance→partnership+fun, visiting a friend→connection (scaled by expected warmth)"
+    params:
+      rest: {value: 2.0, range: [1.0, 3.0]}
+      achievement: {value: 2.4, range: [1.2, 3.6]}
+      health: {value: 1.0, range: [0.4, 2.0]}
+      fun: {value: 1.2, range: [0.4, 2.0]}
+      partnership: {value: 1.6, range: [0.6, 2.6]}
+    evidence: calibrated
+    refs: ["McFadden (1974): random-utility choice", "Replaces direct state terms (1.2·fatigue, 1.3·academic pressure, 0.8·romantic longing) with drives"]
+  mind.expect_accept:
+    label: Learning what to expect when asking someone out
+    target: expect_accept
+    sources: [attractiveness, rejection_sensitivity, extraversion]
+    form: "after each ask: V ← V + α·(accepted − V); after a no, α × (1 + β_rs·max(0, z_RS))"
+    params:
+      alpha: {value: 0.15, range: [0.05, 0.3]}
+      rs_asymmetry: {value: 0.6, range: [0.0, 1.2]}
+    evidence: literature
+    refs: ["Rescorla & Wagner (1972): prediction-error learning",
+           "Downey & Feldman (1996): rejection sensitivity — anxious expectation of rejection"]
+    desc: Replaces the direct 'recent rejections × rejection sensitivity → fewer asks' term; a run of rejections now works through a learned, inspectable expectation.
+  mind.expect_social:
+    label: Learning how warm people are
+    target: expect_social
+    sources: [extraversion, social_anxiety, neuroticism]
+    form: "daily, from interactions in social settings: V ← V + α·min(n,4)/4·(½ + ½·tanh(mean valence) − V); bad moments weigh (1 + β·max(0, z_SA)) more"
+    params:
+      alpha: {value: 0.05, range: [0.01, 0.12]}
+      threat_bias: {value: 0.5, range: [0.0, 1.0]}
+    evidence: literature
+    refs: ["Cacioppo & Hawkley (2009): loneliness heightens attention to social threat",
+           "Clark & Wells (1995): social anxiety and threat-biased processing"]
+  mind.self_efficacy:
+    label: Academic confidence from mastery experiences
+    target: self_eff_academic
+    sources: [academic_ability, conscientiousness, neuroticism, gpa, gpa_term]
+    form: "at term end: eff ← eff + α·(class rank of term GPA − eff) − 0.02·z_N; study target += β_s·(eff − 0.5); dropout logit −= β_d·(eff − 0.5)"
+    params:
+      alpha: {value: 0.25, range: [0.1, 0.4]}
+      study: {value: 4.0, range: [1.0, 7.0]}
+      dropout: {value: 1.2, range: [0.4, 2.0]}
+    evidence: literature
+    refs: ["Bandura (1997): mastery experiences are the strongest source of self-efficacy",
+           "Multon, Brown & Lent (1991): self-efficacy ↔ performance r≈.38, persistence r≈.34"]
+    desc: Effects on GPA run only through effort (study hours), so confidence and ability are not double counted.
+  mind.perceived_support:
+    label: Support people believe they have
+    target: perceived_support
+    sources: [support_actual, neuroticism, attachment_anxiety, loneliness]
+    form: "perceived = logistic(r·logit(actual) + (1 − r)·0.4 − β_N·z_N − β_A·z_attach_anx − β_L·(loneliness − 0.33) + β_lens·personal lens)"
+    params:
+      reality: {value: 0.25, range: [0.1, 0.6]}
+      neuroticism: {value: 0.35, range: [0.1, 0.6]}
+      attachment: {value: 0.3, range: [0.1, 0.5]}
+      loneliness: {value: 1.0, range: [0.3, 2.0]}
+      lens: {value: 0.8, range: [0.3, 1.3]}
+    evidence: literature
+    refs: ["Haber, Cohen, Lucas & Baltes (2007): received vs perceived support r = .35 (23 studies)",
+           "Lakey & Drew (1997): perceived support reflects the perceiver as much as the network"]
+    desc: The personal lens and trait biases are set so perceived and actual support correlate around .35–.5 (checked in validation).
+  mind.pluralistic_ignorance:
+    label: Concealed doubt and misread norms
+    target: [perceived_friend_belief, friend_belief_actual]
+    sources: [faith_belief, moral_autonomy, perceived_norm, closeness]
+    form: "expressed = belief + λ·(1 − autonomy)·(local pressure − belief) for members; perceived friends' belief = Σ closeness·(disclosure·belief + (1 − disclosure)·expressed) / Σ closeness"
+    params:
+      concealment: {value: 0.5, range: [0.0, 0.9]}
+    evidence: literature
+    refs: ["Prentice & Miller (1993): students misjudge peers' private attitudes toward a visible norm",
+           "Miller & McFarland (1987): pluralistic ignorance",
+           "Noelle-Neumann (1974): spiral of silence"]
+    desc: Doubters see more devotion around them than exists, so faith influence (which reads the perceived figure) props up the norm; confiding in close friends dissolves the illusion.
+  mind.romantic_perception:
+    label: Reading whether someone is interested
+    target: edge.attraction_lh
+    sources: [social_anxiety, sex, n_inter]
+    form: "read = (1 − π)·(actual + noise·0.35·e^{0.3·z_SA}) + π·own attraction − gap·e^{−interactions/8} + male over-perception; belief ← belief + η·(read − belief) each interaction; a yes, no, kiss or date reveals much more"
+    params:
+      projection: {value: 0.35, range: [0.1, 0.6]}
+      liking_gap: {value: 0.12, range: [0.0, 0.25]}
+      male_overperception: {value: 0.08, range: [0.0, 0.2]}
+      learning_rate: {value: 0.08, range: [0.03, 0.2]}
+      date_reveal: {value: 0.5, range: [0.2, 0.8]}
+      ask_weight: {value: 1.2, range: [0.4, 2.0]}
+    evidence: literature
+    refs: ["Boothby, Cooney, Sandstrom & Clark (2018): the liking gap after conversations",
+           "Haselton & Buss (2000); Perilloux, Easton & Buss (2012): men over-perceive women's sexual interest",
+           "Lemay, Clark & Feeney (2007): projection of one's own feelings onto partners"]
+    desc: >-
+      Asking out now depends on believed interest, so crushes can be unrequited (believed yes, actual no) and connections
+      missed (mutual interest that neither believes). Magnitudes are hypothetical; directions follow the literature.

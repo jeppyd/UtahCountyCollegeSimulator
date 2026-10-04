@@ -26,7 +26,7 @@ class Simulation:
     def __init__(self, world: World, interventions: list | None = None, name: str = "baseline",
                  record: bool = True):
         from .systems import (academics, activity, economy, emotion, encounters, environment, faith, groups, housing,
-                              history, lifecourse, network, norms, recorder, romance)
+                              history, lifecourse, mind, network, norms, recorder, romance)
         self.w = world
         self.name = name
         self.reg = world.reg
@@ -50,6 +50,7 @@ class Simulation:
             "emotion": emotion.Emotion(self),
             "faith": faith.Faith(self),
             "norms": norms.Norms(self),
+            "mind": mind.Mind(self),
             "economy": economy.Economy(self),
             "housing": housing.Housing(self),
             "recorder": recorder.Recorder(self),
@@ -58,7 +59,7 @@ class Simulation:
         self._zcache_day = -999
         self._zcache: dict[str, tuple[float, float]] = {}
         for name in ("environment", "housing", "activity", "groups", "network", "academics", "encounters", "economy",
-                     "romance", "faith", "norms", "emotion", "lifecourse", "recorder"):
+                     "romance", "faith", "norms", "mind", "emotion", "lifecourse", "recorder"):
             sysobj = self.systems[name]
             if hasattr(sysobj, "init"):
                 sysobj.init()
@@ -163,10 +164,12 @@ class Simulation:
         wd = self.cal.weekday(d)
         self._run("encounters", S["encounters"].friend_contact)
         self._run("romance", S["romance"].daily)
+        self._run("mind", S["mind"].daily)
         self._run("emotion", S["emotion"].daily)
         self._run("norms", S["norms"].daily)
         if wd == 6:  # Sunday night: weekly systems
             self._run("network", S["network"].weekly)
+            self._run("mind", S["mind"].weekly)
             self._run("faith", S["faith"].weekly)
             self._run("norms", S["norms"].weekly)
             self._run("romance", S["romance"].weekly)

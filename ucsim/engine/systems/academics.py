@@ -171,7 +171,13 @@ class Academics:
         target = (p("academics.study.base") + 0.75 * P["credits_term"] + p("academics.study.conscientiousness") * sim.z("conscientiousness")
                   + 8 * P["academic_pressure"] - p("academics.study.work_crowdout") * np.clip(P["work_hours"] - 10, 0, None)
                   - 6 * P["depressive_episode"] - 4 * P["fatigue"] - 0.08 * np.clip(P["social_hours_week"] - 20, 0, None)
-                  - 3 * (P["children"] > 0))
+                  - 3 * (P["children"] > 0) + p("mind.self_efficacy.study") * (P["self_eff_academic"] - 0.5))
+        plans = sim.systems.get("plans")
+        if plans is not None:
+            target = target + plans.study_boost()
+        cop = sim.systems.get("coping")
+        if cop is not None:
+            target = target + cop.study_bias()
         P["study_hours"] = np.where(in_term, np.clip(0.6 * P["study_hours"] + 0.4 * target, 0, 60), 0).astype(np.float32)
 
     def end_term(self, school: str):
@@ -194,6 +200,7 @@ class Academics:
         new_gpa = (prev * done + g * cred) / np.maximum(done + cred, 1)
         P.cols["gpa_term"][ids] = g
         P.cols["gpa"][ids] = new_gpa
+        sim.systems["mind"].learn_grades(ids, g)
         passed = cred * np.clip((g - 0.7) / 1.3, 0, 1)
         P.cols["credits_done"][ids] = done + passed
         st = np.where(new_gpa < 2.0, "probation", np.where(g < 2.0, "warning", "good"))
@@ -233,7 +240,8 @@ class Academics:
         # dropout hazard
         fin = P["financial_stress"][ids]
         h = expit(p("academics.dropout.base") + (0.9 if school == "UVU" else 0) + 1.6 * (new_gpa < 2.0) + 1.2 * np.clip(fin - 0.5, 0, None)
-                  + 0.8 * (P["children"][ids] > 0) * P.is_("sex", "F")[ids])
+                  + 0.8 * (P["children"][ids] > 0) * P.is_("sex", "F")[ids]
+                  - p("mind.self_efficacy.dropout") * (P["self_eff_academic"][ids] - 0.5))
         drop = ~grad & (rng.random(len(ids)) < h)
         if drop.any():
             di = ids[drop]

@@ -114,7 +114,9 @@ class Faith:
         has = den > 0
         norm = np.where(has, 0.65 * np.nan_to_num(friend_norm) + 0.35 * ward_mean, ward_mean)
         P["perceived_norm"] = norm.astype(np.float32)
-        self.friend_belief = np.where(has, np.nan_to_num(friend_belief), P["faith_belief"])
+        # influence works through what people *perceive* their friends believe (mind.pluralistic_ignorance)
+        perceived = P["perceived_friend_belief"]
+        self.friend_belief = np.where(has, np.where(perceived > 0, perceived, np.nan_to_num(friend_belief)), P["faith_belief"])
         del n
 
     def weekly(self):

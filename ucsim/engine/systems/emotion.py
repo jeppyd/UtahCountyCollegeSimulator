@@ -120,12 +120,17 @@ class Emotion:
             T["relationship"] = in_rel * p("stress.relationship.beta") * np.clip(0.6 - sat, 0, 0.6)
             T["faith_crisis"] = p("stress.faith_crisis.beta") * P["faith_crisis"]
             T["minority_stress"] = p("stress.minority_stress.beta") * P["lgbtq_tension"] * (P["activity"] >= 2)
+            # stress buffering: believing support is there blunts what the stressors do (Cohen & Wills 1985)
+            load = T["academic"] + T["financial"] + T["relationship"] + T["faith_crisis"]
+            T["support_buffer"] = -p("stress.support_buffer.beta") * (P["perceived_support"] - 0.35) * load
         elif s == "loneliness":
             need = p("loneliness.contact_deficit.need_hours") * np.exp(p("loneliness.contact_deficit.extraversion") * z("extraversion"))
             contact = P["close_contact_hours"]
             T["setpoint"] = 0.43 + p("loneliness.setpoint.neuroticism") * z("neuroticism") + 0.025 * z("social_anxiety")
             T["contact_deficit"] = p("loneliness.contact_deficit.beta") * np.clip((need - contact) / need, -1, 1)
             T["close_friends"] = -p("loneliness.close_friends.beta") * np.log1p(P["n_close_friends"]) / np.log(6)
+            # loneliness is *perceived* isolation: the support people believe they have matters beyond the count
+            T["perceived_support"] = -p("loneliness.perceived_support.beta") * (P["perceived_support"] - 0.45)
             T["partner"] = -p("loneliness.partner.beta") * (in_rel.astype(float) + 0.4 * married)
             T["ward"] = -p("loneliness.ward.beta") * (P["ward_belonging"] - 0.5) * (P["activity"] >= 2)
             T["roommates"] = -p("loneliness.roommates.beta") * (P["roommate_cohesion"] - 0.5)

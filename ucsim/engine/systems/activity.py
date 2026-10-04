@@ -205,10 +205,15 @@ class Activity:
             self._gatherings(ctype, cid, act, busy, present, wd)
         # ---- discretionary choice for everyone still free (not night)
         free = present & ~busy
+        self.last_choice = np.full(n, 255, np.uint8)
         if free.any():
             self._discretionary(free, b, wd, ctype, cid, act)
         self.ctype, self.cid = ctype, cid
         P["activity_now"] = act
+        sim.systems["mind"].observe_block(act, ctype)
+        rt = sim.systems.get("routine")
+        if rt is not None:
+            rt.observe(b, wd, free, self.last_choice)
         self._locate(ctype, cid, act)
         self._keep_frame(b)
 
@@ -238,14 +243,8 @@ class Activity:
         self.frames_today = {}
 
     def _drives(self):
-        sim, P = self.sim, self.sim.w.P
-        p = sim.p
-        approach = expit(p("activity.loneliness_response.extraversion") * sim.z("extraversion")
-                         - p("activity.loneliness_response.social_anxiety") * sim.z("social_anxiety")
-                         - p("activity.loneliness_response.neuroticism") * sim.z("neuroticism")
-                         + p("activity.loneliness_response.base"))
-        lon = P["loneliness"]
-        return lon * approach, lon * (1 - approach), approach
+        """(approach, withdraw, style): the connection drive split into reaching out vs pulling back (mind.social_pull)."""
+        return self.sim.systems["mind"].social_pull()
 
     def _discretionary(self, free, b, wd, ctype, cid, act):
         sim, w = self.sim, self.sim.w
@@ -261,25 +260,38 @@ class Activity:
         married = P.is_("rel_status", "married")[idx]
         single = ~married & ~P.isin("rel_status", ["dating", "engaged"])[idx]
         U = np.full((k, 8), -9.0)
-        U[:, 0] = (p("activity.choice.home") + 1.2 * P["fatigue"][idx] + p("activity.choice.withdraw") * withdraw
+        # habit/trait bases plus the person's current drives (mind.choice): rest pulls home, achievement to campus,
+        # fitness to the gym, fun to venues and the outdoors, partnership to dances, connection to friends
+        d = {m: P[f"drive_{m}"][idx] for m in ("rest", "achievement", "health", "fun", "partnership")}
+        wgt = {m: p(f"mind.choice.{m}") for m in d}
+        U[:, 0] = (p("activity.choice.home") + wgt["rest"] * d["rest"] + p("activity.choice.withdraw") * withdraw
                    + 0.6 * married + 0.3 * (P["children"][idx] > 0) + (0.6 if b == 0 else 0.0) + 0.8 * P["ill"][idx])
         if b < 2:
-            U[:, 1] = np.where(enrolled & in_term, 0.5 + 1.3 * P["academic_pressure"][idx] + 0.3 * sim.z("conscientiousness")[idx]
+            U[:, 1] = np.where(enrolled & in_term, 0.5 + wgt["achievement"] * d["achievement"] + 0.3 * sim.z("conscientiousness")[idx]
                                - 0.25 * (P["dist_campus_km"][idx] > 3), -9)
-        U[:, 2] = -2.3 + np.log(P["workouts_week"][idx] + 0.3) + (0.4 if b != 1 else -0.3)
+        U[:, 2] = -2.3 + np.log(P["workouts_week"][idx] + 0.3) + (0.4 if b != 1 else -0.3) + wgt["health"] * d["health"]
         if b >= 1:
             U[:, 3] = (-1.6 + 0.5 * np.log1p(P.internal["eat_out_month"][idx] + 3 * P["soda_shop_week"][idx])
-                       + p("activity.choice.approach") * 0.6 * appr + 0.3 * weekend)
-            U[:, 4] = -2.6 + 1.0 * P["hikes"][idx] + 0.4 * P["outdoors"][idx] + 1.6 * env["outdoor_appeal"] + 0.6 * weekend
+                       + p("activity.choice.approach") * 0.6 * appr + 0.3 * weekend + wgt["fun"] * 0.6 * d["fun"])
+            U[:, 4] = (-2.6 + 1.0 * P["hikes"][idx] + 0.4 * P["outdoors"][idx] + 1.6 * env["outdoor_appeal"] + 0.6 * weekend
+                       + wgt["fun"] * d["fun"] + 0.5 * wgt["health"] * d["health"])
         if b == 2 and wd in (3, 4, 5):
-            U[:, 5] = np.where(single, -3.2 + 0.9 * P["dancing"][idx] + 0.8 * P["romantic_longing"][idx] + 0.5 * appr, -9)
+            U[:, 5] = np.where(single, -3.2 + 0.9 * P["dancing"][idx] + wgt["partnership"] * d["partnership"] + 0.5 * appr
+                               + 0.5 * wgt["fun"] * d["fun"], -9)
         if b >= 1:
             has_f = P["n_friends"][idx] > 0
             U[:, 6] = np.where(has_f, -1.2 + p("activity.choice.approach") * appr + 0.35 * E + 0.5 * weekend - 0.5 * married, -9)
         if b == 2:
-            U[:, 7] = np.where(P["complex_id"][idx] >= 0, -2.0 + 0.4 * E, -9)
+            U[:, 7] = np.where(P["complex_id"][idx] >= 0, -2.0 + 0.4 * E + 0.5 * appr, -9)
+        rt = sim.systems.get("routine")
+        if rt is not None:
+            U += rt.bonus(idx, wd, b)
+        cop = sim.systems.get("coping")
+        if cop is not None:
+            U += cop.choice_bias(idx)
         g = sim.streams.gen(f"disc{b}", w.day).gumbel(size=(P.n, 8))[idx]
         choice = np.argmax(U + g, axis=1)
+        self.last_choice[idx] = choice
         pick = sim.u(f"pick{b}")[idx]
         hl, ht = P["home_lon"][idx], P["home_lat"][idx]
         # campus

@@ -25,11 +25,6 @@ variables:
     desc: Swig/Sodalicious-type dirty-soda shop visits — a Utah County social ritual and casual date venue.
     init: "copula provostats.soda_shop_per_week"
     source: [provostats]
-  social_events_month:
-    label: Social events / month (propensity)
-    range: [0, 40]
-    init: "copula provostats.social_events_month"
-    source: [provostats]
   coffee:
     label: Coffee use
     dtype: u1

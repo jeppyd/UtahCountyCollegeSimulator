@@ -220,6 +220,7 @@ class Encounters:
             att_lh, att_hl = rom.initial_attraction(lo, hi), rom.initial_attraction(hi, lo)
             E.cols["att_lh"][ni] = att_lh
             E.cols["att_hl"][ni] = att_hl
+            sim.systems["mind"].init_beliefs(ni, lo, hi)
             del ctx_names
         # ---- interaction valence
         rng = sim.streams.gen("valence", day, block)
@@ -268,6 +269,12 @@ class Encounters:
                 ii = idx[comp]
                 cur = E.attraction_from(ii, src[comp])
                 E.set_attraction_from(ii, src[comp], np.clip(cur + eta * (v[comp] - 0.15), -1, 1))
+        # ---- each interaction is also a noisy read of the other's interest (perceived, not actual)
+        mind = sim.systems["mind"]
+        either = comp_ab | comp_ba
+        if either.any():
+            mind.update_beliefs(idx[either], a[either], b[either], p("mind.romantic_perception.learning_rate"), block)
+        mind.observe_interactions(a, b, ctx, v)
         # ---- social-contact accounting
         hours_today = P.internal["hours_today"]
         close_today = P.internal["close_hours_today"]

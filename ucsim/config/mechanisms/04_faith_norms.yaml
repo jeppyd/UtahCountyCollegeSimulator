@@ -40,9 +40,9 @@ mechanisms:
   faith.influence:
     label: Social influence on belief (uncertainty-gated)
     target: faith_belief
-    sources: [friends' belief, faith_certainty, conformity]
+    sources: [perceived_friend_belief, faith_certainty, conformity]
     moderators: [faith_certainty, conformity]
-    form: "Δbelief = β·(1 − certainty)·exp(0.3·conformity)·(closeness-weighted friends' belief − belief), weekly"
+    form: "Δbelief = β·(1 − certainty)·exp(0.3·conformity)·(what they perceive friends believe − belief), weekly (perception per mind.pluralistic_ignorance)"
     params:
       base: {value: 0.03, range: [0.0, 0.08]}
     evidence: literature

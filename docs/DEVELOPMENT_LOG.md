@@ -192,7 +192,7 @@ intended anything. The four-year check showed unexplained drift in major stocks.
 - *Validation*: pattern rows, held-out tables, courtship timing, a within- vs between-person longitudinal section;
   social events are now a realized count (they were a static survey value scored as "emergent").
 - *Uncertainty*: evidence-scaled parameter ensembles with an alternative mechanism form (bounded-confidence faith
-  influence), stochastic vs parametric variance, sign robustness, attribution only with enough draws.
+  influence), stochastic vs parametric variance, sign robustness, attribution only with enough draws and a multiple-comparison threshold (a 12-draw showcase listed spurious "drivers" before this).
 - *Experience*: Inner life tab, place cultures, uncertainty panel, accounting and patterns in Model check, guide
   sections; new What-if presets (open conversations about doubt, peer support, complex game nights, rumination
   skills).

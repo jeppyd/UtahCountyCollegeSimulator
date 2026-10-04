@@ -136,6 +136,14 @@ def decompose(effects: np.ndarray) -> dict:
             "point_estimate": float(np.nanmean(effects[0])) if D else None}
 
 
+def _critical_rho(n: int, k: int, alpha: float = 0.05) -> float:
+    """|ρ| a rank correlation must reach to count, Bonferroni-corrected over k parameters (t approximation)."""
+    from scipy.stats import t as tdist
+    df = max(n - 2, 1)
+    tc = float(tdist.ppf(1 - alpha / (2 * max(k, 1)), df))
+    return tc / np.sqrt(df + tc * tc)
+
+
 def _spearman(x: np.ndarray, y: np.ndarray) -> float:
     if len(x) < 3 or np.std(x) == 0 or np.std(y) == 0:
         return 0.0
@@ -173,9 +181,10 @@ def ensemble(scenario: list, n_draws: int = 6, seeds: tuple = (1, 2, 3), days: i
         dec = decompose(M)
         dm = np.nanmean(M, axis=1)
         sens = []
-        # attribution needs enough draws: with few draws and many parameters, rank correlations are spurious
-        if n_draws >= MIN_DRAWS_FOR_DRIVERS:
-            thr = max(0.5, 2.0 / np.sqrt(n_draws))
+        # attribution needs enough draws and a multiple-comparison threshold: with many parameters and few draws,
+        # large rank correlations arise by chance. Nothing is attributed when the assumptions barely matter.
+        if n_draws >= MIN_DRAWS_FOR_DRIVERS and dec["share_parametric"] >= 0.2:
+            thr = _critical_rho(n_draws, len(params))
             for p in params:
                 x = np.array([d[p["key"]] for d in draws])
                 rho = _spearman(x, dm)
@@ -183,8 +192,11 @@ def ensemble(scenario: list, n_draws: int = 6, seeds: tuple = (1, 2, 3), days: i
                     sens.append({"param": p["key"], "rho": round(rho, 3), "evidence": p["evidence"]})
             sens.sort(key=lambda t: -abs(t["rho"]))
         dec["drivers"] = sens[:6]
-        dec["drivers_note"] = (None if n_draws >= MIN_DRAWS_FOR_DRIVERS else
-                               f"run at least {MIN_DRAWS_FOR_DRIVERS} parameter draws to attribute the effect to parameters")
+        dec["drivers_note"] = (f"run at least {MIN_DRAWS_FOR_DRIVERS} parameter draws to attribute the effect to parameters"
+                               if n_draws < MIN_DRAWS_FOR_DRIVERS else
+                               "mostly chance: assumptions explain little of this effect's spread" if dec["share_parametric"] < 0.2 else
+                               None if sens else
+                               f"no single assumption clears the bar for {len(params)} parameters at {n_draws} draws (|ρ| ≥ {_critical_rho(n_draws, len(params)):.2f}); more draws would sharpen this")
         dec["by_draw"] = [round(float(v), 5) for v in dm]
         out["outcomes"][key] = dec
     out["draws"] = [{k: round(v, 4) for k, v in d.items()} for d in draws]

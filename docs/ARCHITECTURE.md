@@ -128,7 +128,7 @@ the What-if.
   Little's-law equilibria between same-day checkpoints each year.
 - `scripts/uncertainty.py` / `engine/uncertainty.py` / `POST /api/uncertainty` — Latin-hypercube parameter draws
   scaled by evidence, paired What-if runs per (draw, seed), stochastic vs parametric variance, sign robustness,
-  parameter attribution (≥ 12 draws).
+  parameter attribution (≥ 12 draws, Bonferroni-corrected, only when assumptions explain ≥ 20% of the spread).
 - `scripts/calibrate.py` — coordinate search over selected parameters on two seeds; held-out tables excluded.
 
 ## Performance (scale 0.15 ≈ 9–11k agents, one core)

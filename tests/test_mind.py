@@ -189,3 +189,9 @@ def test_edge_store_merge_insert_keeps_order_and_values():
         ref.update({int(x): float(x % 89) for x in k})
     assert np.all(np.diff(E.key_array) > 0) and len(E) == len(ref)
     assert np.allclose(E["liking"], [ref[int(x)] for x in E.key_array])
+
+
+def test_attribution_threshold_tightens_with_more_parameters_and_loosens_with_draws():
+    from ucsim.engine.uncertainty import _critical_rho
+    assert _critical_rho(12, 82) > _critical_rho(12, 5) > 0.5
+    assert _critical_rho(40, 82) < _critical_rho(12, 82) < 1

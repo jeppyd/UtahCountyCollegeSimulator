@@ -133,3 +133,7 @@ export const GROUPS: [string, string][] = [['all', 'Everyone'], ['BYU', 'BYU stu
 
 /** Fields people most often split by. */
 export const SPLITS = ['school', 'sex', 'rel_status', 'activity', 'class_standing', 'affiliation', 'living', 'role', 'mission_status', 'employed', 'city', 'study_area']
+
+/** Events logged once for each of the two people involved (so pairs = count / 2). Keep in sync with the emit calls. */
+export const PAIR_EVENTS = new Set(['new_friend', 'close_friend', 'first_date', 'talking_started', 'relationship_started', 'engaged', 'wedding', 'kyhv_peak'])
+export const pairs = (type: string, n: number) => (PAIR_EVENTS.has(type) ? Math.round(n / 2) : n)

@@ -673,6 +673,12 @@ def cohort_timeline(body: dict = Body(...)):
         H, P = sim.systems["history"], sim.w.P
         vars_ = [v for v in body.get("vars", []) if H.tracked(v)]
         mask = _flow_mask(sim, body.get("filter"))
+        if body.get("filter_world") == "base" and sim is not WS.base and WS.base is not None:
+            # the same people as in the Original: pick the group there, follow them in this world
+            mb = _flow_mask(WS.base, body.get("filter"))
+            mask = np.zeros(P.n, bool)
+            k = min(P.n, len(mb))
+            mask[:k] = mb[:k]
         days = H.days() + ([sim.w.day] if not H.days() or H.days()[-1] < sim.w.day else [])
         out = {"days": days, "dates": [str(sim.cal.date(d)) for d in days], "cohort": {}, "everyone": {}, "n": []}
         for d in days:

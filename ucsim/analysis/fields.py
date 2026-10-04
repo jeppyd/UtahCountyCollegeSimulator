@@ -143,10 +143,11 @@ def pulse(sim, featured: list | None = None) -> dict:
                        for k in np.nonzero(c)[0] if reg.events[names[k]].salience >= 0.4 and names[k] != "intervention_exposure"], key=lambda r: -r["count"])
 
     idx = np.where((sal[log["type"]] >= 0.8) & (log["a"] >= 0) & (log["day"] >= w.day - 14))[0][-400:][::-1]
-    heads, per_type = [], {}
-    for e in idx:  # newest first, at most three of a kind so one busy event type can't flood the news
+    heads, per_type, per_cat = [], {}, {}
+    cats_of = [ev.category for ev in reg.events.values()]
+    for e in idx:  # newest first; a few of each kind so one busy event type can't flood the news
         t = int(log["type"][e])
-        if per_type.get(t, 0) >= 3:
+        if per_type.get(t, 0) >= 2 or per_cat.get(cats_of[t], 0) >= 5:
             continue
         r = event_record(sim, int(e))
         r["a_name"] = synthetic_name(P, r["a"])
@@ -154,6 +155,7 @@ def pulse(sim, featured: list | None = None) -> dict:
         heads.append(r)
         heads = dedupe_pairs(heads)
         per_type[t] = sum(1 for h in heads if h["type"] == r["type"])
+        per_cat[cats_of[t]] = sum(1 for h in heads if h["category"] == r["category"])
         if len(heads) >= 16:
             break
     # what's moving: change over the last ~4 weeks, standardized

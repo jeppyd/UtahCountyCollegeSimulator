@@ -120,6 +120,11 @@ def test_game_endpoints(client, paired):
     assert st["last_event_id"] == base.log.n - 1
     ev = client.get("/api/events", params={"after_id": base.log.n - 5, "limit": 50}).json()
     assert ev["total"] == 4
+    filt = {"and": [{"var": "loneliness", "op": "quantile_ge", "value": 0.8}]}
+    own = client.post("/api/cohort_timeline", json={"filter": filt, "vars": ["loneliness"], "u": "alt"}).json()
+    same = client.post("/api/cohort_timeline", json={"filter": filt, "vars": ["loneliness"], "u": "alt", "filter_world": "base"}).json()
+    base_n = client.post("/api/cohort/count", json={"filter": filt, "u": "base"}).json()["n"]
+    assert same["n"][-1] <= base_n and own["n"][-1] > 0          # the same people as picked in the Original
     n0 = len(alt.systems["environment"].manager.items)
     assert client.post("/api/fork/add", json={"interventions": [{"preset": "coffee_permitted"}]}).json()["added"] >= 1
     assert len(alt.systems["environment"].manager.items) > n0

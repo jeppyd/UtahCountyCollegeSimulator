@@ -122,6 +122,17 @@ def selftest(url: str) -> int:
             break
         time.sleep(0.2)
     assert st["day"] >= 3, st
+    # the game layer: pulse, field summaries, a What-if and the butterfly views
+    assert call("api/pulse")["present"] > 0, "pulse"
+    assert call("api/fields/summary")["fields"], "field summary"
+    call("api/fork", {"interventions": [{"preset": "rent_up_20"}]})
+    call("api/step", {"days": 1})
+    for _ in range(600):
+        if call("api/status")["job"].get("state") == "idle":
+            break
+        time.sleep(0.2)
+    assert call("api/compare/fields")["fields"], "compare fields"
+    assert "people" in call("api/compare/people?k=5"), "compare people"
     page = urllib.request.urlopen(url, timeout=10).read().decode("utf-8", "replace")
     assert "<div id=\"root\">" in page, "workstation page missing"
     urllib.request.urlopen(url + "geo/roads.json", timeout=10).read()

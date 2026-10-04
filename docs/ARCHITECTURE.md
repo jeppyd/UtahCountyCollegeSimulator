@@ -75,17 +75,30 @@ start day, ramp and duration.
 - `analysis/query.py` — cohort filter DSL (and/or/not, comparisons, quantiles, recent events, household composition).
 - `analysis/explain.py` — event chains/descendants, per-person state decomposition, cohort attribution, universe comparison, most-affected people.
 - `analysis/person.py` — profiles and deterministic synthetic names.
-- `api/server.py` — ~35 endpoints; columns travel as a packed binary format (`pack_columns` ↔ `web/src/api.ts:decodePack`), so the browser filters and charts ~10–50k agents client-side.
+- `analysis/butterfly.py` — Original vs What-if: every chartable field (means/shares, a common effect size,
+  share of people individually different, difference over time from the weekly aggregates), events matched
+  across worlds by (person, day, type, other person), diverged lives, one person's two lives and the first
+  fork's cause chain, couples/friendships in only one world, per-place differences.
+- `analysis/fields.py` — field summaries and weekly timelines, one person's two-weekly history, the "pulse"
+  (what people did in each block of the last day, the week's events, diversified headlines, four-week
+  movers, featured lives), couples.
+- `api/server.py` — ~60 endpoints; columns travel as a packed binary format (`pack_columns` ↔ `web/src/api.ts:decodePack`), so the browser filters and charts ~10–50k agents client-side.
 
 ## Workstation (`web/`)
 
-React 18 + zustand + ECharts + deck.gl/MapLibre + Cytoscape. Views: Overview, Map (people now / homes /
-complexes / wards, diff mode), People & Person (why-panels, ego network, timeline, counterfactual),
-Network, Explore, Cross-tabs, Events (causal chains), Places & institutions, Scenario lab (builder, compare,
-Monte Carlo, sweeps), Causal web, Variables, Mechanisms, About. The cohort bar persists across views.
+React 18 + zustand + ECharts + deck.gl/MapLibre + Cytoscape, skinned as a simulation game. The store's
+`lens` ('base' | 'alt' | 'compare') decides which universe every view loads (`useLens()`); compare-aware
+views load both and overlay them (Original blue, What-if orange). The shell (`hud.tsx`, `nav.ts`,
+`palette.tsx`, `toasts.tsx`) provides the clock, speeds (`timeCtl`), lens, butterfly meter, search, news and
+recaps. World areas: World, Map, People/Person, Relationships, Places, Events, What-if (`views/whatif/`),
+Explore (`views/explore/`, driven by the field catalog in `fields.ts`); the research desk keeps Vital signs,
+Flows, Cross-tabs, Cause & effect, Experiments, Model check, Data dictionary, Rules and Evidence. The filter
+(cohort) persists across views; in Compare it is evaluated in the Original and applied to the same people in
+the What-if.
 `npm run build:static` + `scripts/export_static.py` produce a static snapshot (no server) for sharing.
 
 ## Performance (scale 0.15 ≈ 9–11k agents, one core)
 
-Build ≈1.5 s; ≈0.27 s per simulated day including the recorder (see `docs/VALIDATION.md` for the per-system
+Build ≈1.5 s; ≈0.27 s per simulated day including the recorder (the weekly all-field snapshot adds ≈0.1 s
+once a week) (see `docs/VALIDATION.md` for the per-system
 breakdown). Full scale (≈60k agents) is ≈1.5–2 s/day; Monte Carlo parallelizes across processes.

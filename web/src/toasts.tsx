@@ -2,6 +2,7 @@
 // faith crises, graduations…), plus milestones as the What-if world drifts away from the Original.
 import { useEffect, useRef } from 'react'
 import { api, STATIC } from './api'
+import { pairs } from './fields'
 import { CatIcon, G, UBadge } from './game'
 import { useLens, useStore } from './store'
 import { Story } from './ui'
@@ -69,6 +70,35 @@ export function NewsWatcher() {
   return null
 }
 
+const RECAP: [string, string][] = [['first_date', 'first dates'], ['relationship_started', 'new exclusive couples'], ['engaged', 'engagements'], ['wedding', 'weddings'],
+  ['breakup_received', 'breakups'], ['new_friend', 'new friendships'], ['baptized', 'baptisms'], ['faith_crisis_start', 'faith crises'],
+  ['mission_departure', 'mission departures'], ['graduation', 'graduations'], ['birth', 'babies'], ['moved', 'moves'], ['job_loss', 'jobs lost']]
+
+/** After a time skip (a week or more), a recap of what happened while time flew. */
+export function RecapWatcher() {
+  const { status, toast, news } = useStore()
+  const { u, hasAlt } = useLens()
+  const start = useRef<{ day: number; div: number | null; total: number } | null>(null)
+  const state = status?.job?.state
+  useEffect(() => {
+    if (STATIC || !status) return
+    if (state === 'running' && !start.current) start.current = { day: status.day - (status.job?.progress ?? 0), div: status.divergence?.any_state_diff ?? null, total: status.job?.total ?? 0 }
+    if (state !== 'running' && start.current) {
+      const s0 = start.current
+      start.current = null
+      const days = status.day - s0.day
+      if (days < 7 || !news) return
+      api.eventsSummary(u, s0.day).then((sum: any) => {
+        const rows = RECAP.map(([k, l]) => { const r = sum.types?.find((x: any) => x.type === k); const n = r ? pairs(k, r.count) : 0; return { k, l, n, c: r?.category } }).filter(r => r.n > 0).slice(0, 8)
+        const d1 = status.divergence?.any_state_diff ?? null
+        toast({ kind: 'recap', title: `${days} days went by`, body: JSON.stringify({ rows, from: s0.day, to: status.day, date0: dateOf(status, s0.day), date1: status.date, div: hasAlt && d1 !== null ? [s0.div, d1] : null, u }), route: ['world'], ttl: 15000 })
+      }).catch(() => {})
+    }
+  }, [state, status?.day])
+  return null
+}
+const dateOf = (status: any, day: number) => { const d = new Date(status.date + 'T12:00:00'); d.setDate(d.getDate() - (status.day - day)); return d.toISOString().slice(0, 10) }
+
 export function Toasts() {
   const { toasts, dismiss, setRoute } = useStore()
   const { u, hasAlt } = useLens()
@@ -77,6 +107,21 @@ export function Toasts() {
     <div className="toasts" aria-live="polite">
       {toasts.map(t => {
         const e = t.kind === 'event' && t.body ? JSON.parse(t.body) : null
+        if (t.kind === 'recap' && t.body) {
+          const r = JSON.parse(t.body)
+          const fd = (x: string) => new Date(x + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+          return (
+            <div key={t.id} className="toast recap" onClick={() => { if (t.route) setRoute(t.route); dismiss(t.id) }} role="button" tabIndex={0}>
+              <div className="t-body">
+                <div className="t-meta small">While time flew · {fd(r.date0)} → {fd(r.date1)}{hasAlt && <> · <UBadge u={r.u} /></>}</div>
+                <b>{t.title}</b>
+                <div className="recap-grid">{r.rows.map((x: any) => <span key={x.k}><CatIcon c={x.c} /><b className="tabular">{x.n.toLocaleString()}</b> {x.l}</span>)}</div>
+                {r.div && <div className="small" style={{ marginTop: 6 }}>{G.butterfly} Lives that differ: <b className="tabular">{r.div[0] === null ? '—' : `${(100 * r.div[0]).toFixed(1)}%`}</b> → <b className="tabular u-alt-t">{(100 * r.div[1]).toFixed(1)}%</b></div>}
+              </div>
+              <button className="t-x" onClick={ev => { ev.stopPropagation(); dismiss(t.id) }} aria-label="Dismiss">{G.close}</button>
+            </div>
+          )
+        }
         return (
           <div key={t.id} className={`toast ${t.kind}`} onClick={() => { if (t.route) setRoute(t.route); dismiss(t.id) }} role="button" tabIndex={0}>
             {e ? <CatIcon c={t.category} /> : <span className="caticon c-intervention">{G.butterfly}</span>}

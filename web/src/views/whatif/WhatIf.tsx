@@ -271,7 +271,7 @@ function EventsDiff({ c }: { c: any }) {
   const more = evs.filter((e: any) => e.delta > 0).slice(0, 18), less = evs.filter((e: any) => e.delta < 0).slice(0, 18)
   return (
     <>
-      <div className="row" style={{ marginBottom: 10 }}><span className="small muted">Every life event since the split, counted in both worlds. Hide rare events below</span><input type="number" min={1} value={minN} onChange={e => setMinN(Number(e.target.value))} style={{ width: 64 }} /><span className="small muted">occurrences.</span></div>
+      <div className="row" style={{ marginBottom: 10 }}><span className="small muted">Every life event since the split, counted in both worlds (two-person events such as dates and weddings count once for each person). Hide rare events below</span><input type="number" min={1} value={minN} onChange={e => setMinN(Number(e.target.value))} style={{ width: 64 }} /><span className="small muted">occurrences.</span></div>
       <div className="grid g2">
         <div className="card"><h3><UBadge u="alt" /> More common in the What-if</h3>{more.length ? more.map((e: any) => <EventDiffRow key={e.type} e={e} />) : <div className="empty small">None yet.</div>}</div>
         <div className="card"><h3><UBadge u="base" /> Less common in the What-if</h3>{less.length ? less.map((e: any) => <EventDiffRow key={e.type} e={e} />) : <div className="empty small">None yet.</div>}</div>

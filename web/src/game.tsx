@@ -28,7 +28,7 @@ export function LensSwitch({ compact = false }: { compact?: boolean }) {
     <div className="lens" role="radiogroup" aria-label="Which world to show">
       {opts.map(([k, l, t]) => (
         <button key={k} role="radio" aria-checked={lens === k} className={`${k} ${lens === k ? 'on' : ''}`} onClick={() => setLens(k)} title={t}>
-          <i />{compact ? l.slice(0, 4) : l}
+          <i /><span className="l-long">{compact ? l.slice(0, 4) : l}</span><span className="l-short">{k === 'base' ? 'Orig.' : k === 'alt' ? 'What-if' : 'Both'}</span>
         </button>
       ))}
     </div>

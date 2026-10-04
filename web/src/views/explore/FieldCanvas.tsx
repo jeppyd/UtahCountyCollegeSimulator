@@ -20,7 +20,15 @@ export function FieldCanvas({ v, tracked, compareRow, split0 }: { v: string; tra
   useEffect(() => { if (split === v) setSplit(v === 'school' ? 'sex' : 'school') }, [v])
   const vars = useMemo(() => [...new Set([v, 'sex', split])], [v, split])
   const A = useCohortData(vars, { universe: compare ? 'base' : u })
-  const B = useCohortData(vars, { universe: 'alt', enabled: compare })
+  // in Compare, the filter picks people in the Original and we follow the same people into the What-if
+  const B0 = useCohortData(vars, { universe: 'alt', enabled: compare, ignoreCohort: true })
+  const B = useMemo(() => {
+    if (!compare || !B0.mask || !A.mask) return B0
+    const m = new Uint8Array(B0.mask.length)
+    let k = 0
+    for (let i = 0; i < m.length; i++) { m[i] = i < A.mask.length ? (A.mask[i] & B0.mask[i]) : 0; k += m[i] }
+    return { ...B0, mask: m, n: k }
+  }, [B0, A.mask, compare])
   void pins
   if (!spec) return <div className="empty">Unknown field “{v}”.</div>
   const drawer = DRAWERS.find(d => d.id === drawerOf(spec))
@@ -46,14 +54,15 @@ export function FieldCanvas({ v, tracked, compareRow, split0 }: { v: string; tra
       </div>
 
       <CohortBar n={A.n} />
+      {compare && cohort.length > 0 && <p className="small muted" style={{ margin: '-8px 0 12px' }}>Compare follows the same people: your filter picks them in the Original world, and the What-if shows those same people's lives.</p>}
 
       <div className="kpis" style={{ marginBottom: 12 }}>
         {kpis.map(k => <div key={k.label} className="kpi" title={k.title}><span className="k-label">{k.u && <UBadge u={k.u} />} {k.label}</span><span className="k-val tabular">{k.value}</span>{k.sub && <span className="k-sub">{k.sub}</span>}</div>)}
         {compare && compareRow && (
           <div className="kpi" title="Standardized difference (Cohen's d for numbers, h for shares) and share of people whose own value differs">
             <span className="k-label">{G.butterfly} Butterfly effect</span>
-            <span className="k-val">{sizeWord(compareRow.effect)}</span>
-            <span className="k-sub">{(100 * compareRow.changed_share).toFixed(1)}% of people differ · size {compareRow.effect >= 0 ? '+' : ''}{compareRow.effect.toFixed(3)}</span>
+            <span className="k-val">{sizeWord(compareRow.effect) === 'no real change' ? 'average holds' : `${sizeWord(compareRow.effect)} shift`}</span>
+            <span className="k-sub">{compareRow.changed_share > 0.001 ? `${sizeWord(compareRow.effect) === 'no real change' ? 'yet' : 'and'} ${(100 * compareRow.changed_share).toFixed(1)}% of people are individually different` : 'and individuals match too'} · everyone, size {compareRow.effect >= 0 ? '+' : ''}{compareRow.effect.toFixed(3)}</span>
           </div>
         )}
       </div>
@@ -198,7 +207,7 @@ function OverTime({ spec, v, tracked }: { spec: VarSpec; v: string; tracked: { w
   const [cat, setCat] = useState<string>('')
   const useCohort = cohort.length > 0 && tracked.person.has(v) && !STATIC
   const tl = useAsync(() => api.fieldTimeline(v, group), [v, group, dataVersion])
-  const ct = useAsync(() => useCohort ? Promise.all([api.cohortTimeline({ filter: { and: cohort }, vars: [v], u: compare ? 'base' : u }), compare ? api.cohortTimeline({ filter: { and: cohort }, vars: [v], u: 'alt' }) : Promise.resolve(null)]) : Promise.resolve(null), [v, JSON.stringify(cohort), u, compare, dataVersion, useCohort])
+  const ct = useAsync(() => useCohort ? Promise.all([api.cohortTimeline({ filter: { and: cohort }, vars: [v], u: compare ? 'base' : u }), compare ? api.cohortTimeline({ filter: { and: cohort }, vars: [v], u: 'alt', filter_world: 'base' }) : Promise.resolve(null)]) : Promise.resolve(null), [v, JSON.stringify(cohort), u, compare, dataVersion, useCohort])
   const cats = isCat(spec) ? (spec.dtype === 'bool' ? ['true'] : spec.categories ?? []) : []
   useEffect(() => { setCat('') }, [v])
   const start = useMemo(() => { const d = new Date(status.date + 'T12:00:00'); d.setDate(d.getDate() - status.day); return d }, [status.date, status.day])
@@ -381,13 +390,15 @@ function Groups({ spec, split, setSplit, A, B, onPick }: { spec: VarSpec; split:
     const MA = meanBy(x, G1, A.mask)
     const keep = idx.filter(k => MA[k].n >= 3)
     const MB = G2 && xb ? meanBy(xb, G2, B.mask) : null
-    const whisk = (rows: typeof MA, off: number, color: string) => ({ type: 'custom', silent: true, z: 10, data: keep.map((k, j) => [j, rows[k].m]), renderItem: (_p: any, api: any) => { const j = api.value(0), r = rows[keep[j]]; const a = api.coord([j, r.m + 1.96 * r.se]), b = api.coord([j, r.m - 1.96 * r.se]); const w = api.size([1, 0])[0]; const xx = a[0] + off * w * 0.18; return { type: 'line', shape: { x1: xx, y1: a[1], x2: xx, y2: b[1] }, style: { stroke: color, lineWidth: 1.5 } } } })
-    const series: any[] = [{ name: MB ? 'Original' : 'Average', type: 'bar', barMaxWidth: 30, data: keep.map(k => MA[k].m), itemStyle: { color: uColor(MB ? 'base' : u), borderRadius: [4, 4, 0, 0] } }, whisk(MA, MB ? -1 : 0, t.text2)]
-    if (MB) series.push({ name: 'What-if', type: 'bar', barMaxWidth: 30, data: keep.map(k => MB[k].m), itemStyle: { color: uColor('alt'), borderRadius: [4, 4, 0, 0] } })
+    // a dot plot: honest on a zoomed axis, unlike bars that don't start at zero
+    const whisk = (rows: typeof MA, off: number, color: string) => ({ type: 'custom', silent: true, z: 5, data: keep.map((k, j) => [j, rows[k].m]), renderItem: (_p: any, api: any) => { const j = api.value(0), r = rows[keep[j]]; const a = api.coord([j, r.m + 1.96 * r.se]), b = api.coord([j, r.m - 1.96 * r.se]); const xx = a[0] + off * 9; return { type: 'line', shape: { x1: xx, y1: a[1], x2: xx, y2: b[1] }, style: { stroke: color, lineWidth: 2, opacity: 0.6 } } } })
+    const cA = uColor(MB ? 'base' : u), cB = uColor('alt')
+    const series: any[] = [{ name: MB ? 'Original' : 'Average', type: 'scatter', symbolSize: 13, symbolOffset: [MB ? -9 : 0, 0], z: 10, data: keep.map(k => MA[k].m), itemStyle: { color: cA, borderColor: t.text === '#ffffff' ? '#1a1a19' : '#fff', borderWidth: 1.5 } }, whisk(MA, MB ? -1 : 0, cA)]
+    if (MB) series.push({ name: 'What-if', type: 'scatter', symbolSize: 13, symbolOffset: [9, 0], z: 10, data: keep.map(k => MB[k].m), itemStyle: { color: cB, borderColor: '#fff', borderWidth: 1.5 } }, whisk(MB, 1, cB))
     return { opt: { grid: { left: 8, right: 16, top: MB ? 26 : 10, bottom: 4, containLabel: true }, legend: MB ? { top: 0, data: ['Original', 'What-if'], textStyle: { color: t.text2 } } : undefined,
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: (ps: any) => { const k = keep[ps[0].dataIndex]; return `<b>${G1.labels[k]}</b><br/>average ${favg(spec, MA[k].m, 3)} ± ${fmt(1.96 * MA[k].se, 3)} (n=${MA[k].n.toLocaleString()})${MB ? `<br/>What-if ${favg(spec, MB[k].m, 3)}` : ''}` } },
-      xAxis: { type: 'category', data: keep.map(k => G1.labels[k]), ...ax, axisLabel: { ...ax.axisLabel, interval: 0, rotate: keep.length > 5 ? 25 : 0 } },
-      yAxis: { type: 'value', ...ax }, series }, keep, note: 'Group averages; thin lines show 95% uncertainty.' }
+      xAxis: { type: 'category', data: keep.map(k => G1.labels[k]), ...ax, axisLabel: { ...ax.axisLabel, interval: 0, rotate: keep.length > 5 ? 25 : 0 }, splitLine: { show: true, lineStyle: { color: t.grid } } },
+      yAxis: { type: 'value', scale: true, ...ax }, series }, keep, note: 'Each dot is a group average; the bar through it shows 95% uncertainty. The axis is zoomed in to show differences.' }
   }, [A, B, spec.id, split])
   const click = (p: any) => {
     if (!opt || p.componentType !== 'series' || !sg) return

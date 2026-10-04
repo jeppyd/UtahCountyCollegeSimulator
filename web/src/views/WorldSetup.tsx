@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api'
+import { G } from '../game'
 import { useStore } from '../store'
 
 // Starting population at scale 1 ≈ 60k (students, spouses, young adults, faculty/staff, community).
@@ -46,11 +47,11 @@ export function WorldForm({ onDone, compact }: { onDone?: () => void; compact?: 
   return (
     <div className="world-form">
       <div>
-        <label className="small muted" htmlFor="world-scale">Population scale</label>
-        <div className="seg" style={{ marginTop: 6, flexWrap: 'wrap' }}>
+        <label className="small muted" htmlFor="world-scale">How big a world?</label>
+        <div className={compact ? 'seg' : 'size-cards'} style={{ marginTop: 6, flexWrap: 'wrap' }}>
           {PRESETS.map(p => (
-            <button key={p.scale} className={Math.abs(scale - p.scale) < 1e-9 ? 'on' : ''} onClick={() => setScale(p.scale)} title={p.hint}>
-              {p.label} <span className="muted">{p.scale}</span>
+            <button key={p.scale} className={`${compact ? '' : 'size-card'} ${Math.abs(scale - p.scale) < 1e-9 ? 'on' : ''}`} onClick={() => setScale(p.scale)} title={p.hint}>
+              {compact ? <>{p.label} <span className="muted">{p.scale}</span></> : <><b>{p.label}</b><span className="tabular">≈{(Math.round((p.scale * PER_UNIT) / 100) * 100).toLocaleString()} people</span><small>{p.hint}</small></>}
             </button>
           ))}
         </div>
@@ -67,9 +68,9 @@ export function WorldForm({ onDone, compact }: { onDone?: () => void; compact?: 
         <div className="tile"><div className="small muted">Ready in</div><div className="value tabular">≈{e.build}</div></div>
       </div>
       <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>
-        <label className="inline small" htmlFor="world-seed">Random seed
+        <label className="inline small" htmlFor="world-seed">World number
           <input id="world-seed" type="number" value={seed} onChange={x => setSeed(Math.max(0, Math.floor(Number(x.target.value) || 0)))} style={{ width: 90 }} />
-          <button className="btn small" onClick={() => setSeed(1 + Math.floor(Math.random() * 99999))}>New</button>
+          <button className="btn small" onClick={() => setSeed(1 + Math.floor(Math.random() * 99999))} title="Roll a new world">🎲 Roll</button>
         </label>
         <label className="inline small" htmlFor="world-warmup">Warm-up
           <select id="world-warmup" value={warmup} onChange={x => setWarmup(Number(x.target.value))}>
@@ -77,11 +78,11 @@ export function WorldForm({ onDone, compact }: { onDone?: () => void; compact?: 
           </select>
         </label>
       </div>
-      <p className="hint">The same seed and scale always produce the same people and the same history. Warm-up lets friendships and dating get going before you start watching (the run begins Aug 24, the start of fall semester).</p>
+      <p className="hint">The same world number and size always produce the same people and the same history. Warm-up lets friendships and dating get going before you start watching (the year begins Aug 24, the first day of fall semester).</p>
       {confirm && hasWorld && <div className="pill" style={{ color: 'var(--warning-text, var(--text-primary))' }}>This replaces the current world{status?.has_alt ? ' and its intervention universe' : ''}. Click again to confirm.</div>}
       {err && <div className="pill" style={{ color: 'var(--critical)' }}>{err}</div>}
       <div className="row">
-        <button className="btn primary" disabled={busy} onClick={build}>{hasWorld ? (confirm ? 'Replace world' : 'Build new world') : 'Build world'}</button>
+        <button className={`btn primary ${compact ? '' : 'big'}`} disabled={busy} onClick={build}>{hasWorld ? (confirm ? 'Replace world' : 'Build new world') : 'Create the world ▶'}</button>
         {onDone && <button className="btn" onClick={onDone}>Cancel</button>}
         {busy && <span className="small muted">The simulator is busy; pause it first.</span>}
       </div>
@@ -94,10 +95,12 @@ export function WorldSetupPage() {
   const job = status?.job ?? {}
   if (job.state === 'building') return <BuildingProgress />
   return (
-    <div className="setup-page">
-      <div className="card">
-        <h1 style={{ marginTop: 0 }}>Create a world</h1>
-        <p className="sub">Synthesize a population of students, spouses, young adults, faculty and neighbors in real Provo and Orem housing. You can rebuild at a different scale any time from the top bar.</p>
+    <div className="title-screen">
+      <div className="ts-card">
+        <div className="ts-logo">{G.butterfly}</div>
+        <div className="eyebrow">Utah County College Social Simulator</div>
+        <h1>Provo–Orem</h1>
+        <p className="ts-sub">A living social world: students, spouses, young adults, faculty and neighbors in real Provo and Orem housing. They make friends, date, marry, doubt, believe, struggle with money and feel lonely or connected, one simulated day at a time. Then you change something, and watch two worlds drift apart.</p>
         {job.state === 'error' && <div className="pill" style={{ color: 'var(--critical)', marginBottom: 10 }}>Last build failed: {job.error}</div>}
         <WorldForm />
       </div>
@@ -105,15 +108,27 @@ export function WorldSetupPage() {
   )
 }
 
+// What the builder actually does, in order (ucsim/population/build.py) — shown while it works.
+const STEPS = ['Laying out real Provo and Orem: homes, apartment complexes, dorms', 'Creating people from aggregate survey patterns (never real respondents)',
+  'Matching couples and placing families', 'Moving people into homes and choosing roommates', 'Assigning wards, FHE groups, congregations and clubs',
+  'Enrolling students at BYU and UVU, with real majors', 'Finding jobs', 'Seeding the friendships people arrive with']
+
 export function BuildingProgress() {
   const { status } = useStore()
   const job = status?.job ?? {}
-  const pct = job.phase === 'warming up' ? (100 * (job.progress ?? 0)) / (job.total || 1) : 8
+  const warming = job.phase === 'warming up'
+  const [k, setK] = useState(0)
+  useEffect(() => { if (warming) return; const t = setInterval(() => setK(x => Math.min(STEPS.length - 1, x + 1)), 1600); return () => clearInterval(t) }, [warming])
+  const pct = warming ? 100 * (job.progress ?? 0) / (job.total || 1) : (100 * (k + 1)) / (STEPS.length + 1)
   return (
-    <div className="empty">
-      <div>{job.phase === 'warming up' ? `Warming up: day ${job.progress} of ${job.total}` : `Synthesizing ${Math.round(((job.scale ?? 0) * PER_UNIT) / 100) * 100 || ''} people…`}</div>
-      <div className="progress" style={{ margin: '12px auto' }}><i style={{ width: `${pct}%` }} /></div>
-      <div className="small">scale {job.scale} · seed {job.seed}</div>
+    <div className="title-screen">
+      <div className="ts-card loading">
+        <div className="boot-orbit"><i /><i /><i /></div>
+        <h2>{warming ? `Letting the world settle in: day ${job.progress} of ${job.total}` : `Building a world of ≈${(Math.round(((job.scale ?? 0) * PER_UNIT) / 100) * 100).toLocaleString()} people`}</h2>
+        <p className="ts-sub">{warming ? 'Classes start, roommates meet, wards gather, first dates happen' : STEPS[k]}…</p>
+        <div className="ts-progress"><i style={{ width: `${pct}%` }} /></div>
+        <div className="small muted">size {job.scale} · world #{job.seed}</div>
+      </div>
     </div>
   )
 }

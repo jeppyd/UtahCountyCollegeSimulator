@@ -50,7 +50,7 @@ export default function Events({ eventId, type0 }: { eventId?: number; type0?: s
       <div className="grid g2">
         <div className="card">
           <h3>Most frequent events</h3>
-          <p className="hint">Since the start of the run ({status.day} days). Click a bar to read those stories; hover for how many further events each type set off.</p>
+          <p className="hint">Since the start of the run ({status.day} days); two-person events (dates, engagements, weddings) count once for each person. Click a bar to read those stories.</p>
           {opt ? <EChart option={opt} height={summaryAlt ? 760 : 560} onClick={(p: any) => { setType((opt as any)._rows[p.dataIndex].type); setPage(0) }} /> : <Loading />}
         </div>
         <div className="card">

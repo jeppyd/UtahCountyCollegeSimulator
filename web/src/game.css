@@ -272,3 +272,20 @@ kbd { font-family: ui-monospace, monospace; font-size: 10px; padding: 1px 5px; b
 .idea-text .conf { align-self: flex-start; margin-top: 4px; }
 .kpi svg { width: 14px; height: 14px; vertical-align: -2px; }
 .kpi .k-label { white-space: normal; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.lens .l-short { display: none; }
+.sky, .speed, .lens, .divmeter, .hud-brand { flex: none; }
+@media (max-width: 1180px) {
+  .lens .l-long { display: none; } .lens .l-short { display: inline; }
+  .lens button { padding: 5px 8px; }
+  .dm-bar { display: none; }
+  .sky-hour { display: none; }
+  .sp { min-width: 30px; padding: 0 4px; }
+}
+.toast.recap { border-color: var(--accent); background: linear-gradient(160deg, var(--u-base-soft), var(--surface-1) 60%); }
+.toast.recap > .t-body > b { font-size: 16px; }
+.recap-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 10px; margin-top: 8px; }
+.recap-grid span { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+.recap-grid .caticon { width: 22px; height: 22px; border-radius: 7px; }
+.recap-grid .caticon svg { width: 12px; height: 12px; }
+.recap-grid b { color: var(--text-primary); }
+.toast.recap .small svg { width: 14px; height: 14px; vertical-align: -2px; color: var(--u-alt); }

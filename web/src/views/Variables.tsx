@@ -108,6 +108,7 @@ function VariableDetail({ id }: { id: string }) {
         <span className="pill">{spec.entity}</span><span className="pill">{spec.domain}</span><span className="pill">{spec.kind}</span><span className="pill">{spec.dtype}{spec.units ? ` · ${spec.units}` : ''}</span>
         <span className="pill">updates: {spec.update}</span>{spec.range && <span className="pill">range {spec.range.join(' – ')}</span>}
         {spec.source?.length ? <span className="pill">source: {spec.source.join(', ')}</span> : null}
+        <button className="btn small primary" onClick={() => setRoute(['explore', id])}>Explore this field</button>
         <button className="btn small" onClick={() => setRoute(['causal', id])}>Open in causal web</button>
       </div>
       {spec.init && <div className="banner"><b>Initialization:</b> {spec.init}</div>}

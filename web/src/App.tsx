@@ -6,7 +6,7 @@ import { NAV } from './nav'
 import { Palette } from './palette'
 import { useStore } from './store'
 import { TimeRibbon } from './time'
-import { NewsWatcher, Toasts } from './toasts'
+import { NewsWatcher, RecapWatcher, Toasts } from './toasts'
 import About from './views/About'
 import CausalWeb from './views/CausalWeb'
 import Crosstab from './views/Crosstab'
@@ -114,6 +114,7 @@ export default function App() {
       </nav>
       <main className="main"><ViewBoundary key={view}>{body}</ViewBoundary></main>
       <NewsWatcher />
+      <RecapWatcher />
       <Toasts />
       <Palette />
       <ChangeDrawer />

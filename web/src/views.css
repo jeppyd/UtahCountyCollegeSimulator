@@ -206,3 +206,22 @@ button.kpi { text-align: left; font: inherit; color: inherit; cursor: pointer; }
 .cp-ring svg { width: 18px; height: 18px; }
 .cp-names { flex: 1; min-width: 180px; font-weight: 550; }
 .dl dt svg { width: 15px; height: 15px; vertical-align: -3px; margin-right: 3px; }
+
+/* ---------- title screen (new world) */
+.title-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: radial-gradient(1200px 600px at 20% 10%, var(--u-base-soft), transparent 60%), radial-gradient(900px 500px at 85% 90%, var(--u-alt-soft), transparent 60%), var(--page); }
+.ts-card { width: min(760px, 100%); background: var(--surface-1); border: 1px solid var(--border); border-radius: 22px; padding: 28px 30px; box-shadow: 0 20px 60px rgba(0, 0, 0, .12); }
+.ts-card.loading { text-align: center; display: grid; justify-items: center; gap: 12px; }
+.ts-card h1 { font-size: 44px; margin: 2px 0 8px; letter-spacing: -0.035em; }
+.ts-card h2 { margin: 6px 0 0; font-size: 20px; }
+.ts-sub { color: var(--text-secondary); line-height: 1.55; margin: 0 0 18px; max-width: 640px; }
+.ts-logo { width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center; background: linear-gradient(135deg, var(--u-base-soft), var(--u-alt-soft)); color: var(--u-alt); margin-bottom: 12px; }
+.ts-logo svg { width: 38px; height: 38px; animation: flap 2.6s ease-in-out infinite; }
+.ts-progress { width: min(420px, 100%); height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.ts-progress i { display: block; height: 100%; background: linear-gradient(90deg, var(--u-base), var(--u-alt)); transition: width .6s; }
+.size-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 640px) { .size-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.size-card { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--surface-1); cursor: pointer; font: inherit; color: inherit; }
+.size-card:hover { border-color: var(--accent); }
+.size-card.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+.size-card small { color: var(--text-muted); }
+.ts-card .hint { color: var(--text-muted); font-size: 12px; margin: 6px 0 0; }

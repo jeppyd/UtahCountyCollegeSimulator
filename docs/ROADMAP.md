@@ -15,12 +15,24 @@ names (OSM + BYU contracted list), official neighborhoods, BYU/UVU majors, physi
 intramural teams and institute classes; first-year contracted-housing rule; admissions-driven enrollment
 that stays stable over multi-year runs.
 
-## Iteration 3 (this release) — trustworthy numbers, religious diversity, time and replay
+## Iteration 3 — trustworthy numbers, religious diversity, time and replay
 
 Census benchmark and automated calibration (`scripts/calibrate.py`), four-year stability check, in-app
 Model check; non-LDS affiliations, real congregations, faith/secular student groups, religious-outsider
 feeling, missionary contact and conversion; Play/Pause with a watchable pace, academic-year ribbon,
 map replays of a day and of the months so far; error boundary; project guide (`docs/PROJECT_GUIDE.md`).
+
+## Iteration 4 (this release) — the game interface
+
+Same engine and depth; the interface of a simulation game. HUD with a day/night clock, Sims-style speeds,
+the Original / What-if / Compare lens on every page and a butterfly meter; World landing page with a
+living map, headlines, week board, trends, pinned board and one-click what-ifs; Explore (every field in
+friendly drawers: now, over time, by group, relate, people, drivers); What-if change builder (ideas,
+levers, people and rule nudges; add to a running What-if) and butterfly view (all fields, events, lives,
+relationships, places, why); person pages as lives with history strips and the other life's first fork;
+Relationships area; search palette, live news, time-skip recaps, keyboard shortcuts; title and loading
+screens; research tools moved to a Research desk. Server: weekly all-field aggregates and the comparison,
+pulse, history and relationship endpoints.
 
 ## Still to do (from the master prompt)
 

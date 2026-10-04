@@ -27,7 +27,7 @@ export type Mode = 'simple' | 'advanced'
 /** Which world every page shows: the Original, the What-if, or both side by side. */
 export type Lens = 'base' | 'alt' | 'compare'
 export type Pin = { kind: 'field'; var: string; group?: string } | { kind: 'person'; id: number; name?: string }
-export type Toast = { id: number; kind: 'event' | 'world' | 'info'; title: string; body?: string; category?: string; route?: string[]; ttl?: number }
+export type Toast = { id: number; kind: 'event' | 'world' | 'info' | 'recap'; title: string; body?: string; category?: string; route?: string[]; ttl?: number }
 
 function load<T>(key: string, fallback: T): T {
   try { const v = localStorage.getItem(key); return v === null ? fallback : JSON.parse(v) } catch { return fallback }
@@ -142,7 +142,7 @@ export const useStore = create<State>((set, get) => ({
     set({ status: s })
     if (changed) set({ colCache: new Map(), dataVersion: get().dataVersion + 1 })
     if (!s.has_alt && get().lens !== 'base') get().setLens('base')
-    if (s.has_alt && prev && !prev.has_alt) get().setLens('compare')   // a fresh what-if: show both worlds
+    if (s.has_alt && ((prev && !prev.has_alt) || (!prev && STATIC))) get().setLens('compare')   // a fresh what-if (or the snapshot): show both worlds
     return s
   },
   bump: () => set({ colCache: new Map(), dataVersion: get().dataVersion + 1 }),

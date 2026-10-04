@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, STATIC } from '../api'
 import { cssVar } from '../components'
-import { DRAWERS, drawerOf, favg, fdelta, fpair, pctStr, polarity, pretty, sizeWord } from '../fields'
+import { DRAWERS, drawerOf, favg, fdelta, fpair, pairs, pctStr, polarity, pretty, sizeWord } from '../fields'
 import { CatIcon, DeltaChip, G, Spark, Ticker, UBadge, useAsync } from '../game'
 import { timeCtl } from '../hud'
 import { Cond, Pin, useLens, useStore } from '../store'
@@ -11,7 +11,7 @@ import { CATEGORY_LABEL, FollowButton, Story } from '../ui'
 
 const BLOCK_LABEL = ['8 am · classes and work', '1 pm · afternoon', '6 pm · evenings out', 'Night · home']
 const WEEK_KEYS: [string, string, string][] = [
-  ['first_date', 'first dates', 'romance'], ['relationship_started', 'new couples', 'romance'], ['engaged', 'engagements', 'romance'], ['wedding', 'weddings', 'family'],
+  ['first_date', 'first dates', 'romance'], ['relationship_started', 'new exclusive couples', 'romance'], ['engaged', 'engagements', 'romance'], ['wedding', 'weddings', 'family'],
   ['breakup_received', 'breakups', 'romance'], ['new_friend', 'new friendships', 'social'], ['close_friend', 'close friendships', 'social'], ['baptized', 'baptisms', 'religion'],
   ['faith_crisis_start', 'faith crises', 'religion'], ['mission_departure', 'mission departures', 'religion'], ['graduation', 'graduations', 'academics'], ['birth', 'babies', 'family'],
   ['moved', 'moves', 'housing'], ['job_loss', 'jobs lost', 'work'],
@@ -51,7 +51,7 @@ export default function World() {
           <div className="eyebrow">{status.season}</div>
           <h1>{date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</h1>
           <p><b><Ticker value={status.present ?? 0} /></b> synthetic students, spouses, young adults and neighbors live in real Provo and Orem housing.
-            So far: <b><Ticker value={t.new_friend ?? 0} /></b> new friendships, <b><Ticker value={t.first_date ?? 0} /></b> first dates, <b><Ticker value={t.relationship_started ?? 0} /></b> couples and <b><Ticker value={Math.round((t.wedding ?? 0) / 2)} /></b> weddings.</p>
+            So far: <b><Ticker value={pairs('new_friend', t.new_friend ?? 0)} /></b> new friendships, <b><Ticker value={pairs('first_date', t.first_date ?? 0)} /></b> first dates, <b><Ticker value={pairs('relationship_started', t.relationship_started ?? 0)} /></b> new exclusive couples and <b><Ticker value={pairs('wedding', t.wedding ?? 0)} /></b> weddings.</p>
           <div className="row">
             {!STATIC && (running
               ? <button className="btn big" onClick={() => timeCtl.pause()}>{G.pause} Pause time</button>
@@ -86,8 +86,8 @@ export default function World() {
       <div className="section-title"><h2>This week</h2><span className="small muted">Life events in the last 7 days{hasAlt && !compare ? ` · ${u === 'alt' ? 'What-if' : 'Original'} world` : compare ? ' · Original → What-if' : ''}</span></div>
       <div className="week-board">
         {WEEK_KEYS.map(([k, l, c]) => {
-          const n = p?.week?.find((r: any) => r.type === k)?.count ?? 0
-          const na = compare ? (pulseAlt.data as any)?.week?.find((r: any) => r.type === k)?.count ?? 0 : null
+          const n = pairs(k, p?.week?.find((r: any) => r.type === k)?.count ?? 0)
+          const na = compare ? pairs(k, (pulseAlt.data as any)?.week?.find((r: any) => r.type === k)?.count ?? 0) : null
           if (!n && !na) return null
           return (
             <button key={k} className="wk" onClick={() => setRoute(['events', 'type', k])}>

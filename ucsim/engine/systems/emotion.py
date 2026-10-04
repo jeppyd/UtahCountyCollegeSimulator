@@ -240,8 +240,10 @@ class Emotion:
         ward = P["ward_id"]
         same = (ward[lo] >= 0) & (ward[lo] == ward[hi]) & (E["stage"] >= 2)
         wf = np.bincount(np.r_[lo[same], hi[same]], minlength=n)
+        cul = sim.systems.get("culture")
+        warmth = cul.ward_warmth_dev(ward) if cul is not None and "culture" in w.meta else 0.0
         target = expit(-1.0 + 0.6 * np.log1p(wf) + 1.6 * (P["attend_rate"] - 0.5) + 1.0 * (P["faith_belief"] - 0.6)
-                       - 1.5 * P["lgbtq_tension"] + 0.3 * sim.z("extraversion"))
+                       - 1.5 * P["lgbtq_tension"] + 0.3 * sim.z("extraversion") + sim.p("culture.feedback.ward_warmth") * warmth)
         P["ward_belonging"] = (0.6 * P["ward_belonging"] + 0.4 * np.where(ward >= 0, target, 0.3)).astype(np.float32)
         P.internal["mood_8w"][:n] = 0.88 * P.internal["mood_8w"][:n] + 0.12 * P["mood"]
         # depressive episodes: onset rises steeply when sustained mood is low (threshold non-linearity)

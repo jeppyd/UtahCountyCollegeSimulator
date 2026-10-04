@@ -40,10 +40,16 @@ def activation(n, first, last, day, d=0.5):
     return np.log(tn ** (-d) + np.maximum(rest, 0))
 
 
+SHARED = ("gathering", "hangout", "team", "club", "outdoors", "dance", "fhe", "date", "institute")
+
+
 class Encounters:
     def __init__(self, sim):
         self.sim = sim
         n_ctx = len(CTX)
+        self.shared_ctx = np.zeros(n_ctx, bool)
+        for k in SHARED:
+            self.shared_ctx[CTX_ID[k]] = True
         self.dur = np.zeros(n_ctx, np.float32)
         self.leisure = np.zeros(n_ctx, np.float32)
         for k, v in DURATION.items():
@@ -166,23 +172,65 @@ class Encounters:
         d = deg[src]
         o1 = (rng.random(len(src)) * d).astype(np.int64)
         o2 = (rng.random(len(src)) * d).astype(np.int64)
-        e1, e2 = eidx[indptr[src] + o1], eidx[indptr[src] + o2]
-        pick2 = E["closeness"][e2] > E["closeness"][e1]
+        # look edges up by key: the weekly adjacency's edge indices go stale as new ties are inserted mid-week
+        c1 = self._closeness(src, nbr[indptr[src] + o1])
+        c2 = self._closeness(src, nbr[indptr[src] + o2])
+        pick2 = c2 > c1
         off = np.where(pick2, o2, o1)
         plans = sim.systems.get("plans")
         if plans is not None:
             off = plans.reconnect_pick(src, off, indptr, nbr, rng)
         dst = nbr[indptr[src] + off]
-        chosen = eidx[indptr[src] + off]
-        ok = P["present"][dst] & (dst != src)
+        chosen = E.find(EdgeStore.make_keys(src, dst))
+        ok = P["present"][dst] & (dst != src) & (chosen >= 0)
         src, dst, chosen = src[ok], dst[ok], chosen[ok]
         sim.systems["coping"].supported(src, dst, chosen)
         if plans is not None:
             plans.contacted(src, dst)
         dist = np.hypot((P["home_lon"][src] - P["home_lon"][dst]) * 85, (P["home_lat"][src] - P["home_lat"][dst]) * 111)
         in_person = rng.random(len(src)) < np.where(dist < 4, 0.6, 0.2)
+        # an unrepaired hurt makes people less likely to follow through on seeing each other
+        hurt = E["hurt"][chosen]
+        go = rng.random(len(src)) >= 0.6 * hurt
+        src, dst, in_person = src[go], dst[go], in_person[go]
         ctx = np.where(in_person, CTX_ID["hangout"], CTX_ID["online"]).astype(np.uint8)
         self.apply(src, dst, ctx, np.full(len(src), -1, np.int64), 2, self.similarity(src, dst), np.zeros(len(src), bool))
+        self._introductions(src[in_person], dst[in_person], rng)
+
+    def _introductions(self, src: np.ndarray, dst: np.ndarray, rng):
+        """Friends bring friends: some in-person hangouts include a friend of the friend, closing triads
+        (Rapoport 1953; Kossinets & Watts 2006; RSiena's transitivity effect)."""
+        sim, w = self.sim, self.sim.w
+        P, E, p = w.P, w.E, sim.p
+        if len(src) == 0:
+            return
+        net = sim.systems["network"]
+        indptr, nbr, _ = net.padded()
+        bring = rng.random(len(src)) < p("relationship.introductions.rate")
+        s, d = src[bring], dst[bring]
+        deg = indptr[d + 1] - indptr[d]
+        ok = deg > 1
+        s, d, deg = s[ok], d[ok], deg[ok]
+        if len(s) == 0:
+            return
+        f = nbr[indptr[d] + (rng.random(len(d)) * deg).astype(np.int64)]
+        ok = (f != s) & P["present"][f]
+        s, d, f = s[ok], d[ok], f[ok]
+        if len(s) == 0:
+            return
+        keys = EdgeStore.make_keys(s, f)
+        new = E.find(keys) < 0
+        self.apply(s, f, np.full(len(s), CTX_ID["hangout"], np.uint8), np.full(len(s), -1, np.int64), 2,
+                   self.similarity(s, f), np.zeros(len(s), bool))
+        if new.any():
+            eix = E.find(keys[new])
+            E.cols["introducer"][eix] = d[new]
+            E.cols["flags"][eix] |= Tie.INTRODUCED
+
+    def _closeness(self, a: np.ndarray, b: np.ndarray) -> np.ndarray:
+        E = self.sim.w.E
+        e = E.find(EdgeStore.make_keys(a, b))
+        return np.where(e >= 0, E["closeness"][np.maximum(e, 0)], 0.0)
 
     def similarity(self, a: np.ndarray, b: np.ndarray) -> np.ndarray:
         P = self.sim.w.P
@@ -259,6 +307,14 @@ class Encounters:
         E.cols["stage"][uniq] = np.maximum(E["stage"][uniq], 1)
         neg = np.bincount(inv, weights=np.clip(-v, 0, None))
         E.cols["conflict"][uniq] = np.clip(E["conflict"][uniq] * 0.97 + 0.08 * neg, 0, 1)
+        # relationship history: experiences shared (a party, a team, a hike) and confiding between people who are close
+        shared_now = np.bincount(inv, weights=(self.shared_ctx[ctx] | gath).astype(float)) > 0
+        E.cols["shared"][uniq[shared_now]] = np.minimum(E["shared"][uniq[shared_now]] + 1, 30000)
+        warm = (vmean > 0) & (E["stage"][uniq] >= 2)
+        if warm.any():
+            ue = uniq[warm]
+            d = E["disclosure"][ue]
+            E.cols["disclosure"][ue] = np.clip(d + p("relationship.disclosure.rate") * np.tanh(vmean[warm]) * E["closeness"][ue] * (1 - d), 0, 1)
         E.cols["trust"][uniq] = np.clip(E["trust"][uniq] + 0.004 * np.clip(vsum, -3, 3) * (1 - E["trust"][uniq]), 0, 1)
         # tie-type flags from the context
         cflags = np.zeros(len(idx), np.uint32)
@@ -279,7 +335,9 @@ class Encounters:
                 E.set_attraction_from(ii, src[comp], np.clip(cur + eta * (v[comp] - 0.15), -1, 1))
         # ---- each interaction is also a noisy read of the other's interest (perceived, not actual)
         mind = sim.systems["mind"]
-        either = comp_ab | comp_ba
+        # only people who could act on it (single or talking) need a running read of the other's interest
+        seek = rom.seeking_mask()
+        either = (comp_ab | comp_ba) & (seek[a] | seek[b])
         if either.any():
             mind.update_beliefs(idx[either], a[either], b[either], p("mind.romantic_perception.learning_rate"), block)
         mind.observe_interactions(a, b, ctx, v)
@@ -291,7 +349,8 @@ class Encounters:
         close = (E["stage"][idx] >= 3) | ((E["flags"][idx] & (Tie.ROMANTIC | Tie.SPOUSE)) > 0) | (same_home & (E["liking"][idx] > 0.35))
         np.add.at(close_today, a[close], dur[close])
         np.add.at(close_today, b[close], dur[close])
-        # ---- salient conflicts
+        # ---- salient conflicts leave a hurt that must be repaired
         bad = (v < -1.9) & (E["stage"][idx] >= 2)
         if bad.any():
             sim.emit("conflict", a[bad], b=b[bad], value=v[bad], block=block, mech="encounter.valence")
+            E.cols["hurt"][idx[bad]] = np.clip(E["hurt"][idx[bad]] + p("relationship.hurt.conflict"), 0, 1)

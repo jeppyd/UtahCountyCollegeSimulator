@@ -164,9 +164,11 @@ class Mind:
         soc = self.social_ctx[ctx]
         if not soc.any():
             return
-        for x in (a[soc], b[soc]):
-            np.add.at(P.internal["soc_v_sum"], x, v[soc])
-            np.add.at(P.internal["soc_v_n"], x, 1.0)
+        n = P.n
+        x = np.r_[a[soc], b[soc]]
+        vv = np.r_[v[soc], v[soc]]
+        P.internal["soc_v_sum"][:n] += np.bincount(x, weights=vv, minlength=n)[:n]
+        P.internal["soc_v_n"][:n] += np.bincount(x, minlength=n)[:n]
 
     # ------------------------------------------------------------------ daily
     def daily(self):

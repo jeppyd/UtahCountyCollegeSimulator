@@ -177,3 +177,46 @@ mechanisms:
       rate: {value: 0.35, range: [0.1, 0.7]}
     evidence: literature
     refs: ["Roberts & Dunbar (2011) Pers Relat: communication frequency sustains emotional closeness", "Kalmijn (2003) Soc Networks: partners/marriage reduce time with friends (dyadic withdrawal)"]
+  relationship.history:
+    label: Relationships are histories, not scores
+    target: [edge.closeness]
+    sources: [edge.disclosure, edge.shared, edge.hurt, edge.liking, edge.hours_leisure]
+    form: "weekly closeness target = 0.12·log(1 + leisure h/10) + 0.35·liking⁺ + β_d·disclosure + β_s·log(1 + shared experiences) − β_h·hurt"
+    params:
+      disclosure: {value: 0.15, range: [0.05, 0.3]}
+      shared: {value: 0.02, range: [0.0, 0.05]}
+      hurt: {value: 0.3, range: [0.1, 0.6]}
+    evidence: literature
+    refs: ["Laurenceau, Barrett & Pietromonaco (1998): intimacy grows from disclosure and perceived responsiveness",
+           "Altman & Taylor (1973): social penetration", "Aron et al. (2000): shared novel activities and closeness"]
+  relationship.disclosure:
+    label: Confiding deepens with closeness and warmth
+    target: edge.disclosure
+    sources: [edge.closeness, edge.stage]
+    form: "after warm interactions between friends: d ← d + rate·tanh(valence)·closeness·(1 − d); support-seeking adds more; fades 1%/week without contact"
+    params:
+      rate: {value: 0.02, range: [0.005, 0.05]}
+    evidence: literature
+    refs: ["Collins & Miller (1994): disclosure and liking (meta-analysis)"]
+    desc: Disclosure also decides what friends see of each other's real beliefs (mind.pluralistic_ignorance).
+  relationship.hurt:
+    label: Hurt and repair
+    target: edge.hurt
+    sources: [edge.liking]
+    form: "a serious conflict adds +conflict; betrayal (discovered cheating) sets 1; a breakup leaves 0.5 (0.2 for fizzled talking); weekly ×(1 − repair) with warm contact, ×0.98 without; hurt lowers closeness, makes planned get-togethers fall through (60%·hurt) and raises breakup risk (+1.5·hurt)"
+    params:
+      conflict: {value: 0.25, range: [0.1, 0.5]}
+      repair: {value: 0.12, range: [0.04, 0.25]}
+    evidence: hypothetical
+    refs: ["Gottman & Levenson (2000): repair attempts and relationship stability",
+           "Fincham (2000): forgiveness as gradual reduction of hurt-motivated avoidance"]
+  relationship.introductions:
+    label: Friends bring friends (triadic closure)
+    target: edge.introducer
+    sources: [edge.stage]
+    form: "an in-person hangout includes a random friend of the friend with probability rate; the meeting is an interaction with the introducer recorded"
+    params:
+      rate: {value: 0.15, range: [0.05, 0.3]}
+    evidence: literature
+    refs: ["Kossinets & Watts (2006): triadic closure in an evolving university network",
+           "Snijders, van de Bunt & Steglich (2010): transitivity in stochastic actor-oriented models"]

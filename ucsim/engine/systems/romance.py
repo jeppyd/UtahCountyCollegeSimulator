@@ -607,7 +607,7 @@ class Romance:
             P.internal["rel_event"][b_] = ev
         # breakups
         h_brk = expit(p("romance.breakup.base") - p("romance.breakup.commitment") * commit
-                      + p("romance.breakup.religious_mismatch") * rel_mis + 1.5 * conflict)
+                      + p("romance.breakup.religious_mismatch") * rel_mis + 1.5 * conflict + 1.5 * E["hurt"][eix])
         h_brk = np.where(engaged, h_brk * 0.25, np.where(married, h_brk * p("romance.breakup.married_mult"), h_brk))
         brk = (dating | engaged | married) & ~eng & (rng.random(len(ids)) < h_brk)
         if brk.any():
@@ -624,6 +624,7 @@ class Romance:
             P.cols["ever_cheated_on"][cj[found]] = True
             E.cols["conflict"][eix[cheat][found]] = 1.0
             E.cols["trust"][eix[cheat][found]] *= 0.3
+            E.cols["hurt"][eix[cheat][found]] = 1.0          # betrayal: a deep, slow-healing injury
             del ev
         # premarital sex
         unmarried_pair = (dating | engaged) & ~brk
@@ -683,6 +684,7 @@ class Romance:
         ok = eix >= 0
         E.cols["flags"][eix[ok]] = (E["flags"][eix[ok]] & ~np.uint32(Tie.ROMANTIC)) | Tie.EX
         E.cols["liking"][eix[ok]] = E["liking"][eix[ok]] - 0.3
+        E.cols["hurt"][eix[ok]] = np.maximum(E["hurt"][eix[ok]], 0.5 if kind != "talking" else 0.2)
         E.cols["att_lh"][eix[ok]] *= 0.4
         E.cols["att_hl"][eix[ok]] *= 0.4
         cause = P.internal["rel_event"][a]

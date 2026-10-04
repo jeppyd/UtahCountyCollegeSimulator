@@ -283,7 +283,8 @@ class Activity:
             has_f = P["n_friends"][idx] > 0
             U[:, 6] = np.where(has_f, -1.2 + p("activity.choice.approach") * appr + 0.35 * E + 0.5 * weekend - 0.5 * married, -9)
         if b == 2:
-            U[:, 7] = np.where(P["complex_id"][idx] >= 0, -2.0 + 0.4 * E + 0.5 * appr, -9)
+            U[:, 7] = np.where(P["complex_id"][idx] >= 0, -2.0 + 0.4 * E + 0.5 * appr
+                               + p("culture.feedback.reputation") * sim.systems["culture"].complex_social_z(P["complex_id"][idx]), -9)
         rt = sim.systems.get("routine")
         if rt is not None:
             U += rt.bonus(idx, wd, b)
@@ -333,6 +334,7 @@ class Activity:
             cid[vis] = P["unit_id"][friend]
             act[vis] = A["gathering"]
             self.gathering_units.update(P["unit_id"][friend].tolist())
+            sim.systems["culture"].observe_visits(P["unit_id"][friend])
         m = choice == 7
         ctype[idx[m]] = CTX_ID["complex"]
         cid[idx[m]] = P["complex_id"][idx[m]]
@@ -346,7 +348,8 @@ class Activity:
         base = [p("activity.gathering.host_weekday")] * 4 + [p("activity.gathering.host_friday"),
                                                               p("activity.gathering.host_saturday"),
                                                               p("activity.gathering.host_sunday")]
-        ph = base[wd] * np.exp(0.6 * sim.z("extraversion") + 0.8 * appr) * (P["n_friends"] >= 2)
+        cul = sim.systems["culture"]
+        ph = base[wd] * np.exp(0.6 * sim.z("extraversion") + 0.8 * appr) * (P["n_friends"] >= 2) * cul.host_mult(P["unit_id"])
         u = sim.u("host")
         hosts = np.where(present & ~busy & (P["unit_id"] >= 0) & (u < ph))[0]
         self.hosts_today = hosts
@@ -363,9 +366,10 @@ class Activity:
         h_rep = np.repeat(hosts, k)
         off = (rng.random(len(h_rep)) * np.repeat(deg, k)).astype(np.int64)
         inv = nbr[np.repeat(indptr[hosts], k) + off]
-        close = w.E["closeness"][eidx[np.repeat(indptr[hosts], k) + off]]
+        close = sim.systems["encounters"]._closeness(h_rep, inv)   # by key (weekly edge indices go stale)
         pa = expit(p("activity.gathering.accept_base") + 2.0 * close + 0.4 * sim.z("extraversion")[inv]
-                   - 1.5 * P["fatigue"][inv] + 0.8 * appr[inv] + sim.systems["plans"].accept_boost()[inv])
+                   - 1.5 * P["fatigue"][inv] + 0.8 * appr[inv] + sim.systems["plans"].accept_boost()[inv]
+                   + p("culture.feedback.reputation") * cul.complex_social_z(P["complex_id"][h_rep]))
         go = present[inv] & ~busy[inv] & (rng.random(len(inv)) < pa)
         inv, h_rep = inv[go], h_rep[go]
         inv, first = np.unique(inv, return_index=True)
@@ -385,6 +389,7 @@ class Activity:
         sizes = np.bincount(pos, minlength=len(hosts)).astype(float)
         self.host_of_unit = dict(zip(P["unit_id"][hosts].tolist(), hosts.tolist()))
         sim.emit("hosted_gathering", hosts, value=sizes, block=2)
+        cul.observe_gathering(P["unit_id"][hosts], sizes)
 
     def _locate(self, ctype, cid, act):
         sim, w = self.sim, self.sim.w

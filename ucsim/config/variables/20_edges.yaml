@@ -80,3 +80,33 @@ variables:
     derived: true
     evidence: hypothetical
     desc: Persistent pair-specific compatibility, deterministic in the pair ids and seed (identical across paired universes).
+  belief_lh:
+    label: Believed interest (lower id's read of the other)
+    range: [-1, 1]
+    evidence: literature
+    desc: What the lower-id person believes the other's romantic attraction to them is — perceived, not actual. Projection of their own feelings, the liking gap with strangers and men's over-reading of women's interest bias it; interactions are noisy signals, and a yes, a no, a kiss or a date reveal much more (mind.romantic_perception).
+  belief_hl:
+    label: Believed interest (higher id's read of the other)
+    range: [-1, 1]
+    evidence: literature
+  disclosure:
+    label: Confiding (self-disclosure)
+    range: [0, 1]
+    evidence: literature
+    desc: How much they have let each other see — grows through warm contact between friends and support in hard times, fades without contact. Decides what friends see of each other's real beliefs.
+  support:
+    label: Support given in hard times
+    range: [0, 5]
+    evidence: hypothetical
+    desc: Accumulated support exchanged when one of them was coping by reaching out; counts toward the support each believes is available.
+  hurt:
+    label: Unrepaired hurt
+    range: [0, 1]
+    evidence: hypothetical
+    desc: Injury from serious conflict, betrayal or a breakup that has not been repaired; heals with warm contact, lowers closeness and makes plans fall through.
+  shared:
+    label: Shared experiences
+    dtype: i2
+    range: [0, 30000]
+    evidence: literature
+    desc: Days with a shared experience (a party, a team game, a hike, a date, FHE) rather than just passing contact.

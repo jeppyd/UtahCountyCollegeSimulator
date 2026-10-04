@@ -217,3 +217,19 @@ variables:
     group: memory
     evidence: structural
     desc: "Balance of positive and negative memories still active (−1 to 1), weighted by strength."
+  # ---------------------------------------------------------------- where they live (place cultures, culture.py)
+  home_social_culture:
+    label: How social their apartment is
+    range: [-3, 5]
+    kind: derived
+    domain: academics_work
+    group: culture
+    evidence: structural
+    desc: "Their apartment's sociability culture (z-score among occupied apartments): gatherings hosted and friends dropping by, with memory — it outlasts the residents who built it."
+  home_faith_culture:
+    label: How observant their complex is
+    kind: derived
+    domain: academics_work
+    group: culture
+    evidence: structural
+    desc: "Their complex's culture of religious observance (0-1): residents' church or service attendance, with slow inertia. Feeds the attendance norm residents perceive and who chooses to move in."

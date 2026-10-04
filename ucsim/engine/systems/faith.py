@@ -117,6 +117,12 @@ class Faith:
         ward_mean = np.where(ward >= 0, wn[np.maximum(ward, 0)] / np.maximum(wc[np.maximum(ward, 0)], 1), 0.3)
         has = den > 0
         norm = np.where(has, 0.65 * np.nan_to_num(friend_norm) + 0.35 * ward_mean, ward_mean)
+        # where people live carries its own norm: a devout complex raises it, a secular one lowers it (culture.feedback.norm)
+        cul = sim.systems.get("culture")
+        if cul is not None and "culture" in w.meta:
+            cr = cul.complex_relig(P["complex_id"])
+            wn = sim.p("culture.feedback.norm")
+            norm = np.where(np.isfinite(cr), (1 - wn) * norm + wn * np.nan_to_num(cr), norm)
         P["perceived_norm"] = norm.astype(np.float32)
         # influence works through what people *perceive* their friends believe (mind.pluralistic_ignorance)
         perceived = P["perceived_friend_belief"]

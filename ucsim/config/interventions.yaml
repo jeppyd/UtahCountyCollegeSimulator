@@ -1,0 +1,159 @@
+# Intervention library (presets). Each can be used as-is ("preset": id) or customized in the
+# Intervention Builder (start_day, ramp_days, duration_days, value, population...).
+# confidence: how defensible the *magnitude/mechanism* of the intervention's effect is.
+interventions:
+  tuition_up_20:
+    name: Tuition +20%
+    description: BYU and UVU tuition rise 20%. Flows through budgets → financial stress → work hours → study time → GPA, and through stress → mood and dating.
+    confidence: plausible
+    parts:
+      - {target_type: world, target: tuition_byu, op: mul, value: 1.2}
+      - {target_type: world, target: tuition_uvu, op: mul, value: 1.2}
+  rent_up_20:
+    name: Housing costs +20%
+    description: Rents rise 20% (market shock). Affects rent burden, financial stress, moving decisions and therefore roommates, wards and friendships.
+    confidence: plausible
+    target_type: world
+    target: rent_shock
+    op: mul
+    value: 1.2
+  construction_30:
+    name: Housing construction +30%
+    description: New near-campus apartment supply grows 30% over a year; vacancy rises, rents fall, people move.
+    confidence: plausible
+    target_type: world
+    target: housing_supply_index
+    op: mul
+    value: 1.3
+    ramp_days: 365
+  new_dating_app:
+    name: A new dating app takes off (+40% adoption & engagement)
+    description: App appeal and match rate rise 40% — more first dates outside physical propinquity.
+    confidence: plausible
+    parts:
+      - {target_type: world, target: app_appeal, op: mul, value: 1.4}
+      - {target_type: param, target: romance.app.rate, op: mul, value: 1.4}
+  recession:
+    name: Recession
+    description: Unemployment ramps to 8% over two months and wages fall 5%.
+    confidence: plausible
+    parts:
+      - {target_type: world, target: unemployment, op: set, value: 0.08, ramp_days: 60}
+      - {target_type: world, target: wage_index, op: mul, value: 0.95, ramp_days: 60}
+  warmer_plus_5f:
+    name: Temperatures +5°F
+    description: Daily highs rise 5°F — shifts outdoor activities, date types and sleep.
+    confidence: speculative
+    target_type: world
+    target: temp_delta
+    op: add
+    value: 5
+  mission_participation_minus_15:
+    name: Mission participation −15%
+    description: Mission-call hazard falls 15% — more young men stay, changing the dating-market sex ratio and RM composition.
+    confidence: plausible
+    target_type: world
+    target: mission_norm
+    op: mul
+    value: 0.85
+  coffee_permitted:
+    name: General Conference — coffee now permitted
+    description: Hypothetical policy change. Removes the coffee prohibition term from adoption and guilt; coffee shops become ordinary social venues.
+    confidence: speculative
+    target_type: world
+    target: coffee_permitted
+    op: set
+    value: true
+  contracted_housing_removed:
+    name: BYU contracted-housing requirement removed
+    description: First-year single BYU students may live anywhere too (today's rule already frees everyone after two semesters) — changes roommate composition (religiosity, sex mixing), wards, and peer norms.
+    confidence: plausible
+    target_type: world
+    target: contracted_housing_required
+    op: set
+    value: false
+  contracted_housing_all_years:
+    name: Bring back the pre-2022 contracted-housing rule
+    description: Every single BYU undergraduate (not just first-years) must live in BYU-contracted housing, as before fall 2022.
+    confidence: plausible
+    target_type: world
+    target: contracted_housing_all_years
+    op: set
+    value: true
+  missionary_outreach:
+    name: More missionary outreach to students
+    description: Missionaries and members invite non-member friends twice as often — more lessons, some more baptisms, and more people feeling pressured.
+    confidence: speculative
+    target_type: param
+    target: faith.missionary_contact.rate
+    op: mul
+    value: 2.0
+  interfaith_welcome:
+    name: Campus interfaith welcome initiative
+    description: Schools and wards actively welcome people of other faiths and none — the religious-outsider feeling eases (−0.1 on its target) and faith/secular student groups grow.
+    confidence: speculative
+    target_type: world
+    target: interfaith_welcome
+    op: set
+    value: 1.0
+  church_attendance_decline:
+    name: Church attendance norm −20%
+    description: A general secular drift lowers the attendance propensity of everyone by ~20% (odds).
+    confidence: speculative
+    target_type: world
+    target: church_attendance_norm
+    op: mul
+    value: 0.8
+  women_ask_more:
+    name: Dating norm shift — women ask more
+    description: The men-initiate norm weakens by 60%; women initiate more.
+    confidence: speculative
+    target_type: world
+    target: men_initiate_norm
+    op: mul
+    value: 0.4
+  enrollment_up_20:
+    name: University enrollment +20%
+    description: Incoming cohorts 20% larger from the next fall.
+    confidence: plausible
+    target_type: world
+    target: enrollment_index
+    op: mul
+    value: 1.2
+  marriage_norm_weaker:
+    name: Weaker early-marriage norm
+    description: The cultural push toward early marriage weakens by 40% — slower engagement, less romantic pressure.
+    confidence: speculative
+    target_type: world
+    target: marriage_norm
+    op: mul
+    value: 0.6
+  new_dance_hall:
+    name: A new country-dance hall opens in north Provo
+    description: A new third place for singles (opens at start_day).
+    confidence: speculative
+    target_type: venue
+    value: {name: "New dance hall (intervention)", vtype: dance, lon: -111.6575, lat: 40.2700}
+  transit_improved:
+    name: Transit (UVX/FrontRunner) quality +50%
+    description: Shorter commutes for car-less students.
+    confidence: plausible
+    target_type: world
+    target: transit_quality
+    op: mul
+    value: 1.5
+  pickleball_craze:
+    name: Pickleball craze
+    description: A cultural practice seeded in 5% of people with higher appeal — watch complex contagion through friend networks.
+    confidence: speculative
+    parts:
+      - {target_type: param, target: norms.pickleball.base, op: add, value: 1.5}
+      - {target_type: agent, target: pickleball, op: set, value: 1, population: {var: extraversion, op: quantile_ge, value: 0.95}}
+  stronger_peer_influence:
+    name: Stronger peer influence on belief (sensitivity)
+    description: Doubles the social-influence coefficient on religious belief — a sensitivity test of a hypothetical mechanism.
+    confidence: speculative
+    target_type: param
+    target: faith.influence.base
+    op: mul
+    value: 2.0

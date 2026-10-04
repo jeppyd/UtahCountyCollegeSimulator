@@ -1,0 +1,18 @@
+# Raw survey microdata: real respondents. NEVER commit. Drop files into data/raw/ locally.
+data/raw/
+data/derived/
+data/external/
+# Simulation outputs
+runs/
+*.pyc
+__pycache__/
+.pytest_cache/
+*.egg-info/
+.venv/
+web/node_modules/
+web/dist/
+static_export/
+web/dist-static/
+*.tsbuildinfo
+/build/
+/dist/

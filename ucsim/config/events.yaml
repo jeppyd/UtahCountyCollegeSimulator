@@ -1,0 +1,641 @@
+# Event-type registry. `effects` are transient impulses on composed emotional states:
+#   mag        base magnitude (state units, 0-1 scale)          sd    lognormal spread of |mag| (individual variation)
+#   half_life  days for the effect to halve                      delay days before it starts
+#   mods       multiplicative moderators: mag *= exp(Σ β·z). Keys are person variables (z-scored at
+#              runtime) or event attributes prefixed `ev.` supplied by the emitting system.
+# Salience controls retention in an agent's life-history memory (≥0.5 shown on the timeline).
+events:
+  # ------------------------------------------------------------------ social
+  new_friend:
+    label: Became friends
+    story: "{a} and {b} became friends"
+    category: social
+    salience: 0.55
+    effects:
+      - {var: loneliness, mag: -0.03, sd: 0.3, half_life: 20}
+      - {var: belonging, mag: 0.03, sd: 0.3, half_life: 20}
+    evidence: literature
+    refs: ["Hall (2019) J Soc Pers Relat: hours needed to form friendships"]
+  close_friend:
+    label: Became close friends
+    story: "{a} and {b} became close friends"
+    category: social
+    salience: 0.7
+    effects:
+      - {var: loneliness, mag: -0.05, sd: 0.3, half_life: 45}
+      - {var: mood, mag: 0.03, sd: 0.3, half_life: 20}
+    evidence: literature
+  friendship_faded:
+    label: Close friendship faded
+    story: "{a} and {b} drifted apart"
+    category: social
+    salience: 0.55
+    effects:
+      - {var: loneliness, mag: 0.03, sd: 0.4, half_life: 25, mods: {neuroticism: 0.2}}
+    evidence: hypothetical
+  conflict:
+    label: Interpersonal conflict
+    story: "{a} had a falling-out with {b}"
+    category: social
+    salience: 0.4
+    effects:
+      - {var: stress, mag: 0.06, sd: 0.4, half_life: 4, mods: {neuroticism: 0.3, agreeableness: -0.15}}
+      - {var: mood, mag: -0.05, sd: 0.4, half_life: 3}
+    evidence: literature
+  hosted_gathering:
+    label: Hosted a get-together
+    story: "{a} hosted a get-together"
+    category: social
+    salience: 0.35
+    effects:
+      - {var: belonging, mag: 0.03, sd: 0.3, half_life: 6}
+      - {var: mood, mag: 0.02, sd: 0.4, half_life: 2}
+    evidence: hypothetical
+  # ------------------------------------------------------------------ romance
+  asked_out:
+    label: Asked someone out
+    story: "{a} asked {b} out"
+    category: romance
+    salience: 0.3
+    effects: []
+    evidence: calibrated
+  rejected:
+    label: Romantic rejection
+    story: "{a} was turned down by {b}"
+    category: romance
+    salience: 0.5
+    effects:
+      - {var: self_esteem, mag: -0.05, sd: 0.4, half_life: 7, mods: {rejection_sensitivity: 0.45, neuroticism: 0.2, ev.recent_rejections: 0.25}}
+      - {var: mood, mag: -0.05, sd: 0.4, half_life: 4, mods: {rejection_sensitivity: 0.35}}
+    evidence: literature
+    refs: ["Downey & Feldman (1996): rejection sensitivity"]
+    desc: Effects grow non-linearly with recent rejections (repeated rejection matters more after a threshold).
+  first_date:
+    label: First date
+    story: "{a} went on a first date with {b}"
+    category: romance
+    salience: 0.45
+    effects:
+      - {var: mood, mag: 0.04, sd: 0.5, half_life: 3, mods: {ev.quality: 0.6}}
+      - {var: romantic_longing, mag: -0.05, sd: 0.4, half_life: 10}
+    evidence: calibrated
+  date:
+    label: Date
+    story: "{a} went on a date with {b}"
+    category: romance
+    salience: 0.2
+    effects:
+      - {var: mood, mag: 0.03, sd: 0.5, half_life: 2, mods: {ev.quality: 0.5}}
+      - {var: romantic_longing, mag: -0.04, sd: 0.4, half_life: 7}
+    evidence: calibrated
+  first_kiss_with:
+    label: Kissed someone new
+    story: "{a} kissed {b}"
+    category: romance
+    salience: 0.6
+    effects:
+      - {var: mood, mag: 0.06, sd: 0.4, half_life: 5}
+      - {var: romantic_longing, mag: -0.08, sd: 0.4, half_life: 14}
+      - {var: guilt, mag: 0.02, sd: 0.6, half_life: 5, mods: {chastity_commitment: 0.5, moral_autonomy: -0.4}}
+    evidence: hypothetical
+  first_kiss_ever:
+    label: First kiss ever
+    story: "{a} had a first kiss ever, with {b}"
+    category: romance
+    salience: 0.9
+    effects:
+      - {var: mood, mag: 0.1, sd: 0.4, half_life: 10}
+      - {var: self_esteem, mag: 0.06, sd: 0.4, half_life: 30}
+    evidence: hypothetical
+  ncmo:
+    label: NCMO (non-committal make-out)
+    story: "{a} and {b} made out, no strings attached"
+    category: romance
+    salience: 0.55
+    effects:
+      - {var: mood, mag: 0.04, sd: 0.6, half_life: 2}
+      - {var: guilt, mag: 0.07, sd: 0.6, half_life: 7, mods: {chastity_commitment: 0.6, orthodoxy: 0.4, moral_autonomy: -0.5}}
+      - {var: romantic_longing, mag: 0.02, sd: 0.8, half_life: 7, mods: {attachment_anxiety: 0.4}}
+    evidence: hypothetical
+  kyhv_peak:
+    label: Made out at Kyhv Peak
+    story: "{a} and {b} made out at Kyhv Peak"
+    category: romance
+    salience: 0.65
+    effects:
+      - {var: mood, mag: 0.05, sd: 0.4, half_life: 3}
+    evidence: observed
+    refs: ["ProvoStats survey: ~14% report having done this"]
+  talking_started:
+    label: Started "talking" (mutual interest)
+    story: "{a} and {b} started \"talking\""
+    category: romance
+    salience: 0.45
+    effects:
+      - {var: mood, mag: 0.04, sd: 0.4, half_life: 7}
+      - {var: romantic_longing, mag: -0.1, sd: 0.3, half_life: 20}
+    evidence: calibrated
+  relationship_started:
+    label: Became exclusive (DTR)
+    story: "{a} and {b} became exclusive"
+    category: romance
+    salience: 0.85
+    effects:
+      - {var: mood, mag: 0.08, sd: 0.4, half_life: 21}
+      - {var: loneliness, mag: -0.08, sd: 0.4, half_life: 30}
+      - {var: romantic_longing, mag: -0.2, sd: 0.3, half_life: 60}
+      - {var: self_esteem, mag: 0.04, sd: 0.4, half_life: 30}
+    evidence: literature
+  breakup_initiated:
+    label: Ended a relationship
+    story: "{a} broke up with {b}"
+    category: romance
+    salience: 0.85
+    effects:
+      - {var: mood, mag: -0.06, sd: 0.5, half_life: 10, mods: {ev.rel_months_log: 0.3, empathy: 0.2}}
+      - {var: guilt, mag: 0.04, sd: 0.6, half_life: 10, mods: {empathy: 0.3}}
+      - {var: stress, mag: 0.04, sd: 0.5, half_life: 7}
+    evidence: literature
+    refs: ["Sbarra (2006) PSPB: recovery after nonmarital dissolution; initiator status moderates distress"]
+  breakup_received:
+    label: Was broken up with
+    story: "{a} was broken up with by {b}"
+    category: romance
+    salience: 0.9
+    effects:
+      - {var: mood, mag: -0.16, sd: 0.45, half_life: 21, mods: {attachment_anxiety: 0.35, neuroticism: 0.2, ev.rel_months_log: 0.35, n_close_friends: -0.15}}
+      - {var: loneliness, mag: 0.12, sd: 0.45, half_life: 28, mods: {attachment_anxiety: 0.3, n_close_friends: -0.25}}
+      - {var: self_esteem, mag: -0.08, sd: 0.45, half_life: 30, mods: {rejection_sensitivity: 0.3}}
+      - {var: romantic_longing, mag: 0.12, sd: 0.4, half_life: 45, delay: 7}
+      - {var: stress, mag: 0.06, sd: 0.4, half_life: 10}
+    evidence: literature
+    refs: ["Sbarra (2006); Sbarra & Emery (2005): attachment anxiety slows recovery"]
+  engaged:
+    label: Got engaged
+    story: "{a} got engaged to {b}"
+    category: romance
+    salience: 0.95
+    effects:
+      - {var: mood, mag: 0.12, sd: 0.35, half_life: 30}
+      - {var: purpose, mag: 0.08, sd: 0.3, half_life: 60}
+      - {var: stress, mag: 0.04, sd: 0.5, half_life: 40, delay: 14}
+      - {var: financial_stress, mag: 0.03, sd: 0.6, half_life: 60, delay: 20}
+    evidence: literature
+  wedding:
+    label: Married
+    story: "{a} married {b}"
+    category: romance
+    salience: 1.0
+    effects:
+      - {var: mood, mag: 0.14, sd: 0.35, half_life: 120}
+      - {var: loneliness, mag: -0.12, sd: 0.3, half_life: 180}
+      - {var: romantic_longing, mag: -0.3, sd: 0.2, half_life: 365}
+      - {var: purpose, mag: 0.08, sd: 0.3, half_life: 365}
+    evidence: literature
+    refs: ["Lucas et al. (2003) JPSP: reaction and adaptation to marriage (transient boost)"]
+  premarital_sex:
+    label: Premarital sexual activity began
+    story: "{a} and {b} became sexually active"
+    category: sexuality
+    salience: 0.85
+    effects:
+      - {var: guilt, mag: 0.22, sd: 0.4, half_life: 45, mods: {chastity_commitment: 0.8, orthodoxy: 0.4, moral_autonomy: -0.6, lds_member: 0.3}}
+      - {var: anxiety, mag: 0.06, sd: 0.5, half_life: 21, mods: {chastity_commitment: 0.5}}
+      - {var: mood, mag: 0.03, sd: 0.8, half_life: 5}
+    evidence: hypothetical
+    desc: Guilt scales with the person's own commitment to chastity; low-commitment agents feel little guilt.
+  bishop_confession:
+    label: Met with bishop (repentance)
+    story: "{a} met with their bishop to repent"
+    category: religion
+    salience: 0.75
+    effects:
+      - {var: guilt, mag: -0.15, sd: 0.4, half_life: 30, delay: 3}
+      - {var: stress, mag: 0.05, sd: 0.5, half_life: 7}
+      - {var: belonging, mag: 0.03, sd: 0.8, half_life: 20, mods: {ev.experience: 0.8}}
+    evidence: empirical
+    refs: ["Culture & Lifestyle survey: ~50% report adult repentance meetings; ~83% rate bishop experiences positive"]
+  ghosted:
+    label: Was ghosted
+    story: "{a} was ghosted by {b}"
+    category: romance
+    salience: 0.35
+    effects:
+      - {var: self_esteem, mag: -0.03, sd: 0.5, half_life: 5, mods: {rejection_sensitivity: 0.4}}
+    evidence: empirical
+    refs: ["Dating survey: most common ghosting reasons are forgetting and losing interest"]
+  app_match:
+    label: Matched on a dating app
+    story: "{a} matched with {b} on a dating app"
+    category: romance
+    salience: 0.15
+    effects:
+      - {var: self_esteem, mag: 0.01, sd: 0.5, half_life: 2}
+    evidence: calibrated
+  cheating:
+    label: Cheated on partner
+    story: "{a} cheated on their partner"
+    category: romance
+    salience: 0.9
+    effects:
+      - {var: guilt, mag: 0.18, sd: 0.4, half_life: 60, mods: {agreeableness: 0.3}}
+    evidence: empirical
+    refs: ["ProvoStats: ~3% report having cheated; ~19% report being cheated on"]
+  # ------------------------------------------------------------------ family / life course
+  pregnancy:
+    label: Pregnancy announced
+    story: "{a} announced a pregnancy"
+    category: family
+    salience: 0.95
+    effects:
+      - {var: mood, mag: 0.08, sd: 0.5, half_life: 60}
+      - {var: purpose, mag: 0.1, sd: 0.4, half_life: 180}
+      - {var: financial_stress, mag: 0.05, sd: 0.5, half_life: 120}
+      - {var: fatigue, mag: 0.06, sd: 0.5, half_life: 90}
+    evidence: literature
+    refs: ["Myrskylä & Margolis (2014) Demography: happiness rises before and returns after births"]
+  birth:
+    label: Child born
+    story: "{a} welcomed a baby"
+    category: family
+    salience: 1.0
+    effects:
+      - {var: mood, mag: 0.1, sd: 0.5, half_life: 30}
+      - {var: fatigue, mag: 0.22, sd: 0.4, half_life: 120}
+      - {var: stress, mag: 0.08, sd: 0.5, half_life: 120}
+      - {var: purpose, mag: 0.12, sd: 0.4, half_life: 365}
+      - {var: financial_stress, mag: 0.06, sd: 0.5, half_life: 180}
+    evidence: literature
+  family_crisis:
+    label: Family crisis back home
+    story: "{a} faced a family crisis back home"
+    category: family
+    salience: 0.75
+    effects:
+      - {var: stress, mag: 0.12, sd: 0.5, half_life: 21, mods: {neuroticism: 0.25}}
+      - {var: mood, mag: -0.08, sd: 0.5, half_life: 14}
+    evidence: hypothetical
+  death_in_family:
+    label: Death in the family
+    story: "{a} lost a family member"
+    category: family
+    salience: 0.95
+    effects:
+      - {var: mood, mag: -0.18, sd: 0.4, half_life: 45}
+      - {var: stress, mag: 0.1, sd: 0.4, half_life: 30}
+      - {var: purpose, mag: 0.04, sd: 1.0, half_life: 90, mods: {faith_belief: 0.6}}
+    evidence: literature
+  # ------------------------------------------------------------------ religion
+  spiritual_experience:
+    label: Spiritual experience
+    story: "{a} had a spiritual experience"
+    category: religion
+    salience: 0.6
+    effects:
+      - {var: purpose, mag: 0.06, sd: 0.4, half_life: 30}
+      - {var: mood, mag: 0.04, sd: 0.4, half_life: 7}
+    evidence: hypothetical
+  faith_challenge:
+    label: Encountered a faith challenge
+    story: "{a} ran into a faith challenge"
+    category: religion
+    salience: 0.55
+    effects:
+      - {var: anxiety, mag: 0.04, sd: 0.5, half_life: 14, mods: {faith_certainty: 0.4}}
+      - {var: stress, mag: 0.03, sd: 0.5, half_life: 10}
+    evidence: empirical
+    refs: ["Culture & Lifestyle: ~76% report having struggled with faith; church history the most-cited difficulty"]
+  faith_crisis_start:
+    label: Faith crisis began
+    story: "{a} entered a faith crisis"
+    category: religion
+    salience: 0.95
+    effects:
+      - {var: stress, mag: 0.12, sd: 0.4, half_life: 60}
+      - {var: purpose, mag: -0.1, sd: 0.4, half_life: 90}
+      - {var: anxiety, mag: 0.08, sd: 0.4, half_life: 60}
+      - {var: belonging, mag: -0.06, sd: 0.5, half_life: 90}
+    evidence: empirical
+  faith_renewed:
+    label: Faith crisis resolved — renewed faith
+    story: "{a} came out of a faith crisis with renewed faith"
+    category: religion
+    salience: 0.9
+    effects:
+      - {var: purpose, mag: 0.1, sd: 0.4, half_life: 90}
+      - {var: mood, mag: 0.05, sd: 0.4, half_life: 30}
+    evidence: hypothetical
+  faith_nuanced:
+    label: Faith crisis resolved — stayed with nuanced faith
+    story: "{a} came out of a faith crisis with a more nuanced faith"
+    category: religion
+    salience: 0.85
+    effects:
+      - {var: stress, mag: -0.05, sd: 0.4, half_life: 30}
+    evidence: hypothetical
+  met_missionaries:
+    label: Started meeting with the missionaries
+    story: "{a} started meeting with the missionaries"
+    category: religion
+    salience: 0.7
+    effects:
+      - {var: purpose, mag: 0.03, sd: 0.8, half_life: 30}
+    evidence: hypothetical
+  baptized:
+    label: Was baptized
+    story: "{a} was baptized into the Church"
+    category: religion
+    salience: 1.0
+    effects:
+      - {var: belonging, mag: 0.1, sd: 0.5, half_life: 90}
+      - {var: purpose, mag: 0.08, sd: 0.5, half_life: 120}
+      - {var: mood, mag: 0.06, sd: 0.5, half_life: 30}
+    evidence: hypothetical
+  stopped_investigating:
+    label: Stopped the missionary lessons
+    story: "{a} stopped meeting with the missionaries"
+    category: religion
+    salience: 0.5
+    effects: []
+    evidence: hypothetical
+  joined_congregation:
+    label: Found a congregation
+    story: "{a} found a congregation to attend"
+    category: religion
+    salience: 0.6
+    effects:
+      - {var: belonging, mag: 0.05, sd: 0.5, half_life: 60}
+    evidence: hypothetical
+  disaffiliated:
+    label: Left the Church
+    story: "{a} left the Church"
+    category: religion
+    salience: 1.0
+    effects:
+      - {var: stress, mag: 0.08, sd: 0.5, half_life: 90, mods: {family_expectation: 0.5}}
+      - {var: belonging, mag: -0.08, sd: 0.5, half_life: 120, mods: {religious_identity: 0.4}}
+      - {var: guilt, mag: -0.06, sd: 0.6, half_life: 60}
+      - {var: purpose, mag: -0.04, sd: 1.0, half_life: 120}
+    evidence: hypothetical
+  stopped_attending:
+    label: Stopped attending church
+    story: "{a} stopped going to church"
+    category: religion
+    salience: 0.75
+    effects:
+      - {var: belonging, mag: -0.05, sd: 0.5, half_life: 60}
+    evidence: calibrated
+  returned_to_activity:
+    label: Returned to church activity
+    story: "{a} started going to church again"
+    category: religion
+    salience: 0.75
+    effects:
+      - {var: belonging, mag: 0.06, sd: 0.4, half_life: 60}
+      - {var: purpose, mag: 0.04, sd: 0.4, half_life: 60}
+    evidence: calibrated
+  mission_call:
+    label: Received mission call
+    story: "{a} received a mission call"
+    category: religion
+    salience: 0.9
+    effects:
+      - {var: purpose, mag: 0.1, sd: 0.3, half_life: 60}
+      - {var: mood, mag: 0.08, sd: 0.3, half_life: 14}
+    evidence: calibrated
+  mission_departure:
+    label: Left on a mission
+    story: "{a} left on a mission"
+    category: religion
+    salience: 1.0
+    effects: []
+    evidence: calibrated
+  friend_left_on_mission:
+    label: Friend left on a mission
+    story: "{a}'s friend {b} left on a mission"
+    category: social
+    salience: 0.4
+    effects:
+      - {var: loneliness, mag: 0.03, sd: 0.5, half_life: 30, mods: {ev.closeness: 0.8}}
+    evidence: hypothetical
+  mission_return:
+    label: Returned from mission
+    story: "{a} came home from a mission"
+    category: religion
+    salience: 1.0
+    effects:
+      - {var: purpose, mag: 0.05, sd: 0.4, half_life: 60}
+      - {var: loneliness, mag: 0.1, sd: 0.4, half_life: 45}
+      - {var: romantic_longing, mag: 0.15, sd: 0.3, half_life: 120, delay: 10}
+      - {var: stress, mag: 0.06, sd: 0.4, half_life: 30}
+    evidence: hypothetical
+    desc: Re-entry adjustment; strong cultural expectation that returned missionaries date toward marriage.
+  early_return:
+    label: Returned early from mission
+    story: "{a} came home early from a mission"
+    category: religion
+    salience: 1.0
+    effects:
+      - {var: mood, mag: -0.12, sd: 0.4, half_life: 90}
+      - {var: self_esteem, mag: -0.1, sd: 0.4, half_life: 120, mods: {family_expectation: 0.4}}
+      - {var: stress, mag: 0.1, sd: 0.4, half_life: 60}
+    evidence: literature
+    refs: ["BYU-affiliated research on early-returned missionaries describes stigma and distress (specific citation to verify)"]
+  # ------------------------------------------------------------------ academics
+  exam_failure:
+    label: Bombed an exam / failed a class
+    story: "{a} bombed an exam"
+    category: academics
+    salience: 0.55
+    effects:
+      - {var: academic_pressure, mag: 0.1, sd: 0.4, half_life: 21, mods: {conscientiousness: 0.2}}
+      - {var: self_esteem, mag: -0.05, sd: 0.4, half_life: 21}
+      - {var: mood, mag: -0.06, sd: 0.4, half_life: 7}
+    evidence: literature
+  academic_success:
+    label: Strong semester (Dean's-list level)
+    story: "{a} had a standout semester"
+    category: academics
+    salience: 0.55
+    effects:
+      - {var: self_esteem, mag: 0.05, sd: 0.4, half_life: 45}
+      - {var: purpose, mag: 0.04, sd: 0.4, half_life: 45}
+    evidence: literature
+  academic_probation:
+    label: Placed on academic probation
+    story: "{a} was put on academic probation"
+    category: academics
+    salience: 0.8
+    effects:
+      - {var: academic_pressure, mag: 0.15, sd: 0.3, half_life: 60}
+      - {var: stress, mag: 0.08, sd: 0.4, half_life: 45}
+      - {var: self_esteem, mag: -0.06, sd: 0.4, half_life: 60}
+    evidence: calibrated
+  major_change:
+    label: Changed major
+    story: "{a} changed majors"
+    category: academics
+    salience: 0.6
+    effects:
+      - {var: purpose, mag: 0.03, sd: 1.0, half_life: 60}
+    evidence: calibrated
+  graduation:
+    label: Graduated
+    story: "{a} graduated"
+    category: academics
+    salience: 1.0
+    effects:
+      - {var: purpose, mag: 0.08, sd: 0.4, half_life: 90}
+      - {var: mood, mag: 0.08, sd: 0.4, half_life: 21}
+      - {var: stress, mag: 0.05, sd: 0.6, half_life: 60, delay: 14}
+    evidence: literature
+  dropout:
+    label: Left school
+    story: "{a} left school"
+    category: academics
+    salience: 0.9
+    effects:
+      - {var: purpose, mag: -0.06, sd: 0.5, half_life: 90}
+      - {var: stress, mag: 0.05, sd: 0.5, half_life: 45}
+    evidence: calibrated
+  term_started:
+    label: New semester began
+    story: "A new semester began for {a}"
+    category: academics
+    salience: 0.1
+    effects:
+      - {var: academic_pressure, mag: 0.05, sd: 0.3, half_life: 20, delay: 10}
+    evidence: calibrated
+  # ------------------------------------------------------------------ work & money
+  job_found:
+    label: Got a job
+    story: "{a} got a job"
+    category: work
+    salience: 0.6
+    effects:
+      - {var: financial_stress, mag: -0.08, sd: 0.4, half_life: 60}
+      - {var: purpose, mag: 0.03, sd: 0.4, half_life: 30}
+    evidence: literature
+  quit_job:
+    label: Quit a job to focus on school
+    story: "{a} quit their job to focus on school"
+    category: work
+    salience: 0.4
+    effects:
+      - {var: stress, mag: -0.02, sd: 0.5, half_life: 14}
+    evidence: hypothetical
+  job_lost:
+    label: Lost job
+    story: "{a} lost their job"
+    category: work
+    salience: 0.85
+    effects:
+      - {var: financial_stress, mag: 0.15, sd: 0.4, half_life: 60}
+      - {var: mood, mag: -0.08, sd: 0.4, half_life: 30}
+      - {var: self_esteem, mag: -0.06, sd: 0.4, half_life: 45}
+    evidence: literature
+  financial_hardship:
+    label: Ran out of money
+    story: "{a} ran out of money"
+    category: work
+    salience: 0.75
+    effects:
+      - {var: stress, mag: 0.08, sd: 0.4, half_life: 30}
+    evidence: calibrated
+  # ------------------------------------------------------------------ housing
+  moved:
+    label: Moved
+    story: "{a} moved"
+    category: housing
+    salience: 0.65
+    effects:
+      - {var: stress, mag: 0.05, sd: 0.4, half_life: 10}
+      - {var: loneliness, mag: 0.05, sd: 0.5, half_life: 21, mods: {extraversion: -0.25}}
+      - {var: belonging, mag: -0.04, sd: 0.5, half_life: 30}
+    evidence: literature
+  arrival:
+    label: Arrived in Provo/Orem
+    story: "{a} arrived in Provo/Orem"
+    category: housing
+    salience: 0.9
+    effects:
+      - {var: loneliness, mag: 0.12, sd: 0.4, half_life: 30, mods: {extraversion: -0.3, social_anxiety: 0.3}}
+      - {var: stress, mag: 0.06, sd: 0.4, half_life: 21}
+    evidence: literature
+    refs: ["First-year transition loneliness is well documented in student-adjustment research"]
+  left_area:
+    label: Left Provo/Orem
+    story: "{a} left Provo/Orem"
+    category: housing
+    salience: 1.0
+    effects: []
+    evidence: calibrated
+  # ------------------------------------------------------------------ health
+  illness:
+    label: Got sick
+    story: "{a} got sick"
+    category: health
+    salience: 0.25
+    effects:
+      - {var: fatigue, mag: 0.2, sd: 0.3, half_life: 3}
+      - {var: mood, mag: -0.05, sd: 0.4, half_life: 3}
+    evidence: calibrated
+  car_accident:
+    label: Car accident
+    story: "{a} was in a car accident"
+    category: health
+    salience: 0.6
+    effects:
+      - {var: stress, mag: 0.1, sd: 0.4, half_life: 14}
+      - {var: financial_stress, mag: 0.08, sd: 0.5, half_life: 60}
+    evidence: empirical
+    refs: ["College Life survey: ~1/3 report ≥1 at-fault accident"]
+  depressive_episode_start:
+    label: Depressive episode began
+    story: "{a} fell into a depressive episode"
+    category: health
+    salience: 0.9
+    effects:
+      - {var: mood, mag: -0.15, sd: 0.3, half_life: 60}
+      - {var: fatigue, mag: 0.1, sd: 0.4, half_life: 60}
+      - {var: purpose, mag: -0.08, sd: 0.4, half_life: 60}
+    evidence: hypothetical
+  depressive_episode_end:
+    label: Depressive episode eased
+    story: "{a}'s depression began to lift"
+    category: health
+    salience: 0.7
+    effects: []
+    evidence: hypothetical
+  # ------------------------------------------------------------------ habits & norms
+  adopted_practice:
+    label: Adopted a practice
+    story: "{a} picked up a new habit"
+    category: habits
+    salience: 0.35
+    effects: []
+    evidence: literature
+    refs: ["Centola & Macy (2007) AJS: complex contagion"]
+  started_coffee:
+    label: Started drinking coffee
+    story: "{a} started drinking coffee"
+    category: habits
+    salience: 0.55
+    effects:
+      - {var: guilt, mag: 0.05, sd: 0.6, half_life: 20, mods: {orthodoxy: 0.5, moral_autonomy: -0.5, ev.norm_permitted: -2.0}}
+    evidence: hypothetical
+  started_drinking:
+    label: Started drinking alcohol
+    story: "{a} started drinking alcohol"
+    category: habits
+    salience: 0.65
+    effects:
+      - {var: guilt, mag: 0.08, sd: 0.6, half_life: 30, mods: {orthodoxy: 0.5, moral_autonomy: -0.5}}
+    evidence: hypothetical
+  intervention_exposure:
+    label: Affected by an intervention
+    story: "{a} was affected by the intervention"
+    category: intervention
+    salience: 0.5
+    effects: []
+    evidence: calibrated

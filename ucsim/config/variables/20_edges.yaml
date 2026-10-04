@@ -1,0 +1,82 @@
+# Relationships are first-class entities with their own state (sparse edge store).
+entity: edge
+defaults: {kind: state, dtype: f4, update: event, evidence: literature, flags: [filter, chart]}
+variables:
+  familiarity:
+    label: Familiarity (activation)
+    range: [-10, 5]
+    derived: true
+    desc: ACT-R base-level activation of the person in the other's memory, B = ln(Σ t_j^−d), computed with Petrov's (2006) hybrid approximation from the interaction count, first and last contact. Drives recognition and the chance of re-interacting.
+  liking:
+    label: Liking
+    range: [-1, 1]
+    desc: Affective evaluation, an exponentially weighted average of interaction valence (reinforcement-affect model).
+  closeness:
+    label: Closeness
+    range: [0, 1]
+    desc: Grows with leisure hours and self-disclosure (liking), decays without contact.
+  trust:
+    label: Trust
+    range: [0, 1]
+    desc: Grows slowly with positive interactions; damaged by conflict, betrayal (cheating) and ghosting.
+  conflict:
+    label: Conflict
+    range: [0, 1]
+    desc: Recent negative interactions (decays).
+  attraction_lh:
+    label: Attraction (lower→higher id)
+    range: [-1, 1]
+    desc: Directed romantic attraction of the lower-id person toward the higher-id person.
+  attraction_hl:
+    label: Attraction (higher→lower id)
+    range: [-1, 1]
+  hours:
+    label: Hours together
+    range: [0, 10000]
+    units: hours
+    desc: Cumulative interaction hours.
+  hours_leisure:
+    label: Leisure-equivalent hours
+    range: [0, 10000]
+    units: hours
+    desc: Hours weighted by context (leisure 1.0, ward 0.6, class/work 0.3) — friendship forms faster in leisure settings (Hall 2019).
+  n_interactions:
+    label: Interactions
+    dtype: i4
+    range: [0, 100000]
+  first_day:
+    label: First met (day)
+    dtype: i4
+  last_day:
+    label: Last contact (day)
+    dtype: i4
+  stage:
+    label: Tie stage
+    dtype: u1
+    range: [0, 4]
+    ordinal: [stranger, acquaintance, casual friend, friend, close friend]
+  flags:
+    label: Tie type flags
+    dtype: u4
+    desc: "Bitmask: roommate, classmate, coworker, ward, fhe, family, dated, romantic, ex, spouse, kissed, ncmo, sexual, app_match, introduced."
+  origin_ctx:
+    label: Where they met
+    dtype: u1
+    desc: Context type of first meeting (unit, complex, class, ward, fhe, work, gym, venue, gathering, campus, app, date, family).
+  origin_place:
+    label: Place of first meeting
+    dtype: i4
+  introducer:
+    label: Introduced by
+    dtype: i4
+    desc: Mutual friend who hosted the gathering where they met (-1 if none) — triadic closure provenance.
+  dates:
+    label: Dates together
+    dtype: i2
+    range: [0, 1000]
+  chemistry:
+    label: Pair chemistry
+    range: [-3, 3]
+    derived: true
+    evidence: hypothetical
+    desc: Persistent pair-specific compatibility, deterministic in the pair ids and seed (identical across paired universes).

@@ -1,0 +1,135 @@
+entity: person
+defaults: {kind: habit, dtype: f4, update: weekly, evidence: empirical, flags: [filter, chart, map]}
+variables:
+  sleep_hours:
+    label: Sleep (hours/night)
+    range: [3, 12]
+    units: hours
+    update: daily
+    init: "copula provostats.sleep_hours"
+    source: [provostats]
+    flags: [filter, chart, map, timeseries]
+  workouts_week:
+    label: Workouts / week
+    range: [0, 14]
+    init: "copula provostats.workouts_week"
+    source: [provostats]
+  social_media_hours:
+    label: Social media (hours/day)
+    range: [0, 14]
+    init: "copula college_life.social_media_hours"
+    source: [college-life]
+  soda_shop_week:
+    label: Soda-shop visits / week
+    range: [0, 14]
+    desc: Swig/Sodalicious-type dirty-soda shop visits — a Utah County social ritual and casual date venue.
+    init: "copula provostats.soda_shop_per_week"
+    source: [provostats]
+  social_events_month:
+    label: Social events / month (propensity)
+    range: [0, 40]
+    init: "copula provostats.social_events_month"
+    source: [provostats]
+  coffee:
+    label: Coffee use
+    dtype: u1
+    range: [0, 3]
+    ordinal: [never, rarely, occasionally, often]
+    update: monthly
+    desc: Coffee consumption (prohibited by the Word of Wisdom as currently taught). Peer-influenced; a canonical intervention target.
+    init: "copula culture.freq_coffee"
+    source: [culture-lifestyle]
+    flags: [filter, chart, map, timeseries]
+  tea:
+    label: Tea use
+    dtype: u1
+    range: [0, 3]
+    ordinal: [never, rarely, occasionally, often]
+    update: monthly
+    init: "copula culture.freq_tea"
+    source: [culture-lifestyle]
+  alcohol:
+    label: Alcohol use
+    dtype: u1
+    range: [0, 3]
+    ordinal: [never, rarely, occasionally, often]
+    update: monthly
+    init: "copula culture.freq_alcohol"
+    source: [culture-lifestyle]
+    flags: [filter, chart, map, timeseries]
+  r_movies:
+    label: R-rated movies
+    dtype: u1
+    range: [0, 3]
+    ordinal: [never, rarely, occasionally, often]
+    update: monthly
+    init: "copula culture.freq_r_movies"
+    source: [culture-lifestyle]
+  dancing:
+    label: Goes dancing
+    dtype: u1
+    range: [0, 3]
+    ordinal: [never, rarely, sometimes, often]
+    desc: Country/latin social dancing (e.g., Peak Nights, Tippin' Point, Grove Station) — a major singles mixing context.
+    init: "copula college_life.dancing_freq"
+    source: [college-life]
+  hikes:
+    label: Hiking
+    dtype: bool
+    update: static
+    init: "copula college_life.hob_hiking"
+    source: [college-life]
+  gaming:
+    label: Video gaming
+    dtype: bool
+    update: static
+    init: "copula college_life.hob_gaming"
+    source: [college-life]
+  sports:
+    label: Sports
+    dtype: bool
+    update: static
+    init: "copula college_life.hob_sports"
+    source: [college-life]
+  music_maker:
+    label: Plays music / sings
+    dtype: bool
+    update: static
+    init: "copula college_life.hob_instruments | hob_singing"
+    source: [college-life]
+  reading:
+    label: Reading
+    dtype: bool
+    update: static
+    init: "copula college_life.hob_reading"
+    source: [college-life]
+  cooking:
+    label: Cooking/baking
+    dtype: bool
+    update: static
+    init: "copula college_life.hob_cooking"
+    source: [college-life]
+  outdoors:
+    label: Camping/climbing
+    dtype: bool
+    update: static
+    init: "copula college_life.hob_camping | hob_climbing"
+    source: [college-life]
+  arts:
+    label: Art/photo/writing
+    dtype: bool
+    update: static
+    init: "copula college_life.hob_art | hob_photo | hob_writing"
+    source: [college-life]
+  swiftie:
+    label: Swiftie
+    dtype: bool
+    update: static
+    init: "copula college_life.swiftie"
+    source: [college-life, dating]
+  pickleball:
+    label: Plays pickleball
+    dtype: bool
+    update: weekly
+    desc: Example diffusing cultural practice (complex contagion through friend networks). Seeded small at start.
+    evidence: hypothetical

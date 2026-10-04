@@ -1,0 +1,56 @@
+system: norms
+mechanisms:
+  norms.contagion:
+    label: Complex contagion of practices
+    target: [coffee, alcohol, pickleball, app_user]
+    sources: [friends' adoption]
+    form: "peer term = βp·log(1+k)·clip(k/threshold, 0, 1) + 0.8·share, k = adopting friends"
+    params:
+      peer: {value: 0.8, range: [0.2, 1.5]}
+      threshold: {value: 2, range: [1, 4]}
+    evidence: literature
+    refs: ["Centola & Macy (2007) AJS: complex contagions and the weakness of long ties", "Centola (2010) Science: spread of behavior in an online network experiment"]
+  norms.coffee:
+    label: Coffee adoption
+    target: coffee
+    sources: [orthodoxy, chastity_commitment, faith_belief, moral_autonomy, sensation_seeking, coffee_permitted]
+    form: "weekly h = 0.05·logistic(base − βpro·orthodoxy·active·(1−permitted)·(1+commitment) + 0.8·(1−belief) + 0.6·autonomy + 0.2·SS + βperm·permitted·member + peer)"
+    params:
+      base: {value: -5.0, range: [-6.5, -3.5]}
+      prohibition: {value: 3.0, range: [1.5, 4.5]}
+      permitted_boost: {value: 2.5, range: [0.5, 4.0]}
+    evidence: hypothetical
+    refs: ["Culture & Lifestyle: coffee frequency by activity (≈83% never)"]
+    desc: The canonical "coffee is now permitted" intervention flips `coffee_permitted`, removing the prohibition term and the guilt associated with coffee.
+  norms.alcohol:
+    label: Alcohol adoption
+    target: alcohol
+    sources: [orthodoxy, faith_belief, moral_autonomy, sensation_seeking, age]
+    form: "weekly h = 0.05·logistic(base − 2.5·orthodoxy·active − 1.2·belief·member + 0.6·autonomy + 0.4·SS + 0.4·[21+] + peer)"
+    params:
+      base: {value: -5.0, range: [-6.5, -3.5]}
+    evidence: hypothetical
+  norms.pickleball:
+    label: Pickleball craze (example cultural diffusion)
+    target: pickleball
+    sources: [sports, extraversion, hikes]
+    form: "weekly h = 0.05·logistic(base + 0.8·sports + 0.3·E + 0.3·hikes + peer)"
+    params:
+      base: {value: -4.5, range: [-6, -3]}
+    evidence: hypothetical
+  norms.app:
+    label: Dating-app adoption
+    target: app_user
+    sources: [dating_motivation, picky, app_appeal]
+    form: "weekly h = 0.05·logistic(base + 1.5·motivation + log(app_appeal) + 0.3·picky + peer)"
+    params:
+      base: {value: -3.0, range: [-4.5, -1.5]}
+    evidence: calibrated
+  norms.quit:
+    label: Quitting a practice to resolve guilt
+    target: [coffee, alcohol]
+    sources: [guilt, orthodoxy]
+    form: "weekly P(quit) = β·guilt·orthodoxy·[active member]"
+    params:
+      guilt: {value: 0.15, range: [0.05, 0.3]}
+    evidence: hypothetical

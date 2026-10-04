@@ -1,0 +1,175 @@
+entity: person
+defaults: {kind: state, dtype: f4, range: [0, 1], update: daily, evidence: calibrated, flags: [filter, chart, map, timeseries]}
+variables:
+  # ---------------------------------------------------------------- social network (derived)
+  n_friends:
+    label: Friends
+    dtype: i2
+    kind: derived
+    range: [0, 200]
+    update: weekly
+    derived: true
+    desc: Ties at stage ≥ friend (accumulated ~80+ leisure-equivalent hours with mutual liking; after Hall 2019).
+  n_groups:
+    label: Clubs, teams & classes joined
+    dtype: u1
+    kind: state
+    range: [0, 3]
+    update: semester
+    group: groups
+    evidence: calibrated
+    desc: "How many weekly groups the person belongs to: a campus club, an intramural team, an institute class (0-3)."
+    flags: [filter, chart, map, timeseries]
+  club_id:
+    label: Club
+    dtype: i4
+    kind: state
+    update: semester
+    group: groups
+    evidence: calibrated
+    desc: "Campus club the person attends weekly (-1 none). Joining depends on extraversion and conscientiousness; less likely when married, parenting or working long hours."
+    flags: []
+  team_id:
+    label: Intramural team
+    dtype: i4
+    kind: state
+    update: semester
+    group: groups
+    evidence: calibrated
+    desc: "Intramural sports team (-1 none). BYU intramurals are large (~20% of students); fitness and extraversion raise joining."
+    flags: []
+  institute_class:
+    label: Institute class
+    dtype: i4
+    kind: state
+    update: semester
+    group: groups
+    evidence: hypothetical
+    desc: "Weekly Institute of Religion class at the Orem Institute next to UVU (-1 none): UVU Latter-day Saint students and young single adults. BYU students take religion classes on campus instead."
+    flags: []
+  n_close_friends:
+    label: Close friends
+    dtype: i2
+    kind: derived
+    range: [0, 50]
+    update: weekly
+    derived: true
+    desc: Ties at stage close friend (~200+ hours, high closeness).
+  n_acquaintances:
+    label: Acquaintances
+    dtype: i2
+    kind: derived
+    range: [0, 2000]
+    update: weekly
+    derived: true
+  degree:
+    label: Network degree
+    dtype: i2
+    kind: derived
+    range: [0, 3000]
+    update: weekly
+    derived: true
+    desc: Number of people the person recognizes (any tie with activation above threshold).
+    flags: [filter, chart, map]
+  new_friends_90d:
+    label: New friends (90 days)
+    dtype: i2
+    kind: derived
+    range: [0, 50]
+    update: weekly
+    derived: true
+  social_hours_week:
+    label: Social hours / week
+    range: [0, 80]
+    units: hours/week
+    kind: derived
+    derived: true
+    desc: Exponentially smoothed weekly hours of social interaction (all contexts).
+  close_contact_hours:
+    label: Close-contact hours / week
+    range: [0, 60]
+    units: hours/week
+    kind: derived
+    derived: true
+    desc: Smoothed weekly hours with friends, partner and well-liked roommates — the input to loneliness.
+  roommate_cohesion:
+    label: Roommate cohesion
+    kind: derived
+    update: weekly
+    derived: true
+    desc: Mean liking among co-resident household members.
+  ward_belonging:
+    label: Ward belonging
+    update: weekly
+    desc: Sense of belonging in one's congregation (ward friends, attendance, callings, fit).
+  # ---------------------------------------------------------------- emotion & wellbeing (composed states)
+  mood:
+    label: Mood (happiness)
+    desc: Daily positive affect. Composed of a trait set-point plus mechanism terms (loneliness, stress, relationships, purpose, sleep, contagion…) plus decaying event effects plus AR(1) noise.
+  stress:
+    label: Stress
+  loneliness:
+    label: Loneliness
+    desc: Perceived social isolation — a function of contact relative to one's own need, not of contact alone.
+  anxiety:
+    label: Anxiety
+  belonging:
+    label: Belonging
+  self_esteem:
+    label: Confidence / self-esteem
+  guilt:
+    label: Guilt
+    desc: Moral/religious guilt; rises with standard violations in proportion to the person's own commitment, falls with repentance or belief change.
+  fatigue:
+    label: Fatigue
+  purpose:
+    label: Sense of purpose
+  financial_stress:
+    label: Financial stress
+    desc: Non-linear in savings buffer (manageable at moderate strain, sharply worse below ~1 month of expenses).
+  academic_pressure:
+    label: Academic pressure
+  romantic_longing:
+    label: Romantic longing
+    desc: Unmet desire for romance/intimacy (single and wanting a relationship; rises with age-graded marriage norms). Captures what the brief calls romantic/sexual frustration. Hypothetical construct.
+    evidence: hypothetical
+  life_satisfaction:
+    label: Life satisfaction
+    range: [0, 10]
+    update: monthly
+    desc: Slow-moving evaluative wellbeing (monthly average of mood, purpose, relationship and financial security).
+  # ---------------------------------------------------------------- mental health
+  mh_anxiety:
+    label: Anxiety (self-reported condition)
+    dtype: bool
+    kind: attribute
+    update: static
+    evidence: empirical
+    source: [college-life, dating]
+    init: "copula college_life.mh_anxiety"
+    flags: [filter, chart, map]
+  mh_depression:
+    label: Depression (self-reported condition)
+    dtype: bool
+    kind: attribute
+    update: static
+    evidence: empirical
+    source: [college-life, dating]
+    init: "copula college_life.mh_depression"
+    flags: [filter, chart, map]
+  mh_adhd:
+    label: ADHD (self-reported)
+    dtype: bool
+    kind: attribute
+    update: static
+    evidence: empirical
+    source: [college-life]
+    init: "copula college_life.mh_adhd"
+    flags: [filter, chart]
+  depressive_episode:
+    label: Depressive episode
+    dtype: bool
+    kind: state
+    update: event
+    desc: Currently in a depressive episode (onset hazard rises steeply with sustained low mood and high loneliness/stress, moderated by vulnerability).
+    evidence: hypothetical

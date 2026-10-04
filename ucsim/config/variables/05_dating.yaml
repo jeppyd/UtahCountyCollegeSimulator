@@ -1,0 +1,211 @@
+entity: person
+defaults: {kind: preference, dtype: f4, range: [0, 4], update: static, evidence: empirical, source: [dating], flags: [filter, chart, map]}
+variables:
+  rel_status:
+    label: Relationship status
+    dtype: cat
+    categories: [single, talking, dating, engaged, married, divorced]
+    kind: structural
+    update: event
+    desc: '"talking" = mutually interested and going on dates; "dating" = exclusive (post-DTR).'
+    init: "CPT rel | school, sex, age (ProvoStats), calibrated to married shares by school."
+    source: [provostats, institutional targets]
+    evidence: calibrated
+    flags: [filter, chart, map, timeseries]
+  partner_id:
+    label: Partner
+    dtype: i4
+    kind: structural
+    update: event
+    flags: []
+  rel_start_day:
+    label: Relationship start day
+    dtype: i4
+    kind: structural
+    update: event
+    flags: []
+  engaged_day:
+    label: Engagement day
+    dtype: i4
+    update: event
+    flags: []
+  married_day:
+    label: Wedding day
+    dtype: i4
+    update: event
+    flags: []
+  age_at_marriage:
+    label: Age at marriage
+    kind: history
+    range: [17, 60]
+    units: years
+    update: event
+    fill: .nan
+    desc: Age at (first) marriage, if married. NaN if never married.
+    flags: [filter, chart]
+  n_relationships:
+    label: Exclusive relationships (lifetime)
+    dtype: i2
+    kind: history
+    range: [0, 25]
+    update: event
+    init: "copula provostats.n_relationships"
+    source: [provostats]
+    flags: [filter, chart, timeseries]
+  n_breakups:
+    label: Breakups (in simulation)
+    dtype: i2
+    kind: history
+    range: [0, 25]
+    update: event
+    evidence: calibrated
+  dating_propensity:
+    label: Dating propensity
+    kind: trait
+    range: [0, 30]
+    units: dates/month
+    desc: Baseline dates per month when single, from reported dating frequency.
+    init: "copula provostats.dates_month"
+    source: [provostats]
+  dates_30d:
+    label: Dates (last 30 days)
+    kind: habit
+    range: [0, 30]
+    units: dates
+    update: daily
+    derived: true
+    evidence: calibrated
+    flags: [filter, chart, map, timeseries]
+  dates_total:
+    label: Dates (in simulation)
+    dtype: i2
+    kind: history
+    range: [0, 500]
+    update: event
+    evidence: calibrated
+  first_dates_total:
+    label: First dates (in simulation)
+    dtype: i2
+    kind: history
+    range: [0, 300]
+    update: event
+    evidence: calibrated
+  rejections_recent:
+    label: Recent rejections (decaying)
+    kind: state
+    range: [0, 10]
+    update: daily
+    desc: Exponentially decaying count of recent romantic rejections; feeds dating confidence non-linearly.
+    evidence: hypothetical
+  app_user:
+    label: Uses dating apps
+    dtype: bool
+    kind: habit
+    update: monthly
+    init: "copula dating.app_ever + ProvoStats app hours > 0"
+    source: [dating, provostats]
+    flags: [filter, chart, map, timeseries]
+  app_hours:
+    label: Dating-app hours / week
+    kind: habit
+    range: [0, 30]
+    units: hours/week
+    update: monthly
+    init: "copula provostats.app_hours_week"
+    source: [provostats]
+  app_mutual:
+    label: Uses Mutual
+    dtype: bool
+    kind: habit
+    update: monthly
+    init: "copula provostats.app_mutual"
+    source: [provostats]
+  accepts_first_dates:
+    label: Accepts every first date
+    init: "copula provostats.accepts_all_first_dates"
+    source: [provostats]
+  men_first_move:
+    label: Men should make the first move
+    init: "copula dating.men_first_move"
+  picky:
+    label: Picky
+    init: "copula dating.picky"
+  wants_relationship:
+    label: Wants a relationship
+    init: "copula dating.wants_relationship"
+  asks_for_numbers:
+    label: Asks for numbers
+    init: "copula dating.asks_for_numbers"
+  scared_initiate_kiss:
+    label: Scared to initiate a kiss
+    init: "copula dating.scared_initiate_kiss"
+  min_height_req:
+    label: Minimum partner height
+    range: [56, 78]
+    units: inches
+    desc: Minimum height required in a male partner (women attracted to men).
+    init: "copula provostats.min_height_req"
+    source: [provostats, dating]
+  max_older:
+    label: Max years older to date
+    range: [0, 30]
+    units: years
+    init: "copula dating.max_older_years"
+  max_younger:
+    label: Max years younger to date
+    range: [0, 30]
+    units: years
+    init: "copula dating.max_younger_years"
+  imp_spirituality:
+    label: Importance of partner spirituality
+    range: [0, 5]
+    desc: Importance rank of spirituality/faithfulness among six partner qualities (5 = top).
+    init: "copula dating.rank_spirituality (reversed)"
+  imp_physical:
+    label: Importance of physical attractiveness
+    range: [0, 5]
+    init: "copula dating.rank_physical (reversed)"
+  imp_personality:
+    label: Importance of personality/humor
+    range: [0, 5]
+    init: "copula dating.rank_personality (reversed)"
+  imp_shared_interests:
+    label: Importance of shared interests
+    range: [0, 5]
+    desc: Ranked LOWEST on average of six partner qualities — the empirical basis for shared hobbies only nudging compatibility.
+    init: "copula dating.rank_shared_interests (reversed)"
+  prefers_rm:
+    label: Prefers returned missionaries
+    init: "copula dating.date_foreign_rm/date_stateside_rm; culture.prefers_rm"
+  waiting_for_missionary:
+    label: Waiting for a missionary
+    dtype: bool
+    kind: structural
+    update: event
+    desc: In a relationship with someone currently serving a mission.
+    source: [provostats]
+  dating_motivation:
+    label: Dating motivation
+    kind: state
+    range: [0, 1]
+    update: daily
+    derived: true
+    desc: Current drive to pursue dating (wants relationship, age/marriage norms, RM status, confidence, longing, availability).
+    evidence: calibrated
+    flags: [filter, chart, map, timeseries]
+  relationship_satisfaction:
+    label: Relationship satisfaction
+    kind: state
+    range: [0, 1]
+    update: weekly
+    desc: Satisfaction in current exclusive relationship/marriage (NaN when none).
+    init: "copula culture.marriage_satisfaction for married"
+    source: [culture-lifestyle]
+    flags: [filter, chart, map, timeseries]
+  relationship_commitment:
+    label: Relationship commitment
+    kind: state
+    range: [0, 1]
+    update: weekly
+    desc: Rusbult investment-model commitment (satisfaction + investment − alternatives).
+    evidence: literature

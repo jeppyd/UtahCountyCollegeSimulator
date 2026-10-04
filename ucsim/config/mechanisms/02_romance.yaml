@@ -1,0 +1,198 @@
+system: romance
+mechanisms:
+  romance.attraction:
+    label: Initial romantic attraction
+    target: [attraction_lh, attraction_hl]
+    sources: [attractiveness, imp_physical, age, max_older, max_younger, height_in, min_height_req, activity, imp_spirituality, mission_status, prefers_rm, hikes, music_maker, sports, gaming, ethnicity, agreeableness, social_skill]
+    form: "a(i→j) = tanh((spark_shared + spark_directed + looks + age_fit + height_fit + religiosity_fit + RM_bonus + shared_interests + ethnic_homophily + personality + base)/1.5); 0 if orientation-incompatible"
+    params:
+      base: {value: -0.1, range: [-0.5, 0.3]}
+      spark_shared: {value: 0.55, range: [0.3, 0.8]}
+      spark_directed: {value: 0.45, range: [0.2, 0.7]}
+      looks: {value: 0.3, range: [0.1, 0.5]}
+      age_fit: {value: 0.35, range: [0.1, 0.6]}
+      height: {value: 0.4, range: [0.1, 0.8]}
+      religiosity_fit: {value: 0.8, range: [0.3, 1.4]}
+      rm_bonus: {value: 0.25, range: [0.0, 0.5]}
+      shared_interests: {value: 0.08, range: [0.0, 0.2]}
+      ethnic_homophily: {value: 0.1, range: [0.0, 0.3]}
+      personality: {value: 0.15, range: [0.0, 0.3]}
+      interaction_update: {value: 0.03, range: [0.01, 0.06]}
+    evidence: empirical
+    refs: ["Dating survey (n≈900): age-gap limits, partner-trait rankings (shared interests ranked last), RM preferences",
+           "ProvoStats: women's minimum partner height; 'not active' as a swipe-left dealbreaker",
+           "Joel, Eastwick & Finkel (2017) Psychol Sci: romantic desire is largely idiosyncratic and hard to predict from traits"]
+    desc: Most attraction is pair-specific "spark"; shared hobbies barely matter — consistent with the survey's ranking and with machine-learning evidence.
+  romance.motivation:
+    label: Dating motivation
+    target: dating_motivation
+    sources: [wants_relationship, romantic_longing, age, activity, mission_status, extraversion, depressive_episode, academic_pressure, fatigue]
+    form: "m = logistic(base + βw·wants + βl·longing + βn·marriage_norm·age_norm·active + 0.4·recent RM + 0.25·E − …)"
+    params:
+      base: {value: -0.5, range: [-1.5, 0.5]}
+      wants: {value: 1.0, range: [0.4, 1.6]}
+      longing: {value: 1.5, range: [0.5, 2.5]}
+      marriage_norm: {value: 1.0, range: [0.3, 1.8]}
+    evidence: hypothetical
+    desc: Encodes the strong LDS young-adult marriage norm (returned missionaries are expected to date toward marriage).
+  romance.ask:
+    label: Asking someone out
+    target: dates_30d
+    sources: [crush attraction, dating_motivation, self_esteem, rejection_sensitivity, rejections_recent, sex, dating_propensity, asks_for_numbers]
+    moderators: [rejection_sensitivity]
+    form: "P/day = logistic(base + βa·attraction + βm·motivation + βc·confidence − βrs·RS⁺·log(1+recent rejections) ± βmale·norm + βp·log(propensity)) × weekday factor"
+    params:
+      base: {value: -4, range: [-5.5, -2.5]}
+      attraction: {value: 2.5, range: [1, 4]}
+      motivation: {value: 1.5, range: [0.5, 2.5]}
+      confidence: {value: 1.0, range: [0.3, 2.0]}
+      rejection_sensitivity: {value: 0.6, range: [0.2, 1.2]}
+      male: {value: 1.0, range: [0.3, 1.8]}
+      propensity: {value: 0.6, range: [0.2, 1.0]}
+      min_attraction: {value: 0.25, range: [0.1, 0.4]}
+    evidence: empirical
+    refs: ["Dating survey: most agree men should make the first move", "ProvoStats: dates per month by sex/relationship/activity"]
+    desc: Repeated rejection matters non-linearly — the log of recent rejections multiplies rejection sensitivity.
+  romance.accept:
+    label: Accepting a date
+    target: dates_30d
+    sources: [attraction, accepts_first_dates, dating_motivation, picky, rel_status]
+    form: "P = logistic(base + βa·attraction + βp·politeness(first dates) + βm·motivation − βk·picky − 3·taken)"
+    params:
+      base: {value: 1.0, range: [0.0, 2.0]}
+      attraction: {value: 2.0, range: [1.0, 3.0]}
+      politeness: {value: 1.2, range: [0.4, 2.0]}
+      motivation: {value: 0.8, range: [0.3, 1.5]}
+      picky: {value: 0.4, range: [0.0, 0.8]}
+    evidence: empirical
+    refs: ["ProvoStats: 'I accept every first date I'm asked on, just to be polite' — majority agree"]
+  romance.app:
+    label: Dating-app matching
+    target: dates_30d
+    sources: [app_user, app_hours, app_mutual, attractiveness, app_appeal]
+    form: "daily match attempt rate = rate × appeal × hours/7; choose best of 10 random seekers on photos + attraction; mutual like → date with P(conversion)"
+    params:
+      rate: {value: 0.03, range: [0.01, 0.06]}
+      photo_weight: {value: 0.4, range: [0.1, 0.8]}
+      date_conversion: {value: 0.35, range: [0.15, 0.6]}
+    evidence: empirical
+    refs: ["ProvoStats: ~1/3 of respondents use dating apps (Mutual most common)", "Dating survey: swiping mostly on pictures"]
+    desc: Apps create romantic opportunity that bypasses physical propinquity; the canonical intervention target "a new dating app becomes popular".
+  romance.date:
+    label: Date quality and attraction update
+    target: [attraction_lh, attraction_hl]
+    sources: [spark, first-date preferences, social_skill, mood]
+    form: "q = βs·spark + βp·mean(date-type preference) + 0.25·skill + 0.3·(mood sum−1) + ε; attraction += η·(q + 0.3·directed spark)"
+    params:
+      spark: {value: 0.45, range: [0.2, 0.7]}
+      preference: {value: 0.3, range: [0.0, 0.6]}
+      attraction_update: {value: 0.07, range: [0.03, 0.15]}
+    evidence: empirical
+    refs: ["Dating survey: ratings of 32 first-date types (ice cream best, gym workout worst)"]
+  romance.kiss:
+    label: Kissing on dates
+    target: n_kissed
+    sources: [attraction, dates, kiss_first_date_ok, scared_initiate_kiss, sensation_seeking]
+    form: "P(first kiss with partner) = logistic(base + βa·min attraction + 0.6·log(dates) + βok·first-date OK − 0.3·scared + 0.3·SS)"
+    params:
+      base: {value: -2.6, range: [-4, -1.5]}
+      attraction: {value: 3.0, range: [1.5, 4.5]}
+      first_date_ok: {value: 0.8, range: [0.2, 1.4]}
+    evidence: empirical
+    refs: ["ProvoStats: people kissed by age; 'OK kissing on the first date'", "Dating survey: 'scared to initiate a kiss'"]
+  romance.ncmo:
+    label: Non-committal make-outs
+    target: n_ncmo
+    sources: [ncmo_interest, sensation_seeking, chastity_commitment, attraction]
+    form: "At gatherings/dances among mutually attracted singles: P = logistic(base + βi·interest + 0.5·SS − βc·(chastity−0.5) + 2·attraction + 0.4·dance)"
+    params:
+      base: {value: -1.6, range: [-3.5, 0]}
+      interest: {value: 0.9, range: [0.3, 1.5]}
+      chastity: {value: 3.0, range: [1.0, 5.0]}
+    evidence: empirical
+    refs: ["ProvoStats: NCMO counts and interest by sex and church activity"]
+  romance.progress:
+    label: Talking → DTR
+    target: rel_status
+    sources: [attraction, dates]
+    form: "talking after ≥2 dates with mutual attraction > t; exclusive (DTR) after ≥ n dates and 2+ weeks with mutual attraction > d"
+    params:
+      talk_threshold: {value: 0.5, range: [0.3, 0.65]}
+      dtr_dates: {value: 6, range: [3, 10]}
+      dtr_threshold: {value: 0.65, range: [0.45, 0.8]}
+    evidence: calibrated
+  romance.ghosting:
+    label: Ghosting after one-sided first dates
+    target: self_esteem
+    sources: [attraction]
+    form: "after a first date where interest is one-sided, P(ghosting) = rate"
+    params:
+      rate: {value: 0.35, range: [0.1, 0.6]}
+    evidence: empirical
+    refs: ["Dating survey: ghosting reasons (forgetting, losing interest, avoiding awkwardness)"]
+  romance.relationship:
+    label: Relationship satisfaction
+    target: relationship_satisfaction
+    sources: [attraction, chemistry, faith_belief, activity, conflict, stress, agreeableness]
+    form: "target = logistic(base + 0.9·mean attraction + 0.35·chemistry − βm·religious mismatch − 1.2·conflict − 0.8·(stress−0.3) + 0.2·A); sat ← sat + 0.25·(target − sat)"
+    params:
+      sat_base: {value: 0.3, range: [-0.5, 1.0]}
+      religious_mismatch: {value: 1.5, range: [0.5, 2.5]}
+    evidence: literature
+    refs: ["Neff & Karney: external stress spills over into relationship quality"]
+  romance.breakup:
+    label: Breakup / divorce hazard
+    target: rel_status
+    sources: [relationship_commitment, religious mismatch, conflict]
+    form: "weekly h = logistic(base − βc·commitment + βm·mismatch + 1.5·conflict); ×0.25 engaged; ×married_mult married. Initiator = less-attracted partner."
+    params:
+      base: {value: -2.8, range: [-3.8, -1.5]}   # ~8-10% of dating couples split per month (was ~20%)
+      commitment: {value: 3.5, range: [2.0, 5.0]}
+      religious_mismatch: {value: 2.0, range: [0.5, 3.0]}
+      married_mult: {value: 0.03, range: [0.01, 0.08]}
+    evidence: literature
+    refs: ["Rusbult (1980, 1983): investment model of commitment"]
+  romance.couple_time:
+    label: Couple dates per week by stage
+    target: dates_30d
+    sources: [rel_status]
+    form: "dates scheduled each week = ⌊rate⌋ + Bernoulli(rate − ⌊rate⌋), on distinct days"
+    params:
+      talking: {value: 0.8, range: [0.3, 1.5]}
+      dating: {value: 1.45, range: [0.8, 2.2]}
+      engaged: {value: 1.58, range: [0.8, 3.0]}
+      married: {value: 1.07, range: [0.5, 1.4]}
+    evidence: calibrated
+    refs: ["Dating survey: dates per month by relationship stage and church activity"]
+  romance.engage:
+    label: Engagement & wedding timing
+    target: [rel_status, age_at_marriage]
+    sources: [relationship_commitment, ideal_months_engaged, activity, age, financial_stress, mission_status]
+    form: "weekly h = logistic(base + βc·commitment + βt·clip((months − ideal)/4) + βa·both active LDS·marriage_norm + age term − 1.8·[man under 20] − 1.2·[LDS man under 21.5 who has not served] − 0.8·financial stress − 1.2·mismatch − 3·[same-sex couple with an active member]); wedding 2.5–4.5 months later for active LDS couples"
+    params:
+      base: {value: -5.8, range: [-8.0, -4.5]}
+      commitment: {value: 3.0, range: [1.5, 4.5]}
+      timing: {value: 0.8, range: [0.3, 1.5]}
+      active_lds: {value: 1.2, range: [0.4, 2.0]}
+    evidence: empirical
+    refs: ["Dating & Culture surveys: months dated before engagement (median ≈ 6–8), age at marriage (median ≈ 22)"]
+  romance.sex:
+    label: Premarital sexual activity
+    target: n_sex_partners
+    sources: [chastity_commitment, rel_status, sensation_seeking, self_control, living]
+    form: "weekly h for exclusive unmarried couples = logistic(base + βc·(0.5 − min chastity) + 0.6·engaged + 0.3·log(1+months) + 0.4·SS − 0.5·self-control − 0.4·both in contracted housing)"
+    params:
+      base: {value: -5.5, range: [-7, -4]}
+      chastity: {value: 6.0, range: [3, 9]}
+    evidence: empirical
+    refs: ["ProvoStats/Dating surveys: sexual partners by relationship status and church activity"]
+    desc: Belief–behavior discrepancy is explicitly allowed; consequences flow through guilt, repentance or belief change.
+  romance.confession:
+    label: Repentance (meeting with a bishop)
+    target: [guilt, temple_recommend, chastity_commitment]
+    sources: [religious_identity, guilt, moral_autonomy]
+    form: "P(confess within weeks) = logistic(base + 2·identity + 1.5·guilt − 1.2·autonomy) for members with commitment > 0.35"
+    params:
+      base: {value: -1.5, range: [-3, 0]}
+    evidence: empirical
+    refs: ["Culture & Lifestyle: adult repentance meetings and bishop-experience ratings"]

@@ -1,0 +1,81 @@
+# Slow-moving traits. Big Five are sampled jointly (multivariate normal with literature
+# intercorrelations) and conditioned on survey proxies where they exist.
+entity: person
+defaults: {kind: trait, dtype: f4, units: z, range: [-3.5, 3.5], update: yearly, evidence: literature, flags: [filter, chart, map]}
+variables:
+  extraversion:
+    label: Extraversion
+    desc: Big Five extraversion — sociability, assertiveness, positive emotionality. Raises the *need* for social contact as well as the rate of initiating it, so extraverts can still be lonely.
+    init: "College Life self-rating (1-10) via copula, standardized; Big Five MVN."
+    source: [college-life, van der Linden et al. 2010]
+    evidence: empirical
+  agreeableness:
+    label: Agreeableness
+    desc: Warmth, cooperation, trust. Raises interaction valence and lowers conflict.
+    init: "Big Five MVN (literature intercorrelations); weak link to attitudes."
+  conscientiousness:
+    label: Conscientiousness
+    desc: Organization, diligence, self-discipline. Drives study, class attendance, GPA, habit persistence.
+    init: "Big Five MVN conditioned on homework timing, academic honesty, GPA proxies (College Life, ProvoStats)."
+    source: [college-life, provostats]
+  neuroticism:
+    label: Neuroticism
+    desc: Negative emotionality. Raises baseline stress/anxiety and amplifies negative life-event effects.
+    init: "Big Five MVN conditioned on self-reported mental-health rating and anxiety/depression (College Life)."
+    source: [college-life]
+  openness:
+    label: Openness
+    desc: Openness to experience. Linked to liberal attitudes and to belief change susceptibility.
+    init: "Big Five MVN conditioned on political orientation (r≈0.25, literature)."
+  sensation_seeking:
+    label: Sensation seeking
+    desc: Novelty/thrill seeking. Raises risky romantic/sexual behavior and NCMO propensity.
+    init: "Correlated with E (+), C (−); conditioned on NCMO interest (ProvoStats)."
+    source: [provostats]
+    evidence: empirical
+  self_control:
+    label: Self-control
+    desc: Ability to align behavior with goals; moderates belief–behavior discrepancy.
+    init: "Derived: 0.6·C − 0.2·N + noise."
+  rejection_sensitivity:
+    label: Rejection sensitivity
+    desc: Anxious expectation of rejection; lowers asking-out rates and amplifies rejection effects.
+    init: "Derived: 0.45·N + 0.3·attachment anxiety + noise; conditioned on 'scared to initiate a kiss' (Dating)."
+    source: [dating]
+  attachment_anxiety:
+    label: Attachment anxiety
+    desc: Fear of abandonment in close relationships. Amplifies breakup distress (Sbarra 2006).
+    init: "Derived from N (+0.4) + noise."
+  attachment_avoidance:
+    label: Attachment avoidance
+    desc: Discomfort with closeness. Slows relationship progression; dampens breakup distress.
+    init: "Derived from −A (0.3), −E (0.2) + noise."
+  social_anxiety:
+    label: Social anxiety
+    desc: Fear of social evaluation. Lowers interaction initiation and raises the withdrawal response to loneliness.
+    init: "Derived: −0.45·E + 0.4·N + noise."
+  conformity:
+    label: Conformity
+    desc: Susceptibility to perceived norms (peer influence weight).
+    init: "Derived: 0.3·A + 0.2·C − 0.3·O + noise. Hypothetical construct mapping."
+    evidence: hypothetical
+  empathy:
+    label: Empathy
+    desc: Emotional attunement; raises friendship closeness growth and emotional contagion.
+    init: "Derived: 0.6·A + noise."
+  attractiveness:
+    label: Physical attractiveness (as perceived by others)
+    desc: Latent mate-appeal component shared across observers. Most romantic attraction in the model is pair-specific (idiosyncratic), consistent with evidence that desire is poorly predicted by individual traits (Joel, Eastwick & Finkel 2017).
+    init: "N(0,1), weakly correlated with exercise habits."
+    evidence: hypothetical
+  academic_ability:
+    label: Academic ability
+    desc: Latent academic aptitude used in GPA production.
+    init: "Conditioned on reported GPA (ProvoStats) after removing conscientiousness/work-hour effects."
+    source: [provostats]
+    evidence: calibrated
+  social_skill:
+    label: Social skill
+    desc: Skill at making interactions go well; raises interaction valence.
+    init: "Derived: 0.4·E + 0.3·A − 0.3·social anxiety + noise."
+    evidence: hypothetical

@@ -1,0 +1,149 @@
+[
+ {
+  "name": "Saint Francis Catholic Church",
+  "affiliation": "Catholic",
+  "lon": -111.65393,
+  "lat": 40.24061,
+  "src": "ugrc"
+ },
+ {
+  "name": "Saint Francis of Assisi Catholic Church",
+  "affiliation": "Catholic",
+  "lon": -111.69436,
+  "lat": 40.30731,
+  "src": "ugrc"
+ },
+ {
+  "name": "Seventh Day Adventist Church",
+  "affiliation": "Other Christian",
+  "lon": -111.64609,
+  "lat": 40.23007,
+  "src": "ugrc"
+ },
+ {
+  "name": "Paramita Group",
+  "affiliation": "Other faith",
+  "lon": -111.63824,
+  "lat": 40.24958,
+  "src": "ugrc"
+ },
+ {
+  "name": "Calvary City on A Hill",
+  "affiliation": "Protestant",
+  "lon": -111.65657,
+  "lat": 40.23536,
+  "src": "osm"
+ },
+ {
+  "name": "CenterPoint Church",
+  "affiliation": "Protestant",
+  "lon": -111.71228,
+  "lat": 40.26902,
+  "src": "osm"
+ },
+ {
+  "name": "Church of the Nazarene",
+  "affiliation": "Protestant",
+  "lon": -111.67066,
+  "lat": 40.23542,
+  "src": "ugrc"
+ },
+ {
+  "name": "Community Congregational Church",
+  "affiliation": "Protestant",
+  "lon": -111.659,
+  "lat": 40.23603,
+  "src": "ugrc"
+ },
+ {
+  "name": "Evangelical Free Church",
+  "affiliation": "Protestant",
+  "lon": -111.68657,
+  "lat": 40.29175,
+  "src": "ugrc"
+ },
+ {
+  "name": "Fellowship Bible Church",
+  "affiliation": "Protestant",
+  "lon": -111.72377,
+  "lat": 40.34392,
+  "src": "osm"
+ },
+ {
+  "name": "Grace Baptist Church",
+  "affiliation": "Protestant",
+  "lon": -111.72464,
+  "lat": 40.29148,
+  "src": "ugrc"
+ },
+ {
+  "name": "Harvest Bible Fellowship",
+  "affiliation": "Protestant",
+  "lon": -111.68489,
+  "lat": 40.24023,
+  "src": "osm"
+ },
+ {
+  "name": "La Iglesia Apostolica de la Fe en Jesucristo",
+  "affiliation": "Protestant",
+  "lon": -111.68713,
+  "lat": 40.23359,
+  "src": "osm"
+ },
+ {
+  "name": "Maranatha Christian Church",
+  "affiliation": "Protestant",
+  "lon": -111.65841,
+  "lat": 40.23438,
+  "src": "osm"
+ },
+ {
+  "name": "Orem Community Church",
+  "affiliation": "Protestant",
+  "lon": -111.68548,
+  "lat": 40.29925,
+  "src": "ugrc"
+ },
+ {
+  "name": "Provo Bible Church",
+  "affiliation": "Protestant",
+  "lon": -111.68352,
+  "lat": 40.21806,
+  "src": "osm"
+ },
+ {
+  "name": "Provo United Pentecostal Church",
+  "affiliation": "Protestant",
+  "lon": -111.67159,
+  "lat": 40.21245,
+  "src": "osm"
+ },
+ {
+  "name": "Rock Canyon Assembly of God Church",
+  "affiliation": "Protestant",
+  "lon": -111.65107,
+  "lat": 40.27891,
+  "src": "ugrc"
+ },
+ {
+  "name": "Saint Mark's Lutheran Church",
+  "affiliation": "Protestant",
+  "lon": -111.66636,
+  "lat": 40.28353,
+  "src": "ugrc"
+ },
+ {
+  "name": "Saint Mary's Episcopal Church",
+  "affiliation": "Protestant",
+  "lon": -111.65968,
+  "lat": 40.23677,
+  "src": "ugrc"
+ },
+ {
+  "name": "The Rock",
+  "affiliation": "Protestant",
+  "lon": -111.66319,
+  "lat": 40.23284,
+  "src": "osm"
+ }
+]

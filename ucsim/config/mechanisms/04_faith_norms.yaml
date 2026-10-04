@@ -1,0 +1,127 @@
+system: religion
+mechanisms:
+  faith.attend:
+    label: Sunday attendance
+    target: [attend_rate, activity]
+    sources: [faith_belief, religious_identity, practice_habit, perceived_norm, family_expectation, stress, fatigue, church_attendance_norm]
+    form: "P(attend) = logistic(base + βb·(belief−0.6) + βi·(identity−0.5) + βh·(habit−0.5) + βn·(norm−0.5) + βf·family − βs·(stress−0.3)⁺ − 0.8·fatigue − 2·Sunday work − crisis)"
+    params:
+      base: {value: -0.45, range: [-1.5, 0.5]}
+      belief: {value: 3.0, range: [1.5, 4.5]}
+      identity: {value: 2.0, range: [1.0, 3.0]}
+      habit: {value: 2.0, range: [1.0, 3.0]}
+      norm: {value: 1.0, range: [0.3, 2.0]}
+      family: {value: 0.8, range: [0.2, 1.4]}
+      stress: {value: 1.5, range: [0.5, 2.5]}
+    evidence: empirical
+    refs: ["Culture & Lifestyle: sacrament attendance by belief/identity items", "ProvoStats: activity by school, sex, relationship"]
+    desc: Activity category (active / less active / inactive) is derived from the resulting 8-week attendance rate.
+  faith.habit:
+    label: Attendance habit formation
+    target: practice_habit
+    sources: [attend_rate]
+    form: "attend: h ← h + α(1−h); miss: h ← h(1 − 0.4α)"
+    params:
+      learning_rate: {value: 0.06, range: [0.02, 0.12]}
+    evidence: literature
+    refs: ["Lally, van Jaarsveld, Potts & Wardle (2010) EJSP: habit automaticity grows asymptotically (median ~66 days)"]
+  faith.practices:
+    label: Private & temple practice follow activity
+    target: [temple_per_year, scripture_minutes]
+    sources: [activity, temple_recommend]
+    form: "weekly: x ← x + r·(pref·f(activity)·g(recommend) − x); f = 1 active, f_less, f_inactive, 0 non-member; g = 1 with recommend else 0.15 (temple only)"
+    params:
+      less_active_factor: {value: 0.5, range: [0.3, 0.7]}
+      inactive_factor: {value: 0.05, range: [0.0, 0.15]}
+      adjust_rate: {value: 0.08, range: [0.03, 0.2]}
+    evidence: empirical
+    desc: "Each person keeps a personal preference level (sampled from the culture survey); what they actually do tracks their current activity, so a faith transition shows up in practices over weeks."
+    refs: ["Culture & Lifestyle survey: temple visits/year 17.1 (active) vs 3.4 (less active) vs 0.25 (inactive); scripture minutes/day 10.7 vs 2.4 vs 0"]
+  faith.influence:
+    label: Social influence on belief (uncertainty-gated)
+    target: faith_belief
+    sources: [friends' belief, faith_certainty, conformity]
+    moderators: [faith_certainty, conformity]
+    form: "Δbelief = β·(1 − certainty)·exp(0.3·conformity)·(closeness-weighted friends' belief − belief), weekly"
+    params:
+      base: {value: 0.03, range: [0.0, 0.08]}
+    evidence: literature
+    refs: ["DeGroot-type opinion dynamics; uncertainty increases susceptibility to influence (general social-influence finding)"]
+  faith.spiritual:
+    label: Spiritual experiences
+    target: [faith_belief, faith_certainty, purpose]
+    sources: [private_practice, attend_rate, faith_belief]
+    form: "weekly P = rate·(0.3 + private practice + 0.5·attendance)·belief"
+    params:
+      rate: {value: 0.03, range: [0.01, 0.06]}
+    evidence: hypothetical
+  faith.challenge:
+    label: Faith challenges (history, policy, online content)
+    target: [faith_belief, faith_certainty]
+    sources: [openness, social_media_hours, history_struggle, lgbtq_tension, faith_certainty]
+    form: "weekly P = rate·exp(0.35·O + 0.15·log(1+social media h) + 0.8·history/4 + 1.2·LGBTQ tension − 0.8·(certainty−0.6)); belief −= hit·(1−certainty), certainty −= hit"
+    params:
+      rate: {value: 0.006, range: [0.002, 0.015]}
+      belief_hit: {value: 0.04, range: [0.01, 0.08]}
+      certainty_hit: {value: 0.06, range: [0.02, 0.12]}
+    evidence: empirical
+    refs: ["Culture & Lifestyle: ~76% report having struggled with faith; church-history difficulty common among those who left"]
+  faith.dissonance:
+    label: Belief–behavior dissonance → belief change
+    target: faith_belief
+    sources: [guilt, religious_identity, moral_autonomy]
+    form: "after ≥4 weeks of guilt>0.3: Δbelief = −β·guilt·(1 − identity)·(0.5 + autonomy)"
+    params:
+      belief_shift: {value: 0.01, range: [0.0, 0.03]}
+    evidence: hypothetical
+    refs: ["Festinger (1957): cognitive dissonance — resolved by changing behavior or belief"]
+    desc: The alternative resolutions (quitting the behavior; repentance) are in norms.quit and romance.confession, so different people take different paths.
+  faith.crisis:
+    label: Faith crisis onset & resolution
+    target: [faith_crisis, faith_belief, religious_identity, lds_member]
+    sources: [faith_certainty, religious_identity, perceived_norm, family_expectation, institutional_trust, moral_autonomy, lgbtq_tension]
+    form: "onset: certainty < threshold → weekly P(onset); resolution after ≥60 days: weekly P(resolve); outcome = argmax(renew, nuanced, leave utilities + Gumbel)"
+    params:
+      certainty_threshold: {value: 0.3, range: [0.2, 0.45]}
+      onset_rate: {value: 0.05, range: [0.01, 0.1]}
+      resolution_rate: {value: 0.03, range: [0.01, 0.06]}
+      leave_bias: {value: -0.3, range: [-1.5, 1.0]}
+    evidence: hypothetical
+    refs: ["Culture & Lifestyle: ~18% agree they are currently in a faith crisis; ranked reasons for leaving (doctrine, policy, history)"]
+  faith.other_attend:
+    label: Non-LDS service attendance
+    target: service_attend
+    sources: [own_religiosity, service_attend, stress, fatigue]
+    form: "P(attend this week) = logistic(base + βr·(own religiosity − 0.5) + βh·(service_attend − 0.4) − 0.8·fatigue − 0.6·(stress − 0.3)⁺); religious non-LDS find the nearest congregation of their tradition"
+    params:
+      base: {value: -0.6, range: [-1.5, 0.3]}
+      religiosity: {value: 3.0, range: [1.5, 4.5]}
+      habit: {value: 2.0, range: [1.0, 3.0]}
+    evidence: hypothetical
+    desc: Catholic, Protestant and other congregations are real places in Provo/Orem; attenders meet each other there like LDS ward members do.
+  faith.outsider:
+    label: Religious-outsider feeling
+    target: outsider
+    sources: [lds friends share, lds roommates share, school, being proselytized, faith or secular community]
+    form: "target = 0.12 + 0.35·LDS share of friends + 0.15·LDS share of roommates + 0.12·[BYU] + 0.15·[recently met missionaries] − 0.2·[a close friend who shares one's outlook] − 0.15·[own congregation or faith/secular club]; weekly EWMA"
+    params:
+      weight: {value: 0.25, range: [0.1, 0.5]}
+    evidence: hypothetical
+    refs: ["Minority-religion students in religiously homogeneous campuses report lower belonging (e.g., Bowman & Small 2012)"]
+  faith.missionary_contact:
+    label: Invited to meet the missionaries
+    target: investigating
+    sources: [LDS close friends, LDS partner, own_religiosity, openness]
+    form: "weekly h = rate·(LDS close friends with belief > 0.6 + 3·[dating an LDS member])·exp(0.3·openness − 1.5·own religiosity); lessons stop at 8%/week"
+    params:
+      rate: {value: 0.0008, range: [0.0003, 0.003]}
+    evidence: hypothetical
+  faith.conversion:
+    label: Baptism (conversion)
+    target: lds_member
+    sources: [investigating, LDS partner, LDS friend share, own_religiosity]
+    form: "weekly h = logistic(base + 2·[dating/engaged to an LDS member] + 1.5·LDS friend share − 2·own religiosity) while investigating (≈2–3% of non-members per year overall)"
+    params:
+      base: {value: -5.0, range: [-6.5, -3.5]}
+    evidence: hypothetical
+    desc: New converts start active with moderate belief and join a ward; their own path afterwards follows the same faith dynamics as everyone else.

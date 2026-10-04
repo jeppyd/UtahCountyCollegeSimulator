@@ -1,0 +1,826 @@
+[
+{
+"name": "Accounting",
+"degree": "A.S."
+},
+{
+"name": "Accounting",
+"degree": "B.S."
+},
+{
+"name": "American Sign Language Secondary Education",
+"degree": "B.A."
+},
+{
+"name": "Animation and Game Development",
+"degree": "B.S."
+},
+{
+"name": "Anthropology",
+"degree": "B.A."
+},
+{
+"name": "Anthropology",
+"degree": "B.S."
+},
+{
+"name": "Applied Communication",
+"degree": "B.A."
+},
+{
+"name": "Applied Communication",
+"degree": "B.S."
+},
+{
+"name": "Art Education",
+"degree": "B.S."
+},
+{
+"name": "Art History",
+"degree": "B.A."
+},
+{
+"name": "Art and Design",
+"degree": "A.A."
+},
+{
+"name": "Art and Design",
+"degree": "A.S."
+},
+{
+"name": "Art and Design",
+"degree": "B.S."
+},
+{
+"name": "Art and Design - Graphic Design Emphasis",
+"degree": "A.A.S."
+},
+{
+"name": "Art and Design - Graphic Design Emphasis",
+"degree": "B.F.A."
+},
+{
+"name": "Art and Design - Illustration Emphasis",
+"degree": "A.A.S."
+},
+{
+"name": "Art and Design - Illustration Emphasis",
+"degree": "B.F.A."
+},
+{
+"name": "Art and Design - Painting/Drawing/Printmaking Emphasis",
+"degree": "B.F.A."
+},
+{
+"name": "Art and Design - Photography Emphasis",
+"degree": "A.A.S."
+},
+{
+"name": "Art and Design - Photography Emphasis",
+"degree": "B.F.A."
+},
+{
+"name": "Art and Design - Sculpture and Ceramics Emphasis",
+"degree": "B.F.A."
+},
+{
+"name": "Associate in Pre-Engineering - Biological and Chemical Engineering Emphasis",
+"degree": "A.P.E."
+},
+{
+"name": "Associate in Pre-Engineering - Civil and Mechanical Engineering Emphasis",
+"degree": "A.P.E."
+},
+{
+"name": "Associate in Pre-Engineering - Computer and Electrical Engineering Emphasis",
+"degree": "A.P.E."
+},
+{
+"name": "Automotive Technology",
+"degree": "A.A.S."
+},
+{
+"name": "Aviation Management",
+"degree": "B.S."
+},
+{
+"name": "Aviation Science",
+"degree": "A.A.S."
+},
+{
+"name": "Aviation Science",
+"degree": "A.S."
+},
+{
+"name": "Bioinformatics",
+"degree": "B.S."
+},
+{
+"name": "Biology",
+"degree": "A.A."
+},
+{
+"name": "Biology",
+"degree": "A.S."
+},
+{
+"name": "Biology",
+"degree": "B.S."
+},
+{
+"name": "Biology Education",
+"degree": "B.S."
+},
+{
+"name": "Biomedical Science",
+"degree": "B.S."
+},
+{
+"name": "Botany",
+"degree": "B.S."
+},
+{
+"name": "Business Management",
+"degree": "A.S."
+},
+{
+"name": "Business Technologies and Education",
+"degree": "B.S."
+},
+{
+"name": "Business and Analysis",
+"degree": "B.S."
+},
+{
+"name": "Cabinetry and Architectural Woodwork",
+"degree": "A.A.S."
+},
+{
+"name": "Chemistry - Biochemistry Emphasis",
+"degree": "B.S."
+},
+{
+"name": "Chemistry - Professional Chemistry Emphasis",
+"degree": "B.S."
+},
+{
+"name": "Chemistry Education",
+"degree": "B.S."
+},
+{
+"name": "Civil Engineering",
+"degree": "B.S."
+},
+{
+"name": "Commercial Music",
+"degree": "B.M."
+},
+{
+"name": "Computational Data Science",
+"degree": "B.S."
+},
+{
+"name": "Computer Engineering",
+"degree": "B.S."
+},
+{
+"name": "Computer Science",
+"degree": "A.S."
+},
+{
+"name": "Computer Science",
+"degree": "B.S."
+},
+{
+"name": "Computer Science Education",
+"degree": "B.S."
+},
+{
+"name": "Construction Management",
+"degree": "A.A.S."
+},
+{
+"name": "Construction Management",
+"degree": "B.S."
+},
+{
+"name": "Criminal Justice",
+"degree": "A.A."
+},
+{
+"name": "Criminal Justice",
+"degree": "A.S."
+},
+{
+"name": "Criminal Justice",
+"degree": "B.S."
+},
+{
+"name": "Culinary Arts",
+"degree": "A.A.S."
+},
+{
+"name": "Cybersecurity",
+"degree": "B.S."
+},
+{
+"name": "Dance",
+"degree": "A.S."
+},
+{
+"name": "Dance",
+"degree": "B.S."
+},
+{
+"name": "Dance - Ballet Emphasis",
+"degree": "B.F.A."
+},
+{
+"name": "Dance - Modern Dance Emphasis",
+"degree": "B.F.A."
+},
+{
+"name": "Dance Education",
+"degree": "B.S."
+},
+{
+"name": "Deaf Studies - General Deaf Studies Emphasis",
+"degree": "B.A."
+},
+{
+"name": "Deaf Studies - Interpreting Emphasis",
+"degree": "B.A."
+},
+{
+"name": "Dental Hygiene",
+"degree": "A.A.S."
+},
+{
+"name": "Dental Hygiene",
+"degree": "B.S."
+},
+{
+"name": "Diesel Mechanics Technology",
+"degree": "A.A.S."
+},
+{
+"name": "Digital Audio",
+"degree": "A.A.S."
+},
+{
+"name": "Digital Audio",
+"degree": "B.S."
+},
+{
+"name": "Digital Cinema Production",
+"degree": "A.A.S."
+},
+{
+"name": "Digital Cinema Production",
+"degree": "B.S."
+},
+{
+"name": "Digital Marketing",
+"degree": "B.S."
+},
+{
+"name": "Early Childhood Education",
+"degree": "A.S."
+},
+{
+"name": "Earth Science Education",
+"degree": "B.S."
+},
+{
+"name": "Electrical Engineering",
+"degree": "B.S."
+},
+{
+"name": "Electrical and Computer Engineering",
+"degree": "A.A.S."
+},
+{
+"name": "Elementary Education",
+"degree": "B.S."
+},
+{
+"name": "Emergency Services",
+"degree": "A.S."
+},
+{
+"name": "Emergency Services Administration",
+"degree": "B.S."
+},
+{
+"name": "Emergency Services Operations",
+"degree": "A.A.S."
+},
+{
+"name": "Engineering Design Technology",
+"degree": "A.A.S."
+},
+{
+"name": "Engineering Design Technology",
+"degree": "A.S."
+},
+{
+"name": "English - Creative Writing Emphasis",
+"degree": "B.A."
+},
+{
+"name": "English - Creative Writing Emphasis",
+"degree": "B.S."
+},
+{
+"name": "English - Literary Studies Emphasis",
+"degree": "B.A."
+},
+{
+"name": "English - Literary Studies Emphasis",
+"degree": "B.S."
+},
+{
+"name": "English - Writing Studies Emphasis",
+"degree": "B.A."
+},
+{
+"name": "English - Writing Studies Emphasis",
+"degree": "B.S."
+},
+{
+"name": "English Education",
+"degree": "B.A."
+},
+{
+"name": "English Education",
+"degree": "B.S."
+},
+{
+"name": "Entertainment Design",
+"degree": "A.A.S."
+},
+{
+"name": "Entertainment Design",
+"degree": "B.F.A."
+},
+{
+"name": "Environmental Science and Management",
+"degree": "B.S."
+},
+{
+"name": "Environmental Studies",
+"degree": "B.S."
+},
+{
+"name": "Event Management",
+"degree": "B.S."
+},
+{
+"name": "Exercise Science",
+"degree": "A.S."
+},
+{
+"name": "Exercise Science",
+"degree": "B.S."
+},
+{
+"name": "Family Science",
+"degree": "B.A."
+},
+{
+"name": "Family Science",
+"degree": "B.S."
+},
+{
+"name": "Finance",
+"degree": "B.S."
+},
+{
+"name": "Financial Planning and Wealth Management",
+"degree": "B.S."
+},
+{
+"name": "Forensic Science",
+"degree": "A.S."
+},
+{
+"name": "Forensic Science - Forensic Laboratory Emphasis",
+"degree": "B.S."
+},
+{
+"name": "Geography",
+"degree": "B.S."
+},
+{
+"name": "Geology",
+"degree": "B.S."
+},
+{
+"name": "Healthcare Administration",
+"degree": "B.S."
+},
+{
+"name": "Healthcare Services",
+"degree": "A.A.S."
+},
+{
+"name": "History",
+"degree": "B.A."
+},
+{
+"name": "History and Social Studies Education",
+"degree": "B.S."
+},
+{
+"name": "Hospitality Management",
+"degree": "A.A.S."
+},
+{
+"name": "Hospitality Management",
+"degree": "A.S."
+},
+{
+"name": "Hospitality Management",
+"degree": "B.S."
+},
+{
+"name": "Human Resource Management",
+"degree": "B.S."
+},
+{
+"name": "Humanities",
+"degree": "B.A."
+},
+{
+"name": "Humanities",
+"degree": "B.S."
+},
+{
+"name": "Humanities and Social Sciences",
+"degree": "A.A."
+},
+{
+"name": "Humanities and Social Sciences",
+"degree": "A.S."
+},
+{
+"name": "Information Systems - Application Development Emphasis",
+"degree": "B.S."
+},
+{
+"name": "Information Systems - Applied Artificial Intelligence Emphasis",
+"degree": "B.S."
+},
+{
+"name": "Information Systems - Data Analytics Emphasis",
+"degree": "B.S."
+},
+{
+"name": "Information Systems - Information Security Management Emphasis",
+"degree": "B.S."
+},
+{
+"name": "Information Systems and Technology",
+"degree": "A.A.S."
+},
+{
+"name": "Information Systems and Technology",
+"degree": "A.S."
+},
+{
+"name": "Information Technology",
+"degree": "B.S."
+},
+{
+"name": "Integrated Studies",
+"degree": "B.A."
+},
+{
+"name": "Integrated Studies",
+"degree": "B.S."
+},
+{
+"name": "International Business",
+"degree": "B.S."
+},
+{
+"name": "Marketing",
+"degree": "B.S."
+},
+{
+"name": "Mathematics",
+"degree": "A.S."
+},
+{
+"name": "Mathematics - Actuarial Science Emphasis",
+"degree": "B.S."
+},
+{
+"name": "Mathematics - Applied Mathematics Emphasis",
+"degree": "B.S."
+},
+{
+"name": "Mathematics - Mathematics Emphasis",
+"degree": "B.S."
+},
+{
+"name": "Mathematics Education",
+"degree": "B.S."
+},
+{
+"name": "Mechanical Engineering",
+"degree": "B.S."
+},
+{
+"name": "Mechatronics Engineering Technology",
+"degree": "B.S."
+},
+{
+"name": "Mechatronics Engineering Technology - Automation and Electrical Technology Emphasis",
+"degree": "A.A.S."
+},
+{
+"name": "Mechatronics Engineering Technology - Mechatronics Emphasis",
+"degree": "A.A.S."
+},
+{
+"name": "Microbiology",
+"degree": "B.S."
+},
+{
+"name": "Molecular Biosciences and Biotechnology",
+"degree": "B.S."
+},
+{
+"name": "Music",
+"degree": "A.S."
+},
+{
+"name": "Music",
+"degree": "B.A."
+},
+{
+"name": "Music",
+"degree": "B.S."
+},
+{
+"name": "Music Education",
+"degree": "B.S."
+},
+{
+"name": "National Security Studies",
+"degree": "B.A."
+},
+{
+"name": "National Security Studies",
+"degree": "B.S."
+},
+{
+"name": "Nursing",
+"degree": "B.S."
+},
+{
+"name": "Occupational Therapy Assistant",
+"degree": "B.S."
+},
+{
+"name": "Operations and Supply Chain Management",
+"degree": "B.S."
+},
+{
+"name": "Outdoor Recreation Management",
+"degree": "A.S."
+},
+{
+"name": "Outdoor Recreation Management",
+"degree": "B.S."
+},
+{
+"name": "Performance",
+"degree": "B.M."
+},
+{
+"name": "Philosophy",
+"degree": "B.A."
+},
+{
+"name": "Philosophy",
+"degree": "B.S."
+},
+{
+"name": "Physical Education Teacher Education",
+"degree": "B.S."
+},
+{
+"name": "Physics",
+"degree": "B.S."
+},
+{
+"name": "Physics Education",
+"degree": "B.S."
+},
+{
+"name": "Political Science - American Government Emphasis",
+"degree": "B.A."
+},
+{
+"name": "Political Science - American Government Emphasis",
+"degree": "B.S."
+},
+{
+"name": "Political Science - Global Politics Emphasis",
+"degree": "B.A."
+},
+{
+"name": "Political Science - Global Politics Emphasis",
+"degree": "B.S."
+},
+{
+"name": "Political Science - Indian Affairs Administration Emphasis",
+"degree": "B.A."
+},
+{
+"name": "Political Science - Indian Affairs Administration Emphasis",
+"degree": "B.S."
+},
+{
+"name": "Political Science - Peace and Justice Studies Emphasis",
+"degree": "B.A."
+},
+{
+"name": "Political Science - Peace and Justice Studies Emphasis",
+"degree": "B.S."
+},
+{
+"name": "Political Science - Public Administration and Public Policy Emphasis",
+"degree": "B.A."
+},
+{
+"name": "Political Science - Public Administration and Public Policy Emphasis",
+"degree": "B.S."
+},
+{
+"name": "Political Science - Public Law and Political Philosophy Emphasis",
+"degree": "B.A."
+},
+{
+"name": "Political Science - Public Law and Political Philosophy Emphasis",
+"degree": "B.S."
+},
+{
+"name": "Pre-Elementary Education",
+"degree": "A.S."
+},
+{
+"name": "Pre-Engineering",
+"degree": "A.S."
+},
+{
+"name": "Professional Advancement",
+"degree": "A.S."
+},
+{
+"name": "Professional Advancement",
+"degree": "B.S."
+},
+{
+"name": "Professional Pilot",
+"degree": "B.S."
+},
+{
+"name": "Professional Sales",
+"degree": "B.S."
+},
+{
+"name": "Psychology",
+"degree": "B.A."
+},
+{
+"name": "Psychology",
+"degree": "B.S."
+},
+{
+"name": "Public Health",
+"degree": "A.S."
+},
+{
+"name": "Public Health",
+"degree": "B.S."
+},
+{
+"name": "Public Relations and Strategic Communication",
+"degree": "B.A."
+},
+{
+"name": "Public Relations and Strategic Communication",
+"degree": "B.S."
+},
+{
+"name": "Respiratory Therapy",
+"degree": "A.A.S."
+},
+{
+"name": "Respiratory Therapy",
+"degree": "B.S."
+},
+{
+"name": "School Health Education",
+"degree": "B.S."
+},
+{
+"name": "Sociology",
+"degree": "B.A."
+},
+{
+"name": "Sociology",
+"degree": "B.S."
+},
+{
+"name": "Software Development",
+"degree": "B.A.S."
+},
+{
+"name": "Software Engineering",
+"degree": "B.S."
+},
+{
+"name": "Spanish",
+"degree": "B.A."
+},
+{
+"name": "Spanish Education",
+"degree": "B.A."
+},
+{
+"name": "Special Education - Mild/Moderate/Severe",
+"degree": "B.S."
+},
+{
+"name": "Statistics",
+"degree": "B.S."
+},
+{
+"name": "Strategic Foresight and Business",
+"degree": "B.S."
+},
+{
+"name": "Surveying Technology",
+"degree": "A.A.S."
+},
+{
+"name": "Technology",
+"degree": "A.A.S."
+},
+{
+"name": "Technology Management",
+"degree": "B.S."
+},
+{
+"name": "Theatre Arts",
+"degree": "A.S."
+},
+{
+"name": "Theatre Arts - Acting Emphasis",
+"degree": "B.F.A."
+},
+{
+"name": "Theatre Arts - Musical Theatre Emphasis",
+"degree": "B.F.A."
+},
+{
+"name": "Theatre Arts - Theatre Design and Production Emphasis",
+"degree": "B.F.A."
+},
+{
+"name": "Theatre Education",
+"degree": "B.S."
+},
+{
+"name": "Theatre Studies",
+"degree": "A.A."
+},
+{
+"name": "Theatre Studies",
+"degree": "B.A."
+},
+{
+"name": "Transportation Technologies",
+"degree": "B.A.S."
+},
+{
+"name": "Web Design and Development",
+"degree": "A.A.S."
+},
+{
+"name": "Web Design and Development - Web Application Development Emphasis",
+"degree": "B.S."
+},
+{
+"name": "Wildland Fire Management",
+"degree": "A.A.S."
+},
+{
+"name": "Zoology",
+"degree": "B.S."
+}
+]

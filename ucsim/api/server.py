@@ -376,7 +376,7 @@ def counterfactual(i: int) -> dict:
     Pb, Pa = b.w.P, a.w.P
     diffs = []
     for k, spec in Pb.specs.items():
-        if spec.dtype == "str" or k in ("loc_lon", "loc_lat", "activity_now", "birth_day"):
+        if spec.dtype == "str" or k in ("loc_lon", "loc_lat", "activity_now", "birth_day") or k.endswith("_day") or (k.endswith("_id") and k != "partner_id"):
             continue
         xb, xa = Pb[k][i], Pa[k][i]
         if spec.dtype in ("f4", "f8"):

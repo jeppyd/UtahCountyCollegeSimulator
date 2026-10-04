@@ -125,6 +125,17 @@ def event_differences(base, alt):
     return n, only_b, only_a
 
 
+def _home(sim, i: int) -> str:
+    """Where person i lives, in words (complex name, or the kind of home)."""
+    P, w = sim.w.P, sim.w
+    cx = int(P["complex_id"][i])
+    if not P["present"][i]:
+        return "not in Provo–Orem"
+    if 0 <= cx < w.complexes.height:
+        return str(w.complexes["name"][cx])
+    return P.specs["living"].categories[int(P["living"][i])].replace("_", " ")
+
+
 def _fmt(P, var, x):
     spec = P.specs[var]
     if var == "partner_id":
@@ -161,8 +172,15 @@ def diverged_people(base, alt, k: int = 40) -> dict:
     first_a = _first_by_person(alt, only_a)
     people = []
     for i in order:
-        diffs = [{"var": var, "label": Pb.specs[var].label, "base": _fmt(Pb, var, Pb[var][i]), "alt": _fmt(Pa, var, Pa[var][i])}
-                 for var, _ in LIFE_STATES if var in Pb.specs and Pb[var][i] != Pa[var][i]]
+        diffs = []
+        for var, _ in LIFE_STATES:
+            if var not in Pb.specs or Pb[var][i] == Pa[var][i]:
+                continue
+            if var == "unit_id":
+                hb, ha = _home(base, i), _home(alt, i)
+                diffs.append({"var": var, "label": "Home", "base": hb if hb != ha else f"{hb} (one unit)", "alt": ha if hb != ha else f"{ha} (another unit)"})
+            else:
+                diffs.append({"var": var, "label": Pb.specs[var].label, "base": _fmt(Pb, var, Pb[var][i]), "alt": _fmt(Pa, var, Pa[var][i])})
         fd = None
         cand = [(r, w) for r, w in ((first_b.get(i), "base"), (first_a.get(i), "alt")) if r is not None]
         if cand:
@@ -222,7 +240,7 @@ def person_divergence(base, alt, i: int) -> dict:
 
     states = []
     for var, spec in Pb.specs.items():
-        if spec.dtype == "str" or var in SKIP or var in ("activity_now",):
+        if spec.dtype == "str" or var in SKIP or var in ("activity_now",) or var.endswith("_day") or (var.endswith("_id") and var != "partner_id"):
             continue
         xb, xa = Pb[var][i], Pa[var][i]
         if spec.dtype in ("f4", "f8"):
@@ -230,6 +248,8 @@ def person_divergence(base, alt, i: int) -> dict:
                 states.append({"id": var, "label": spec.label, "domain": spec.domain, "base": float(xb), "alt": float(xa)})
         elif xb != xa:
             states.append({"id": var, "label": spec.label, "domain": spec.domain, "base": _fmt(Pb, var, xb), "alt": _fmt(Pa, var, xa)})
+    if Pb["unit_id"][i] != Pa["unit_id"][i]:
+        states.append({"id": "living", "label": "Home", "domain": "academics_work", "base": _home(base, i), "alt": _home(alt, i)})
 
     def ties(sim):
         E = sim.w.E

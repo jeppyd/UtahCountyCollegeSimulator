@@ -100,8 +100,13 @@ class Economy:
             P.internal["shift_mask"][ids] = 0
             sim.emit("job_lost", ids, mech="economy.job_loss")
         # job search: driven by financial stress; finding rate falls with unemployment
-        seeking = present & ~P["employed"] & (P["age"] < 65) & ((P["financial_stress"] > 0.5) | ~P["enrolled"]) & ~P.is_("role", "faculty")
-        h_find = expit(p("economy.job_find.base") + 2.0 * (P["financial_stress"] - 0.4)) * (0.032 / ur) ** 0.8
+        # people actively coping with money strain, or intending to find work, look too (coping.py, plans.py)
+        trying = sim.systems["coping"].money_coping()
+        plans = sim.systems.get("plans")
+        if plans is not None:
+            trying = trying | plans.wants_work()
+        seeking = present & ~P["employed"] & (P["age"] < 65) & ((P["financial_stress"] > 0.5) | ~P["enrolled"] | trying) & ~P.is_("role", "faculty")
+        h_find = expit(p("economy.job_find.base") + 2.0 * (P["financial_stress"] - 0.4) + 0.5 * trying) * (0.032 / ur) ** 0.8
         find = seeking & (sim.u("job_find") < h_find)
         if find.any():
             ids = np.where(find)[0]
@@ -124,7 +129,7 @@ class Economy:
             sim.emit("quit_job", ids, mech="economy.quit")
         # financial stress pushes students to work more (crowding out study)
         thr = p("economy.work_more.threshold")
-        more = present & P["employed"] & P["enrolled"] & (P["financial_stress"] > thr) & (P["work_hours"] < 32)
+        more = present & P["employed"] & P["enrolled"] & ((P["financial_stress"] > thr) | trying) & (P["work_hours"] < 32)
         if more.any():
             ids = np.where(more)[0]
             P.cols["work_hours"][ids] += 3

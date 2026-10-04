@@ -159,7 +159,8 @@ class Activity:
             sec_now = acad.section_now(wd, b)
             in_class = (sec_now >= 0) & present & ~busy & ~P["ill"]
             p_att = expit(p("activity.class_attendance.base") + p("activity.class_attendance.conscientiousness") * sim.z("conscientiousness")
-                          - p("activity.class_attendance.fatigue") * P["fatigue"] + 0.8 * P["academic_pressure"] - 0.6 * P["depressive_episode"])
+                          - p("activity.class_attendance.fatigue") * P["fatigue"] + 0.8 * P["academic_pressure"] - 0.6 * P["depressive_episode"]
+                          + sim.systems["coping"].attend_bias())
             go = in_class & (u < p_att)
             ctype[go] = CTX_ID["class"]
             cid[go] = sec_now[go]

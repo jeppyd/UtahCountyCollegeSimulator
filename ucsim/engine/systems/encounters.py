@@ -156,7 +156,8 @@ class Encounters:
         act = sim.systems["activity"]
         appr, _, _ = act._drives()
         married = P.is_("rel_status", "married")
-        lam = p("encounter.friend_contact.rate") * np.exp(0.25 * sim.z("extraversion") + 0.6 * appr) * np.where(married, 0.6, 1.0)
+        lam = (p("encounter.friend_contact.rate") * np.exp(0.25 * sim.z("extraversion") + 0.6 * appr) * np.where(married, 0.6, 1.0)
+               * sim.systems["coping"].contact_mult())
         rng = sim.streams.gen("friend_contact", w.day)
         k = np.where(P["present"] & (deg > 0), rng.poisson(lam), 0)
         src = np.repeat(np.arange(n), k)
@@ -168,9 +169,16 @@ class Encounters:
         e1, e2 = eidx[indptr[src] + o1], eidx[indptr[src] + o2]
         pick2 = E["closeness"][e2] > E["closeness"][e1]
         off = np.where(pick2, o2, o1)
+        plans = sim.systems.get("plans")
+        if plans is not None:
+            off = plans.reconnect_pick(src, off, indptr, nbr, rng)
         dst = nbr[indptr[src] + off]
+        chosen = eidx[indptr[src] + off]
         ok = P["present"][dst] & (dst != src)
-        src, dst = src[ok], dst[ok]
+        src, dst, chosen = src[ok], dst[ok], chosen[ok]
+        sim.systems["coping"].supported(src, dst, chosen)
+        if plans is not None:
+            plans.contacted(src, dst)
         dist = np.hypot((P["home_lon"][src] - P["home_lon"][dst]) * 85, (P["home_lat"][src] - P["home_lat"][dst]) * 111)
         in_person = rng.random(len(src)) < np.where(dist < 4, 0.6, 0.2)
         ctx = np.where(in_person, CTX_ID["hangout"], CTX_ID["online"]).astype(np.uint8)

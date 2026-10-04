@@ -44,6 +44,7 @@ SOCIAL_CTX = ("gathering", "venue", "dance", "hangout", "complex", "club", "team
 class Mind:
     def __init__(self, sim):
         self.sim = sim
+        self.cares_mean: dict[str, float] = {}
 
     # ------------------------------------------------------------------ setup
     def init(self):
@@ -205,6 +206,7 @@ class Mind:
             P[f"drive_{m}"] = d.astype(np.float32)
             D[k] = d
         P["top_priority"] = np.argmax(D, axis=0).astype(np.uint8)
+        self.cares_mean = {m: float(P[f"cares_{m}"][pres].mean()) if pres.any() else 0.5 for m in MOTIVES}
 
     def drives(self) -> np.ndarray:
         P = self.sim.w.P
@@ -238,6 +240,19 @@ class Mind:
         ids = np.where(P["present"])[0]
         self._cares(ids, blend=sim.p("mind.importance.drift"))
         self.weekly_perception()
+        self.weekly_memory()
+
+    def weekly_memory(self):
+        """Forget what has faded; summarize what each person still carries (count, tone, negative load)."""
+        sim, w = self.sim, self.sim.w
+        P = w.P
+        decay = sim.p("memory.forgetting.decay")
+        sim.memory.prune(w.day, decay)
+        cnt, tone, load = sim.memory.per_agent(P.n, w.day, decay)
+        P["n_memories"] = cnt
+        P["memory_tone"] = np.clip(tone, -1, 1).astype(np.float32)
+        if "neg_load" in P.internal:
+            P.internal["neg_load"][: P.n] = load
 
     def weekly_perception(self):
         """Perceived vs actual support, and perceived vs actual friends' belief (pluralistic ignorance)."""

@@ -15,6 +15,7 @@ import time
 import numpy as np
 
 from .core import Calendar, Effects, EventLog, Streams
+from .memory import MemoryStore
 from .world import World
 
 EMOTION_STATES = ["mood", "stress", "loneliness", "anxiety", "belonging", "self_esteem", "guilt", "fatigue",
@@ -26,7 +27,7 @@ class Simulation:
     def __init__(self, world: World, interventions: list | None = None, name: str = "baseline",
                  record: bool = True):
         from .systems import (academics, activity, economy, emotion, encounters, environment, faith, groups, housing,
-                              history, lifecourse, mind, network, norms, recorder, romance)
+                              history, lifecourse, mind, coping, network, norms, recorder, romance)
         self.w = world
         self.name = name
         self.reg = world.reg
@@ -35,6 +36,7 @@ class Simulation:
         self.cal = Calendar(world.cfg, world.start_date)
         self.log = EventLog(world.reg)
         self.effects = Effects(EMOTION_STATES)
+        self.memory = MemoryStore(world.reg)
         self.interventions = list(interventions or [])
         self.timing: dict[str, float] = {}
         self.record = record
@@ -51,6 +53,7 @@ class Simulation:
             "faith": faith.Faith(self),
             "norms": norms.Norms(self),
             "mind": mind.Mind(self),
+            "coping": coping.Coping(self),
             "economy": economy.Economy(self),
             "housing": housing.Housing(self),
             "recorder": recorder.Recorder(self),
@@ -59,7 +62,7 @@ class Simulation:
         self._zcache_day = -999
         self._zcache: dict[str, tuple[float, float]] = {}
         for name in ("environment", "housing", "activity", "groups", "network", "academics", "encounters", "economy",
-                     "romance", "faith", "norms", "mind", "emotion", "lifecourse", "recorder"):
+                     "romance", "faith", "norms", "mind", "coping", "emotion", "lifecourse", "recorder"):
             sysobj = self.systems[name]
             if hasattr(sysobj, "init"):
                 sysobj.init()
@@ -102,16 +105,43 @@ class Simulation:
 
     def emit(self, etype: str, a, b=None, value=None, cause=None, place=None, block: int = 0,
              mech: str | None = None, ev: dict | None = None, effects_for: str = "a") -> np.ndarray:
-        """Log events and apply their registered emotional effects (with moderators)."""
+        """Log events, appraise them, apply their registered emotional effects and lay down memories."""
         a = np.atleast_1d(np.asarray(a, dtype=np.int64))
         ids = self.log.emit(etype, self.w.day, a, b=b, value=value, cause=cause, place=place, block=block, mech=mech)
+        if not len(a):
+            return ids
         spec = self.reg.events[etype]
-        if spec.effects and len(a):
-            targets = a if effects_for == "a" else np.atleast_1d(np.asarray(b, dtype=np.int64))
-            self.apply_effects(etype, targets, ids, ev or {})
+        targets = a if effects_for == "a" else np.atleast_1d(np.asarray(b, dtype=np.int64))
+        relevance, coping = self.appraise(etype, targets)
+        if spec.effects:
+            self.apply_effects(etype, targets, ids, ev or {}, relevance, coping)
+        quality = (ev or {}).get("quality")
+        self.memory.encode(ids, targets, self.reg.event_ids[etype], b, self.w.day, quality=quality, relevance=relevance)
         return ids
 
-    def apply_effects(self, etype: str, agents: np.ndarray, event_ids: np.ndarray, ev: dict):
+    # the concern an event touches comes from its category unless the event names one
+    _NEG_STATES = frozenset(("stress", "loneliness", "anxiety", "guilt", "fatigue", "financial_stress", "academic_pressure",
+                             "romantic_longing"))
+
+    def appraise(self, etype: str, agents: np.ndarray):
+        """Appraisal (Lazarus & Folkman 1984; Scherer 2001): how relevant the event is to what this person cares
+        about, and how able they feel to cope. Returns per-agent multipliers (≈1 on average): relevance scales
+        every effect; low coping potential amplifies harmful effects."""
+        P = self.w.P
+        k = len(agents)
+        mind = self.systems.get("mind")
+        motive = self.memory.motive_of[self.reg.event_ids[etype]]
+        if mind is None or not getattr(mind, "cares_mean", None) or motive is None:
+            return np.ones(k, np.float32), np.ones(k, np.float32)
+        p = self.p
+        c = P[f"cares_{motive}"][agents]
+        rel = np.clip((0.5 + c) / (0.5 + mind.cares_mean[motive]), 0.4, 1.8) ** p("appraisal.relevance.strength")
+        cp = 0.5 * P["perceived_support"][agents] + 0.3 * P["self_esteem"][agents] + 0.2 * (1 - P["stress"][agents])
+        cop = np.exp(-p("appraisal.coping_potential.strength") * (cp - 0.55))
+        return rel.astype(np.float32), cop.astype(np.float32)
+
+    def apply_effects(self, etype: str, agents: np.ndarray, event_ids: np.ndarray, ev: dict,
+                      relevance: np.ndarray | None = None, coping: np.ndarray | None = None):
         from .core import pair_normal
         spec = self.reg.events[etype]
         code = self.reg.event_ids[etype]
@@ -125,6 +155,9 @@ class Simulation:
                     logm += beta * self.z(mod)[agents]
             noise = pair_normal(self.w.seed, agents, np.full(len(agents), self.w.day * 131 + code * 7 + k), 991, True)
             mag = eff["mag"] * np.exp(np.clip(logm, -3, 3) + eff.get("sd", 0.3) * noise - 0.5 * eff.get("sd", 0.3) ** 2)
+            if relevance is not None:
+                harmful = (eff["var"] in self._NEG_STATES) == (eff["mag"] > 0)
+                mag = mag * relevance * (coping if harmful and coping is not None else 1.0)
             self.effects.add(agents, eff["var"], mag, self.w.day + int(eff.get("delay", 0)),
                              np.full(len(agents), float(eff["half_life"])), event_ids)
 
@@ -165,6 +198,7 @@ class Simulation:
         self._run("encounters", S["encounters"].friend_contact)
         self._run("romance", S["romance"].daily)
         self._run("mind", S["mind"].daily)
+        self._run("coping", S["coping"].daily)
         self._run("emotion", S["emotion"].daily)
         self._run("norms", S["norms"].daily)
         if wd == 6:  # Sunday night: weekly systems

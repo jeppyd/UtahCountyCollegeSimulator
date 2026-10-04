@@ -123,6 +123,7 @@ class Emotion:
             # stress buffering: believing support is there blunts what the stressors do (Cohen & Wills 1985)
             load = T["academic"] + T["financial"] + T["relationship"] + T["faith_crisis"]
             T["support_buffer"] = -p("stress.support_buffer.beta") * (P["perceived_support"] - 0.35) * load
+            T["coping"] = -p("stress.coping.beta") * P["coping_relief"]
         elif s == "loneliness":
             need = p("loneliness.contact_deficit.need_hours") * np.exp(p("loneliness.contact_deficit.extraversion") * z("extraversion"))
             contact = P["close_contact_hours"]
@@ -131,6 +132,7 @@ class Emotion:
             T["close_friends"] = -p("loneliness.close_friends.beta") * np.log1p(P["n_close_friends"]) / np.log(6)
             # loneliness is *perceived* isolation: the support people believe they have matters beyond the count
             T["perceived_support"] = -p("loneliness.perceived_support.beta") * (P["perceived_support"] - 0.45)
+            T["coping"] = -p("loneliness.coping.beta") * P["coping_relief"] * (P["coping_strategy"] == 1)
             T["partner"] = -p("loneliness.partner.beta") * (in_rel.astype(float) + 0.4 * married)
             T["ward"] = -p("loneliness.ward.beta") * (P["ward_belonging"] - 0.5) * (P["activity"] >= 2)
             T["roommates"] = -p("loneliness.roommates.beta") * (P["roommate_cohesion"] - 0.5)
@@ -182,6 +184,10 @@ class Emotion:
             T["guilt"] = -p("mood.guilt.beta") * P["guilt"]
             T["financial"] = -p("mood.financial.beta") * P["financial_stress"]
             T["depression"] = -0.15 * P["depressive_episode"]
+            T["coping"] = p("mood.coping.beta") * P["coping_relief"]
+            # rumination keeps recent negative memories active (memory.py; Nolen-Hoeksema 2000)
+            load = P.internal["neg_load"][:n] if "neg_load" in P.internal else np.zeros(n)
+            T["rumination"] = -p("mood.rumination.beta") * P["rumination"] * np.clip(load, 0, 3) / 3
         return T
 
     # ------------------------------------------------------------------ daily
@@ -254,4 +260,5 @@ class Emotion:
         P = self.sim.w.P
         rel = np.nan_to_num(P["relationship_satisfaction"], nan=0.5)
         ls = 10 * (0.4 * P["mood"] + 0.2 * P["purpose"] + 0.15 * (1 - P["financial_stress"]) + 0.15 * rel + 0.1 * (1 - P["loneliness"]))
+        ls = ls + 0.6 * P["memory_tone"]   # the remembered past colors the judgment (memory.tone)
         P["life_satisfaction"] = np.where(P["life_satisfaction"] > 0, 0.7 * P["life_satisfaction"] + 0.3 * ls, ls).astype(np.float32)

@@ -123,6 +123,7 @@ class EventSpec:
     desc: str = ""
     refs: list = field(default_factory=list)
     story: str = ""   # sentence template for feeds and life stories: "{a} got engaged to {b}"
+    motive: str | None = None   # the concern it touches (appraisal relevance); defaults from the category
 
     def to_dict(self) -> dict:
         return copy.deepcopy(self.__dict__)

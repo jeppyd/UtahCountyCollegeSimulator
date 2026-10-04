@@ -97,6 +97,10 @@ class Faith:
         lr = sim.p("faith.habit.learning_rate")
         P["practice_habit"] = np.where(members, np.where(att, h + lr * (1 - h), h * (1 - lr * 0.4)), h).astype(np.float32)
 
+    def _plan_bias(self):
+        plans = self.sim.systems.get("plans")
+        return plans.church_boost() if plans is not None else 0.0
+
     def _norms(self):
         sim, w = self.sim, self.sim.w
         P = w.P
@@ -134,7 +138,7 @@ class Faith:
                    + p("faith.attend.habit") * (P["practice_habit"] - 0.5) + p("faith.attend.norm") * (P["perceived_norm"] - 0.5)
                    + p("faith.attend.family") * P["family_expectation"] - p("faith.attend.stress") * np.clip(P["stress"] - 0.3, 0, None)
                    - 0.8 * P["fatigue"] - 2.0 * P.internal["works_sunday"][:n] + np.log(w.env["church_attendance_norm"] + 1e-9)
-                   - 1.0 * P["faith_crisis"])
+                   - 1.0 * P["faith_crisis"] + sim.systems["coping"].church_bias() + self._plan_bias())
         P.internal["attend_prob"][:n] = np.where(lds, ap, 0)
         # ---- events: spiritual experiences & faith challenges
         u1, u2 = sim.u("spirit"), sim.u("challenge")

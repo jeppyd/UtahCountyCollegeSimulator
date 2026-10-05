@@ -16,3 +16,7 @@ web/dist-static/
 *.tsbuildinfo
 /build/
 /dist/
+
+# secrets (Claude API key for LLM features)
+.env
+.env.*

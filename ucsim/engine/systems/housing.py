@@ -108,6 +108,8 @@ class Housing:
                         np.where(rng.random() < 0.55, ~U.contracted, True)
                 elig = elig & ((U.sex_restriction == 0) | (U.sex_restriction == sexc))
                 cand = self._vacant(elig)
+                if len(cand) == 0:   # shortage: relax the contract and unit-type rules, never the same-sex rule
+                    cand = self._vacant(~U.married_only & ((U.sex_restriction == 0) | (U.sex_restriction == sexc)))
                 if len(cand) == 0:
                     cand = self._vacant(~U.married_only)
                 take = rng.choice(cand, size=min(25, len(cand)), replace=False)

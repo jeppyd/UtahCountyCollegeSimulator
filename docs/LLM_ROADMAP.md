@@ -1,5 +1,7 @@
 # UCSim × Claude: LLM Roadmap
 
+> **Superseded for access and costs by [`LLM_SUBSCRIPTIONS.md`](LLM_SUBSCRIPTIONS.md)** (no API key; Claude Pro, ChatGPT Plus, or a local model). The feature designs, IDs and engine work below still apply.
+
 *Checked 2026-10-05. This draws on three sources: a live check of the codebase (scale 0.05, seed 1, day 34), the Claude API pricing, limits and feature pages, and a separate adversarial review whose corrections are folded in below. Pick features by ID. Anything I could not verify is marked **[unverified]**.*
 
 ---

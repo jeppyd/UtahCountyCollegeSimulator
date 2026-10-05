@@ -1,5 +1,7 @@
 # LLM features without an API key
 
+> **Built:** the What-if compiler (W1, with W2-style tagging) — see [WHATIF_LLM.md](WHATIF_LLM.md) for setup and use.
+
 *Revised 2026-10-05. This replaces the paid-API plan in `LLM_ROADMAP.md`. Feature IDs, designs and the engine work (Phase 0) are unchanged; only **how the model is reached** changes. Nothing here needs an API key or a separate bill.*
 
 ## Three ways to reach a model

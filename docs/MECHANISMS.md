@@ -2,7 +2,7 @@
 
 Generated from `ucsim/config/mechanisms/*.yaml` and `events.yaml` by `scripts/gen_catalogs.py` — do not edit by hand.
 
-171 mechanisms. Evidence: **observed** 0, **empirical** 18, **literature** 68, **calibrated** 33, **extrapolated** 0, **structural** 7, **hypothetical** 45, **speculative** 0.
+185 mechanisms. Evidence: **observed** 0, **empirical** 18, **literature** 68, **calibrated** 33, **extrapolated** 0, **structural** 7, **hypothetical** 45, **speculative** 14.
 
 Every parameter can be overridden per run (`ParamSet`), targeted by an intervention (`target_type: param`) or swept.
 
@@ -1141,8 +1141,8 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 
 - **Target**: `alcohol`
 - **Inputs**: `orthodoxy`, `faith_belief`, `moral_autonomy`, `sensation_seeking`, `age`
-- **Form**: weekly h = 0.05·logistic(base − 2.5·orthodoxy·active − 1.2·belief·member + 0.6·autonomy + 0.4·SS + 0.4·[21+] + peer)
-- **Parameters**: `base` = -5.0 (range -6.5–-3.5)
+- **Form**: weekly h = 0.05·logistic(base − 2.5·orthodoxy·active·(1 − permitted) − 1.2·belief·member + permitted_boost·permitted·member + 0.6·autonomy + 0.4·SS + 0.4·[21+] + peer)
+- **Parameters**: `base` = -5.0 (range -6.5–-3.5); `permitted_boost` = 1.0 (range 0.3–2.5)
 
 ### `norms.pickleball` — Pickleball craze (example cultural diffusion)
 
@@ -1730,6 +1730,121 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - *Ref*: Kossinets & Watts (2006): triadic closure in an evolving university network
 - *Ref*: Snijders, van de Bunt & Steglich (2010): transitivity in stochastic actor-oriented models
 
+## whatif
+
+### `whatif.inject` — What-if event (your scenario)
+
+*Evidence: speculative · timescale: daily · delay: none*
+
+- **Target**: `mood`, `stress`, `loneliness`, `anxiety`, `belonging`, `self_esteem`, `guilt`, `fatigue`, `purpose`, `financial_stress`, `academic_pressure`, `romantic_longing`
+- **Inputs**: —
+- **Form**: an exogenous event injected into a cohort by a What-if; registered or custom effects, appraised and remembered like any other event
+- **Notes**: Everything downstream (coping, memories, behavior) is the model's own response.
+
+### `whatif.practice` — What-if practice spreading
+
+*Evidence: speculative · timescale: daily · delay: none*
+
+- **Target**: `mood`
+- **Inputs**: `n_friends`
+- **Form**: weekly h = 0.05·logistic(base + Σ w·z(trait) + peer·(complex contagion) + nudge); quit hazard; feelings while adopted
+
+### `mood.intervention` — What-if nudge on mood
+
+*Evidence: speculative · timescale: daily · delay: none*
+
+- **Target**: `mood`
+- **Inputs**: —
+- **Form**: persistent offset × ramp × [in the What-if's population]
+
+### `stress.intervention` — What-if nudge on stress
+
+*Evidence: speculative · timescale: daily · delay: none*
+
+- **Target**: `stress`
+- **Inputs**: —
+- **Form**: persistent offset × ramp × [in the What-if's population]
+
+### `loneliness.intervention` — What-if nudge on loneliness
+
+*Evidence: speculative · timescale: daily · delay: none*
+
+- **Target**: `loneliness`
+- **Inputs**: —
+- **Form**: persistent offset × ramp × [in the What-if's population]
+
+### `anxiety.intervention` — What-if nudge on anxiety
+
+*Evidence: speculative · timescale: daily · delay: none*
+
+- **Target**: `anxiety`
+- **Inputs**: —
+- **Form**: persistent offset × ramp × [in the What-if's population]
+
+### `belonging.intervention` — What-if nudge on belonging
+
+*Evidence: speculative · timescale: daily · delay: none*
+
+- **Target**: `belonging`
+- **Inputs**: —
+- **Form**: persistent offset × ramp × [in the What-if's population]
+
+### `self_esteem.intervention` — What-if nudge on self esteem
+
+*Evidence: speculative · timescale: daily · delay: none*
+
+- **Target**: `self_esteem`
+- **Inputs**: —
+- **Form**: persistent offset × ramp × [in the What-if's population]
+
+### `guilt.intervention` — What-if nudge on guilt
+
+*Evidence: speculative · timescale: daily · delay: none*
+
+- **Target**: `guilt`
+- **Inputs**: —
+- **Form**: persistent offset × ramp × [in the What-if's population]
+
+### `fatigue.intervention` — What-if nudge on fatigue
+
+*Evidence: speculative · timescale: daily · delay: none*
+
+- **Target**: `fatigue`
+- **Inputs**: —
+- **Form**: persistent offset × ramp × [in the What-if's population]
+
+### `purpose.intervention` — What-if nudge on purpose
+
+*Evidence: speculative · timescale: daily · delay: none*
+
+- **Target**: `purpose`
+- **Inputs**: —
+- **Form**: persistent offset × ramp × [in the What-if's population]
+
+### `financial_stress.intervention` — What-if nudge on financial stress
+
+*Evidence: speculative · timescale: daily · delay: none*
+
+- **Target**: `financial_stress`
+- **Inputs**: —
+- **Form**: persistent offset × ramp × [in the What-if's population]
+
+### `academic_pressure.intervention` — What-if nudge on academic pressure
+
+*Evidence: speculative · timescale: daily · delay: none*
+
+- **Target**: `academic_pressure`
+- **Inputs**: —
+- **Form**: persistent offset × ramp × [in the What-if's population]
+
+### `romantic_longing.intervention` — What-if nudge on romantic longing
+
+*Evidence: speculative · timescale: daily · delay: none*
+
+- **Target**: `romantic_longing`
+- **Inputs**: —
+- **Form**: persistent offset × ramp × [in the What-if's population]
+
 ## Event types
 
 Events push states with decaying effects (half-life in days) and carry causal parent links.
@@ -1807,3 +1922,5 @@ Events push states with decaying effects (half-life in days) and carry causal pa
 | `started_drinking` Started drinking alcohol | habits | 0.65 | guilt: +0.08, 30 | hypothetical |
 | `intervention_exposure` Affected by an intervention | intervention | 0.5 |  | calibrated |
 | `plan_abandoned` Gave up on a plan | plans | 0.3 | mood: -0.01, 3 | structural |
+| `whatif_shock` Felt a what-if | intervention | 0.5 |  | speculative |
+| `whatif_practice` Took up a new practice | intervention | 0.25 |  | speculative |

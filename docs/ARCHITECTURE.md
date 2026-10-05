@@ -79,9 +79,23 @@ intervention or its butterfly effects. `compare_universes` decomposes Δstate in
 `divergence` tracks state/network distance; `monte_carlo` and `sweep` run seeds/values in a process pool
 with paired differences.
 
-Interventions (`engine/interventions.py`) are JSON: `world` (environment variables), `param` (mechanism
-parameters), `agent` (a filtered population, logged as exposure events) and `venue` (new places), with
-start day, ramp and duration.
+Interventions (`engine/interventions.py`) are JSON with start day, ramp and duration:
+- `world` — environment variables;
+- `param` — mechanism parameters;
+- `agent` — a once-only change for a filtered population;
+- `offset` — a persistent nudge on a feeling or behavior channel for a population, re-checked weekly; it appears as the `intervention` term in every decomposition;
+- `event` / `shock` — registered or custom events injected into a cohort, appraised and remembered;
+- `close` — a complex (residents rehoused) or venues;
+- `place` — complex rent, beds, quality or contracted status;
+- `practice` — a new behavior spreading by complex contagion;
+- `venue` — new places.
+
+Interventions draw only from their own streams or stable hashes, never from the Original's.
+
+**Plain-language What-ifs** (`ucsim/llm/`, [WHATIF_LLM.md](WHATIF_LLM.md)): a model reached through the user's subscription turns a request into a plan, which the server validates and lowers into these atoms. The model is Claude Code headless (`claude -p`, stream-json, `--json-schema`, MCP tools served by `mcp_server.py`), Codex (`codex exec`) or an OpenAI-compatible local server.
+- The pieces: `levers.py` is the catalog the model reads, `plan.py` holds the schema, validator, receipt and lowering, `entities.py` resolves @-mentions to exact ids and filters, and `compiler.py` runs the background jobs with one repair round.
+- The endpoints: `/api/entities/search`, `/api/whatif/compile` (start, poll, cancel), `/api/whatif/tool/*`, `/api/whatif/validate`, `/api/whatif/apply` and `/api/whatif/plans` (applied plans with live checks of the model's predictions).
+- No LLM ever decides an agent's behavior.
 
 ## Analysis & API
 

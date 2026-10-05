@@ -91,9 +91,16 @@ class InterventionManager:
         self._applied_agent: set[int] = set()   # one-shot items already started
         self._ended: set[int] = set()            # closures / place changes already reverted
         self._masks: dict[int, tuple[int, int, np.ndarray]] = {}   # item -> (day, n, population mask)
-        self._revert: dict[int, dict] = {}
         self.practices: dict[int, dict] = {}     # item -> {"adopted": bool[n], "history": [(day, share, n_scope)]}
         self.exposed: dict[int, int] = {}        # item -> people reached (for the receipt)
+        self._active_place: set[int] = set()     # close/place items in effect now
+        self._units_of: dict[int, np.ndarray] = {}
+        self._vids_of: dict[int, np.ndarray] = {}
+        self._base_unit: dict[int, tuple[int, bool]] = {}   # unit -> original (capacity, contracted)
+        self._base_vtype: dict[int, str] = {}                # venue -> original type
+        self._venue_added: dict[int, int] = {}               # venue item -> the venue it opened
+        self._removed_venues: set[int] = set()
+        self._next_due: dict[int, int] = {}                  # repeating events: next firing day
         self._base_params = dict(sim.p.values)
         self._bias_day = -1
         self._bias_cache: dict[str, object] = {}
@@ -138,15 +145,33 @@ class InterventionManager:
         raise ValueError(op)
 
     def _population(self, k: int, it: dict, include_absent: bool = False, refresh_days: int = 7) -> np.ndarray:
-        """The item's population mask, re-evaluated weekly (arrivals, moves and status changes are picked up)."""
+        """The item's population mask, re-evaluated weekly (arrivals, moves and status changes are picked up).
+        Items marked `freeze_population` keep the group they had on their start day (e.g. the residents of a complex
+        the same plan closes), padded for later arrivals."""
         from ..analysis.query import evaluate_filter
         sim = self.sim
         n = sim.w.P.n
         d0, n0, m = self._masks.get(k, (-999, -1, None))
+        if m is not None and it.get("freeze_population"):
+            if len(m) < n:
+                m = np.concatenate([m, np.zeros(n - len(m), bool)])
+                self._masks[k] = (d0, n, m)
+            return m
         if m is None or n0 != n or sim.w.day - d0 >= refresh_days:
             m = evaluate_filter(sim.w, it.get("population"), sim=sim, include_absent=include_absent)
             self._masks[k] = (sim.w.day, n, m)
+            if it.get("target_type") == "offset":
+                self.exposed[k] = int(m.sum())
         return m
+
+    def _scope(self, k: int, it: dict) -> np.ndarray:
+        """Population mask with the item's stable random `share` applied."""
+        m = self._population(k, it)
+        share = float(it.get("share", 1.0))
+        if share >= 1.0:
+            return m
+        from ..analysis.query import hash_uniform
+        return m & (hash_uniform(np.arange(len(m)), f"whatif:{it.get('id', k)}:{k}:pick") < share)
 
     def _pick(self, k: int, it: dict, mask: np.ndarray, tag: str = "pick") -> np.ndarray:
         share = float(it.get("share", 1.0))
@@ -182,35 +207,58 @@ class InterventionManager:
         """One-shot and recurring items: agent changes, venues, injected events and shocks, closures, place changes,
         practice seeding; and the end of anything with a duration."""
         sim = self.sim
+        # groups that must be fixed before today's closures move anyone (residents of a complex this plan closes)
+        for k, it in enumerate(self.items):
+            if it.get("freeze_population") and k not in self._masks and day >= it["start_day"]:
+                self._population(k, it)
+        places_changed = False
         for k, it in enumerate(self.items):
             tt = it.get("target_type")
             if tt in ("world", "param", "offset") or day < it["start_day"]:
                 continue
             if self._over(it, day):
-                if tt in ("close", "place") and k in self._applied_agent and k not in self._ended:
-                    self._end(k, it)
+                if k in self._applied_agent and k not in self._ended:
                     self._ended.add(k)
+                    if tt in ("close", "place"):
+                        self._active_place.discard(k)
+                        self._end_relative(k, it)
+                        places_changed = True
+                    elif tt == "venue" and k in self._venue_added:
+                        self._removed_venues.add(self._venue_added[k])    # a pop-up closes when its time is up
+                        places_changed = True
                 continue
             if tt in ("event", "shock") and it.get("repeat_every"):
                 every = max(int(it["repeat_every"]), 1)
-                if (day - it["start_day"]) % every == 0:
+                due = self._next_due.get(k, it["start_day"])
+                if day >= due:            # catch up if a start phase was missed (e.g. applied mid-day)
                     self._inject(k, it, tag=f"r{day}")
+                    while due <= day:
+                        due += every
+                    self._next_due[k] = due
                 continue
             if k in self._applied_agent:
                 continue
             self._applied_agent.add(k)
             if tt == "venue":
-                sim.systems["activity"].add_venue(it["value"])
+                act = sim.systems["activity"]
+                self._venue_added[k] = len(act.v_name)
+                act.add_venue(it["value"])
             elif tt == "agent":
                 self._agent(k, it)
             elif tt in ("event", "shock"):
                 self._inject(k, it)
             elif tt == "close":
-                self._close(k, it)
+                self._start_place(k, it)
+                self._recompute_places()       # capacity must be gone before residents are rehoused
+                places_changed = False
+                self._rehouse(k, it)
             elif tt == "place":
-                self._place(k, it)
+                self._start_place(k, it)
+                places_changed = True
             elif tt == "practice":
                 self._seed_practice(k, it)
+        if places_changed:
+            self._recompute_places()
 
     def _agent(self, k, it):
         sim = self.sim
@@ -249,88 +297,119 @@ class InterventionManager:
         self.exposed[k] = self.exposed.get(k, 0) + int(len(ids))
 
     # ------------------------------------------------------------------ places
+    # Closures, bed counts and contracted status are recomputed from each unit's / venue's original value and the
+    # changes active now, so overlapping changes compose and ending one restores exactly what the others leave.
+    # Rent and quality are relative (×, +) and undone relative to the current value, so market drift survives.
     @staticmethod
     def _ref(target: str) -> tuple[str, object]:
         kind, _, rest = str(target).partition(":")
         return kind, (int(rest) if rest.lstrip("-").isdigit() else rest)
 
-    def _close(self, k, it):
+    def _start_place(self, k, it):
         sim = self.sim
+        U = sim.w.units
         kind, ref = self._ref(it["target"])
         if kind == "complex":
-            U = sim.w.units
             units = np.where(U.complex_id == ref)[0]
-            self._revert[k] = {"kind": "complex", "units": units, "capacity": U.capacity[units].copy()}
-            U.capacity[units] = 0
+            self._units_of[k] = units
+            for u in units.tolist():
+                if u not in self._base_unit:
+                    self._base_unit[u] = (int(U.capacity[u]), bool(U.contracted[u]))
+            attr = it.get("attr") if it["target_type"] == "place" else None
+            if attr == "rent":
+                U.rent_total[units] = (U.rent_total[units] * float(it["value"])).astype(U.rent_total.dtype)
+                self._update_residents_rent(units)
+            elif attr == "quality":
+                U.quality[units] = (U.quality[units] + float(it["value"])).astype(U.quality.dtype)
             P = sim.w.P
-            res = np.where(np.isin(P["unit_id"], units))[0]
-            self.exposed[k] = int(len(res))
-            if len(res):
-                root = sim.log.emit("intervention_exposure", sim.w.day, res, value=k)
-                housing = sim.systems["housing"]
-                married = P.is_("rel_status", "married")[res]
-                partner = P["partner_id"][res]
-                done = set()
-                for j, i in enumerate(res):          # couples move together
-                    if married[j] and partner[j] >= 0 and int(i) not in done:
-                        pair = np.array([i, partner[j]])
-                        done.update(int(x) for x in pair)
-                        housing.place(pair, married=True, reason="moved", cause=int(root[j]))
-                singles = np.array([i for j, i in enumerate(res) if int(i) not in done], dtype=np.int64)
-                if len(singles):
-                    housing.place(singles, reason="moved", cause=int(root[0]))
+            self.exposed[k] = int((np.isin(P["unit_id"], units) & P["present"]).sum())
         elif kind in ("venue", "venue_type"):
             act = sim.systems["activity"]
-            vids = np.array([ref]) if kind == "venue" else np.where(act.v_type == ref)[0]
-            vids = vids[(vids >= 0) & (vids < len(act.v_type))]
-            self._revert[k] = {"kind": "venue", "vids": vids, "types": act.v_type[vids].copy()}
-            act.v_type = act.v_type.astype(object)
-            act.v_type[vids] = "closed"
-            act._build_trees()
+            vt = act.v_type
+            vids = np.array([ref]) if kind == "venue" else np.array([v for v in range(len(vt)) if self._base_vtype.get(v, str(vt[v])) == ref])
+            vids = vids[(vids >= 0) & (vids < len(vt))].astype(int)
+            self._vids_of[k] = vids
+            for v in vids.tolist():
+                self._base_vtype.setdefault(v, str(vt[v]))
             self.exposed[k] = int(len(vids))
+        self._active_place.add(k)
 
-    def _place(self, k, it):
-        sim = self.sim
-        kind, ref = self._ref(it["target"])
-        if kind != "complex":
+    def _end_relative(self, k, it):
+        U = self.sim.w.units
+        units = self._units_of.get(k)
+        if units is None or it["target_type"] != "place":
             return
-        U = sim.w.units
-        units = np.where(U.complex_id == ref)[0]
-        attr = it.get("attr", "rent")
-        col = {"rent": "rent_total", "beds": "capacity", "quality": "quality", "contracted": "contracted"}[attr]
-        arr = getattr(U, col)
-        self._revert[k] = {"kind": "place", "units": units, "col": col, "values": arr[units].copy()}
-        if attr == "contracted":
-            arr[units] = bool(it["value"])
-        else:
-            new = self._combine(arr[units].astype(np.float64), it.get("op", "mul"), float(it["value"]), 1.0)
-            if attr == "beds":
-                new = np.clip(np.rint(new), 0, 255)
-            arr[units] = new.astype(arr.dtype)
-        P = sim.w.P
+        attr = it.get("attr")
+        if attr == "rent" and float(it["value"]) > 0:
+            U.rent_total[units] = (U.rent_total[units] / float(it["value"])).astype(U.rent_total.dtype)
+            self._update_residents_rent(units)
+        elif attr == "quality":
+            U.quality[units] = (U.quality[units] - float(it["value"])).astype(U.quality.dtype)
+
+    def _update_residents_rent(self, units):
+        P = self.sim.w.P
         res = np.where(np.isin(P["unit_id"], units) & P["present"])[0]
-        if attr == "rent" and len(res):
-            sim.systems["housing"]._update_rent(res)
-        self.exposed[k] = int(len(res))
+        if len(res):
+            self.sim.systems["housing"]._update_rent(res)
 
-    def _end(self, k, it):
+    def _recompute_places(self):
         sim = self.sim
-        r = self._revert.get(k)
-        if not r:
-            return
-        if r["kind"] == "complex":
-            sim.w.units.capacity[r["units"]] = r["capacity"]
-        elif r["kind"] == "venue":
+        U = sim.w.units
+        if self._base_unit:
+            units = np.fromiter(self._base_unit.keys(), dtype=np.int64)
+            cap = np.array([self._base_unit[u][0] for u in units.tolist()], dtype=np.float64)
+            con = np.array([self._base_unit[u][1] for u in units.tolist()], dtype=bool)
+            closed = np.zeros(len(units), bool)
+            pos = {u: i for i, u in enumerate(units.tolist())}
+            for k in sorted(self._active_place):
+                it = self.items[k]
+                us = self._units_of.get(k)
+                if us is None:
+                    continue
+                idx = np.array([pos[u] for u in us.tolist()], dtype=np.int64)
+                if it["target_type"] == "close":
+                    closed[idx] = True
+                elif it.get("attr") == "beds":
+                    cap[idx] = cap[idx] * float(it["value"])
+                elif it.get("attr") == "contracted":
+                    con[idx] = bool(it["value"])
+            U.capacity[units] = np.where(closed, 0, np.clip(np.rint(cap), 0, 255)).astype(U.capacity.dtype)
+            U.contracted[units] = con
+        if self._base_vtype or self._removed_venues:
             act = sim.systems["activity"]
-            act.v_type[r["vids"]] = r["types"]
+            act.v_type = act.v_type.astype(object)
+            for v, t in self._base_vtype.items():
+                act.v_type[v] = t
+            for k in self._active_place:
+                if self.items[k]["target_type"] == "close" and k in self._vids_of:
+                    act.v_type[self._vids_of[k]] = "closed"
+            for v in self._removed_venues:
+                act.v_type[v] = "closed"
             act._build_trees()
-        elif r["kind"] == "place":
-            getattr(sim.w.units, r["col"])[r["units"]] = r["values"]
-            if r["col"] == "rent_total":
-                P = sim.w.P
-                res = np.where(np.isin(P["unit_id"], r["units"]) & P["present"])[0]
-                if len(res):
-                    sim.systems["housing"]._update_rent(res)
+
+    def _rehouse(self, k, it):
+        """Everyone living in a closed complex (including those away) moves, under the normal housing rules."""
+        sim = self.sim
+        units = self._units_of.get(k)
+        if units is None:
+            return
+        P = sim.w.P
+        res = np.where(np.isin(P["unit_id"], units))[0]
+        if not len(res):
+            return
+        root = sim.log.emit("intervention_exposure", sim.w.day, res, value=k)
+        housing = sim.systems["housing"]
+        married = P.is_("rel_status", "married")[res]
+        partner = P["partner_id"][res]
+        done = set()
+        for j, i in enumerate(res):          # couples move together
+            if married[j] and partner[j] >= 0 and int(i) not in done:
+                pair = np.array([i, partner[j]])
+                done.update(int(x) for x in pair)
+                housing.place(pair, married=True, reason="moved", cause=int(root[j]))
+        singles = np.array([i for i in res.tolist() if int(i) not in done], dtype=np.int64)
+        if len(singles):
+            housing.place(singles, reason="moved", cause=int(root[0]))
 
     # ------------------------------------------------------------------ practices (new behaviors that spread)
     def _practice_state(self, k) -> dict:
@@ -343,7 +422,7 @@ class InterventionManager:
     def _seed_practice(self, k, it):
         sim = self.sim
         st = self._practice_state(k)
-        scope = self._population(k, it)
+        scope = self._scope(k, it)
         from ..analysis.query import hash_uniform
         u = hash_uniform(np.arange(len(scope)), f"whatif:{it.get('id', k)}:{k}:seed")
         seed = scope & (u < float(it.get("seed_share", 0.02)))
@@ -362,7 +441,7 @@ class InterventionManager:
             if it.get("target_type") != "practice" or day < it["start_day"] or k not in self._applied_agent:
                 continue
             st = self._practice_state(k)
-            scope = self._population(k, it) & P["present"]
+            scope = self._scope(k, it) & P["present"]
             adopted = st["adopted"]
             if self._over(it, day):     # the behavior fades once the change ends (e.g. a ban returns)
                 adopted &= sim.u(f"whatif_p{k}_end") > 0.25
@@ -402,12 +481,7 @@ class InterventionManager:
             if tt == "offset" and it.get("target") == channel:
                 f = self._ramp(it, day)
                 if f > 0:
-                    m = self._population(k, it)
-                    if float(it.get("share", 1.0)) < 1.0:
-                        mm = np.zeros(n, bool)
-                        mm[self._pick(k, it, m)] = True
-                        m = mm
-                    out = out + float(it["value"]) * f * m
+                    out = out + float(it["value"]) * f * self._scope(k, it)
             elif tt == "practice" and k in self.practices and day >= it["start_day"]:
                 for e in it.get("effects_while") or []:
                     if e.get("var") == channel:

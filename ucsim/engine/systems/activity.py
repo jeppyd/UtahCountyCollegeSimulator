@@ -300,7 +300,9 @@ class Activity:
         plans = sim.systems.get("plans")
         if plans is not None:
             U += plans.choice_bias(idx)
-        U = U + sim.whatif.choice_bias(idx)      # a What-if's nudges on free-time choices
+        wb = sim.whatif.choice_bias(idx)          # a What-if's nudges on free-time choices, only on options that exist
+        if not np.isscalar(wb):
+            U = np.where(U > -8.5, U + wb, U)
         for col, grp in ((3, "food"), (4, "outdoors"), (5, "dance")):
             if grp in self.empty_groups:
                 U[:, col] = -9

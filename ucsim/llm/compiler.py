@@ -45,12 +45,28 @@ def load_settings() -> dict:
 
 
 def save_settings(new: dict) -> dict:
+    """Only known keys, safe values: model names can't carry shell text, numbers are clamped, the URL must be http(s)."""
     s = load_settings()
+    if not isinstance(new, dict):
+        return s
     for k, v in new.items():
-        if k in DEFAULTS:
-            s[k] = type(DEFAULTS[k])(v) if not isinstance(DEFAULTS[k], bool) else bool(v)
+        if k not in DEFAULTS or v is None:
+            continue
+        try:
+            s[k] = bool(v) if isinstance(DEFAULTS[k], bool) else type(DEFAULTS[k])(v)
+        except (TypeError, ValueError):
+            continue
     if s["backend"] not in BACKENDS:
         s["backend"] = "claude"
+    for k in ("claude_model", "codex_model", "openai_model"):
+        if s[k] and not backends.SAFE_TOKEN.match(s[k]) and not (k == "openai_model" and re.match(r"^[\w./:@-]{1,120}$", s[k])):
+            s[k] = ""
+    if s["claude_effort"] not in ("", *backends.EFFORTS):
+        s["claude_effort"] = ""
+    if not re.match(r"^https?://[\w.\-\[\]:]+(/[\w./-]*)?$", s["openai_url"]):
+        s["openai_url"] = DEFAULTS["openai_url"]
+    s["max_turns"] = int(min(max(s["max_turns"], 5), 80))
+    s["timeout"] = int(min(max(s["timeout"], 60), 1800))
     HOME.mkdir(parents=True, exist_ok=True)
     SETTINGS_FILE.write_text(json.dumps(s, indent=2), encoding="utf-8")
     return s
@@ -58,8 +74,8 @@ def save_settings(new: dict) -> dict:
 
 def status() -> dict:
     s = load_settings()
-    claude_v = backends.version("claude")
-    codex_v = backends.version("codex")
+    claude_v = backends.version("claude", s.get("claude_path") or None)
+    codex_v = backends.version("codex", s.get("codex_path") or None)
     models = backends.openai_models(s["openai_url"]) if s["backend"] == "openai" else []
     try:
         import mcp  # noqa: F401
@@ -67,7 +83,8 @@ def status() -> dict:
     except ImportError:
         has_mcp = False
     ready = {"claude": bool(claude_v), "codex": bool(codex_v), "openai": bool(models)}
-    return {"settings": s, "claude": claude_v, "codex": codex_v, "openai_models": models, "mcp": has_mcp,
+    shown = {k: v for k, v in s.items() if k != "openai_key"}
+    return {"settings": shown, "claude": claude_v, "codex": codex_v, "openai_models": models, "mcp": has_mcp,
             "ready": ready[s["backend"]], "api_key_in_env": bool(os.environ.get("ANTHROPIC_API_KEY"))}
 
 
@@ -75,19 +92,35 @@ def status() -> dict:
 _pack_lock = threading.Lock()
 
 
+PACK_FILES = ("system.md", "AGENTS.md", "catalog.md", "plan_schema.json")
+
+
 def pack_dir() -> Path:
-    """Guide + catalog on disk (system.md, AGENTS.md for Codex, catalog.md), rebuilt when the registry changes."""
+    """Guide + catalog on disk (system.md, AGENTS.md for Codex, catalog.md), rebuilt when the registry, guide or schema
+    changes. Built in a temporary folder and moved into place, so a half-written pack is never used."""
+    import shutil
+    import tempfile
     reg = get_registry()
-    md = GUIDE.read_text(encoding="utf-8") + "\n\n" + catalog_markdown(reg)
-    h = hashlib.sha1(md.encode()).hexdigest()[:10]
+    cat = catalog_markdown(reg)
+    md = GUIDE.read_text(encoding="utf-8") + "\n\n" + cat
+    schema = json.dumps(PLAN_SCHEMA, indent=1)
+    h = hashlib.sha1((md + schema).encode()).hexdigest()[:10]
     d = HOME / "whatif_pack" / h
     with _pack_lock:
-        if not (d / "system.md").exists():
-            d.mkdir(parents=True, exist_ok=True)
-            (d / "system.md").write_text(md, encoding="utf-8")
-            (d / "AGENTS.md").write_text(md, encoding="utf-8")
-            (d / "catalog.md").write_text(catalog_markdown(reg), encoding="utf-8")
-            (d / "plan_schema.json").write_text(json.dumps(PLAN_SCHEMA, indent=1), encoding="utf-8")
+        if all((d / f).exists() for f in PACK_FILES):
+            return d
+        d.parent.mkdir(parents=True, exist_ok=True)
+        tmp = Path(tempfile.mkdtemp(dir=d.parent, prefix=f".{h}-"))
+        (tmp / "system.md").write_text(md, encoding="utf-8")
+        (tmp / "AGENTS.md").write_text(md, encoding="utf-8")
+        (tmp / "catalog.md").write_text(cat, encoding="utf-8")
+        (tmp / "plan_schema.json").write_text(schema, encoding="utf-8")
+        if d.exists():
+            shutil.rmtree(d, ignore_errors=True)
+        try:
+            os.replace(tmp, d)
+        except OSError:        # another simulator process won the race: use theirs
+            shutil.rmtree(tmp, ignore_errors=True)
     return d
 
 
@@ -189,9 +222,20 @@ def build_prompt(ws, index, text: str, mentions: list[dict], history: list[dict]
 
 # ---------------------------------------------------------------------- tools (shared by MCP and the local tool loop)
 def run_tool(ws, index, name: str, args: dict) -> dict:
+    """Read-only tools; any failure comes back as {"error": …} for the model to see, never as a crash."""
+    try:
+        return _tool(ws, index, name, args if isinstance(args, dict) else {})
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"{type(e).__name__}: {e}"}
+
+
+def _tool(ws, index, name: str, args: dict) -> dict:
     sim = ws.alt or ws.base
     if name == "search_entities":
-        rows = index.search(str(args.get("query", "")), args.get("kinds") or None, limit=int(args.get("limit", 8)))
+        lim = args.get("limit", 8)
+        lim = int(min(max(lim, 1), 25)) if isinstance(lim, (int, float)) and not isinstance(lim, bool) else 8
+        kinds = [k for k in args.get("kinds") or [] if isinstance(k, str)] if isinstance(args.get("kinds"), list) else None
+        rows = index.search(str(args.get("query", ""))[:120], kinds or None, limit=lim)
         return {"results": [{k: r.get(k) for k in ("ref", "label", "sub", "n", "who")} for r in rows]}
     if name == "describe_entity":
         r = index.get(str(args.get("ref", "")))
@@ -202,7 +246,10 @@ def run_tool(ws, index, name: str, args: dict) -> dict:
         if prob.errors:
             return {"errors": prob.errors}
         from ..analysis.query import describe_filter
-        return {"n": count_who(sim, who), "present": int(sim.w.P["present"].sum()), "who": describe_filter(who), "normalized": who}
+        n = count_who(sim, who, prob)
+        if prob.errors:
+            return {"errors": prob.errors}
+        return {"n": n, "present": int(sim.w.P["present"].sum()), "who": describe_filter(who), "normalized": who}
     if name == "validate_plan":
         plan = args.get("plan") or {}
         if isinstance(plan, str):
@@ -265,9 +312,12 @@ def _run(job: Job, ws, index_fn, server_url: str):
                            "openai": "Sending your idea to your local model"}[s["backend"]])
         res = _ask(job, ws, index, s, pack, prompt, server_url)
         attempts = 1
+        best, best_err = None, None          # keep the most usable plan seen, in case a repair attempt fails
         while res.get("plan") is not None and attempts < 3:
             with ws.lock:
                 v = validate(res["plan"], ws.alt or ws.base, index)
+            if best is None or len(v["errors"]) < best_err:
+                best, best_err = res, len(v["errors"])
             if v["ok"]:
                 break
             if job.cancel.is_set():
@@ -277,6 +327,15 @@ def _run(job: Job, ws, index_fn, server_url: str):
                    + "\n".join(f"- {e}" for e in v["errors"]) + "\nReturn the complete corrected plan.")
             res = _ask(job, ws, index, s, pack, fix, server_url)
             attempts += 1
+            if res.get("plan") is None and best is not None:
+                job.step("note", f"The fix attempt failed ({res.get('error') or 'no answer'}); showing the best plan so far")
+                res = best
+                break
+            if res.get("plan") is not None and attempts >= 3:
+                with ws.lock:
+                    v2 = validate(res["plan"], ws.alt or ws.base, index)
+                if len(v2["errors"]) > best_err:
+                    res = best
         if res.get("plan") is None:
             job.error = res.get("error") or "no plan came back"
             job.state = "error" if job.error != "cancelled" else "cancelled"

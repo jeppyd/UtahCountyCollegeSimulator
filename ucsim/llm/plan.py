@@ -121,7 +121,7 @@ def unstrict(plan: dict) -> dict:
                     try:
                         v = json.loads(v) if isinstance(v, str) and v.strip() else None
                     except json.JSONDecodeError:
-                        v = None
+                        pass     # keep the raw string: the validator rejects it instead of widening to "everyone"
                     k = k[:-5]
                 if v is None:
                     continue
@@ -156,8 +156,13 @@ def _clip(name, x, lo, hi, prob: Problems):
     return x
 
 
+def _int_ok(x) -> bool:
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
+
+
 def check_filter(f, sim, prob: Problems, path="who"):
-    """Validate and normalize a population filter in place; returns the cleaned filter (or None)."""
+    """Validate and normalize a population filter; returns the cleaned filter (or None, with an error recorded).
+    Anything that passes here is a filter the engine can evaluate."""
     if f is None or f == {}:
         return None
     if isinstance(f, str):
@@ -176,14 +181,19 @@ def check_filter(f, sim, prob: Problems, path="who"):
             if not isinstance(f[key], list) or not f[key]:
                 prob.errors.append(f"{path}.{key} must be a non-empty list")
                 return None
-            return {key: [x for x in (check_filter(g, sim, prob, f"{path}.{key}[{i}]") for i, g in enumerate(f[key])) if x is not None]}
+            parts = [check_filter(g, sim, prob, f"{path}.{key}[{i}]") for i, g in enumerate(f[key])]
+            if any(x is None for x in parts):
+                prob.errors.append(f"{path}.{key}: every part must be a valid filter")
+                return None
+            return {key: parts}
     if "not" in f:
         inner = check_filter(f["not"], sim, prob, f"{path}.not")
         return {"not": inner} if inner is not None else None
-    if f.get("all"):
+    if f.get("all") is True:
         return {"all": True}
     if "ids" in f:
-        ids = [int(i) for i in f["ids"] if isinstance(i, (int, float)) and 0 <= int(i) < P.n]
+        raw = f["ids"] if isinstance(f["ids"], list) else []
+        ids = sorted({int(i) for i in raw if _int_ok(i) and 0 <= int(i) < P.n})
         if not ids:
             prob.errors.append(f"{path}.ids: no valid person ids")
             return None
@@ -195,33 +205,44 @@ def check_filter(f, sim, prob: Problems, path="who"):
         return {"friends_of": inner, "min_stage": int(min(max(_num(f.get("min_stage"), 3), 1), 4)), "exclude": bool(f.get("exclude", True))}
     if "share" in f and "household" not in f:
         sh = _num(f["share"])
-        if sh is None:
-            prob.errors.append(f"{path}.share must be a number")
+        if sh is None or sh <= 0:
+            prob.errors.append(f"{path}.share must be a number above 0")
             return None
-        inner = check_filter(f.get("of"), sim, prob, f"{path}.of")
-        return {"share": min(max(sh, 0.0), 1.0), "of": inner, "salt": str(f.get("salt", "share"))}
+        inner = check_filter(f.get("of"), sim, prob, f"{path}.of") if f.get("of") is not None else None
+        if f.get("of") is not None and inner is None:
+            return None
+        return {"share": min(sh, 1.0), "of": inner, "salt": str(f.get("salt", "share"))[:40]}
     if "recent_event" in f:
-        if f["recent_event"] not in reg.events:
-            prob.errors.append(f"{path}.recent_event: unknown event type '{f['recent_event']}'")
+        if not isinstance(f["recent_event"], str) or f["recent_event"] not in reg.events:
+            prob.errors.append(f"{path}.recent_event: unknown event type {f['recent_event']!r}")
             return None
-        return {"recent_event": f["recent_event"], "days": int(_num(f.get("days"), 90))}
-    if "household" in f or "transition" in f:
-        return f
+        return {"recent_event": f["recent_event"], "days": int(min(max(_num(f.get("days"), 90), 1), 3650))}
+    if "household" in f:
+        inner = check_filter(f["household"], sim, prob, f"{path}.household")
+        op = f.get("share", ">=")
+        v = _num(f.get("value"), 0.5)
+        if inner is None or op not in (">=", ">", "<=", "<"):
+            prob.errors.append(f"{path}.household needs an inner filter and share one of >=, >, <=, <")
+            return None
+        return {"household": inner, "share": op, "value": min(max(v, 0.0), 1.0)}
+    if "transition" in f:
+        prob.errors.append(f"{path}: transition filters aren't supported in What-if plans (use recent_event)")
+        return None
     var = f.get("var")
-    if var not in P.specs and var not in P.internal:
-        prob.errors.append(f"{path}: unknown variable '{var}'")
+    if not isinstance(var, str) or var not in P.specs:
+        prob.errors.append(f"{path}: unknown variable {var!r}")
         return None
     op = f.get("op", "eq")
     from ..analysis.query import OPS
-    if op not in OPS:
-        prob.errors.append(f"{path}: unknown op '{op}'")
+    if not isinstance(op, str) or op not in OPS:
+        prob.errors.append(f"{path}: unknown op {op!r}")
         return None
     out = {"var": var, "op": op}
     if op in ("isnull", "notnull"):
         return out
     val = f.get("value")
-    spec = P.specs.get(var)
-    if spec is not None and spec.dtype == "cat":
+    spec = P.specs[var]
+    if spec.dtype == "cat":
         cats = list(spec.categories)
         low = {c.lower(): c for c in cats}
 
@@ -233,13 +254,13 @@ def check_filter(f, sim, prob: Problems, path="who"):
                     return low[v.lower()]
                 prob.errors.append(f"{path}: '{v}' is not a {var} label (labels: {', '.join(cats)})")
                 return None
-            if isinstance(v, (int, float)) and 0 <= int(v) < len(cats):
+            if _int_ok(v) and 0 <= int(v) < len(cats):
                 return cats[int(v)]
             prob.errors.append(f"{path}: bad {var} value {v!r}")
             return None
         if op in ("in", "notin"):
             vals = [fixlab(v) for v in (val if isinstance(val, list) else [val])]
-            if any(v is None for v in vals):
+            if not vals or any(v is None for v in vals):
                 return None
             out["value"] = vals
         elif op in ("eq", "ne"):
@@ -251,34 +272,49 @@ def check_filter(f, sim, prob: Problems, path="who"):
             prob.errors.append(f"{path}: op '{op}' does not apply to categorical {var}")
             return None
         return out
-    if spec is not None and spec.dtype == "bool":
+    if spec.dtype == "bool":
         if op not in ("eq", "ne"):
             prob.errors.append(f"{path}: use eq/ne with true/false for {var}")
             return None
         v = val[0] if isinstance(val, list) and val else val
-        out["value"] = bool(v) if not isinstance(v, str) else v.lower() in ("true", "yes", "1")
+        out["value"] = (v.lower() in ("true", "yes", "1")) if isinstance(v, str) else bool(v)
         return out
     if op == "between":
         if not (isinstance(val, list) and len(val) == 2 and all(_num(v) is not None for v in val)):
             prob.errors.append(f"{path}: between needs [lo, hi]")
             return None
-        out["value"] = [float(val[0]), float(val[1])]
+        out["value"] = [float(min(val)), float(max(val))]
         return out
     if op in ("in", "notin"):
-        out["value"] = [v for v in (val if isinstance(val, list) else [val])]
+        vals = [float(v) for v in (val if isinstance(val, list) else [val]) if _num(v) is not None]
+        if not vals:
+            prob.errors.append(f"{path}: {op} needs a list of numbers for {var}")
+            return None
+        out["value"] = vals
         return out
-    if _num(val) is None:
+    x = _num(val[0] if isinstance(val, list) and val else val)
+    if x is None:
         prob.errors.append(f"{path}: {var} needs a number")
         return None
-    out["value"] = float(val) if not float(val).is_integer() else int(val)
+    if op in ("quantile_ge", "quantile_le"):
+        if 1 < x <= 100:
+            prob.warnings.append(f"{path}: quantile {x:g} read as {x / 100:g}")
+            x = x / 100
+        if not 0 <= x <= 1:
+            prob.errors.append(f"{path}: quantiles must be between 0 and 1")
+            return None
+    out["value"] = int(x) if float(x).is_integer() and op not in ("quantile_ge", "quantile_le") else float(x)
     return out
 
 
-def count_who(sim, who) -> int:
+def count_who(sim, who, prob: Problems | None = None) -> int:
+    """People a filter selects now; a filter the engine can't evaluate is an error (never silently accepted)."""
     from ..analysis.query import evaluate_filter
     try:
         return int(evaluate_filter(sim.w, who, sim=sim).sum())
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        if prob is not None:
+            prob.errors.append(f"the group can't be evaluated: {e}")
         return -1
 
 
@@ -378,6 +414,9 @@ def _describe_who(sim, who, index=None) -> str:
 def validate(plan: dict, sim, index=None) -> dict:
     """→ {plan (normalized), changes: [receipt rows], errors, warnings, ok}"""
     prob = Problems()
+    if not isinstance(plan, dict):
+        return {"plan": {"title": "", "reply": "", "changes": [], "assumptions": [], "not_modeled": [], "expectations": [], "questions": [],
+                         "confidence": "medium"}, "changes": [], "errors": ["the answer wasn't a plan object"], "warnings": [], "ok": False}
     out = {"title": str(plan.get("title") or "Your What-if")[:80], "reply": str(plan.get("reply") or ""),
            "assumptions": [str(x) for x in plan.get("assumptions") or []][:12],
            "not_modeled": [x for x in plan.get("not_modeled") or [] if isinstance(x, dict)][:12],
@@ -395,7 +434,12 @@ def validate(plan: dict, sim, index=None) -> dict:
         changes = changes[:16]
     for j, ch in enumerate(changes):
         cp = Problems()
-        c, row = _check_change(ch, j, sim, cp, index)
+        try:
+            c, row = _check_change(ch, j, sim, cp, index)
+        except Exception as e:  # noqa: BLE001 — a malformed change is reported, never fatal
+            c, row = None, {"label": str(ch.get("label", "?"))[:70] if isinstance(ch, dict) else "?", "kind": ch.get("kind") if isinstance(ch, dict) else "?",
+                            "why": "", "summary": "", "who": "", "n": None}
+            cp.errors.append(f"couldn't read this change ({type(e).__name__}: {e})")
         if c is not None and not cp.errors:
             out["changes"].append(c)
             row["ok"] = True
@@ -410,7 +454,7 @@ def validate(plan: dict, sim, index=None) -> dict:
             continue
         ee = {"text": str(e["text"])[:200], "direction": e.get("direction") if e.get("direction") in ("up", "down", "unclear") else "unclear"}
         v = e.get("variable")
-        if v and v in P.specs and P.specs[v].dtype in ("f4", "f8", "u1", "i2", "bool"):
+        if isinstance(v, str) and v in P.specs and P.specs[v].dtype in ("f4", "f8", "u1", "i2", "bool"):
             ee["variable"] = v
             wp = Problems()
             w = check_filter(e.get("who"), sim, wp, "expectation.who")
@@ -432,32 +476,48 @@ def _check_change(ch, j, sim, prob: Problems, index):
     kind = ch.get("kind")
     label = str(ch.get("label") or kind or "change")[:70]
     row = {"label": label, "why": str(ch.get("why") or "")[:300], "kind": kind, "summary": "", "who": "everyone", "n": None}
-    if kind not in KINDS:
-        prob.errors.append(f"unknown kind '{kind}'")
+    if not isinstance(kind, str) or kind not in KINDS:
+        prob.errors.append(f"unknown kind {kind!r}")
+        return None, row
+    target = ch.get("target")
+    if kind in ("world", "nudge", "event", "trait", "param", "close", "place") and not isinstance(target, str):
+        prob.errors.append(f"target must be a text id, got {target!r}")
         return None, row
     c = {"kind": kind, "label": label, "why": row["why"]}
     start = int(max(0, min(_num(ch.get("start_offset_days"), 0), 3650)))
     c["start_offset_days"] = start
     c["ramp_days"] = int(max(0, min(_num(ch.get("ramp_days"), 0), 730)))
-    dur = ch.get("duration_days")
-    c["duration_days"] = None if dur in (None, 0) else int(max(1, min(_num(dur, 30), 3650)))
+    dur = _num(ch.get("duration_days"))
+    c["duration_days"] = None if not dur or dur <= 0 else int(max(1, min(dur, 3650)))
+    if c["duration_days"] and kind == "trait":
+        prob.warnings.append("trait changes are permanent; the duration was dropped (use a nudge for something temporary)")
+        c["duration_days"] = None
+    if c["duration_days"] and kind in ("event", "shock") and not _num(ch.get("repeat_every_days")):
+        c["duration_days"] = None     # a one-off event has no duration; its effects fade by their own half-lives
     if kind in ("nudge", "event", "shock", "trait", "practice"):
         who = check_filter(ch.get("who"), sim, prob)
         if prob.errors:
             return None, row
         c["who"] = who
         sh = _num(ch.get("share"))
+        if sh is not None and sh <= 0:
+            prob.errors.append("share must be above 0 (leave it out to include everyone in the group)")
+            return None, row
         if sh is not None and sh < 1:
-            c["share"] = _clip("share", sh, 0.0, 1.0, prob)
-        n = count_who(sim, who)
+            c["share"] = sh
+        n = count_who(sim, who, prob)
+        if prob.errors:
+            return None, row
         if "share" in c and n >= 0:
             n = int(round(n * c["share"]))
         row["n"] = n
         row["who"] = _describe_who(sim, who, index) + (f" (a random {round(100 * c['share'])}%)" if "share" in c else "")
         if n == 0:
             prob.warnings.append("nobody matches this group right now (it may fill later, e.g. after the summer)")
-    target = ch.get("target")
     op = ch.get("op") or "set"
+    if op not in ("set", "add", "mul"):
+        prob.errors.append(f"op must be set, add or mul, got {op!r}")
+        return None, row
     val = ch.get("value")
     when = f"from day +{start}" if start else "from today"
     if c["duration_days"]:
@@ -518,7 +578,7 @@ def _check_change(ch, j, sim, prob: Problems, index):
                 continue
             effs.append({"var": e["var"], "mag": _clip(f"effect on {e['var']}", float(e["mag"]), -0.3, 0.3, prob),
                          "half_life": _clip("half-life", _num(e.get("half_life_days", e.get("half_life")), 14), 1, 365, prob),
-                         "delay": int(max(0, min(_num(e.get("delay_days"), 0), 60)))})
+                         "delay": int(max(0, min(_num(e.get("delay_days", e.get("delay")), 0), 60)))})
         if not effs:
             prob.errors.append("a shock needs 1–6 effects on feelings")
             return None, row
@@ -639,8 +699,11 @@ def _check_change(ch, j, sim, prob: Problems, index):
     elif kind == "practice":
         lab = str(ch.get("practice_label") or label)[:50]
         traits = {}
-        for t in ch.get("traits") or []:
-            if isinstance(t, dict) and t.get("var") in P.specs and P.specs[t["var"]].dtype not in ("cat", "str") and _num(t.get("weight")) is not None:
+        raw_traits = ch.get("traits") or []
+        if isinstance(raw_traits, dict):
+            raw_traits = [{"var": k_, "weight": w_} for k_, w_ in raw_traits.items()]
+        for t in raw_traits if isinstance(raw_traits, list) else []:
+            if isinstance(t, dict) and isinstance(t.get("var"), str) and t["var"] in P.specs and P.specs[t["var"]].dtype not in ("cat", "str") and _num(t.get("weight")) is not None:
                 traits[t["var"]] = _clip(f"weight of {t['var']}", float(t["weight"]), -1.5, 1.5, prob)
             else:
                 prob.warnings.append(f"ignored trait {t!r}")
@@ -730,6 +793,13 @@ def lower(plan: dict, today: int, pid: str) -> list[dict]:
         if "share" in c:
             a["share"] = c["share"]
         atoms.append(a)
+    # groups defined by where people live keep the people who lived there on the start day, when the same plan
+    # closes a complex (nudges, practices and repeating events would otherwise find it empty once residents move)
+    if any(a["target_type"] == "close" and str(a.get("target", "")).startswith("complex:") for a in atoms):
+        for a in atoms:
+            persistent = a["target_type"] in ("offset", "practice") or (a["target_type"] in ("event", "shock") and a.get("repeat_every"))
+            if persistent and "complex_id" in json.dumps(a.get("population") or {}):
+                a["freeze_population"] = True
     # same-day order: who-filters see the world before places change (residents of a burned complex are still there)
     order = {"close": 2, "place": 1}
     return sorted(atoms, key=lambda a: (a["start_day"], order.get(a["target_type"], 0)))

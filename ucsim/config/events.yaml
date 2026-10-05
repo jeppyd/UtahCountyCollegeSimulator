@@ -672,3 +672,19 @@ events:
       - {var: mood, mag: -0.01, sd: 0.4, half_life: 3}
     evidence: structural
     desc: "Value = the intention (1 ask out, 2 reconnect, 3 meet people, 4 study more, 5 find work, 6 return to church). Logged only when something concrete changed the plan: the target became unavailable or priorities shifted."
+  whatif_shock:
+    label: Felt a what-if
+    story: "{a} felt the effects of the what-if"
+    category: intervention
+    salience: 0.5
+    effects: []
+    evidence: speculative
+    desc: "An event from a compiled What-if (a user's scenario). Value = the What-if item index; its label, story, motive and effects come from that item."
+  whatif_practice:
+    label: Took up a new practice
+    story: "{a} took up a new practice"
+    category: intervention
+    salience: 0.25
+    effects: []
+    evidence: speculative
+    desc: "Adopted a behavior introduced by a What-if (a practice that spreads through friendships). Value = the What-if item index."

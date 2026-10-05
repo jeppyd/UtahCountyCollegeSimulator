@@ -1,0 +1,88 @@
+# What-if changes (engine/interventions.py): the user's scenario, labelled so decompositions and event chains say so.
+system: whatif
+mechanisms:
+  whatif.inject:
+    label: What-if event (your scenario)
+    target: [mood, stress, loneliness, anxiety, belonging, self_esteem, guilt, fatigue, purpose, financial_stress, academic_pressure, romantic_longing]
+    sources: []
+    form: "an exogenous event injected into a cohort by a What-if; registered or custom effects, appraised and remembered like any other event"
+    evidence: speculative
+    desc: Everything downstream (coping, memories, behavior) is the model's own response.
+  whatif.practice:
+    label: What-if practice spreading
+    target: [mood]
+    sources: [n_friends]
+    form: "weekly h = 0.05·logistic(base + Σ w·z(trait) + peer·(complex contagion) + nudge); quit hazard; feelings while adopted"
+    evidence: speculative
+  mood.intervention:
+    label: What-if nudge on mood
+    target: mood
+    sources: []
+    form: "persistent offset × ramp × [in the What-if's population]"
+    evidence: speculative
+  stress.intervention:
+    label: What-if nudge on stress
+    target: stress
+    sources: []
+    form: "persistent offset × ramp × [in the What-if's population]"
+    evidence: speculative
+  loneliness.intervention:
+    label: What-if nudge on loneliness
+    target: loneliness
+    sources: []
+    form: "persistent offset × ramp × [in the What-if's population]"
+    evidence: speculative
+  anxiety.intervention:
+    label: What-if nudge on anxiety
+    target: anxiety
+    sources: []
+    form: "persistent offset × ramp × [in the What-if's population]"
+    evidence: speculative
+  belonging.intervention:
+    label: What-if nudge on belonging
+    target: belonging
+    sources: []
+    form: "persistent offset × ramp × [in the What-if's population]"
+    evidence: speculative
+  self_esteem.intervention:
+    label: What-if nudge on self esteem
+    target: self_esteem
+    sources: []
+    form: "persistent offset × ramp × [in the What-if's population]"
+    evidence: speculative
+  guilt.intervention:
+    label: What-if nudge on guilt
+    target: guilt
+    sources: []
+    form: "persistent offset × ramp × [in the What-if's population]"
+    evidence: speculative
+  fatigue.intervention:
+    label: What-if nudge on fatigue
+    target: fatigue
+    sources: []
+    form: "persistent offset × ramp × [in the What-if's population]"
+    evidence: speculative
+  purpose.intervention:
+    label: What-if nudge on purpose
+    target: purpose
+    sources: []
+    form: "persistent offset × ramp × [in the What-if's population]"
+    evidence: speculative
+  financial_stress.intervention:
+    label: What-if nudge on financial stress
+    target: financial_stress
+    sources: []
+    form: "persistent offset × ramp × [in the What-if's population]"
+    evidence: speculative
+  academic_pressure.intervention:
+    label: What-if nudge on academic pressure
+    target: academic_pressure
+    sources: []
+    form: "persistent offset × ramp × [in the What-if's population]"
+    evidence: speculative
+  romantic_longing.intervention:
+    label: What-if nudge on romantic longing
+    target: romantic_longing
+    sources: []
+    form: "persistent offset × ramp × [in the What-if's population]"
+    evidence: speculative

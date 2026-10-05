@@ -93,7 +93,7 @@ export function RecapWatcher() {
         return
       }
       if (days < 7 || !news) return
-      const cut = lj?.reason === 'paused' && s0.total < 3000 ? ` (paused after ${lj.progress} of ${lj.total})` : 
+      const cut = lj?.reason === 'paused' && s0.total < 3000 ? ` (paused after ${lj.progress} of ${lj.total})` : ''
       api.eventsSummary(u, s0.day).then((sum: any) => {
         const rows = RECAP.map(([k, l]) => { const r = sum.types?.find((x: any) => x.type === k); const n = r ? pairs(k, r.count) : 0; return { k, l, n, c: r?.category } }).filter(r => r.n > 0).slice(0, 8)
         const d1 = status.divergence?.any_state_diff ?? null

@@ -180,7 +180,7 @@ class Housing:
         ok = u >= 0
         occ = np.maximum(self.occ[np.maximum(u, 0)], 1)
         married = P.is_("rel_status", "married")[ids]
-        share = np.where(U.unit_type[np.maximum(u, 0)] == 0, U.rent_total[np.maximum(u, 0)] / U.capacity[np.maximum(u, 0)],
+        share = np.where(U.unit_type[np.maximum(u, 0)] == 0, U.rent_total[np.maximum(u, 0)] / np.maximum(U.capacity[np.maximum(u, 0)], 1),
                          np.where(married, U.rent_total[np.maximum(u, 0)] / 2, U.rent_total[np.maximum(u, 0)] / np.maximum(U.capacity[np.maximum(u, 0)], occ)))
         P.cols["rent"][ids] = np.where(ok, share, 0)
 

@@ -154,7 +154,7 @@ class Romance:
                     + p("romance.motivation.longing") * P["drive_partnership"] / 0.55
                     + p("romance.motivation.marriage_norm") * w.env["marriage_norm"] * age_norm * lds_active
                     + 0.4 * rm_recent + 0.25 * sim.z("extraversion")
-                    - 0.8 * P["depressive_episode"] - p("romance.motivation.competing") * competing)
+                    - 0.8 * P["depressive_episode"] - p("romance.motivation.competing") * competing + sim.nudge("dating"))
         P["dating_motivation"] = np.where(self.seeking_mask(), mot, 0.0).astype(np.float32)
         self._weddings()
         self._confessions()

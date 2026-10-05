@@ -62,8 +62,12 @@ class Activity:
         groups = {"food": ["restaurant", "cafe", "soda_shop", "dessert"], "gym": ["gym"],
                   "outdoors": ["park", "trailhead", "overlook"], "dance": ["dance"],
                   "date_fun": ["cinema_theatre", "museum", "recreation", "stadium", "dessert", "soda_shop"]}
+        self.empty_groups = set()
         for g, types in groups.items():
             idx = np.where(np.isin(self.v_type, types))[0]
+            if not len(idx):      # every venue of this kind closed by a What-if
+                self.empty_groups.add(g)
+                continue
             self.trees[g] = (cKDTree(np.c_[self.v_lon[idx] * 0.763, self.v_lat[idx]]), idx)
 
     def add_venue(self, spec: dict):
@@ -80,6 +84,8 @@ class Activity:
         self._build_trees()
 
     def nearest(self, group: str, lon, lat, k: int, pick: np.ndarray) -> np.ndarray:
+        if group not in self.trees:   # closed out: the nearest open alternative
+            group = next(g for g in ("food", "date_fun", "outdoors", "gym", "dance") if g in self.trees)
         tree, idx = self.trees[group]
         k = min(k, len(idx))
         _, nn = tree.query(np.c_[np.asarray(lon) * 0.763, lat], k=k)
@@ -294,6 +300,12 @@ class Activity:
         plans = sim.systems.get("plans")
         if plans is not None:
             U += plans.choice_bias(idx)
+        U = U + sim.whatif.choice_bias(idx)      # a What-if's nudges on free-time choices
+        for col, grp in ((3, "food"), (4, "outdoors"), (5, "dance")):
+            if grp in self.empty_groups:
+                U[:, col] = -9
+        if "gym" in self.empty_groups:
+            U[~enrolled, 2] = -9
         g = sim.streams.gen(f"disc{b}", w.day).gumbel(size=(P.n, 8))[idx]
         choice = np.argmax(U + g, axis=1)
         self.last_choice[idx] = choice

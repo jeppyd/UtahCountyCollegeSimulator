@@ -33,6 +33,7 @@ sections:
       tuition_uvu: {label: UVU tuition (resident), units: USD/semester, update: yearly, desc: "≈$3k/semester full-time resident (approximate)."}
       app_appeal: {label: Dating-app appeal multiplier, desc: "Scales app adoption/engagement (e.g. a new app takes off)."}
       coffee_permitted: {label: Coffee permitted by church, dtype: bool, desc: "Word of Wisdom norm switch (hypothetical intervention).", evidence: hypothetical}
+      alcohol_permitted: {label: Alcohol permitted by church, dtype: bool, desc: "Word of Wisdom alcohol switch (hypothetical): removes the alcohol prohibition from adoption, guilt, quitting and temple-recommend eligibility.", evidence: hypothetical}
       contracted_housing_required: {label: BYU contracted-housing requirement, dtype: bool, desc: "Single first-year BYU undergraduates must live on campus or in BYU-contracted housing (BYU policy since fall 2022: first two semesters only)."}
       interfaith_welcome: {label: Interfaith welcome initiative, desc: "0-1: how actively campuses and wards welcome people of other faiths and none (lowers the religious-outsider feeling).", evidence: hypothetical}
       contracted_housing_all_years: {label: Contracted housing for all years (pre-2022 rule), dtype: bool, desc: "When true, the requirement covers every single BYU undergraduate, as it did before fall 2022.", evidence: hypothetical}

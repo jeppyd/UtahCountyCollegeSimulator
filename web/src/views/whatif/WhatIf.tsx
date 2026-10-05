@@ -109,6 +109,7 @@ function Overview({ c, f, cErr }: { c: any; f: any; cErr: string }) {
   const r: any = rel.data
   return (
     <>
+      <PlansCard />
       <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 2fr)' }}>
         <div className="card">
           <h3>How far apart the worlds have drifted</h3>
@@ -143,6 +144,46 @@ function Overview({ c, f, cErr }: { c: any; f: any; cErr: string }) {
         </div>
       </div>
     </>
+  )
+}
+
+// The plain-language What-ifs behind this world: what was asked, what the model predicted, and how it's going.
+function PlansCard() {
+  const { status, dataVersion, setRoute } = useStore()
+  const pl = useAsync(() => api.whatifPlans(), [dataVersion], { key: whatifKey(status, 'plans') })
+  const plans: any[] = (pl.data as any) ?? []
+  if (!plans.length) return null
+  const STATUS: Record<string, [string, string]> = { 'as predicted': ['ok', '✓ as predicted'], opposite: ['bad', '✕ the opposite'], 'too early': ['wait', '… too early to tell'], moved: ['ok', '✓ moved'] }
+  return (
+    <div className="card plans-card">
+      {plans.map(p => (
+        <div key={p.plan_id} className="pl-one">
+          <div className="card-head"><div>
+            <div className="eyebrow">{G.mind} Your What-if{p.applied_day != null ? ` · from day ${p.applied_day}` : ''}</div>
+            <h3 style={{ margin: '2px 0' }}>{p.title}</h3>
+            {p.request && <p className="small secondary" style={{ margin: 0 }}>“{p.request}”</p>}
+          </div></div>
+          <div className="grid g2" style={{ marginTop: 8 }}>
+            <div>
+              <b className="small">Its predictions vs. the simulation</b>
+              {p.expectations?.length ? <ul className="pl-exp">{p.expectations.map((e: any, i: number) => {
+                const [cls, txt] = e.status ? STATUS[e.status] ?? ['wait', e.status] : ['wait', 'not measurable']
+                return <li key={i}><span className={`pl-st ${cls}`}>{txt}</span> {e.text}{e.effect != null && <span className="small muted tabular"> ({e.base?.toFixed(2)} → {e.alt?.toFixed(2)}, {e.effect >= 0 ? '+' : ''}{e.effect.toFixed(2)} SD, {e.n} people)</span>}</li>
+              })}</ul> : <p className="small muted">No predictions.</p>}
+            </div>
+            <div>
+              <b className="small">What it changed</b>
+              <ul className="pl-reach small">{(p.reach ?? []).map((r: any, i: number) => (
+                <li key={i}>{r.label}{r.reached != null ? <span className="muted"> · reached {r.reached.toLocaleString()}</span> : null}
+                  {r.practice?.history?.length > 1 && <span className="pl-prac"><Spark a={r.practice.history.map((h: any) => h.share)} width={120} height={22} color="var(--u-alt)" /><b className="tabular">{(100 * r.practice.history[r.practice.history.length - 1].share).toFixed(1)}%</b> have taken it up</span>}
+                </li>))}</ul>
+              {p.not_modeled?.length > 0 && <p className="small muted" style={{ margin: '4px 0 0' }}>Not in the model: {p.not_modeled.map((x: any) => x.aspect).join('; ')}.</p>}
+            </div>
+          </div>
+        </div>
+      ))}
+      <div className="row" style={{ marginTop: 6 }}><span className="spacer" /><button className="btn small" onClick={() => useStore.getState().openDrawer({ tab: 'ask' })}>{G.mind} Add more in plain language</button></div>
+    </div>
   )
 }
 

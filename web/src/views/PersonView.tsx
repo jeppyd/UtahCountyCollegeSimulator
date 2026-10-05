@@ -22,7 +22,7 @@ const TABS: [string, string, string][] = [['now', 'Now', 'sun'], ['inner', 'Inne
   ['faith', 'Faith', 'faith'], ['money', 'Money & home', 'key'], ['story', 'Story', 'book'], ['history', 'History', 'trend'], ['other', 'Other life', 'butterfly'], ['all', 'Everything', 'id']]
 
 export default function PersonView({ id, tab: tab0 }: { id: number; tab?: string }) {
-  const { dataVersion, registry, setRoute, togglePin, isPinned, pins } = useStore()
+  const { dataVersion, registry, setRoute, togglePin, isPinned, pins, useInWhatIf } = useStore()
   const { u, compare, hasAlt } = useLens()
   const [why, setWhy] = useState('loneliness')
   const tab = tab0 && TABS.some(t => t[0] === tab0) && (tab0 !== 'other' || hasAlt) ? tab0 : 'now'
@@ -54,6 +54,7 @@ export default function PersonView({ id, tab: tab0 }: { id: number; tab?: string
           <FollowButton id={p.id} />
           <button className={`btn ${pinned ? 'following' : ''}`} onClick={() => togglePin({ kind: 'person', id, name: p.name })} title="Pin to your board">{G.pin} {pinned ? 'Pinned' : 'Pin'}</button>
           <button className="btn" onClick={() => setRoute(['map', 'homes:activity'])}>{G.map} Map</button>
+          {!STATIC && <button className="btn" onClick={() => useInWhatIf({ ref: `person:${p.id}`, kind: 'person', label: p.name, sub: `#${p.id}`, n: 1 })} title="Tag this person in a What-if">{G.butterfly} What if…</button>}
         </div>
       </div>
       <div className="life-pills">

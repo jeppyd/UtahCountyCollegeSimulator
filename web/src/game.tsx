@@ -122,18 +122,53 @@ export function Spark({ a, b, width = 110, height = 30, mark, color }: { a: (num
 }
 
 // ---------------------------------------------------------------- async
-export function useAsync<T>(fn: () => Promise<T>, deps: any[], keepOld = true): { data: T | null; error: string; loading: boolean } {
-  const [st, setSt] = useState<{ data: T | null; error: string; loading: boolean }>({ data: null, error: '', loading: true })
+// Last good answer per `key`, so a page that remounts (switching tabs, coming back from a person) shows what it
+// showed before at once and refreshes it in the background instead of starting from "Loading…".
+const lastGood = new Map<string, any>()
+const remember = (key: string, d: any) => {
+  lastGood.delete(key)
+  lastGood.set(key, d)
+  if (lastGood.size > 200) lastGood.delete(lastGood.keys().next().value as string)
+}
+
+/** Cache key naming the current What-if experiment (the world, when it split, what changed). */
+export const whatifKey = (s: any, what: string) => `whatif:${s.world_id}:${s.fork_day}:${(s.alt_interventions ?? []).length}:${what}`
+
+/** Fetch on mount and whenever `deps` change. `key` names *what* is fetched (not when): answers are cached under it
+ * across remounts. With `keepOld` (the default) the previous data stays on screen while a refresh is in flight. */
+export function useAsync<T>(fn: () => Promise<T>, deps: any[], opts: boolean | { keepOld?: boolean; key?: string } = true): { data: T | null; error: string; loading: boolean } {
+  const { keepOld = true, key } = typeof opts === 'boolean' ? { keepOld: opts } : opts
+  const [st, setSt] = useState<{ data: T | null; error: string; loading: boolean }>(() => ({ data: key && lastGood.has(key) ? lastGood.get(key) : null, error: '', loading: true }))
   // At most one request per hook in flight: if the inputs change meanwhile, fetch once more when it lands
   // (never a queue of stale requests while time runs).
   const flight = useRef<{ busy: boolean; again: (() => void) | null }>({ busy: false, again: null })
+  const mounted = useRef(true)
+  const version = useRef(0)   // bumped whenever the inputs change
+  const keyNow = useRef(key)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   useEffect(() => {
-    let alive = true
+    version.current++
+    keyNow.current = key
+    if (key && lastGood.has(key)) setSt(s => (s.data === lastGood.get(key) ? s : { ...s, data: lastGood.get(key) }))
     const go = () => {
+      const asked = version.current, k = key
       flight.current.busy = true
       setSt(s => ({ data: keepOld ? s.data : null, error: '', loading: true }))
-      fn().then(d => { if (alive) setSt({ data: d, error: '', loading: false }) })
-        .catch(e => { if (alive) setSt(s => ({ data: keepOld ? s.data : null, error: String(e?.message ?? e), loading: false })) })
+      fn().then(d => {
+        if (k) remember(k, d)
+        // While time runs the inputs change every few seconds, often before a slow answer lands. That answer is
+        // still newer than what is on screen, so show it (the follow-up request refreshes it again) rather than
+        // dropping it — dropping it is what left pages stuck on "Loading…" during a run. It is dropped when it
+        // answers a different question whose own cached answer is already showing, or when the caller asked not
+        // to see old data (keepOld false).
+        const cur = keyNow.current
+        if (!mounted.current || (!keepOld && asked !== version.current) || (k !== cur && cur && lastGood.has(cur))) return
+        setSt({ data: d, error: '', loading: !!flight.current.again })
+      })
+        .catch(e => {
+          if (!mounted.current || flight.current.again) return   // a newer request is queued; let it answer
+          setSt(s => ({ data: keepOld ? s.data : null, error: String(e?.message ?? e), loading: false }))
+        })
         .finally(() => {
           flight.current.busy = false
           const next = flight.current.again
@@ -143,7 +178,6 @@ export function useAsync<T>(fn: () => Promise<T>, deps: any[], keepOld = true): 
     }
     if (flight.current.busy) flight.current.again = go
     else go()
-    return () => { alive = false }
   }, deps)
   return st
 }

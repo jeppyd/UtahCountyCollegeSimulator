@@ -141,8 +141,11 @@ export const useStore = create<State>((set, get) => ({
     // one status request at a time: callers that ask while one is in flight share its answer
     if (statusInflight) return statusInflight
     statusInflight = (async () => {
-      const s = await api.status()
+      const raw = await api.status()
       const prev = get().status
+      // A status read that raced a simulated day comes back partial: keep the last full picture, update the job
+      const s = raw.partial && prev?.day != null && prev.world_id === raw.world_id && prev.has_alt === raw.has_alt
+        ? { ...prev, job: raw.job, last_job: raw.last_job } : raw
       const structural = !prev || prev.world_id !== s.world_id || prev.has_alt !== s.has_alt || prev.agents !== s.agents
         || prev.job?.state !== s.job?.state || prev.fork_day !== s.fork_day
         || JSON.stringify(prev.alt_interventions ?? []) !== JSON.stringify(s.alt_interventions ?? [])

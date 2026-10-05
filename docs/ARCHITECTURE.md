@@ -103,9 +103,12 @@ start day, ramp and duration.
   `FairLock`, so page requests queued during a day are answered before the next day starts (a plain lock let
   the run re-take it every day and pages waited for the whole run). `/api/status` and `/api/cancel` run on the
   event loop without the lock, so the clock and Pause always respond. Comparisons are memoized until either
-  world moves; a run that fails records which world and day in `last_job` and stops, and the What-if catches
+  world moves (tagged by world, experiment and day) and a memoized answer is served without waiting for the
+  lock; a run that fails records which world and day in `last_job` and stops, and the What-if catches
   up on the next run if it was left a day behind. In the browser, pages reload at most every 2.5 s while time
-  runs and at once when it stops; `useAsync` keeps one request per view in flight; requests time out.
+  runs and at once when it stops; `useAsync` keeps one request per view in flight, shows an answer even when
+  newer inputs arrived while it was in flight (on large worlds a day can outlast the refresh interval), and
+  caches the last good answer per key so a view that remounts shows it at once; requests time out.
 
 ## Workstation (`web/`)
 

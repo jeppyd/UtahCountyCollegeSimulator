@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { api, STATIC } from '../../api'
 import { axisStyle, cssVar, Decomposition, EChart, Evidence, tokens, VarPicker } from '../../components'
 import { browsable, catalog, DRAWERS, drawerOf, fdelta, fpair, fval, pctStr, polarity, pretty, sizeWord } from '../../fields'
-import { CatIcon, DeltaChip, G, Spark, UBadge, uColor, useAsync } from '../../game'
+import { CatIcon, DeltaChip, G, Spark, UBadge, uColor, useAsync, whatifKey } from '../../game'
 import { timeCtl } from '../../hud'
 import { useStore } from '../../store'
 import { ChangeBuilder } from './Change'
@@ -37,8 +37,8 @@ function Setup({ preset }: { preset?: string }) {
 
 function Butterfly({ tab }: { tab: string }) {
   const { status, dataVersion, setRoute, openDrawer, refreshStatus, presets } = useStore()
-  const c = useAsync(() => api.compare(), [dataVersion])
-  const f = useAsync(() => api.compareFields(), [dataVersion])
+  const c = useAsync(() => api.compare(), [dataVersion], { key: whatifKey(status, 'compare') })
+  const f = useAsync(() => api.compareFields(), [dataVersion], { key: whatifKey(status, 'fields') })
   const running = status.job?.state === 'running'
   const since = status.day - (status.fork_day ?? status.day)
   const d = status.divergence?.any_state_diff ?? 0
@@ -74,22 +74,22 @@ function Butterfly({ tab }: { tab: string }) {
       {running && <div className="banner live-dot">Both worlds are running ({status.job?.total >= 3000 ? `+${status.job?.progress ?? 0} days` : `day ${status.job?.progress ?? 0} of ${status.job?.total}`}). These comparisons refresh every few seconds as they go.</div>}
       {since > 0 && d === 0 && <div className="banner">No lives differ yet. Some changes only act on a schedule: rent and bills are settled on the 1st of the month, tuition at the start of a term, moves when leases end. Until your change touches someone, the two worlds stay identical.</div>}
       {!running && since === 0 && <div className="banner">The worlds have only just split. Run time forward (▶ in the top bar, or the buttons above) and watch them drift apart.</div>}
-      {tab === 'overview' && <Overview c={c.data} f={f.data} />}
-      {tab === 'fields' && <AllFields f={f.data} />}
-      {tab === 'events' && <EventsDiff c={c.data} />}
+      {tab === 'overview' && <Overview c={c.data} f={f.data} cErr={c.error} />}
+      {tab === 'fields' && <AllFields f={f.data} err={f.error} />}
+      {tab === 'events' && <EventsDiff c={c.data} err={c.error} />}
       {tab === 'lives' && <Lives />}
       {tab === 'relationships' && <Rel />}
       {tab === 'places' && <PlacesDiff />}
-      {tab === 'why' && <Why c={c.data} />}
+      {tab === 'why' && <Why c={c.data} err={c.error} />}
     </div>
   )
 }
 
 // ------------------------------------------------------------------ overview
-function Overview({ c, f }: { c: any; f: any }) {
+function Overview({ c, f, cErr }: { c: any; f: any; cErr: string }) {
   const { status, dataVersion, registry, setRoute } = useStore()
-  const ppl = useAsync(() => api.comparePeople(6), [dataVersion])
-  const rel = useAsync(() => api.compareRelationships(), [dataVersion])
+  const ppl = useAsync(() => api.comparePeople(6), [dataVersion], { key: whatifKey(status, 'people6') })
+  const rel = useAsync(() => api.compareRelationships(), [dataVersion], { key: whatifKey(status, 'relationships') })
   const divOpt = useMemo(() => {
     if (!c?.divergence?.length) return null
     const ax = axisStyle(), t = tokens()
@@ -113,11 +113,11 @@ function Overview({ c, f }: { c: any; f: any }) {
         <div className="card">
           <h3>How far apart the worlds have drifted</h3>
           <p className="hint">Share of people whose life differs between the worlds, day by day. Small differences spread: a missed first date changes who meets whom next.</p>
-          {divOpt ? <EChart option={divOpt} height={240} /> : <div className="empty small">Run time forward to see the worlds drift apart.</div>}
+          {divOpt ? <EChart option={divOpt} height={240} /> : <div className="empty small">{c ? 'Run time forward to see the worlds drift apart.' : cErr || 'Loading the comparison…'}</div>}
         </div>
         <div className="card">
           <div className="card-head"><div><h3>Lives that changed most</h3><p className="hint">Same person, two lives. Open one to see where their roads forked.</p></div><button className="btn small" onClick={() => setRoute(['whatif', 'lives'])}>All</button></div>
-          {(ppl.data as any)?.people?.slice(0, 6).map((p: any) => <LifeRow key={p.id} p={p} />) ?? <div className="empty small">Finding them…</div>}
+          {ppl.data ? ((ppl.data as any).people.length ? (ppl.data as any).people.slice(0, 6).map((p: any) => <LifeRow key={p.id} p={p} />) : <div className="empty small">No lives differ yet.</div>) : <div className="empty small">{ppl.error || 'Finding them…'}</div>}
         </div>
       </div>
       <div className="section-title"><h2>What changed most</h2><button className="btn small" onClick={() => setRoute(['whatif', 'fields'])}>Scan every field →</button></div>
@@ -127,7 +127,7 @@ function Overview({ c, f }: { c: any; f: any }) {
       <div className="grid g2" style={{ marginTop: 14 }}>
         <div className="card">
           <div className="card-head"><div><h3>Things that happened more or less often</h3><p className="hint">Life events since the split.</p></div><button className="btn small" onClick={() => setRoute(['whatif', 'events'])}>All</button></div>
-          {evs.length === 0 && <div className="empty small">No clear differences yet. Run longer.</div>}
+          {evs.length === 0 && <div className="empty small">{c ? 'No clear differences yet. Run longer.' : cErr || 'Counting…'}</div>}
           {evs.map((e: any) => <EventDiffRow key={e.type} e={e} />)}
         </div>
         <div className="card">
@@ -139,7 +139,7 @@ function Overview({ c, f }: { c: any; f: any }) {
               <div className="kpi"><span className="k-label">Same couple, other stage</span><span className="k-val tabular">{r.couples.changed_status}</span><span className="k-sub">e.g. engaged vs dating</span></div>
               <div className="kpi"><span className="k-label">Friendships that differ</span><span className="k-val tabular">{(r.friendships.only_alt + r.friendships.only_base).toLocaleString()}</span><span className="k-sub">{r.friendships.only_alt.toLocaleString()} new · {r.friendships.only_base.toLocaleString()} never formed</span></div>
             </div>
-          ) : <div className="empty small">Counting…</div>}
+          ) : <div className="empty small">{rel.error || 'Counting…'}</div>}
         </div>
       </div>
     </>
@@ -204,7 +204,7 @@ function LifeRow({ p }: { p: any }) {
 }
 
 // ------------------------------------------------------------------ all fields
-function AllFields({ f }: { f: any }) {
+function AllFields({ f, err }: { f: any; err: string }) {
   const { registry, setRoute, setLens } = useStore()
   const [q, setQ] = useState('')
   const [drawer, setDrawer] = useState('')
@@ -224,7 +224,7 @@ function AllFields({ f }: { f: any }) {
     out.sort((a, b) => sort === 'name' ? a.v.label.localeCompare(b.v.label) : sort === 'changed' ? b.r.changed_share - a.r.changed_share : Math.abs(b.r.effect) - Math.abs(a.r.effect))
     return out
   }, [f, q, drawer, kind, sort, hideSame])
-  if (!f) return <div className="empty">Comparing every field…</div>
+  if (!f) return <div className="empty">{err || 'Comparing every field…'}</div>
   const maxE = Math.max(0.05, ...rows.map(x => Math.abs(x.r.effect)))
   const cats = catalog(registry!)
   return (
@@ -269,9 +269,9 @@ function AllFields({ f }: { f: any }) {
 }
 
 // ------------------------------------------------------------------ events
-function EventsDiff({ c }: { c: any }) {
+function EventsDiff({ c, err }: { c: any; err: string }) {
   const [minN, setMinN] = useState(5)
-  if (!c) return <div className="empty">Counting events in both worlds…</div>
+  if (!c) return <div className="empty">{err || 'Counting events in both worlds…'}</div>
   const evs = c.events.filter((e: any) => e.base + e.alt >= minN && e.type !== 'intervention_exposure')
   const more = evs.filter((e: any) => e.delta > 0).slice(0, 18), less = evs.filter((e: any) => e.delta < 0).slice(0, 18)
   return (
@@ -288,7 +288,7 @@ function EventsDiff({ c }: { c: any }) {
 // ------------------------------------------------------------------ lives
 function Lives() {
   const { status, dataVersion, setRoute } = useStore()
-  const p = useAsync(() => api.comparePeople(60), [dataVersion])
+  const p = useAsync(() => api.comparePeople(60), [dataVersion], { key: whatifKey(status, 'people60') })
   const d: any = p.data
   if (!d) return <div className="empty">{p.error || 'Finding the lives that diverged…'}</div>
   return (
@@ -322,7 +322,7 @@ function Lives() {
 // ------------------------------------------------------------------ relationships
 function Rel() {
   const { status, dataVersion, setRoute } = useStore()
-  const r = useAsync(() => api.compareRelationships(), [dataVersion])
+  const r = useAsync(() => api.compareRelationships(), [dataVersion], { key: whatifKey(status, 'relationships') })
   const d: any = r.data
   if (!d) return <div className="empty">{r.error || 'Comparing couples and friendships…'}</div>
   const ax = axisStyle(), t = tokens()
@@ -370,7 +370,7 @@ function PlacesDiff() {
   const { status, dataVersion, setRoute, registry } = useStore()
   const [kind, setKind] = useState('complex')
   const [v, setV] = useState('loneliness')
-  const r = useAsync(() => api.comparePlaces(kind, v), [kind, v, dataVersion])
+  const r = useAsync(() => api.comparePlaces(kind, v), [kind, v, dataVersion], { key: whatifKey(status, `places:${kind}:${v}`) })
   const rows: any[] = (r.data as any) ?? []
   const spec = registry!.variables[v]
   const m = Math.max(1e-6, ...rows.map(x => Math.abs(x.delta ?? 0)))
@@ -399,10 +399,10 @@ function PlacesDiff() {
 }
 
 // ------------------------------------------------------------------ why
-function Why({ c }: { c: any }) {
+function Why({ c, err }: { c: any; err: string }) {
   const { registry, setRoute } = useStore()
   const [picked, setState] = useState('')
-  if (!c) return <div className="empty">Tracing causes…</div>
+  if (!c) return <div className="empty">{err || 'Tracing causes…'}</div>
   const state = picked || STATES.reduce((best, s) => (Math.abs(c.states[s]?.delta ?? 0) > Math.abs(c.states[best]?.delta ?? 0) ? s : best), 'loneliness')
   const st = c.states[state]
   const mech = Object.entries(c.mechanisms ?? {}).map(([id, d]: any) => ({ id, d, m: registry!.mechanisms[id] })).filter(x => x.m && Math.abs(x.d) > 1e-5).sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).slice(0, 14)

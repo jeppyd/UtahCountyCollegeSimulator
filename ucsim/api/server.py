@@ -129,6 +129,7 @@ class Workspace:
         self.unc = None
         self.compare_cache = None
         self.world_id = 0
+        self.fork_id = 0      # bumped whenever the What-if world is replaced (cache tags must never match across experiments)
         self.registry = get_registry()
 
     def sim(self, u: str):
@@ -396,6 +397,7 @@ def fork(body: dict = Body(...)):
         raise HTTPException(409, "a new world is being built; wait for it to finish")
     with WS.lock:
         WS.alt = runner.fork(WS.base, body.get("interventions", []))
+        WS.fork_id += 1
         WS.divergence = [runner.divergence(WS.base, WS.alt)]
         WS.compare_cache = None
     return {"ok": True, "fork_day": WS.base.w.day}
@@ -405,6 +407,7 @@ def fork(body: dict = Body(...)):
 def unfork():
     with WS.lock:
         WS.alt = None
+        WS.fork_id += 1
         WS.divergence = []
         WS.compare_cache = None
     return {"ok": True}
@@ -806,17 +809,19 @@ def cohort_timeline(body: dict = Body(...)):
 def compare():
     if WS.alt is None:
         raise HTTPException(404, "no intervention universe")
-    with WS.lock:
-        if WS.compare_cache is None:
-            c = X.compare_universes(WS.base, WS.alt)
-            c["divergence"] = WS.divergence
-            c["interventions"] = WS.alt.interventions
-            c["most_affected"] = {v: X.most_affected(WS.base, WS.alt, v) for v in ("mood", "loneliness", "faith_belief", "financial_stress")}
-            for v, rows in c["most_affected"].items():
-                for r in rows:
-                    r["name"] = synthetic_name(WS.base.w.P, r["id"])
-            WS.compare_cache = c
-        return jresp(WS.compare_cache)
+
+    def build():
+        c = X.compare_universes(WS.base, WS.alt)
+        c["divergence"] = list(WS.divergence)
+        c["interventions"] = WS.alt.interventions
+        c["most_affected"] = {v: X.most_affected(WS.base, WS.alt, v) for v in ("mood", "loneliness", "faith_belief", "financial_stress")}
+        for v, rows in c["most_affected"].items():
+            for r in rows:
+                r["name"] = synthetic_name(WS.base.w.P, r["id"])
+        return c
+    c = _cached(("compare",), build)
+    WS.compare_cache = c     # the cause-and-effect graph reads the latest comparison
+    return jresp(c)
 
 
 def _need_alt():
@@ -824,20 +829,30 @@ def _need_alt():
         raise HTTPException(404, "no what-if world; make a change first")
 
 
-_memo: dict = {"tag": None}
+_memo: dict = {}   # key -> (state tag, answer)
+
+
+def _tag() -> tuple:
+    alt = WS.alt
+    return (WS.world_id, WS.fork_id, id(WS.base), id(alt), WS.base.w.day, WS.base.w.hour, alt.w.day, alt.w.hour, len(alt.interventions))
 
 
 def _cached(key: tuple, fn):
     """Reuse a comparison until either world moves, so pages polling during a run don't recompute it.
-    Call with WS.lock held."""
-    alt = WS.alt
-    tag = (WS.world_id, WS.base.w.day, WS.base.w.hour, id(alt), alt.w.day, len(alt.interventions))
-    if _memo["tag"] != tag:
-        _memo.clear()
-        _memo["tag"] = tag
-    if key not in _memo:
-        _memo[key] = fn()
-    return _memo[key]
+    An answer already computed for the current state is a finished snapshot, so it is returned without waiting for
+    the workspace lock (a run holds it for a whole simulated day); otherwise it is computed under the lock."""
+    hit = _memo.get(key)
+    if hit is not None and hit[0] == _tag():
+        return hit[1]
+    with WS.lock:
+        tag = _tag()
+        hit = _memo.get(key)
+        if hit is None or hit[0] != tag:
+            for k in [k for k, v in _memo.items() if v[0] != tag]:
+                _memo.pop(k, None)
+            hit = (tag, fn())
+            _memo[key] = hit
+        return hit[1]
 
 
 @app.get("/api/compare/fields")
@@ -845,8 +860,7 @@ def compare_fields():
     """Every chartable field, Original vs What-if: averages or shares, effect size, how many people changed,
     and the difference over time since the split."""
     _need_alt()
-    with WS.lock:
-        return jresp(_cached(("fields",), lambda: B.compare_fields(WS.base, WS.alt)))
+    return jresp(_cached(("fields",), lambda: B.compare_fields(WS.base, WS.alt)))
 
 
 @app.get("/api/compare/people")
@@ -854,8 +868,7 @@ def compare_people(k: int = 40):
     """The people whose lives diverged most between the two worlds, and why."""
     _need_alt()
     k = max(1, min(k, 200))
-    with WS.lock:
-        return jresp(_cached(("people", k), lambda: B.diverged_people(WS.base, WS.alt, k=k)))
+    return jresp(_cached(("people", k), lambda: B.diverged_people(WS.base, WS.alt, k=k)))
 
 
 @app.get("/api/compare/person/{i}")
@@ -873,8 +886,7 @@ def compare_relationships(k: int = 40):
     """Couples and friendships that exist in only one of the two worlds."""
     _need_alt()
     k = max(1, min(k, 200))
-    with WS.lock:
-        return jresp(_cached(("relationships", k), lambda: B.compare_relationships(WS.base, WS.alt, k=k)))
+    return jresp(_cached(("relationships", k), lambda: B.compare_relationships(WS.base, WS.alt, k=k)))
 
 
 @app.get("/api/compare/places")
@@ -882,10 +894,9 @@ def compare_places(kind: str = "complex", var: str = "loneliness"):
     _need_alt()
     if kind not in ("complex", "ward", "neighborhood", "school"):
         raise HTTPException(400, "kind must be complex|ward|neighborhood|school")
-    with WS.lock:
-        if var not in WS.base.w.P.specs:
-            raise HTTPException(400, f"unknown field {var}")
-        return jresp(_cached(("places", kind, var), lambda: B.compare_places(WS.base, WS.alt, kind, var)))
+    if var not in WS.base.w.P.specs:
+        raise HTTPException(400, f"unknown field {var}")
+    return jresp(_cached(("places", kind, var), lambda: B.compare_places(WS.base, WS.alt, kind, var)))
 
 
 @app.post("/api/fork/add")

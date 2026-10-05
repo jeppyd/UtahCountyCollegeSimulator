@@ -5,7 +5,7 @@ import { fmt } from '../analysis'
 import { api, STATIC } from '../api'
 import { axisStyle, cssVar, Decomposition, DOMAIN_LABEL, EChart, Evidence, Loading, PersonLink, tokens } from '../components'
 import { fval, polarity, pretty } from '../fields'
-import { CatIcon, G, Meter, UBadge, uColor, useAsync } from '../game'
+import { CatIcon, G, Meter, UBadge, uColor, useAsync, whatifKey } from '../game'
 import { CyGraph } from '../graph'
 import { useLens, useStore } from '../store'
 import { CATEGORY_LABEL, FollowButton, Story, useAdvanced } from '../ui'
@@ -372,8 +372,8 @@ function MiniLine({ a, b, dates, spec, fork }: { a: (number | null)[]; b?: (numb
 
 // ---------------------------------------------------------------- the other life
 function OtherLife({ id, first }: { id: number; first: string }) {
-  const { dataVersion, registry, setRoute } = useStore()
-  const c = useAsync(() => api.comparePerson(id), [id, dataVersion])
+  const { status, dataVersion, registry, setRoute } = useStore()
+  const c = useAsync(() => api.comparePerson(id), [id, dataVersion], { key: whatifKey(status, `person:${id}`) })
   const d: any = c.data
   if (c.error) return <div className="card empty">{c.error}</div>
   if (!d) return <Loading what="Comparing both lives" />

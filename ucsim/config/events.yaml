@@ -42,6 +42,22 @@ events:
       - {var: stress, mag: 0.06, sd: 0.4, half_life: 4, mods: {neuroticism: 0.3, agreeableness: -0.15}}
       - {var: mood, mag: -0.05, sd: 0.4, half_life: 3}
     evidence: literature
+  coping_started:
+    label: Started coping with a hard time
+    story: "{a} started coping with a hard stretch"
+    category: coping
+    salience: 0.4
+    effects: []
+    evidence: structural
+    desc: "Value = strategy (1 support, 2 active, 3 religious, 4 distraction, 5 withdrawal). Cause = the most salient recent negative memory."
+  coping_ended:
+    label: A hard stretch eased
+    story: "{a} came through a hard stretch"
+    category: coping
+    salience: 0.35
+    effects: []
+    evidence: structural
+    desc: "Value = outcome (0-1): how much the strain fell, credited to the strategy used."
   hosted_gathering:
     label: Hosted a get-together
     story: "{a} hosted a get-together"
@@ -377,6 +393,14 @@ events:
       - {var: guilt, mag: -0.06, sd: 0.6, half_life: 60}
       - {var: purpose, mag: -0.04, sd: 1.0, half_life: 120}
     evidence: hypothetical
+  resigned_membership:
+    label: Removed name from Church records
+    story: "{a} had their name removed from Church records"
+    category: religion
+    salience: 0.6
+    effects: []
+    evidence: hypothetical
+    desc: The formal exit (a minority of those who leave). Logged separately so membership stocks balance.
   stopped_attending:
     label: Stopped attending church
     story: "{a} stopped going to church"
@@ -639,3 +663,12 @@ events:
     salience: 0.5
     effects: []
     evidence: calibrated
+  plan_abandoned:
+    label: Gave up on a plan
+    story: "{a} gave up on a plan"
+    category: plans
+    salience: 0.3
+    effects:
+      - {var: mood, mag: -0.01, sd: 0.4, half_life: 3}
+    evidence: structural
+    desc: "Value = the intention (1 ask out, 2 reconnect, 3 meet people, 4 study more, 5 find work, 6 return to church). Logged only when something concrete changed the plan: the target became unavailable or priorities shifted."

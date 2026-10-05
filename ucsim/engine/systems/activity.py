@@ -159,7 +159,8 @@ class Activity:
             sec_now = acad.section_now(wd, b)
             in_class = (sec_now >= 0) & present & ~busy & ~P["ill"]
             p_att = expit(p("activity.class_attendance.base") + p("activity.class_attendance.conscientiousness") * sim.z("conscientiousness")
-                          - p("activity.class_attendance.fatigue") * P["fatigue"] + 0.8 * P["academic_pressure"] - 0.6 * P["depressive_episode"])
+                          - p("activity.class_attendance.fatigue") * P["fatigue"] + 0.8 * P["academic_pressure"] - 0.6 * P["depressive_episode"]
+                          + sim.systems["coping"].attend_bias())
             go = in_class & (u < p_att)
             ctype[go] = CTX_ID["class"]
             cid[go] = sec_now[go]
@@ -205,10 +206,15 @@ class Activity:
             self._gatherings(ctype, cid, act, busy, present, wd)
         # ---- discretionary choice for everyone still free (not night)
         free = present & ~busy
+        self.last_choice = np.full(n, 255, np.uint8)
         if free.any():
             self._discretionary(free, b, wd, ctype, cid, act)
         self.ctype, self.cid = ctype, cid
         P["activity_now"] = act
+        sim.systems["mind"].observe_block(act, ctype)
+        rt = sim.systems.get("routine")
+        if rt is not None:
+            rt.observe(b, wd, free, self.last_choice)
         self._locate(ctype, cid, act)
         self._keep_frame(b)
 
@@ -238,14 +244,8 @@ class Activity:
         self.frames_today = {}
 
     def _drives(self):
-        sim, P = self.sim, self.sim.w.P
-        p = sim.p
-        approach = expit(p("activity.loneliness_response.extraversion") * sim.z("extraversion")
-                         - p("activity.loneliness_response.social_anxiety") * sim.z("social_anxiety")
-                         - p("activity.loneliness_response.neuroticism") * sim.z("neuroticism")
-                         + p("activity.loneliness_response.base"))
-        lon = P["loneliness"]
-        return lon * approach, lon * (1 - approach), approach
+        """(approach, withdraw, style): the connection drive split into reaching out vs pulling back (mind.social_pull)."""
+        return self.sim.systems["mind"].social_pull()
 
     def _discretionary(self, free, b, wd, ctype, cid, act):
         sim, w = self.sim, self.sim.w
@@ -261,25 +261,42 @@ class Activity:
         married = P.is_("rel_status", "married")[idx]
         single = ~married & ~P.isin("rel_status", ["dating", "engaged"])[idx]
         U = np.full((k, 8), -9.0)
-        U[:, 0] = (p("activity.choice.home") + 1.2 * P["fatigue"][idx] + p("activity.choice.withdraw") * withdraw
+        # habit/trait bases plus the person's current drives (mind.choice): rest pulls home, achievement to campus,
+        # fitness to the gym, fun to venues and the outdoors, partnership to dances, connection to friends
+        d = {m: P[f"drive_{m}"][idx] for m in ("rest", "achievement", "health", "fun", "partnership")}
+        wgt = {m: p(f"mind.choice.{m}") for m in d}
+        U[:, 0] = (p("activity.choice.home") + wgt["rest"] * d["rest"] + p("activity.choice.withdraw") * withdraw
                    + 0.6 * married + 0.3 * (P["children"][idx] > 0) + (0.6 if b == 0 else 0.0) + 0.8 * P["ill"][idx])
         if b < 2:
-            U[:, 1] = np.where(enrolled & in_term, 0.5 + 1.3 * P["academic_pressure"][idx] + 0.3 * sim.z("conscientiousness")[idx]
+            U[:, 1] = np.where(enrolled & in_term, 0.5 + wgt["achievement"] * d["achievement"] + 0.3 * sim.z("conscientiousness")[idx]
                                - 0.25 * (P["dist_campus_km"][idx] > 3), -9)
-        U[:, 2] = -2.3 + np.log(P["workouts_week"][idx] + 0.3) + (0.4 if b != 1 else -0.3)
+        U[:, 2] = -2.3 + np.log(P["workouts_week"][idx] + 0.3) + (0.4 if b != 1 else -0.3) + wgt["health"] * d["health"]
         if b >= 1:
             U[:, 3] = (-1.6 + 0.5 * np.log1p(P.internal["eat_out_month"][idx] + 3 * P["soda_shop_week"][idx])
-                       + p("activity.choice.approach") * 0.6 * appr + 0.3 * weekend)
-            U[:, 4] = -2.6 + 1.0 * P["hikes"][idx] + 0.4 * P["outdoors"][idx] + 1.6 * env["outdoor_appeal"] + 0.6 * weekend
+                       + p("activity.choice.approach") * 0.6 * appr + 0.3 * weekend + wgt["fun"] * 0.6 * d["fun"])
+            U[:, 4] = (-2.6 + 1.0 * P["hikes"][idx] + 0.4 * P["outdoors"][idx] + 1.6 * env["outdoor_appeal"] + 0.6 * weekend
+                       + wgt["fun"] * d["fun"] + 0.5 * wgt["health"] * d["health"])
         if b == 2 and wd in (3, 4, 5):
-            U[:, 5] = np.where(single, -3.2 + 0.9 * P["dancing"][idx] + 0.8 * P["romantic_longing"][idx] + 0.5 * appr, -9)
+            U[:, 5] = np.where(single, -3.2 + 0.9 * P["dancing"][idx] + wgt["partnership"] * d["partnership"] + 0.5 * appr
+                               + 0.5 * wgt["fun"] * d["fun"], -9)
         if b >= 1:
             has_f = P["n_friends"][idx] > 0
             U[:, 6] = np.where(has_f, -1.2 + p("activity.choice.approach") * appr + 0.35 * E + 0.5 * weekend - 0.5 * married, -9)
         if b == 2:
-            U[:, 7] = np.where(P["complex_id"][idx] >= 0, -2.0 + 0.4 * E, -9)
+            U[:, 7] = np.where(P["complex_id"][idx] >= 0, -2.0 + 0.4 * E + 0.5 * appr
+                               + p("culture.feedback.reputation") * sim.systems["culture"].complex_social_z(P["complex_id"][idx]), -9)
+        rt = sim.systems.get("routine")
+        if rt is not None:
+            U += rt.bonus(idx, wd, b)
+        cop = sim.systems.get("coping")
+        if cop is not None:
+            U += cop.choice_bias(idx)
+        plans = sim.systems.get("plans")
+        if plans is not None:
+            U += plans.choice_bias(idx)
         g = sim.streams.gen(f"disc{b}", w.day).gumbel(size=(P.n, 8))[idx]
         choice = np.argmax(U + g, axis=1)
+        self.last_choice[idx] = choice
         pick = sim.u(f"pick{b}")[idx]
         hl, ht = P["home_lon"][idx], P["home_lat"][idx]
         # campus
@@ -317,6 +334,7 @@ class Activity:
             cid[vis] = P["unit_id"][friend]
             act[vis] = A["gathering"]
             self.gathering_units.update(P["unit_id"][friend].tolist())
+            sim.systems["culture"].observe_visits(P["unit_id"][friend])
         m = choice == 7
         ctype[idx[m]] = CTX_ID["complex"]
         cid[idx[m]] = P["complex_id"][idx[m]]
@@ -330,7 +348,8 @@ class Activity:
         base = [p("activity.gathering.host_weekday")] * 4 + [p("activity.gathering.host_friday"),
                                                               p("activity.gathering.host_saturday"),
                                                               p("activity.gathering.host_sunday")]
-        ph = base[wd] * np.exp(0.6 * sim.z("extraversion") + 0.8 * appr) * (P["n_friends"] >= 2)
+        cul = sim.systems["culture"]
+        ph = base[wd] * np.exp(0.6 * sim.z("extraversion") + 0.8 * appr) * (P["n_friends"] >= 2) * cul.host_mult(P["unit_id"])
         u = sim.u("host")
         hosts = np.where(present & ~busy & (P["unit_id"] >= 0) & (u < ph))[0]
         self.hosts_today = hosts
@@ -347,9 +366,10 @@ class Activity:
         h_rep = np.repeat(hosts, k)
         off = (rng.random(len(h_rep)) * np.repeat(deg, k)).astype(np.int64)
         inv = nbr[np.repeat(indptr[hosts], k) + off]
-        close = w.E["closeness"][eidx[np.repeat(indptr[hosts], k) + off]]
+        close = sim.systems["encounters"]._closeness(h_rep, inv)   # by key (weekly edge indices go stale)
         pa = expit(p("activity.gathering.accept_base") + 2.0 * close + 0.4 * sim.z("extraversion")[inv]
-                   - 1.5 * P["fatigue"][inv] + 0.8 * appr[inv])
+                   - 1.5 * P["fatigue"][inv] + 0.8 * appr[inv] + sim.systems["plans"].accept_boost()[inv]
+                   + p("culture.feedback.reputation") * cul.complex_social_z(P["complex_id"][h_rep]))
         go = present[inv] & ~busy[inv] & (rng.random(len(inv)) < pa)
         inv, h_rep = inv[go], h_rep[go]
         inv, first = np.unique(inv, return_index=True)
@@ -369,6 +389,7 @@ class Activity:
         sizes = np.bincount(pos, minlength=len(hosts)).astype(float)
         self.host_of_unit = dict(zip(P["unit_id"][hosts].tolist(), hosts.tolist()))
         sim.emit("hosted_gathering", hosts, value=sizes, block=2)
+        cul.observe_gathering(P["unit_id"][hosts], sizes)
 
     def _locate(self, ctype, cid, act):
         sim, w = self.sim, self.sim.w

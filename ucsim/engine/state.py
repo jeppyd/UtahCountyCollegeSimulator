@@ -93,11 +93,14 @@ class EdgeStore:
     Batched upserts use searchsorted, so a day's interactions are applied in one pass.
     """
 
+    # bel_lh: what lo *believes* hi's attraction to lo is (and bel_hl the reverse) — perceived, not actual.
+    # disclosure: how much each has let the other see (self-disclosure / intimacy); support: help given and
+    # received in hard times; hurt: unrepaired injury (betrayal, conflict) that fades slowly with repair.
     FLOAT_COLS = ("liking", "closeness", "trust", "conflict", "att_lh", "att_hl", "hours", "hours_leisure",
-                  "chemistry")
+                  "chemistry", "bel_lh", "bel_hl", "disclosure", "support", "hurt")
     INT_COLS = {"n_inter": np.int32, "first_day": np.int32, "last_day": np.int32, "stage": np.uint8,
                 "flags": np.uint32, "origin_ctx": np.uint8, "origin_place": np.int32, "introducer": np.int32,
-                "dates": np.int16}
+                "dates": np.int16, "shared": np.int16}
 
     def __init__(self, capacity: int = 1 << 16):
         self.n = 0
@@ -165,19 +168,26 @@ class EdgeStore:
             kb[: self.cap] = self._keys_buf
             self._keys_buf = kb
             self.cap = new_cap
+        # both runs are sorted, so merge in O(n): new key j lands at searchsorted(old, key_j) + j
         old = self._keys_buf[: self.n]
-        allk = np.concatenate([old, new_keys])
-        order = np.argsort(allk, kind="stable")
         total = self.n + m
-        self._keys_buf[:total] = allk[order]
+        pos_new = np.searchsorted(old, new_keys) + np.arange(m)
+        is_new = np.zeros(total, bool)
+        is_new[pos_new] = True
+        keys = np.empty(total, np.int64)
+        keys[pos_new] = new_keys
+        keys[~is_new] = old
+        self._keys_buf[:total] = keys
         for c, arr in self.cols.items():
             vals = np.zeros(m, dtype=arr.dtype)
             if c in ("introducer", "origin_place"):
                 vals[:] = -1
             if c in init:
                 vals[:] = init[c]
-            merged = np.concatenate([arr[: self.n], vals])
-            arr[:total] = merged[order]
+            merged = np.empty(total, arr.dtype)
+            merged[pos_new] = vals
+            merged[~is_new] = arr[: self.n]
+            arr[:total] = merged
         self.n = total
 
     def remove(self, mask_remove: np.ndarray):
@@ -205,6 +215,17 @@ class EdgeStore:
         is_lo = src == lo
         self.cols["att_lh"][idx[is_lo]] = val[is_lo]
         self.cols["att_hl"][idx[~is_lo]] = val[~is_lo]
+
+    def belief_from(self, idx: np.ndarray, src: np.ndarray) -> np.ndarray:
+        """What `src` believes the other endpoint's attraction toward `src` is."""
+        lo, _ = self.split(self._keys_buf[idx])
+        return np.where(src == lo, self.cols["bel_lh"][idx], self.cols["bel_hl"][idx])
+
+    def set_belief_from(self, idx: np.ndarray, src: np.ndarray, val: np.ndarray):
+        lo, _ = self.split(self._keys_buf[idx])
+        is_lo = src == lo
+        self.cols["bel_lh"][idx[is_lo]] = val[is_lo]
+        self.cols["bel_hl"][idx[~is_lo]] = val[~is_lo]
 
     def csr(self, mask: np.ndarray | None, n_nodes: int, weight: str | None = None):
         """Symmetric CSR adjacency of the selected edges (indptr, neighbors, edge_idx)."""

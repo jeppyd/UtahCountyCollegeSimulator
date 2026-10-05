@@ -1,0 +1,235 @@
+# The inner life: what people care about, how fulfilled each concern feels, what they expect, what they
+# believe about others (which can be wrong), how they cope, what they are trying to do and how settled
+# their routines are. These sit between state and behavior (engine/systems/mind.py, coping.py, plans.py):
+# traits and circumstances shape motives; experience shapes expectations; perception, not reality, feeds
+# choices. Between-person parts (how much someone cares) move slowly; within-person parts (how fulfilled,
+# what they expect) move with experience.
+entity: person
+defaults: {kind: belief, dtype: f4, range: [0, 1], update: weekly, evidence: structural, flags: [filter, chart, map]}
+variables:
+  # ---------------------------------------------------------------- motives: how much each concern matters
+  cares_connection:
+    label: Cares about friends & belonging
+    kind: preference
+    group: motives
+    desc: "How much close friendship and belonging matter to this person (0-1). From extraversion, agreeableness, attachment style and their social appetite; drifts slowly. Multiplies how strongly loneliness turns into social effort."
+    flags: [filter, chart, map, intervene]
+  cares_partnership:
+    label: Cares about love & partnership
+    kind: preference
+    group: motives
+    desc: "How much a romantic partnership (or, once married, the marriage and family) matters (0-1). From wanting a relationship, the age-graded marriage norm for active Latter-day Saints, and being partnered."
+    flags: [filter, chart, map, intervene]
+  cares_achievement:
+    label: Cares about school & career
+    kind: preference
+    group: motives
+    desc: "How much doing well in school or work matters (0-1). From conscientiousness, academic ability and being enrolled."
+    flags: [filter, chart, map, intervene]
+  cares_security:
+    label: Cares about money & security
+    kind: preference
+    group: motives
+    desc: "How much financial security matters (0-1). Higher with less family money, marriage and children, and neuroticism."
+    flags: [filter, chart, map, intervene]
+  cares_faith:
+    label: Cares about faith & integrity
+    kind: preference
+    group: motives
+    desc: "How much living their faith (or their own convictions) matters (0-1). Follows religious identity and belief for Latter-day Saints, own religiosity for others; shifts when identity shifts."
+    flags: [filter, chart, map, intervene]
+  cares_rest:
+    label: Cares about rest
+    kind: preference
+    group: motives
+    desc: "How much rest and recovery weigh (0-1). Higher with neuroticism and young children."
+    flags: [filter, chart, map, intervene]
+  cares_fun:
+    label: Cares about fun & novelty
+    kind: preference
+    group: motives
+    desc: "Appetite for fun, novelty and outings (0-1). From sensation seeking, openness, extraversion and social appetite."
+    flags: [filter, chart, map, intervene]
+  cares_health:
+    label: Cares about fitness & health
+    kind: preference
+    group: motives
+    desc: "How much exercise and fitness matter (0-1). From workout habits, sports and conscientiousness."
+    flags: [filter, chart, map, intervene]
+  # ---------------------------------------------------------------- drives: importance × how unmet the concern feels
+  drive_connection: {label: "Drive: friends & belonging", kind: state, update: daily, group: drives, desc: "How much effort friendship is pulling right now: importance × unmet (1 − felt connection). Feeds social choices, reaching out and hosting."}
+  drive_partnership: {label: "Drive: love & partnership", kind: state, update: daily, group: drives, desc: "Importance × unmet partnership (romantic longing for singles; low relationship satisfaction for couples). Feeds dating motivation."}
+  drive_achievement: {label: "Drive: school & career", kind: state, update: daily, group: drives, desc: "Importance × unmet achievement (academic pressure net of confidence). Feeds studying and competes with social time."}
+  drive_security: {label: "Drive: money & security", kind: state, update: daily, group: drives, desc: "Importance × financial stress. Feeds job search and extra hours; competes with dating and fun."}
+  drive_faith: {label: "Drive: faith & integrity", kind: state, update: daily, group: drives, desc: "Importance × the gap between convictions and practice (guilt, practice below identity, feeling an outsider)."}
+  drive_rest: {label: "Drive: rest", kind: state, update: daily, group: drives, desc: "Importance × fatigue. Pulls toward staying home."}
+  drive_fun: {label: "Drive: fun & novelty", kind: state, update: daily, group: drives, desc: "Importance × how few outings they have had lately relative to their appetite."}
+  drive_health: {label: "Drive: fitness", kind: state, update: daily, group: drives, desc: "Importance × how far recent workouts fall short of what they want."}
+  top_priority:
+    label: Top priority right now
+    kind: state
+    dtype: cat
+    range: null
+    update: daily
+    group: drives
+    categories: [connection, partnership, achievement, security, faith, rest, fun, health]
+    desc: "The concern with the strongest drive today: what this person's discretionary effort is mostly going to."
+  sat_fun: {label: "Fun lately", kind: state, update: daily, group: drives, desc: "Recent outings (gatherings, dates, venues, outdoors, clubs) relative to their appetite for fun (0-1).", evidence: structural}
+  sat_health: {label: "Fitness lately", kind: state, update: daily, group: drives, desc: "Recent gym visits relative to how much they want to exercise (0-1)."}
+  # ---------------------------------------------------------------- learned expectations and self-beliefs
+  expect_accept:
+    label: Expects a yes when asking out
+    group: expectations
+    evidence: literature
+    desc: "The chance this person believes an ask will be accepted, learned from their own asks (Rescorla-Wagner; rejection-sensitive people learn more from a no). Replaces a direct 'recent rejections → fewer asks' rule: rejection lowers the expectation, the expectation lowers asking."
+    flags: [filter, chart, map, intervene]
+  expect_social:
+    label: Expects warmth from people
+    group: expectations
+    evidence: literature
+    desc: "How warm they expect social situations to be (0-1), learned from how their interactions at gatherings, venues, dances, clubs and hangouts actually go. Socially anxious people start lower and weigh bad moments more. Low expectations make social options less appealing (withdrawal is learned, not scripted)."
+    flags: [filter, chart, map, intervene]
+  self_eff_academic:
+    label: Academic confidence
+    group: expectations
+    evidence: literature
+    desc: "Belief in their own academic capability (0-1), which can differ from actual ability. Updated by mastery experiences (term grades relative to classmates; Bandura). Raises study effort and lowers dropout (Multon et al. 1991: r≈.34 with persistence)."
+    flags: [filter, chart, map, intervene]
+  perceived_support:
+    label: Support they believe they have
+    group: perception
+    evidence: literature
+    desc: "How much support they believe is available (0-1). Built from actual close, warm ties but biased by neuroticism, attachment anxiety and loneliness, plus a stable personal lens: perceived and received support correlate only modestly (Haber et al. 2007, r≈.35). Perceived — not actual — support buffers stress and eases loneliness."
+    flags: [filter, chart, map, intervene]
+  support_actual:
+    label: Support actually available
+    kind: derived
+    derived: true
+    group: perception
+    evidence: structural
+    desc: "Support their close ties could actually give (0-1): closeness × warmth summed over present close friends and partner, saturating."
+  perceived_friend_belief:
+    label: What they think friends believe
+    group: perception
+    evidence: literature
+    desc: "How strongly they think their friends believe (0-1). Friends who are not close show the belief they express, pulled toward the local norm (people conceal doubts where devotion is the norm); close friends who have confided show their real belief. The gap from the actual figure is pluralistic ignorance (Prentice & Miller 1993; Miller & McFarland 1987). Faith influence works through this perceived figure."
+    flags: [filter, chart, map, intervene]
+  friend_belief_actual:
+    label: What friends actually believe
+    kind: derived
+    derived: true
+    group: perception
+    evidence: structural
+    desc: "Closeness-weighted average belief of their friends (0-1), for comparison with what they perceive."
+  # ---------------------------------------------------------------- coping
+  coping_need:
+    label: Need to cope
+    kind: state
+    update: daily
+    group: coping
+    evidence: structural
+    desc: "How far stress, low mood and loneliness sit above the person's tolerance today (0-1). A coping episode starts when this stays high."
+  coping_strategy:
+    label: How they are coping
+    kind: state
+    dtype: cat
+    range: null
+    update: event
+    group: coping
+    evidence: literature
+    categories: [none, support, active, religious, distraction, withdrawal]
+    desc: "The strategy of their current coping episode: seeking support, tackling the problem, religious coping, distraction and exercise, or withdrawal. Chosen from traits, what is available and what has worked for them before; each changes behavior (reaching out, studying, attending, gym, staying in) and brings different relief."
+  coping_relief:
+    label: Relief from coping
+    kind: state
+    update: daily
+    group: coping
+    evidence: hypothetical
+    desc: "Current relief from coping (0-1), decaying over days; lowers stress and lifts mood through named terms. Support helps only if supportive friends respond; withdrawal brings little relief and costs contact."
+  rumination:
+    label: Tendency to ruminate
+    kind: trait
+    update: static
+    group: coping
+    evidence: literature
+    desc: "Tendency to dwell on negative events (0-1), mostly neuroticism. Keeps negative memories active, which prolongs low mood (Nolen-Hoeksema 2000)."
+    flags: [filter, chart, map, intervene]
+  # ---------------------------------------------------------------- plans and routines
+  intention:
+    label: What they are trying to do
+    kind: state
+    dtype: cat
+    range: null
+    update: weekly
+    group: plans
+    evidence: structural
+    categories: [none, ask_out, reconnect, meet_people, study_more, find_work, return_to_church]
+    desc: "Their strongest current intention, formed weekly from their drives and situation. Intentions raise the odds of the behavior but are often not carried out (the intention-behavior gap; Sheeran 2002)."
+  plans_kept:
+    label: Intentions carried out
+    dtype: i2
+    kind: state
+    range: [0, 2000]
+    update: event
+    group: plans
+    evidence: structural
+    desc: "How many weekly intentions they have followed through on."
+  plans_abandoned:
+    label: Intentions dropped
+    dtype: i2
+    kind: state
+    range: [0, 2000]
+    update: event
+    group: plans
+    evidence: structural
+    desc: "How many intentions they gave up on or let lapse (target gone, priorities changed, or never got to it)."
+  routine_strength:
+    label: How settled their week is
+    kind: habit
+    update: daily
+    group: plans
+    evidence: literature
+    desc: "Average habit strength of their weekly free-time routine (0-1): the same activity in the same slot, week after week, becomes automatic (Lally et al. 2010: median ~66 days to plateau for a daily habit)."
+  social_events_month:
+    label: Social events / month
+    range: [0, 40]
+    kind: state
+    update: daily
+    group: null
+    domain: habits_interests
+    evidence: empirical
+    desc: "Social events actually attended in the last month (gatherings, dances, ward and FHE activities, clubs and teams), a 30-day moving count. Compared with ProvoStats as an emergent row; the survey value seeds each person's social appetite."
+    flags: [filter, chart, map]
+  n_memories:
+    label: Memories kept
+    dtype: i2
+    kind: derived
+    range: [0, 500]
+    update: weekly
+    group: memory
+    evidence: structural
+    desc: "How many episodic memories this person currently retains (salient events that have not faded)."
+  memory_tone:
+    label: How their recent past feels
+    range: [-1, 1]
+    kind: derived
+    update: weekly
+    group: memory
+    evidence: structural
+    desc: "Balance of positive and negative memories still active (−1 to 1), weighted by strength."
+  # ---------------------------------------------------------------- where they live (place cultures, culture.py)
+  home_social_culture:
+    label: How social their apartment is
+    range: [-3, 5]
+    kind: derived
+    domain: academics_work
+    group: culture
+    evidence: structural
+    desc: "Their apartment's sociability culture (z-score among occupied apartments): gatherings hosted and friends dropping by, with memory — it outlasts the residents who built it."
+  home_faith_culture:
+    label: How observant their complex is
+    kind: derived
+    domain: academics_work
+    group: culture
+    evidence: structural
+    desc: "Their complex's culture of religious observance (0-1): residents' church or service attendance, with slow inertia. Feeds the attendance norm residents perceive and who chooses to move in."

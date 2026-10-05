@@ -1,0 +1,48 @@
+# Intentions and routines (engine/systems/plans.py, routine.py).
+system: plans
+mechanisms:
+  plans.formation:
+    label: Forming a weekly intention
+    target: intention
+    sources: [drive_partnership, drive_connection, drive_achievement, drive_security, drive_faith, expect_accept, n_friends, gpa,
+              employed, attend_rate, cares_faith]
+    form: "weekly, for people without one: score per intention (ask out = partnership drive × crush attraction × (0.5 + expected yes); reconnect = connection drive × closeness of the closest friend unseen for 2+ weeks; meet people = connection drive × few friends; study more = achievement drive (more with GPA < 3); find work = security drive if not employed; return to church = faith drive if attendance lapsed); form the best if score > threshold"
+    params:
+      threshold: {value: 0.12, range: [0.06, 0.25]}
+    evidence: structural
+    refs: ["Rao & Georgeff (1995): BDI agents — desires become committed intentions",
+           "Ajzen (1991): intentions as the proximal cause of behavior"]
+  plans.execution:
+    label: Acting on an intention (the intention–behavior gap)
+    target: [dates_30d, study_hours, attend_rate, employed, social_events_month]
+    sources: [intention, conscientiousness, self_control]
+    form: "follow-through = logistic(0.4 + 0.5·z_C + 0.4·z_self-control); boosts × follow-through: ask logit +ask (toward the intended person), study +study h, church logit +church, meeting people: venues/dances/complex/visits and invitation acceptance; job search for 'find work'; reconnecting picks the intended friend 70% × follow-through"
+    params:
+      ask: {value: 1.2, range: [0.4, 2.0]}
+      study: {value: 3.0, range: [1.0, 5.0]}
+      church: {value: 0.8, range: [0.2, 1.4]}
+      meet: {value: 1.0, range: [0.3, 1.6]}
+    evidence: literature
+    refs: ["Sheeran (2002): intentions explain a modest share of behavior; 'inclined abstainers' drive the gap",
+           "Sheeran & Webb (2016): the intention–behavior gap", "Gollwitzer (1999): implementation intentions"]
+    desc: Calibrated so roughly half of intentions are carried out within their window (see the plan ledger summary in validation).
+  plans.reconsider:
+    label: Why plans change
+    target: intention
+    sources: [rel_status, present, drive_partnership, drive_connection, drive_achievement, drive_security, drive_faith]
+    form: "kept when the behavior happens; abandoned when the target is gone (the crush started dating someone, a friend moved) or priorities shifted (this drive fell under half its strength and another is 2.5× larger); lapsed when the window (10–35 days) passes"
+    evidence: structural
+    refs: ["Bratman (1987): intentions are stable but open to reconsideration when circumstances change"]
+  routine.habit:
+    label: Weekly routines and habit strength
+    target: [routine_strength, activity_now]
+    sources: [activity_now]
+    form: "per weekly slot: same option → s ← s + α(1 − s); different → s ← s(1 − 1.5α), switch when s < 0.15; utility of the habitual option += weight·s"
+    params:
+      alpha: {value: 0.12, range: [0.05, 0.25]}
+      weight: {value: 0.8, range: [0.2, 1.5]}
+    evidence: literature
+    refs: ["Lally, van Jaarsveld, Potts & Wardle (2010): median 66 days (18–254) to habit plateau",
+           "Wood & Neal (2007): habits are cued by context and bypass deliberation",
+           "MATSim (Horni, Nagel & Axhausen 2016): agents keep and reuse daily plans"]
+    desc: A slot met once a week plateaus after ~15–20 repetitions (≈4 months), slower than a daily habit.

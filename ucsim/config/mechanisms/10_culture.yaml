@@ -1,0 +1,34 @@
+# Place cultures and their feedback on people (engine/systems/culture.py).
+system: culture
+mechanisms:
+  culture.inertia:
+    label: Place cultures form from residents and outlast them
+    target: [home_social_culture, home_faith_culture]
+    sources: [hosted gathering counts, visits, attend_rate, service_attend, roommate_cohesion, coffee, alcohol, rel_status, ward_belonging,
+              ward_activity_rate]
+    form: "weekly: culture ← (1 − r)·culture + r·(what residents did this week); apartment sociability = log(1 + 3·gatherings + visits)/√residents; complex = mean of its apartments plus observance, coffee/alcohol share, married share; ward = mean belonging and activity; empty apartments keep their reputation"
+    params:
+      unit: {value: 0.2, range: [0.1, 0.4]}
+      complex: {value: 0.08, range: [0.03, 0.2]}
+      ward: {value: 0.1, range: [0.03, 0.25]}
+    evidence: structural
+    refs: ["Schneider (1987): the people make the place — attraction–selection–attrition",
+           "Harrison & Carroll (1991): cultural transmission in organizations with turnover"]
+  culture.feedback:
+    label: Cultures shape the people who live in them
+    target: [activity_now, perceived_norm, unit_id, ward_belonging]
+    sources: [home_social_culture, home_faith_culture]
+    form: "hosting × exp(h·apartment sociability z); invitation acceptance and hanging out around the complex + r·complex sociability z; attendance norm = (1 − n)·(friends + ward) + n·complex observance; housing choice + s·fit (−2·|observance gap| − 0.4·|sociability z − extraversion z|); ward belonging + w·(ward warmth − mean)"
+    params:
+      hosting: {value: 0.3, range: [0.0, 0.6]}
+      reputation: {value: 0.25, range: [0.0, 0.5]}
+      norm: {value: 0.2, range: [0.0, 0.4]}
+      sorting: {value: 1.0, range: [0.0, 2.0]}
+      ward_warmth: {value: 2.0, range: [0.0, 4.0]}
+    evidence: hypothetical
+    refs: ["Cialdini, Reno & Kallgren (1990): descriptive norms of a setting guide behavior",
+           "Selection and influence in residential settings (e.g. Kandel 1978; Steglich, Snijders & Pearson 2010)"]
+    desc: >-
+      Closes the micro–meso–macro loop: residents make a complex social or devout, the reputation changes who visits and who
+      moves in, newcomers adopt its norms, and the culture evolves again. Strengths are hypothetical; set any to 0 to switch
+      that feedback off and compare.

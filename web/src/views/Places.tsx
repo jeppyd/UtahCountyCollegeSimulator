@@ -52,18 +52,66 @@ function PlaceList() {
       )}
       <div className="card">
         <div className="scroll" style={{ maxHeight: 640 }}>
-          <table className="data"><thead><tr><th>{tab === 'complex' ? 'Complex' : 'Ward'}</th><th>Kind</th><th className="num">Residents</th><th className="num" style={{ cursor: 'pointer' }} onClick={() => setSort(-sort)}>Mean {sort > 0 ? '↑' : '↓'}</th><th style={{ width: '30%' }}></th></tr></thead>
+          <table className="data"><thead><tr><th>{tab === 'complex' ? 'Complex' : 'Ward'}</th><th>Kind</th>{tab === 'complex' && <th className="small" title="The complex's culture: how social it is (gatherings and visits, with memory) and how observant">Culture</th>}<th className="num">Residents</th><th className="num" style={{ cursor: 'pointer' }} onClick={() => setSort(-sort)}>Mean {sort > 0 ? '↑' : '↓'}</th><th style={{ width: '30%' }}></th></tr></thead>
             <tbody>{sorted.map(r => {
               const ms = sorted.map(x => x.mean ?? 0); const lo = Math.min(...ms), hi = Math.max(...ms)
               return (
                 <tr key={r.id} className="click" onClick={() => setRoute(['places', tab, String(r.id)])}>
                   <td>{r.name ?? `${r.kind.replace(/_/g, ' ')} ward #${r.id}`}{r.contracted && <span className="pill" style={{ marginLeft: 6 }}>BYU contracted</span>}</td>
-                  <td className="small">{(r.kind ?? '').replace(/_/g, ' ')}</td><td className="num">{r.n}</td><td className="num">{fmt(r.mean, 3)}</td>
+                  <td className="small">{(r.kind ?? '').replace(/_/g, ' ')}</td>
+                  {tab === 'complex' && <td className="small muted">{r.social !== undefined ? cultureWords(r) : ''}</td>}
+                  <td className="num">{r.n}</td><td className="num">{fmt(r.mean, 3)}</td>
                   <td><div style={{ height: 8, borderRadius: 4, background: 'var(--surface-2)' }}><div style={{ height: 8, borderRadius: 4, width: `${100 * ((r.mean ?? 0) - lo) / ((hi - lo) || 1)}%`, background: 'var(--s1)' }} /></div></td>
                 </tr>)
             })}</tbody></table>
         </div>
       </div>
+    </div>
+  )
+}
+
+/** A plain-language read of a complex's culture from its sociability, observance and coffee/alcohol share. */
+function cultureWords(r: any) {
+  const w: string[] = []
+  w.push(r.social >= 0.6 ? 'very social' : r.social >= 0.4 ? 'social' : r.social <= 0.2 ? 'quiet' : 'low-key')
+  w.push(r.observance >= 0.8 ? 'devout' : r.observance <= 0.45 ? 'secular-leaning' : 'mixed observance')
+  if (r.party >= 0.3) w.push('coffee/drinks common')
+  return w.join(' · ')
+}
+
+function Culture({ c, kind, name }: { c: any; kind: string; name: string }) {
+  const opt = useMemo(() => {
+    if (!c?.history?.length) return null
+    const ax = axisStyle()
+    return {
+      grid: { left: 36, right: 12, top: 24, bottom: 24 }, tooltip: { trigger: 'axis' }, legend: { top: 0, textStyle: { fontSize: 11 } },
+      xAxis: { type: 'category', data: c.history.map((h: any) => `day ${h.day}`), ...ax }, yAxis: { type: 'value', min: 0, max: 1, ...ax },
+      series: [{ name: 'Sociability', type: 'line', showSymbol: false, data: c.history.map((h: any) => h.social) },
+        { name: 'Observance', type: 'line', showSymbol: false, data: c.history.map((h: any) => h.relig) },
+        { name: 'Coffee/drinks', type: 'line', showSymbol: false, data: c.history.map((h: any) => h.party) }],
+    }
+  }, [c])
+  if (!c) return null
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <h3>{name}'s culture</h3>
+      <p className="hint">Built from what residents do — gatherings hosted, friends dropping by, church attendance — with memory, so it outlasts the people who made it. It feeds back: social places host more and draw visitors, a devout or secular complex shifts the norms residents perceive, movers choose places that fit them, and warm wards bring newcomers in faster.</p>
+      {kind === 'complex' && <div className="kpis compact four">
+        <div className="kpi"><span className="k-label">Sociability</span><span className="k-val tabular">{fmt(c.social, 2)}</span><span className="k-sub">{c.social_z >= 0 ? '+' : ''}{fmt(c.social_z, 2)} sd vs other complexes</span></div>
+        <div className="kpi"><span className="k-label">Observance</span><span className="k-val tabular">{fmt(c.relig, 2)}</span></div>
+        <div className="kpi"><span className="k-label">Coffee/drinks</span><span className="k-val tabular">{fmt(100 * c.party, 0)}%</span></div>
+        <div className="kpi"><span className="k-label">Married</span><span className="k-val tabular">{fmt(100 * c.married, 0)}%</span></div>
+      </div>}
+      {kind === 'ward' && <div className="kpis compact four">
+        <div className="kpi"><span className="k-label">Warmth (members' belonging)</span><span className="k-val tabular">{fmt(c.warmth, 2)}</span><span className="k-sub">{c.warmth_vs_average >= 0 ? '+' : ''}{fmt(c.warmth_vs_average, 2)} vs average ward</span></div>
+        <div className="kpi"><span className="k-label">Activity attendance</span><span className="k-val tabular">{fmt(c.activity, 2)}</span></div>
+      </div>}
+      {kind === 'unit' && <div className="kpis compact four">
+        <div className="kpi"><span className="k-label">Sociability</span><span className="k-val tabular">{c.sociability_z === null ? '—' : `${fmt(c.sociability_z, 2)} sd`}</span></div>
+        <div className="kpi"><span className="k-label">Observance</span><span className="k-val tabular">{fmt(c.observance, 2)}</span></div>
+        <div className="kpi"><span className="k-label">Roommate cohesion</span><span className="k-val tabular">{fmt(c.cohesion, 2)}</span></div>
+      </div>}
+      {opt && <EChart option={opt} height={180} />}
     </div>
   )
 }
@@ -94,6 +142,7 @@ function Institution({ kind, id }: { kind: string; id: number }) {
       <div className="kpis" style={{ marginBottom: 14 }}>
         {Object.entries(d.stats).slice(0, 12).map(([k, v]: any) => <div key={k} className="kpi click" onClick={() => setRoute(['explore', k])}><span className="k-label">{registry!.variables[k]?.label ?? k.replace(/_/g, ' ')}</span><span className="k-val tabular">{favg(registry!.variables[k], v)}</span></div>)}
       </div>
+      <Culture c={d.culture} kind={kind} name={d.name} />
       <div className="grid g3">
         {['rel_status', 'activity', 'role', 'mission_status', 'sex', 'school'].map(k => (
           <div className="card" key={k}><h3>{registry!.variables[k]?.label ?? k.replace(/_/g, ' ')}</h3><EChart option={compOpt(k)} height={150} /></div>

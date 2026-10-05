@@ -40,6 +40,27 @@ class Emotion:
         self.weekly()
         for _ in range(4):
             self.daily(settle=True)
+        P.internal["mood_8w"][: P.n] = P["mood"]
+        self._equilibrium_episodes()
+
+    def _hazards(self):
+        """Weekly onset and remission probabilities of a depressive episode (mental_health.depression)."""
+        sim, P = self.sim, self.sim.w.P
+        n = P.n
+        m8 = P.internal["mood_8w"][:n]
+        onset = expit(-7.9 + 14.0 * np.clip(0.42 - m8, 0, None) + 0.9 * P["mh_depression"] + 0.35 * sim.z("neuroticism")
+                      + 2.0 * np.clip(P["loneliness"] - 0.5, 0, None))
+        remit = 0.09 + 0.3 * np.clip(m8 - 0.4, 0, None)
+        return onset, remit
+
+    def _equilibrium_episodes(self):
+        """Start each person in an episode with their stationary probability onset/(onset + remission),
+        instead of everyone well: a cold start made prevalence climb for months (scripts/accounting.py)."""
+        P = self.sim.w.P
+        onset, remit = self._hazards()
+        p_stat = onset / np.maximum(onset + remit, 1e-9)
+        u = np.random.default_rng([self.sim.w.seed, 909]).random(P.n)
+        P["depressive_episode"] = P["present"] & (u < p_stat)
 
     def p(self, name):
         return self.sim.p(name)
@@ -99,12 +120,19 @@ class Emotion:
             T["relationship"] = in_rel * p("stress.relationship.beta") * np.clip(0.6 - sat, 0, 0.6)
             T["faith_crisis"] = p("stress.faith_crisis.beta") * P["faith_crisis"]
             T["minority_stress"] = p("stress.minority_stress.beta") * P["lgbtq_tension"] * (P["activity"] >= 2)
+            # stress buffering: believing support is there blunts what the stressors do (Cohen & Wills 1985)
+            load = T["academic"] + T["financial"] + T["relationship"] + T["faith_crisis"]
+            T["support_buffer"] = -p("stress.support_buffer.beta") * (P["perceived_support"] - 0.35) * load
+            T["coping"] = -p("stress.coping.beta") * P["coping_relief"]
         elif s == "loneliness":
             need = p("loneliness.contact_deficit.need_hours") * np.exp(p("loneliness.contact_deficit.extraversion") * z("extraversion"))
             contact = P["close_contact_hours"]
             T["setpoint"] = 0.43 + p("loneliness.setpoint.neuroticism") * z("neuroticism") + 0.025 * z("social_anxiety")
             T["contact_deficit"] = p("loneliness.contact_deficit.beta") * np.clip((need - contact) / need, -1, 1)
             T["close_friends"] = -p("loneliness.close_friends.beta") * np.log1p(P["n_close_friends"]) / np.log(6)
+            # loneliness is *perceived* isolation: the support people believe they have matters beyond the count
+            T["perceived_support"] = -p("loneliness.perceived_support.beta") * (P["perceived_support"] - 0.45)
+            T["coping"] = -p("loneliness.coping.beta") * P["coping_relief"] * (P["coping_strategy"] == 1)
             T["partner"] = -p("loneliness.partner.beta") * (in_rel.astype(float) + 0.4 * married)
             T["ward"] = -p("loneliness.ward.beta") * (P["ward_belonging"] - 0.5) * (P["activity"] >= 2)
             T["roommates"] = -p("loneliness.roommates.beta") * (P["roommate_cohesion"] - 0.5)
@@ -156,6 +184,10 @@ class Emotion:
             T["guilt"] = -p("mood.guilt.beta") * P["guilt"]
             T["financial"] = -p("mood.financial.beta") * P["financial_stress"]
             T["depression"] = -0.15 * P["depressive_episode"]
+            T["coping"] = p("mood.coping.beta") * P["coping_relief"]
+            # rumination keeps recent negative memories active (memory.py; Nolen-Hoeksema 2000)
+            load = P.internal["neg_load"][:n] if "neg_load" in P.internal else np.zeros(n)
+            T["rumination"] = -p("mood.rumination.beta") * P["rumination"] * np.clip(load, 0, 3) / 3
         return T
 
     # ------------------------------------------------------------------ daily
@@ -208,17 +240,17 @@ class Emotion:
         ward = P["ward_id"]
         same = (ward[lo] >= 0) & (ward[lo] == ward[hi]) & (E["stage"] >= 2)
         wf = np.bincount(np.r_[lo[same], hi[same]], minlength=n)
+        cul = sim.systems.get("culture")
+        warmth = cul.ward_warmth_dev(ward) if cul is not None and "culture" in w.meta else 0.0
         target = expit(-1.0 + 0.6 * np.log1p(wf) + 1.6 * (P["attend_rate"] - 0.5) + 1.0 * (P["faith_belief"] - 0.6)
-                       - 1.5 * P["lgbtq_tension"] + 0.3 * sim.z("extraversion"))
+                       - 1.5 * P["lgbtq_tension"] + 0.3 * sim.z("extraversion") + sim.p("culture.feedback.ward_warmth") * warmth)
         P["ward_belonging"] = (0.6 * P["ward_belonging"] + 0.4 * np.where(ward >= 0, target, 0.3)).astype(np.float32)
         P.internal["mood_8w"][:n] = 0.88 * P.internal["mood_8w"][:n] + 0.12 * P["mood"]
         # depressive episodes: onset rises steeply when sustained mood is low (threshold non-linearity)
         u = sim.u("depress")
-        m8 = P.internal["mood_8w"][:n]
-        onset = expit(-7.9 + 14.0 * np.clip(0.42 - m8, 0, None) + 0.9 * P["mh_depression"] + 0.35 * sim.z("neuroticism")
-                      + 2.0 * np.clip(P["loneliness"] - 0.5, 0, None))
+        onset, remit = self._hazards()
         start = P["present"] & ~P["depressive_episode"] & (u < onset)
-        stop = P["depressive_episode"] & (u < 0.09 + 0.3 * np.clip(m8 - 0.4, 0, None))
+        stop = P["depressive_episode"] & (u < remit)
         if start.any():
             P.cols["depressive_episode"][np.where(start)[0]] = True
             sim.emit("depressive_episode_start", np.where(start)[0], mech="mental_health.depression")
@@ -230,4 +262,5 @@ class Emotion:
         P = self.sim.w.P
         rel = np.nan_to_num(P["relationship_satisfaction"], nan=0.5)
         ls = 10 * (0.4 * P["mood"] + 0.2 * P["purpose"] + 0.15 * (1 - P["financial_stress"]) + 0.15 * rel + 0.1 * (1 - P["loneliness"]))
+        ls = ls + 0.6 * P["memory_tone"]   # the remembered past colors the judgment (memory.tone)
         P["life_satisfaction"] = np.where(P["life_satisfaction"] > 0, 0.7 * P["life_satisfaction"] + 0.3 * ls, ls).astype(np.float32)

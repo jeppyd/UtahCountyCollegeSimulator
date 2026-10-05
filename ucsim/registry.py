@@ -23,11 +23,17 @@ CONFIG = Path(__file__).resolve().parent / "config"
 EVIDENCE_LEVELS = {
     "observed": "Directly observed in relevant data",
     "empirical": "Empirically estimated from data (survey copula / tables)",
-    "literature": "Supported by external research",
+    "literature": "Supported by established theory or replicated research",
     "calibrated": "Chosen to reproduce observed population patterns",
     "extrapolated": "Applied from another population",
+    "structural": "A plausible structural assumption: a modeling form chosen for coherence, not a measured effect",
     "hypothetical": "Reasonable but insufficiently evidenced",
+    "speculative": "Frontier: exploratory mechanism with weak or contested evidence",
 }
+# How much a parameter of each evidence level is allowed to vary in uncertainty ensembles, as a share of its
+# declared range (1 = the full range). Better-evidenced parameters move less.
+EVIDENCE_SPREAD = {"observed": 0.0, "empirical": 0.25, "literature": 0.5, "calibrated": 0.5, "extrapolated": 0.75,
+                   "structural": 1.0, "hypothetical": 1.0, "speculative": 1.0}
 
 DTYPES = {
     "f4": np.float32, "f8": np.float64, "i4": np.int32, "i2": np.int16, "u1": np.uint8,
@@ -117,6 +123,7 @@ class EventSpec:
     desc: str = ""
     refs: list = field(default_factory=list)
     story: str = ""   # sentence template for feeds and life stories: "{a} got engaged to {b}"
+    motive: str | None = None   # the concern it touches (appraisal relevance); defaults from the category
 
     def to_dict(self) -> dict:
         return copy.deepcopy(self.__dict__)

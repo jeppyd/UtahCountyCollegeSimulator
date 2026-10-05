@@ -1,0 +1,286 @@
+{
+ "generated": "2026-10-04",
+ "scale": 0.05,
+ "seed": 3,
+ "years": 3,
+ "checkpoints": [
+  {
+   "day": 0,
+   "stocks": {
+    "present": 3157,
+    "students_byu": 1750,
+    "students_uvu": 800,
+    "serving_missionaries": 526,
+    "married": 1020,
+    "depressive_episode": 174,
+    "lds_members": 2799,
+    "rows_allocated": 3683
+   }
+  },
+  {
+   "day": 60,
+   "stocks": {
+    "present": 3191,
+    "students_byu": 1750,
+    "students_uvu": 800,
+    "serving_missionaries": 479,
+    "married": 1032,
+    "depressive_episode": 148,
+    "lds_members": 2839,
+    "rows_allocated": 3683
+   }
+  },
+  {
+   "day": 425,
+   "stocks": {
+    "present": 3314,
+    "students_byu": 1683,
+    "students_uvu": 831,
+    "serving_missionaries": 448,
+    "married": 998,
+    "depressive_episode": 219,
+    "lds_members": 2946,
+    "rows_allocated": 4375
+   }
+  },
+  {
+   "day": 790,
+   "stocks": {
+    "present": 3458,
+    "students_byu": 1699,
+    "students_uvu": 831,
+    "serving_missionaries": 430,
+    "married": 976,
+    "depressive_episode": 227,
+    "lds_members": 3093,
+    "rows_allocated": 5120
+   }
+  },
+  {
+   "day": 1155,
+   "stocks": {
+    "present": 3529,
+    "students_byu": 1693,
+    "students_uvu": 846,
+    "serving_missionaries": 422,
+    "married": 1078,
+    "depressive_episode": 222,
+    "lds_members": 3161,
+    "rows_allocated": 5758
+   }
+  }
+ ],
+ "years_table": [
+  {
+   "from": 60,
+   "to": 425,
+   "stocks_from": {
+    "present": 3191,
+    "students_byu": 1750,
+    "students_uvu": 800,
+    "serving_missionaries": 479,
+    "married": 1032,
+    "depressive_episode": 148,
+    "lds_members": 2839,
+    "rows_allocated": 3683
+   },
+   "stocks_to": {
+    "present": 3314,
+    "students_byu": 1683,
+    "students_uvu": 831,
+    "serving_missionaries": 448,
+    "married": 998,
+    "depressive_episode": 219,
+    "lds_members": 2946,
+    "rows_allocated": 4375
+   },
+   "hazards": {
+    "mission_departures_per_year": 277.2,
+    "mission_returns_per_year": 308.2,
+    "weddings_per_1000_present": 23.38,
+    "divorce_rate_married": 0.003,
+    "depression_onsets_per_year": 984.7,
+    "depression_remission_hazard": 4.9625,
+    "arrivals_per_year": 634.4,
+    "departures_per_year": 542.4
+   },
+   "balance": {
+    "present": {
+     "delta": 123,
+     "in": 942,
+     "out": 819,
+     "residual": 0
+    },
+    "serving_missionaries": {
+     "delta": -31,
+     "in": 277,
+     "out": 308,
+     "residual": 0
+    },
+    "married": {
+     "delta": -34,
+     "in": 152,
+     "out": 4,
+     "residual": -182
+    },
+    "depressive_episode": {
+     "delta": 71,
+     "in": 984,
+     "out": 910,
+     "residual": -3
+    },
+    "lds_members": {
+     "delta": 107,
+     "in": 2,
+     "out": 6,
+     "residual": 111
+    }
+   }
+  },
+  {
+   "from": 425,
+   "to": 790,
+   "stocks_from": {
+    "present": 3314,
+    "students_byu": 1683,
+    "students_uvu": 831,
+    "serving_missionaries": 448,
+    "married": 998,
+    "depressive_episode": 219,
+    "lds_members": 2946,
+    "rows_allocated": 4375
+   },
+   "stocks_to": {
+    "present": 3458,
+    "students_byu": 1699,
+    "students_uvu": 831,
+    "serving_missionaries": 430,
+    "married": 976,
+    "depressive_episode": 227,
+    "lds_members": 3093,
+    "rows_allocated": 5120
+   },
+   "hazards": {
+    "mission_departures_per_year": 274.2,
+    "mission_returns_per_year": 292.2,
+    "weddings_per_1000_present": 28.08,
+    "divorce_rate_married": 0.0051,
+    "depression_onsets_per_year": 1132.8,
+    "depression_remission_hazard": 5.0348,
+    "arrivals_per_year": 747.5,
+    "departures_per_year": 621.4
+   },
+   "balance": {
+    "present": {
+     "delta": 144,
+     "in": 1039,
+     "out": 895,
+     "residual": 0
+    },
+    "serving_missionaries": {
+     "delta": -18,
+     "in": 274,
+     "out": 292,
+     "residual": 0
+    },
+    "married": {
+     "delta": -22,
+     "in": 190,
+     "out": 8,
+     "residual": -204
+    },
+    "depressive_episode": {
+     "delta": 8,
+     "in": 1132,
+     "out": 1122,
+     "residual": -2
+    },
+    "lds_members": {
+     "delta": 147,
+     "in": 4,
+     "out": 7,
+     "residual": 150
+    }
+   }
+  },
+  {
+   "from": 790,
+   "to": 1155,
+   "stocks_from": {
+    "present": 3458,
+    "students_byu": 1699,
+    "students_uvu": 831,
+    "serving_missionaries": 430,
+    "married": 976,
+    "depressive_episode": 227,
+    "lds_members": 3093,
+    "rows_allocated": 5120
+   },
+   "stocks_to": {
+    "present": 3529,
+    "students_byu": 1693,
+    "students_uvu": 846,
+    "serving_missionaries": 422,
+    "married": 1078,
+    "depressive_episode": 222,
+    "lds_members": 3161,
+    "rows_allocated": 5758
+   },
+   "hazards": {
+    "mission_departures_per_year": 265.2,
+    "mission_returns_per_year": 273.2,
+    "weddings_per_1000_present": 34.09,
+    "divorce_rate_married": 0.0088,
+    "depression_onsets_per_year": 1151.8,
+    "depression_remission_hazard": 5.1483,
+    "arrivals_per_year": 640.4,
+    "departures_per_year": 577.4
+   },
+   "balance": {
+    "present": {
+     "delta": 71,
+     "in": 913,
+     "out": 842,
+     "residual": 0
+    },
+    "serving_missionaries": {
+     "delta": -8,
+     "in": 265,
+     "out": 273,
+     "residual": 0
+    },
+    "married": {
+     "delta": 102,
+     "in": 238,
+     "out": 19,
+     "residual": -117
+    },
+    "depressive_episode": {
+     "delta": -5,
+     "in": 1151,
+     "out": 1155,
+     "residual": -1
+    },
+    "lds_members": {
+     "delta": 68,
+     "in": 1,
+     "out": 4,
+     "residual": 71
+    }
+   }
+  }
+ ],
+ "equilibria": {
+  "serving_missionaries": {
+   "now": 479,
+   "implied": 465,
+   "note": "departures/yr \u00d7 mean service (\u22642 yr)"
+  },
+  "depressive_episode": {
+   "now": 148,
+   "implied": 224,
+   "note": "onsets/yr \u00f7 remission hazard"
+  }
+ },
+ "seconds": 239
+}

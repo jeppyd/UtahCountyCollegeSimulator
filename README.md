@@ -25,7 +25,6 @@ choose **More info → Run anyway**. Every push rebuilds and self-tests the inst
 ```bash
 git clone https://github.com/jeppyd/UtahCountyCollegeSimulator.git
 cd UtahCountyCollegeSimulator
-git checkout claude/serene-bohr-cyvzxl        # until this branch is merged
 pip install -e .
 cd web
 npm install
@@ -58,13 +57,13 @@ runs, and a recap appears after every time skip.
 | I want to… | Go to |
 |---|---|
 | see what's happening now | **World** (news, the week, trends, the two worlds); **Map** (people now or at home, colored by anything; replay a day or the months) |
-| follow individual lives | **People** → a person: feelings and why, their people, school and work, faith, money and home, story, history, and their other life in the What-if |
+| follow individual lives | **People** → a person: their inner life (what they care about, believe, remember and intend, how they cope, what they learned), feelings and why, their people, school and work, faith, money and home, story, history, and their other life in the What-if |
 | see couples and friendships | **Relationships** (couples, the friendship network, how people meet, couples that exist in only one world) |
 | look at places and events | **Places** (complexes, wards, schools) and **Events** (every event, with its chain of causes) |
 | change the world | **What if…?** (top bar or anywhere): ideas, levers (rent, tuition, wages, dating apps, marriage pressure, missions, coffee…), or nudges to a group of people or a rule |
 | follow the butterfly effect | **What-if**: how far the worlds drifted, every field side by side, events more or less common, lives that diverged, couples and places that changed, and why |
-| browse every field the model tracks | **Explore**: 217 fields in friendly drawers; each one now, over time, by group, against another field, the people behind it, and what drives it; pin it to your board |
-| go deeper | **Research desk**: vital signs, flows, cross-tabs, cause & effect, Monte Carlo and sweeps, model check, data dictionary, rules, evidence |
+| browse every field the model tracks | **Explore**: every field in friendly drawers; each one now, over time, by group, against another field, the people behind it, and what drives it; pin it to your board |
+| go deeper | **Research desk**: vital signs, flows, cross-tabs, cause & effect, Monte Carlo, sweeps and uncertainty ensembles, model check (incl. patterns, longitudinal structure, stock-flow accounting), data dictionary, rules, evidence |
 
 The in-app **How it works** page explains the controls and the model in plain language. The full guide to the project (use, model, code, data, validation, vision and ideas) is
 [docs/PROJECT_GUIDE.md](docs/PROJECT_GUIDE.md).
@@ -96,7 +95,16 @@ print(compare_universes(base, alt)["states"]["financial_stress"])
 | `web/` | React app (game shell, explorer, butterfly views, research desk) |
 | `scripts/` | validation, calibration, stability, static export, catalog generation, data builders |
 | `tests/` | pytest suite (`python -m pytest`) |
-| `docs/` | [PROJECT_GUIDE](docs/PROJECT_GUIDE.md) · [ARCHITECTURE](docs/ARCHITECTURE.md) · [DATA_SOURCES](docs/DATA_SOURCES.md) · [MODEL_ASSUMPTIONS](docs/MODEL_ASSUMPTIONS.md) · [VARIABLE_CATALOG](docs/VARIABLE_CATALOG.md) · [MECHANISMS](docs/MECHANISMS.md) · [VALIDATION](docs/VALIDATION.md) · [ROADMAP](docs/ROADMAP.md) · [DEVELOPMENT_LOG](docs/DEVELOPMENT_LOG.md) |
+| `docs/` | [PROJECT_GUIDE](docs/PROJECT_GUIDE.md) · [MIND](docs/MIND.md) · [ODD](docs/ODD.md) · [ARCHITECTURE](docs/ARCHITECTURE.md) · [DATA_SOURCES](docs/DATA_SOURCES.md) · [MODEL_ASSUMPTIONS](docs/MODEL_ASSUMPTIONS.md) · [VARIABLE_CATALOG](docs/VARIABLE_CATALOG.md) · [MECHANISMS](docs/MECHANISMS.md) · [VALIDATION](docs/VALIDATION.md) · [ROADMAP](docs/ROADMAP.md) · [DEVELOPMENT_LOG](docs/DEVELOPMENT_LOG.md) |
+
+## What's new: inner lives
+
+People now have an inner life between who they are and what they do: what they care about and what is pulling
+at them, expectations learned from experience, beliefs about others that can be wrong, memories that fade unless
+re-lived, coping when life gets hard, weekly intentions they keep or drop, and routines. Relationships carry
+history and repair; apartments, complexes and wards develop cultures that shape who moves in next. The research
+desk separates *chance* from *uncertain assumptions* for any What-if. See [docs/MIND.md](docs/MIND.md) and the
+[ODD description](docs/ODD.md).
 
 ## Status
 

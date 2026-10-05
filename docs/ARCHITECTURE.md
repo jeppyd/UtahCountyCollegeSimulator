@@ -26,12 +26,20 @@ YAML registries ───────────► ucsim/registry.py  (variabl
 | `EdgeStore` | undirected relationships keyed `(lo<<32)\|hi`, sorted | columns for familiarity, liking, closeness, trust, conflict, directed attraction (`att_lh`, `att_hl`), hours, stage, tie flags (roommate, ward, dated, spouse, ex…), origin context/place, introducer |
 | `EventLog` (`engine/core.py`) | append-only columnar log | type, day, block, a, b, place, value, **cause** (parent event id), **mech** (mechanism id) |
 | `Effects` | decaying event effects on states | magnitude, start, half-life, source event; summed per agent per day |
-| `World` | P, E, housing units, complexes, wards, employers, venues, meetinghouses, environment, calendar |  |
+| `World` | P, E, housing units, complexes, wards, employers, venues, meetinghouses, environment, calendar; `meta["culture"]` (place cultures) |  |
+| `MemoryStore` (`engine/memory.py`) | episodic memory: person, event pointer, other person, valence, importance, rehearsals | power-law forgetting, per-person cap (40), core memories kept; retrieval by recency × importance × relevance |
+| Plan ledger (`systems/plans.py`) | weekly intentions: person, kind, target, start, due, status, reason, motivating drive | pruned to active + recent per person |
+| Routines (`systems/routine.py`) | per person × 21 weekly slots: habitual option and habit strength | two dense arrays |
 
-Registries (`ucsim/config/`) are the single source of truth: **276 variables**, **125 mechanisms**,
-**62 event types**, **17 intervention presets**. Each variable/mechanism has an evidence label
-(observed · empirical · literature · calibrated · extrapolated · hypothetical) that the UI always shows.
-Mechanism parameters live in a per-run `ParamSet` so interventions/sweeps never mutate the registry.
+Edges also carry the *perceived* side of romance (`bel_lh`, `bel_hl`: what each believes the other feels) and
+relationship history (`disclosure`, `support`, `hurt`, `shared`).
+
+Registries (`ucsim/config/`) are the single source of truth for variables, mechanisms, event types and
+intervention presets (counts in `docs/VARIABLE_CATALOG.md` and `docs/MECHANISMS.md`). Each variable/mechanism has
+an evidence label (observed · empirical · literature · calibrated · extrapolated · structural · hypothetical ·
+speculative) that the UI always shows. Mechanism parameters live in a per-run `ParamSet` so interventions/sweeps
+never mutate the registry; parameters may declare a distribution (`dist: triangular | uniform | choice`) and
+structural switches (`structural: true`) used by uncertainty ensembles.
 
 ## Time
 
@@ -39,10 +47,10 @@ Days are split into phases: `start@6 → block0@8 → block1@13 → block2@18 �
 
 | Cadence | Systems |
 |---|---|
-| start of day | environment, lifecourse (arrivals/departures), academics, faith (Sunday attendance), romance.plan_day |
-| each block | activity choice (obligations → Gumbel-max discretionary choice), encounters in shared contexts; evening dates & NCMOs |
-| end of day | friend contact, romance.daily, emotion.daily, norms, housing (lease turnover), night (home), range clamp, recorder |
-| weekly (Sun) | network stages & forgetting, faith beliefs/crises/practices, norms contagion, romance progression, academics, emotion contagion & depression |
+| start of day | environment, lifecourse (arrivals/departures), academics, groups, faith (Sunday attendance), romance.plan_day |
+| each block | activity choice (obligations → Gumbel-max discretionary choice over habit/trait bases, drives, routine, coping and intention biases), encounters in shared contexts (beliefs, disclosure, shared experiences, learned warmth); evening dates & NCMOs |
+| end of day | friend contact (reconnecting, support seeking, introductions), romance.daily, **mind** (fulfilment → drives), **coping**, **plans** (kept/abandoned/lapsed), emotion.daily, norms, housing, night, clamp, recorder, history |
+| weekly (Sun) | network (closeness from time, liking, disclosure, shared experiences, hurt; repair; forgetting), **mind** (importance drift, perceived support and friends' belief, memory pruning), **culture**, faith, norms contagion, romance, **plans** (form intentions), **routine**, academics, emotion |
 | monthly | economy, housing market, lifecourse (missions, fertility), life satisfaction |
 | per term / yearly | GPA & graduation, annual cohorts (Aug 20), summer exodus, lease cycle |
 
@@ -51,7 +59,12 @@ Days are split into phases: `start@6 → block0@8 → block1@13 → block2@18 �
 ## Systems (`engine/systems/`)
 
 environment · housing · activity · network · academics · encounters · economy · romance · faith · norms ·
-emotion · lifecourse · recorder. Each reads/writes the shared columns and emits events with mechanism ids.
+**mind · coping · plans · routine · culture** · emotion · lifecourse · recorder · history. Each reads/writes the
+shared columns and emits events with mechanism ids. The five new systems are the inner life and the meso layer
+(`docs/MIND.md`): behavior reads drives, expectations and perceptions instead of raw feelings.
+
+`Simulation.emit` appraises every event (relevance to what the person cares about; coping potential), scales its
+registered emotional effects accordingly, and lays down a memory.
 
 **Emotional states are composed, not stored**: `state = clip(Σ mechanism terms + Σ decaying event effects + AR(1) noise)`.
 The terms are kept per agent, which makes "why is this person lonely?" an exact decomposition rather than a
@@ -79,6 +92,8 @@ start day, ramp and duration.
   share of people individually different, difference over time from the weekly aggregates), events matched
   across worlds by (person, day, type, other person), diverged lives, one person's two lives and the first
   fork's cause chain, couples/friendships in only one world, per-place differences.
+- `analysis/inner.py` — one person's inner life (motives and drives, beliefs vs reality, memories, intentions,
+  coping, lessons, routine, footprint), read-only.
 - `analysis/fields.py` — field summaries and weekly timelines, one person's two-weekly history, the "pulse"
   (what people did in each block of the last day, the week's events, diversified headlines, four-week
   movers, featured lives), couples.
@@ -105,8 +120,19 @@ Flows, Cross-tabs, Cause & effect, Experiments, Model check, Data dictionary, Ru
 the What-if.
 `npm run build:static` + `scripts/export_static.py` produce a static snapshot (no server) for sharing.
 
+## Validation, accounting and uncertainty
+
+- `scripts/validate.py` — survey/Census rows, pattern rows (structure), held-out tables, longitudinal section
+  (`analysis/panel.py`: within- vs between-person cross-lagged effects).
+- `scripts/accounting.py` / `analysis/accounting.py` — stocks, logged flows, balance residuals, hazards and
+  Little's-law equilibria between same-day checkpoints each year.
+- `scripts/uncertainty.py` / `engine/uncertainty.py` / `POST /api/uncertainty` — Latin-hypercube parameter draws
+  scaled by evidence, paired What-if runs per (draw, seed), stochastic vs parametric variance, sign robustness,
+  parameter attribution (≥ 12 draws, Bonferroni-corrected, only when assumptions explain ≥ 20% of the spread).
+- `scripts/calibrate.py` — coordinate search over selected parameters on two seeds; held-out tables excluded.
+
 ## Performance (scale 0.15 ≈ 9–11k agents, one core)
 
-Build ≈1.5 s; ≈0.27 s per simulated day including the recorder (the weekly all-field snapshot adds ≈0.1 s
-once a week) (see `docs/VALIDATION.md` for the per-system
-breakdown). Full scale (≈60k agents) is ≈1.5–2 s/day; Monte Carlo parallelizes across processes.
+Build ≈1.8 s; ≈0.23 s per simulated day including the recorder and the inner-life systems (see
+`docs/VALIDATION.md` for the per-system breakdown). Edge inserts merge sorted runs in O(n). Full scale (≈60k
+agents) is ≈1.5–2 s/day; Monte Carlo and uncertainty ensembles parallelize across processes.

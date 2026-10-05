@@ -157,3 +157,75 @@ memoized comparisons, visible errors (which world, which day) and a paused-after
 `tests/test_timeline_jobs.py` covers fairness, mid-run reads, double starts, pause and a failing run.
 Measured: during a semester run every What-if tab loads in under 1.5 s and the clock keeps moving.
 
+
+## Iteration 5 — inner lives, place cultures, accounting and uncertainty
+
+**Ask**: push the model toward a richly grounded artificial Provo/Orem whose people have biographies rather than
+states — a richer bridge between state and behavior (perception, memory, needs and priorities, expectations,
+plans and routines, appraisal and coping, learning), relationships as histories, groups with cultures and
+micro → meso → macro → micro loops — while staying inspectable, evidence-labelled, fast at population scale,
+demographically coherent over years, and honest about uncertainty. No LLM agents.
+
+**Evaluation before building.** The engine was fast and explainable, but most subsystems mapped state straight
+to action; agents were omniscient (asks used the other's true attraction; norms were true means); nothing
+experienced changed later expectations; concerns did not compete; hard times had direct consequences; nobody
+intended anything. The four-year check showed unexplained drift in major stocks.
+
+**What changed** (design and evidence in `docs/MIND.md`; ODD description in `docs/ODD.md`)
+- *Accounting first* (`analysis/accounting.py`, `scripts/accounting.py`): stocks, logged flows, residuals,
+  hazards and Little's-law equilibria between same-day checkpoints each year. Findings and fixes:
+  (1) the present population grew ~10%/year because graduates who stayed and dropouts never left → an
+  exponential stay for non-student young adults, calibrated to hold that stock, with couples moving together;
+  (2) the serving-missionary pool started at half its flow equilibrium and doubled over two years → sized to the
+  equilibrium; (3) the admissions controller ran while half of single undergrads were flagged away for summer
+  and admitted a double BYU class every fall (freshmen tripled, married share diluted from 25% to 11%) → it now
+  projects the October census counting summer returners; (4) depressive episodes started at zero and climbed
+  for months → each person starts at their stationary probability; (5) Church membership exits are logged
+  (`resigned_membership`) so the stock balances.
+- *Mind*: motives and drives, learned expectations, academic confidence, perceived support, pluralistic
+  ignorance (only doubt is concealed), believed romantic interest per tie; behavior reads them.
+- *Memory, appraisal and coping*: structured episodic memory with forgetting and rumination; appraisal in
+  `Simulation.emit`; coping episodes with learned strategies that change behavior.
+- *Plans and routines*: weekly intentions with a ledger (kept / abandoned / lapsed, with reasons); slot routines.
+- *Relationships and cultures*: disclosure, support, hurt and repair, shared experiences, introductions; apartment,
+  complex and ward cultures with inertia feeding hosting, reputation, norms, housing sorting and ward warmth.
+- *Validation*: pattern rows, held-out tables, courtship timing, a within- vs between-person longitudinal section;
+  social events are now a realized count (they were a static survey value scored as "emergent").
+- *Uncertainty*: evidence-scaled parameter ensembles with an alternative mechanism form (bounded-confidence faith
+  influence), stochastic vs parametric variance, sign robustness, attribution only with enough draws and a multiple-comparison threshold (a 12-draw showcase listed spurious "drivers" before this).
+- *Experience*: Inner life tab, place cultures, uncertainty panel, accounting and patterns in Model check, guide
+  sections; new What-if presets (open conversations about doubt, peer support, complex game nights, rumination
+  skills).
+
+**Bugs found along the way**
+- Friend contact and gatherings indexed edges through the weekly adjacency's edge indices, which go stale as
+  ties are inserted mid-week (wrong closeness used to pick whom to see) → looked up by key.
+- A wedding scheduled while a partner was away silently never happened and the couple stayed engaged
+  indefinitely → it moves a week (or the engagement ends if a partner left for good); engaged students no longer
+  leave for the summer.
+- The seeded starting network had clustering ≈ .01 (friends drawn uniformly within 180-person wards and whole
+  majors) → seeding with triadic closure (≈ .14).
+- Symmetric "concealment" made devout members understate belief and reversed the sign of pluralistic ignorance.
+- Weekly importance updates could leave drives above importance until the next day → drives recomputed.
+- The agent-intervention test counted absent people (exposed when the missionary pool grew).
+
+**Performance**: 0.18 → ≈0.23 s per simulated day at ~10k agents, after rewriting edge inserts as an O(n) merge.
+
+**Calibration** (`scripts/calibrate.py`, 14 parameters incl. social events, work hours, support perception and
+clustering; holdouts excluded; 2 seeds, 2 rounds, loss 1.109 → 0.988): `romance.kiss.base` −2.6 → −3.23,
+`romance.breakup.base` −2.8 → −2.22, `mind.perceived_support.reality` 0.25 → 0.125. A third round was stopped:
+round 2 found no improvement and smaller steps were within seed noise.
+
+**Results** (one year at scale 0.15): Census benchmarks 6/6; behavior 34 pass · 11 warn · 2 fail; held-out tables
+10 · 2 · 0; all scored rows 50 · 21 · 5 (previous release 50 · 20 · 3 of three fewer rows, with social events
+scored by construction). Patterns: perceived vs actual support r = .49; friendship clustering .16 (was ≈ .01 at
+the start); intentions carried out .66; liking gap −.06; doubters do not underestimate friends' belief; depressive
+episodes 6%. Four-year drift (first → last year): serving missionaries −73 (was +374), depression +1.4 pts (was
++4.3), friends −1.1 (was −1.4), married share of students −6.4 pts (was −8.5), loneliness ±0; active share of
+members +6.4 pts (was +4.9). Accounting: people present +2–4%/yr (was +9–13%), missionary and depression stocks
+balanced.
+
+**Known gaps carried forward**: married share of enrolled students still settles low over years; BYU work hours
+drift up ~1.5 h over the winter (pre-existing); realized social events below the survey for singles; courtship
+faster than the surveys' typical 6–8 months; intentions carried out somewhat more often than the ~50% benchmark;
+the active share of members creeps up over four years.

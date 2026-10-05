@@ -25,6 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from ..analysis import butterfly as B
 from ..analysis import explain as X
 from ..analysis import fields as F
+from ..analysis.inner import inner_life
 from ..analysis.person import headline, profile, synthetic_name
 from ..analysis.query import describe_filter, evaluate_filter
 from ..engine import runner
@@ -125,6 +126,7 @@ class Workspace:
         self.last_job: dict | None = None   # how the previous run or build ended (shown in the HUD)
         self.mc = None
         self.sweep_result = None
+        self.unc = None
         self.compare_cache = None
         self.world_id = 0
         self.registry = get_registry()
@@ -280,10 +282,11 @@ def step(body: dict = Body(default={})):
 
 @app.get("/api/validation")
 def validation():
-    """The latest validation report and four-year stability check (scripts/validate.py, scripts/stability.py)."""
+    """The latest validation report, four-year stability check and stock-flow accounting
+    (scripts/validate.py, scripts/stability.py, scripts/accounting.py)."""
     cfg = Path(__file__).resolve().parents[1] / "config"
     out = {}
-    for key, name in (("validation", "validation.json"), ("stability", "stability.json")):
+    for key, name in (("validation", "validation.json"), ("stability", "stability.json"), ("accounting", "accounting.json")):
         f = cfg / name
         out[key] = json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
     return jresp(out)
@@ -474,6 +477,16 @@ def counterfactual(i: int) -> dict:
         m = np.where((log["a"] == i) & (log["day"] >= fork_day))[0]
         return [X.event_record(sim, int(e)) for e in m if sim.reg.events[sim.reg.event_names[log["type"][e]]].salience >= 0.45][-80:]
     return {"fork_day": fork_day, "diffs": diffs, "base_events": evs(b), "alt_events": evs(a)}
+
+
+@app.get("/api/person/{i}/inner")
+def person_inner(i: int, u: str = "base"):
+    """The inner life: motives and drives, beliefs vs reality, memories, intentions, coping, lessons, routine, footprint."""
+    sim = WS.sim(u)
+    with WS.lock:
+        if i < 0 or i >= sim.w.P.n:
+            raise HTTPException(404, "no such person")
+        return jresp(inner_life(sim, i))
 
 
 @app.get("/api/person/{i}/network")
@@ -1011,9 +1024,14 @@ def complexes(var: str = "loneliness", u: str = "base", min_n: int = 3):
         cx = w.complexes
         out = []
         for k in np.where(n >= min_n)[0]:
-            out.append({"id": int(k), "name": cx["name"][int(k)], "lon": float(cx["lon"][int(k)]), "lat": float(cx["lat"][int(k)]),
-                        "n": int(n[k]), "mean": float(s[k] / n[k]), "kind": cx["kind"][int(k)],
-                        "contracted": bool(cx["contracted"][int(k)])})
+            row = {"id": int(k), "name": cx["name"][int(k)], "lon": float(cx["lon"][int(k)]), "lat": float(cx["lat"][int(k)]),
+                   "n": int(n[k]), "mean": float(s[k] / n[k]), "kind": cx["kind"][int(k)],
+                   "contracted": bool(cx["contracted"][int(k)])}
+            C = w.meta.get("culture")
+            if C is not None:
+                row.update(social=round(float(C["cx_social"][k]), 3), observance=round(float(C["cx_relig"][k]), 3),
+                           party=round(float(C["cx_party"][k]), 3))
+            out.append(row)
         return jresp(out)
 
 
@@ -1090,8 +1108,20 @@ def institution(kind: str, iid: int, u: str = "base"):
         top = [{"type": sim.reg.event_names[k], "label": sim.reg.events[sim.reg.event_names[k]].label, "count": int(ev[k])}
                for k in np.argsort(-ev)[:12] if ev[k] > 0]
         members = [{"id": int(i), "name": synthetic_name(P, int(i))} for i in ids[:300]]
+        culture = None
+        C = w.meta.get("culture")
+        if C is not None:
+            cul = sim.systems["culture"]
+            if kind == "complex":
+                culture = cul.complex_profile(iid)
+            elif kind == "ward":
+                culture = {"warmth": float(C["ward_warmth"][iid]), "activity": float(C["ward_activity"][iid]),
+                           "warmth_vs_average": float(cul.ward_warmth_dev(np.array([iid]))[0])}
+            elif kind == "unit" and iid < len(C["unit_social"]):
+                culture = {"sociability_z": float(P["home_social_culture"][ids[0]]) if len(ids) else None,
+                           "observance": float(C["unit_relig"][iid]), "cohesion": float(C["unit_cohesion"][iid])}
         return jresp({"kind": kind, "id": iid, "name": name, "n": len(ids), "stats": stats, "composition": comp,
-                      "friend_ties_inside": friends_inside,
+                      "friend_ties_inside": friends_inside, "culture": culture,
                       "density": friends_inside / max(len(ids) * (len(ids) - 1) / 2, 1), "recent_events": top, "members": members})
 
 
@@ -1210,6 +1240,36 @@ def sweep(body: dict = Body(...)):
 @app.get("/api/sweep")
 def sweep_result():
     return jresp(WS.sweep_result or {"state": "none"})
+
+
+@app.post("/api/uncertainty")
+def uncertainty(body: dict = Body(...)):
+    """Uncertainty ensemble for a What-if: parameter draws × seeds, paired runs, stochastic vs parametric variance."""
+    from ..engine.uncertainty import ensemble
+
+    def job():
+        try:
+            WS.unc = {"state": "running", "progress": 0, "total": 0}
+
+            def prog(i, n):
+                WS.unc.update(progress=i, total=n)
+            scen = body.get("scenario") or [{"preset": body.get("preset", "rent_up_20")}]
+            res = ensemble(scen, n_draws=int(body.get("draws", 6)), seeds=tuple(range(1, int(body.get("seeds", 3)) + 1)),
+                           days=int(body.get("days", 90)), warmup=int(body.get("warmup", 21)), scale=float(body.get("scale", 0.05)),
+                           levels=tuple(body.get("levels", ("hypothetical", "structural", "speculative", "extrapolated"))),
+                           workers=int(body.get("workers", 4)), progress=prog)
+            res["state"] = "done"
+            WS.unc = res
+        except Exception as e:  # noqa: BLE001
+            traceback.print_exc()
+            WS.unc = {"state": "error", "error": repr(e)}
+    threading.Thread(target=job, daemon=True).start()
+    return {"ok": True}
+
+
+@app.get("/api/uncertainty")
+def uncertainty_result():
+    return jresp(getattr(WS, "unc", None) or {"state": "none"})
 
 
 @app.post("/api/save")

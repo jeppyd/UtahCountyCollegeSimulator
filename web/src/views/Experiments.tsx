@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fmt, quantile } from '../analysis'
 import { api, STATIC } from '../api'
-import { axisStyle, EChart, series } from '../components'
+import { axisStyle, EChart, Evidence, series } from '../components'
 import { useStore } from '../store'
 import { PageHeader } from '../ui'
 
@@ -20,6 +20,72 @@ export default function Experiments() {
         <MonteCarlo />
         <Sweep />
       </div>
+      <Uncertainty />
+    </div>
+  )
+}
+
+const OUT_LABEL: Record<string, string> = {
+  loneliness: 'Loneliness', mood: 'Mood', stress: 'Stress', financial_stress: 'Financial stress', faith_belief: 'Belief', attend_rate: 'Church attendance',
+  n_friends: 'Friends', n_close_friends: 'Close friends', dates_30d: 'Dates / month', social_events_month: 'Social events / month',
+  perceived_support: 'Support they believe they have', life_satisfaction: 'Life satisfaction', married_share: 'Married share',
+  dating_share: 'Dating share', active_lds_share: 'Active (members)',
+}
+
+/** Two kinds of uncertainty: would the result survive a different random history (seeds), and would it survive
+ *  different — still defensible — behavioral assumptions (parameter draws and alternative mechanism forms)? */
+function Uncertainty() {
+  const { presets } = useStore()
+  const [res, setRes] = useState<any>(null)
+  const [preset, setPreset] = useState('peer_support_program')
+  const [draws, setDraws] = useState(12)
+  const [seeds, setSeeds] = useState(3)
+  const [days, setDays] = useState(90)
+  const [scale, setScale] = useState(0.04)
+  useEffect(() => { api.uncertainty().then(setRes).catch(() => {}) }, [])
+  useEffect(() => {
+    if (res?.state !== 'running') return
+    const t = setInterval(() => api.uncertainty().then(setRes), 2500)
+    return () => clearInterval(t)
+  }, [res?.state])
+  const run = async () => { await api.uncertaintyStart({ preset, draws, seeds, days, scale }); setRes({ state: 'running', progress: 0 }) }
+  const rows = res?.outcomes ? Object.entries(res.outcomes).map(([k, d]: any) => ({ k, ...d }))
+    .sort((a: any, b: any) => Math.abs(b.mean) / (b.sd_total + 1e-9) - Math.abs(a.mean) / (a.sd_total + 1e-9)) : []
+  const nm = (k: string) => presets?.[k]?.name ?? k
+  return (
+    <div className="card" style={{ marginTop: 14 }}>
+      <h3>How sure? Random history vs uncertain assumptions</h3>
+      <p className="hint">Runs the What-if many times: across <b>seeds</b> (a different random social history, same assumptions) and across <b>parameter draws</b> (the model's uncertain rules varied within their declared ranges — wider for weaker evidence — including alternative mechanism forms). Each run is a paired Original/What-if from the same world. The bar splits the uncertainty of each effect into the part due to chance and the part due to assumptions; “same sign” is how often the effect points the same way.</p>
+      {!STATIC && (
+        <div className="row small" style={{ marginBottom: 8, flexWrap: 'wrap' }}>
+          <select value={preset} onChange={e => setPreset(e.target.value)}>{presets && Object.entries(presets).map(([id, p]: any) => <option key={id} value={id}>{p.name}</option>)}</select>
+          <label className="inline">parameter draws <input type="number" min={2} max={40} value={draws} onChange={e => setDraws(Number(e.target.value))} style={{ width: 56 }} /></label>
+          <label className="inline">seeds <input type="number" min={2} max={10} value={seeds} onChange={e => setSeeds(Number(e.target.value))} style={{ width: 50 }} /></label>
+          <label className="inline">days <input type="number" value={days} onChange={e => setDays(Number(e.target.value))} style={{ width: 64 }} /></label>
+          <label className="inline">scale <input type="number" step={0.01} value={scale} onChange={e => setScale(Number(e.target.value))} style={{ width: 60 }} /></label>
+          <button className="btn primary small" disabled={res?.state === 'running'} onClick={run}>{res?.state === 'running' ? `Running… ${res.progress ?? 0}/${res.total || draws * seeds}` : 'Run'}</button>
+          <span className="muted">≈ {draws * seeds} paired runs; a few minutes</span>
+        </div>
+      )}
+      {res?.state === 'error' && <div className="empty">{res.error}</div>}
+      {res?.outcomes && (
+        <>
+          <div className="small muted" style={{ marginBottom: 6 }}>{nm(res.scenario?.[0]?.preset ?? '')}: {res.n_params} uncertain parameters × {res.n_draws} draws × {res.seeds.length} seeds, {res.days} days at scale {res.scale}.</div>
+          <table className="data">
+            <thead><tr><th>Outcome</th><th>Effect (10–90%)</th><th style={{ width: 170 }}>Uncertainty from chance · assumptions</th><th>Same sign</th><th>Driven most by</th></tr></thead>
+            <tbody>{rows.map((r: any) => (
+              <tr key={r.k}>
+                <td>{OUT_LABEL[r.k] ?? r.k}</td>
+                <td className="num tabular">{r.mean >= 0 ? '+' : ''}{fmt(r.mean, 4)} <span className="muted small">[{fmt(r.p10, 4)}, {fmt(r.p90, 4)}]</span></td>
+                <td><span className="unc-split" title={`chance ${Math.round(100 * r.share_stochastic)}% · assumptions ${Math.round(100 * r.share_parametric)}%`}>
+                  <i style={{ width: `${100 * r.share_stochastic}%` }} /><b style={{ width: `${100 * r.share_parametric}%` }} /></span></td>
+                <td className="num tabular">{r.same_sign === null || r.same_sign === undefined ? '—' : `${Math.round(100 * r.same_sign)}%`}</td>
+                <td className="small">{r.drivers?.length ? r.drivers.slice(0, 2).map((d: any) => <div key={d.param}>{d.param} <Evidence level={d.evidence} /> <span className="muted">ρ {d.rho > 0 ? '+' : ''}{d.rho}</span></div>) : <span className="muted">{r.drivers_note ?? 'no single assumption stands out'}</span>}</td>
+              </tr>))}</tbody>
+          </table>
+          <div className="small muted" style={{ marginTop: 6 }}><span className="unc-key chance" /> chance (seeds) · <span className="unc-key assume" /> assumptions (parameter draws)</div>
+        </>
+      )}
     </div>
   )
 }
@@ -68,7 +134,7 @@ function MonteCarlo() {
       <p className="hint">Each scenario runs from fresh worlds under several seeds; the same seed is shared across scenarios, so per-seed differences are paired.</p>
       {!STATIC && (
         <>
-          <div className="row small" style={{ marginBottom: 6 }}>{presets && Object.entries(presets).slice(0, 18).map(([id, p]: any) => (
+          <div className="row small" style={{ marginBottom: 6 }}>{presets && Object.entries(presets).map(([id, p]: any) => (
             <label key={id} className="inline"><input type="checkbox" checked={pick.includes(id)} onChange={e => setPick(e.target.checked ? [...pick, id] : pick.filter(x => x !== id))} />{p.name}</label>))}</div>
           <div className="row small" style={{ marginBottom: 8 }}>
             <label className="inline">seeds <input type="number" value={seeds} min={2} max={60} onChange={e => setSeeds(Number(e.target.value))} style={{ width: 56 }} /></label>

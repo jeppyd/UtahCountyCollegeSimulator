@@ -116,6 +116,8 @@ class Housing:
                 fr = np.array([friends_cx.get(int(i), {}).get(int(c), 0) for c in U.complex_id[take]])
                 util = (-p("housing.choice.rent") * per_bed / budget[k] - p("housing.choice.distance") * d
                         + p("housing.choice.friends") * np.log1p(fr) + 0.8 * U.quality[take] + rng.gumbel(size=len(take)))
+                if "culture" in w.meta:   # people sort toward complexes whose culture fits them (attraction–selection)
+                    util = util + p("culture.feedback.sorting") * sim.systems["culture"].housing_fit(int(i), U.complex_id[take])
                 u = int(take[np.argmax(util)])
                 if U.sex_restriction[u] == 0 and U.unit_type[u] != 4:
                     U.sex_restriction[u] = sexc

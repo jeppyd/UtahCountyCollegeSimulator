@@ -34,6 +34,33 @@ Relationships area; search palette, live news, time-skip recaps, keyboard shortc
 screens; research tools moved to a Research desk. Server: weekly all-field aggregates and the comparison,
 pulse, history and relationship endpoints.
 
+## Iteration 5 — inner lives, place cultures, accounting and uncertainty
+
+A bridge between state and behavior (`docs/MIND.md`): motives and drives, learned expectations, academic
+confidence, perception that can be wrong (support, friends' belief, romantic interest), episodic memory,
+appraisal, coping, weekly intentions with a ledger, routines; relationship histories (disclosure, support, hurt
+and repair, shared experiences, introductions); apartment, complex and ward cultures with feedback. Stock-flow
+accounting and fixes for multi-year drift; pattern-oriented validation, held-out tables and a within- vs
+between-person longitudinal section; uncertainty ensembles that separate stochastic from parametric
+uncertainty and draw an alternative mechanism form; ODD description. Person pages gain an Inner life tab;
+places show their culture; the research desk gains the uncertainty panel and accounting.
+
+## Next (after iteration 5)
+
+- **Longitudinal data**: feed real multi-wave survey data into `analysis/panel.py` and fit the within-person
+  mechanisms (expectation learning, coping relief, perceived-support bias) to observed transitions.
+- **Calibration of the inner life**: coping-episode frequency, intention follow-through by kind, routine
+  strength and memory retention against diary or experience-sampling data; history matching (implausibility
+  over many outputs) instead of coordinate search.
+- **Global sensitivity**: Morris/Sobol screening over all ranged parameters with the ensemble machinery;
+  more alternative mechanism forms (e.g. complex vs simple contagion for norms, alternative loneliness models).
+- **Ensemble What-ifs by default**: run 6–12 draws in the background after each What-if and show ranges on
+  the change cards.
+- **Reputation and gossip** between individuals, and social media as a second network, once they can be
+  modeled credibly.
+- **Narrated lives** (deferred LLM layer): a short story of a person's year written strictly from their event
+  chain, memories, intentions and lessons.
+
 ## Still to do (from the master prompt)
 
 - **LLM layer** (deliberately deferred): natural-language questions and what-ifs compiled to the existing

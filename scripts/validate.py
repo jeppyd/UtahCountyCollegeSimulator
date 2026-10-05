@@ -82,6 +82,95 @@ def sim_value(P, var, transform, m):
     return float(x.mean()) if len(x) else float("nan")
 
 
+# Survey tables held out of calibration (scripts/calibrate.py never sees them): they test the calibrated model
+# on targets it was not tuned to.
+HOLDOUT = {"gpa_by_school_sex", "scripture_minutes_by_activity", "alcohol_by_activity", "sleep_by_school"}
+
+
+def patterns(sim):
+    """Pattern-oriented checks (Grimm et al. 2005): structural signatures the model should reproduce besides
+    population means — perception gaps, network structure, the intention–behavior gap, seasonal rhythm."""
+    from ucsim.engine.state import Tie
+    P, E = sim.w.P, sim.w.E
+    pres = P["present"].astype(bool)
+    rows = []
+
+    def row(name, group, target, got, tol, kind, note):
+        rows.append({"table": name, "group": group, "var": name, "kind": kind, "target": target, "sim": got,
+                     "diff": got - target if np.isfinite(got) else float("nan"), "tol": tol, "n_sim": int(pres.sum()),
+                     "n_band": note, "status": status(got - target, tol) if np.isfinite(got) else "n/a"})
+
+    r = float(np.corrcoef(P["perceived_support"][pres], P["support_actual"][pres])[0, 1])
+    row("perceived_vs_actual_support", "everyone present", 0.40, r, 0.12, "pattern",
+        "literature: perceived vs received r=.35 (Haber 2007); vs network .2–.5")
+    # clustering of the friendship network (stage ≥ friend, present people)
+    lo, hi = E.endpoints()
+    m = (E["stage"] >= 3) & pres[lo] & pres[hi]
+    a, b = lo[m], hi[m]
+    n = P.n
+    import scipy.sparse as sp
+    A = sp.coo_matrix((np.ones(2 * len(a)), (np.r_[a, b], np.r_[b, a])), shape=(n, n)).tocsr()
+    deg = np.asarray(A.sum(axis=1)).ravel()
+    tri = np.asarray((A @ A).multiply(A).sum(axis=1)).ravel() / 2
+    possible = deg * (deg - 1) / 2
+    cc = float(np.mean(tri[deg >= 2] / possible[deg >= 2])) if (deg >= 2).any() else float("nan")
+    row("friend_network_clustering", "people with ≥2 friends", 0.25, cc, 0.10, "pattern",
+        "student friendship networks ≈ .2–.35 (assumption from network studies)")
+    plans = sim.systems.get("plans")
+    if plans is not None and plans.n:
+        since = sim.w.day - 120
+        fin = (plans["start"] >= since) & (plans["status"] > 0)
+        kept = float((plans["status"][fin] == 1).mean()) if fin.any() else float("nan")
+        row("intentions_carried_out", "intentions in the last 120 days", 0.50, kept, 0.12, "pattern",
+            "about half of intentions are acted on (Sheeran 2002)")
+    log = sim.log
+    code = sim.reg.event_ids["wedding"]
+    wm = log["type"] == code
+    if wm.sum() >= 20:
+        mon = np.array([sim.cal.date(int(d)).month for d in log["day"][wm]])
+        dd = np.array([sim.cal.date(int(d)).day for d in log["day"][wm]])
+        brk = ((mon >= 5) & (mon <= 7)) | ((mon == 4) & (dd >= 23)) | ((mon == 8) & (dd <= 22)) | ((mon == 12) & (dd >= 18)) | ((mon == 1) & (dd <= 5))
+        row("weddings_between_semesters", "weddings so far", 0.60, float(brk.mean()), 0.15, "diagnostic",
+            "assumption: student weddings cluster in breaks")
+    # liking gap: new acquaintances underestimate the other's interest
+    new = (E["n_inter"] <= 5) & (E["stage"] >= 1)
+    if new.any():
+        gap = float(np.mean(np.r_[E["bel_lh"][new] - E["att_hl"][new], E["bel_hl"][new] - E["att_lh"][new]]))
+        row("liking_gap_new_acquaintances", "ties with ≤5 interactions", -0.05, gap, 0.08, "diagnostic",
+            "Boothby et al. 2018: people underestimate how much new partners like them")
+    lds_doubt = pres & P["lds_member"].astype(bool) & (P["faith_belief"] < 0.45)
+    if lds_doubt.sum() >= 25:
+        pi = float(np.mean(P["perceived_friend_belief"][lds_doubt] - P["friend_belief_actual"][lds_doubt]))
+        row("pluralistic_ignorance_doubters", "members with belief < 0.45", 0.05, pi, 0.05, "diagnostic",
+            "doubters overestimate peers' belief (Prentice & Miller 1993 direction)")
+    # event sequence timing: months from a couple's first date to their engagement (couples formed during the run)
+    ce, cf = sim.reg.event_ids["engaged"], sim.reg.event_ids["first_date"]
+    em = np.where(log["type"] == ce)[0]
+    fm = np.where(log["type"] == cf)[0]
+    if len(em) >= 10 and len(fm):
+        first = {}
+        for e in fm:
+            k = (min(int(log["a"][e]), int(log["b"][e])), max(int(log["a"][e]), int(log["b"][e])))
+            first.setdefault(k, int(log["day"][e]))
+        months = []
+        for e in em:
+            k = (min(int(log["a"][e]), int(log["b"][e])), max(int(log["a"][e]), int(log["b"][e])))
+            if k in first:
+                months.append((int(log["day"][e]) - first[k]) / 30.4)
+        if len(months) >= 10:
+            row("courtship_months_to_engagement", f"{len(months) // 2} couples who met during the run", 7.0, float(np.median(months)),
+                2.5, "diagnostic", "Dating/Culture surveys: ~6–8 months typical for active LDS couples (first date → engagement)")
+    dep = float(P["depressive_episode"][pres].mean())
+    row("depressive_episode_prevalence", "everyone present", 0.08, dep, 0.04, "diagnostic",
+        "point prevalence ~6-10% (NSDUH 18-25 past-year MDE ≈19%; assumption)")
+    return rows
+
+
+def longitudinal(sim):
+    from ucsim.analysis.panel import report
+    return report(sim)
+
+
 def status(diff, tol):
     if not np.isfinite(diff):
         return "n/a"
@@ -106,7 +195,8 @@ def compare(sim, priors):
             group = ", ".join(f"{k}={ACT.get(v, v) if k == 'activity' else v}" for k, v in r.items()
                               if k in ("sex", "rel", "activity", "age_band", "school_proxy"))
             rows.append({"table": table, "group": group, "var": var, "kind": kind, "target": target, "sim": got,
-                         "diff": got - target, "tol": tol, "n_sim": n, "n_band": r.get("n_band"), "status": status(got - target, tol)})
+                         "diff": got - target, "tol": tol, "n_sim": n, "n_band": r.get("n_band"), "status": status(got - target, tol),
+                         "holdout": table in HOLDOUT})
     return rows
 
 
@@ -209,10 +299,11 @@ def main():
     traj += trajectory(sim, 60, every=15)
     early = benchmarks(sim) + compare(sim, priors)
     traj += trajectory(sim, 140, every=30)
-    final = benchmarks(sim) + compare(sim, priors)
+    final = benchmarks(sim) + compare(sim, priors) + patterns(sim)
     inst = institutional(sim)
     snap_day = sim.w.day
     traj += trajectory(sim, max(a.days - 200, 0), every=30)
+    longi = longitudinal(sim)
     timing = {k: round(v, 2) for k, v in sorted(sim.timing.items(), key=lambda kv: -kv[1])}
     run_s = time.time() - t0 - build_s
 
@@ -222,6 +313,12 @@ def main():
     counts_e = {s: sum(r["status"] == s for r in emer) for s in ("pass", "warn", "fail")}
     bench = [r for r in final if r["kind"] == "benchmark"]
     counts_b = {s: sum(r["status"] == s for r in bench) for s in ("pass", "warn", "fail")}
+    hold = [r for r in final if r.get("holdout")]
+    counts_h = {s: sum(r["status"] == s for r in hold) for s in ("pass", "warn", "fail")}
+    pat = [r for r in final if r["kind"] in ("pattern",) or r["table"] in ("liking_gap_new_acquaintances", "pluralistic_ignorance_doubters",
+                                                                            "weddings_between_semesters", "depressive_episode_prevalence",
+                                                                            "courtship_months_to_engagement")]
+    survey_rows = [r for r in final if r not in pat]
     early_map = {(r["table"], r["group"]): r for r in early}
     for r in final:
         e = early_map.get((r["table"], r["group"]))
@@ -250,13 +347,30 @@ respondents aged 24-26).
 Scored rows: {counts['pass']} pass · {counts['warn']} warn · {counts['fail']} fail.
 Census benchmarks: {counts_b['pass']} pass · {counts_b['warn']} warn · {counts_b['fail']} fail.
 Behavior (benchmark + emergent): {counts_e['pass']} pass · {counts_e['warn']} warn · {counts_e['fail']} fail.
+Held out of calibration ({', '.join(sorted(HOLDOUT))}): {counts_h['pass']} pass · {counts_h['warn']} warn · {counts_h['fail']} fail.
 
 ## Institutional targets (day {snap_day})
 
 {md_table(inst, ['metric', 'target', 'sim'])}
 ## Survey comparisons
 
-{md_table(final, ['table', 'group', 'kind', 'target', 'sim_day60', 'sim', 'tol', 'status', 'n_sim', 'n_band'])}
+{md_table(survey_rows, ['table', 'group', 'kind', 'target', 'sim_day60', 'sim', 'tol', 'status', 'holdout', 'n_sim', 'n_band'])}
+## Patterns (structure, not just means)
+
+Signatures the model should reproduce besides averages (pattern-oriented modeling, Grimm et al. 2005). *Pattern* rows
+are scored against literature ranges; *diagnostic* rows check a direction or an assumption and are not scored.
+
+{md_table(pat, ['table', 'group', 'kind', 'target', 'sim', 'tol', 'status', 'n_band'])}
+## Longitudinal structure (within- vs between-person)
+
+From two-weekly person snapshots at ~4-week lags over the run (`ucsim/analysis/panel.py`): *between r* correlates people's
+averages; *X→Y* and *Y→X* are within-person cross-lagged effects (standardized deviations from each person's own mean,
+controlling the outcome's lag — the logic of the RI-CLPM, Hamaker et al. 2015). In real panels within-person
+cross-lagged effects are typically small (Orth et al. 2022 benchmarks: .03 small, .07 medium, .12 large) even where
+cross-sectional correlations are strong; the model shows the same gap. Short panels bias within-person estimates
+slightly negative (Nickell bias), so read signs near zero with care. The same estimator runs on real survey waves.
+
+{md_table(longi, ['x', 'y', 'waves', 'people', 'cross_sectional_r', 'between_r', 'x_to_y', 'y_to_x']) if longi else 'n/a'}
 ## One-year trajectory (stability)
 
 {md_table(traj, list(traj[0].keys()))}
@@ -275,7 +389,12 @@ Behavior (benchmark + emergent): {counts_e['pass']} pass · {counts_e['warn']} w
 - **Dating frequency** is now within tolerance for most single and dating groups; engaged couples date
   somewhat more than reported, and older singles somewhat more often than the survey says.
 - *Input* rows (synthesized from the survey) that drift are changed by dynamics on purpose (e.g. work hours
-  respond to financial strain); a large drift there points to a mechanism that needs a counterweight.
+  respond to financial strain); a large drift there points to a mechanism that needs a counterweight. BYU work
+  hours start above the survey and rise ~1.5 h over the winter (unchanged from the previous release).
+- **Social events per month** are now a realized 30-day count of gatherings, dances, ward/FHE activities and
+  clubs (they used to be the static survey value, scored as if emergent). Singles attend ~5.6 a month in the
+  simulation versus ~8 in ProvoStats: an honest gap in how much organized social life the model generates.
+- **Courtship** (first date → engagement) runs faster than the 6–8 months the surveys describe as typical.
 
 ## Calibration
 
@@ -285,7 +404,12 @@ input rows above (two seeds, common random numbers). The chosen values are writt
 
 ## Known gaps
 
-- The fit is to one year; the four-year check (`scripts/stability.py`) shows slower drifts that remain.
+- The fit is to one year; the four-year check (`scripts/stability.py`) shows slower drifts that remain — chiefly the
+  married share of *enrolled students*, which settles near 17–20% by years 3–4 (institutional ≈25%) while the
+  married stock overall holds (`scripts/accounting.py`): married students graduate into non-student roles faster
+  than new student marriages replace them.
+- The inner-life mechanisms (`docs/MIND.md`) are mostly hypothetical in strength; their structural patterns are
+  checked above, and `scripts/uncertainty.py` shows how much a What-if result depends on them.
 - Several targets (GPA, sleep, app hours) depend on survey-derived starting values plus modest dynamics, so they
   agree partly by construction.
 - No administrative validation yet (actual marriage counts, enrollment flows, rent series).
@@ -293,8 +417,10 @@ input rows above (two seeds, common random numbers). The chosen values are writt
     (ROOT / "docs").mkdir(exist_ok=True)
     (ROOT / "docs" / "VALIDATION.md").write_text(doc, encoding="utf-8")
     summary = {"generated": time.strftime("%Y-%m-%d"), "scale": a.scale, "seed": a.seed, "day": snap_day,
-               "date": str(sim.cal.date(snap_day)), "counts": counts, "counts_benchmark": counts_b, "counts_behavior": counts_e}
-    OUT_JSON.write_text(json.dumps({"summary": summary, "rows": final, "institutional": inst, "trajectory": traj},
+               "date": str(sim.cal.date(snap_day)), "counts": counts, "counts_benchmark": counts_b, "counts_behavior": counts_e,
+               "counts_holdout": counts_h}
+    OUT_JSON.write_text(json.dumps({"summary": summary, "rows": final, "institutional": inst, "trajectory": traj,
+                                    "longitudinal": longi},
                                    default=lambda x: None if isinstance(x, float) and not np.isfinite(x) else float(x), indent=1),
                         encoding="utf-8")
     print(f"wrote docs/VALIDATION.md — {counts}")

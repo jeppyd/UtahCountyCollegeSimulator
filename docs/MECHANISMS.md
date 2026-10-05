@@ -2,7 +2,7 @@
 
 Generated from `ucsim/config/mechanisms/*.yaml` and `events.yaml` by `scripts/gen_catalogs.py` — do not edit by hand.
 
-134 mechanisms. Evidence: **observed** 0, **empirical** 18, **literature** 49, **calibrated** 31, **extrapolated** 0, **hypothetical** 36.
+171 mechanisms. Evidence: **observed** 0, **empirical** 18, **literature** 68, **calibrated** 33, **extrapolated** 0, **structural** 7, **hypothetical** 45, **speculative** 0.
 
 Every parameter can be overridden per run (`ParamSet`), targeted by an intervention (`target_type: param`) or swept.
 
@@ -10,10 +10,147 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 
 - **observed** — Directly observed in relevant data
 - **empirical** — Empirically estimated from data (survey copula / tables)
-- **literature** — Supported by external research
+- **literature** — Supported by established theory or replicated research
 - **calibrated** — Chosen to reproduce observed population patterns
 - **extrapolated** — Applied from another population
+- **structural** — A plausible structural assumption: a modeling form chosen for coherence, not a measured effect
 - **hypothetical** — Reasonable but insufficiently evidenced
+- **speculative** — Frontier: exploratory mechanism with weak or contested evidence
+
+## coping
+
+### `appraisal.relevance` — Events matter more when they touch what you care about
+
+*Evidence: literature · timescale: daily · delay: none*
+
+- **Target**: `mood`, `stress`, `loneliness`, `self_esteem`, `belonging`
+- **Inputs**: `cares_connection`, `cares_partnership`, `cares_achievement`, `cares_security`, `cares_faith`, `cares_health`
+- **Form**: every emotional effect of an event × ((0.5 + cares_m)/(0.5 + mean cares_m))^strength, m = the concern the event touches (its category or `motive`)
+- **Parameters**: `strength` = 1.0 (range 0.0–1.5)
+- **Notes**: The same rejection hurts more for someone who badly wants a partner; a failed exam hits harder for someone who cares about grades.
+- *Ref*: Lazarus & Folkman (1984): primary appraisal — goal relevance
+- *Ref*: Scherer (2001): relevance check in component process appraisal
+
+### `appraisal.coping_potential` — Feeling able to cope softens what hurts
+
+*Evidence: literature · timescale: daily · delay: none*
+
+- **Target**: `mood`, `stress`, `loneliness`, `self_esteem`
+- **Inputs**: `perceived_support`, `self_esteem`, `stress`
+- **Form**: harmful effects × exp(−strength·(coping potential − 0.55)); coping potential = 0.5·perceived support + 0.3·self-esteem + 0.2·(1 − stress)
+- **Parameters**: `strength` = 1.0 (range 0.0–2.0)
+- *Ref*: Lazarus & Folkman (1984): secondary appraisal — resources to cope
+- *Ref*: Cohen & Wills (1985): buffering
+
+### `coping.need` — When strain calls for coping
+
+*Evidence: structural · timescale: daily · delay: none*
+
+- **Target**: `coping_need`
+- **Inputs**: `stress`, `mood`, `loneliness`, `anxiety`
+- **Form**: need = clip((0.6·(stress − θs)⁺ + 0.8·(θm − mood)⁺ + 0.5·(loneliness − θl)⁺ + 0.4·(anxiety − 0.55)⁺)/0.25, 0, 1)
+- **Parameters**: `stress` = 0.55 (range 0.45–0.65); `mood` = 0.4 (range 0.33–0.47); `loneliness` = 0.58 (range 0.48–0.68)
+
+### `coping.episode` — Coping episodes start and end
+
+*Evidence: structural · timescale: daily · delay: none*
+
+- **Target**: `coping_strategy`
+- **Inputs**: `coping_need`
+- **Form**: start when the 2-day EWMA of need > on; end after 3 days below off, or after 35 days unresolved
+- **Parameters**: `on` = 0.4 (range 0.25–0.55); `off` = 0.15 (range 0.05–0.25)
+
+### `coping.choice` — Choosing how to cope
+
+*Evidence: literature · timescale: daily · delay: none*
+
+- **Target**: `coping_strategy`
+- **Inputs**: `extraversion`, `agreeableness`, `attachment_avoidance`, `perceived_support`, `n_close_friends`, `conscientiousness`, `self_eff_academic`, `cares_faith`, `faith_belief`, `religious_identity`, `own_religiosity`, `sensation_seeking`, `cares_health`, `cares_fun`, `neuroticism`, `social_anxiety`, `expect_social`
+- **Form**: Gumbel-max over strategies: support (E, A, low avoidance, perceived support; needs someone close), active (C, controllable stressor, confidence), religious (faith × belief), distraction (sensation seeking, fitness, fun), withdrawal (N, social anxiety, avoidance, low expected warmth); + learned × what has worked before
+- **Parameters**: `learned` = 1.5 (range 0.5–3.0); `withdrawal_base` = -0.9 (range -1.8–0.0); `support_base` = 0.3 (range -0.5–1.0)
+- *Ref*: Skinner, Edge, Altman & Sherwood (2003): families of coping
+- *Ref*: Carver, Scheier & Weintraub (1989): COPE
+- *Ref*: Connor-Smith & Flachsbart (2007): personality and coping (meta-analysis)
+
+### `coping.relief` — Relief each strategy brings
+
+*Evidence: hypothetical · timescale: daily · delay: none*
+
+- **Target**: `coping_relief`
+- **Inputs**: `coping_strategy`, `support_actual`, `academic_pressure`, `financial_stress`, `faith_belief`, `own_religiosity`
+- **Form**: daily relief: support = s·(0.2 + 0.8·actual support)·(1 if they connected today else 0.3); active = a·progress on the stressor; religious = r·belief; distraction = d·(did something); withdrawal = w; coping_relief = EWMA (half-life ≈4 days)
+- **Parameters**: `scale` = 1.0 (range 0.5–1.5); `support` = 0.6 (range 0.3–0.9); `active` = 0.55 (range 0.3–0.8); `religious` = 0.5 (range 0.2–0.8); `distraction` = 0.4 (range 0.2–0.6); `withdrawal` = 0.15 (range 0.05–0.3)
+- **Notes**: Ranked support ≈ active > religious > distraction > withdrawal on immediate relief, but support pays off only if supportive people are actually there.
+- *Ref*: Ano & Vasconcelles (2005): positive religious coping ↔ better adjustment (49 studies)
+- *Ref*: Penley, Tomaka & Wiebe (2002): problem-focused vs avoidant coping and health outcomes (meta-analysis)
+- *Ref*: Holahan & Moos (1987): avoidance coping predicts later distress
+
+### `coping.learning` — Learning what works
+
+*Evidence: hypothetical · timescale: daily · delay: none*
+
+- **Target**: `coping_strategy`
+- **Inputs**: `coping_need`, `coping_relief`
+- **Form**: at the end of an episode: V_strategy ← V + α·(outcome − V), outcome = 0.5 + 0.8·(need at start − need now) + 0.6·(relief − 0.15)
+- **Parameters**: `alpha` = 0.3 (range 0.1–0.5)
+- **Notes**: An isolated person who seeks support and finds no one learns to stop trying — the loneliness loop emerges from experience.
+- *Ref*: Rescorla & Wagner (1972)
+
+### `coping.behavior` — Coping changes what people do
+
+*Evidence: hypothetical · timescale: daily · delay: none*
+
+- **Target**: `activity_now`, `study_hours`, `class_attendance`, `attend_rate`, `work_hours`
+- **Inputs**: `coping_strategy`
+- **Form**: support: +visiting friends, ×(1 + 1.2k) reaching out; withdrawal: +home, −visits, −outings, ÷(1 + 0.8k) reaching out, −0.6 class-attendance logit, −2 h study; distraction: +gym, outdoors, venues; active: +campus and +3 h study (school strain), job search and hours (money strain); religious: +0.6 church-attendance logit
+- **Parameters**: `strength` = 1.0 (range 0.3–1.8)
+
+### `memory.forgetting` — Memories fade (unless rehearsed)
+
+*Evidence: literature · timescale: daily · delay: none*
+
+- **Target**: `n_memories`
+- **Inputs**: `rumination`
+- **Form**: strength = importance·(1 + 0.5·rehearsals)·(1 + age/7 days)^−decay; weekly prune below 0.07, at most 40 per person; core memories (importance ≥ 0.8) kept
+- **Parameters**: `decay` = 0.5 (range 0.3–0.8)
+- *Ref*: Wixted & Ebbesen (1991): power-law forgetting
+- *Ref*: Anderson & Schooler (1991): ACT-R base-level activation
+- *Ref*: Park et al. (2023): Generative Agents — recency × importance × relevance retrieval
+
+### `memory.tone` — How the remembered past colors life judgments
+
+*Evidence: literature · timescale: daily · delay: none*
+
+- **Target**: `life_satisfaction`
+- **Inputs**: `memory_tone`
+- **Form**: life satisfaction += 0.6·memory tone (monthly composite)
+- *Ref*: Schwarz & Strack (1999): life-satisfaction judgments are built from what comes to mind
+- *Ref*: Kahneman (1999): the remembering self
+
+## culture
+
+### `culture.inertia` — Place cultures form from residents and outlast them
+
+*Evidence: structural · timescale: daily · delay: none*
+
+- **Target**: `home_social_culture`, `home_faith_culture`
+- **Inputs**: `attend_rate`, `service_attend`, `roommate_cohesion`, `coffee`, `alcohol`, `rel_status`, `ward_belonging`, `ward_activity_rate`; other inputs: hosted gathering counts, visits
+- **Form**: weekly: culture ← (1 − r)·culture + r·(what residents did this week); apartment sociability = log(1 + 3·gatherings + visits)/√residents; complex = mean of its apartments plus observance, coffee/alcohol share, married share; ward = mean belonging and activity; empty apartments keep their reputation
+- **Parameters**: `unit` = 0.2 (range 0.1–0.4); `complex` = 0.08 (range 0.03–0.2); `ward` = 0.1 (range 0.03–0.25)
+- *Ref*: Schneider (1987): the people make the place — attraction–selection–attrition
+- *Ref*: Harrison & Carroll (1991): cultural transmission in organizations with turnover
+
+### `culture.feedback` — Cultures shape the people who live in them
+
+*Evidence: hypothetical · timescale: daily · delay: none*
+
+- **Target**: `activity_now`, `perceived_norm`, `unit_id`, `ward_belonging`
+- **Inputs**: `home_social_culture`, `home_faith_culture`
+- **Form**: hosting × exp(h·apartment sociability z); invitation acceptance and hanging out around the complex + r·complex sociability z; attendance norm = (1 − n)·(friends + ward) + n·complex observance; housing choice + s·fit (−2·|observance gap| − 0.4·|sociability z − extraversion z|); ward belonging + w·(ward warmth − mean)
+- **Parameters**: `hosting` = 0.3 (range 0.0–0.6); `reputation` = 0.25 (range 0.0–0.5); `norm` = 0.2 (range 0.0–0.4); `sorting` = 1.0 (range 0.0–2.0); `ward_warmth` = 2.0 (range 0.0–4.0)
+- **Notes**: Closes the micro–meso–macro loop: residents make a complex social or devout, the reputation changes who visits and who moves in, newcomers adopt its norms, and the culture evolves again. Strengths are hypothetical; set any to 0 to switch that feedback off and compare.
+- *Ref*: Cialdini, Reno & Kallgren (1990): descriptive norms of a setting guide behavior
+- *Ref*: Selection and influence in residential settings (e.g. Kandel 1978; Steglich, Snijders & Pearson 2010)
 
 ## emotion
 
@@ -224,6 +361,28 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Parameters**: `beta` = 0.25 (range 0.1–0.4)
 - *Ref*: Meyer (2003) Psychol Bull: minority stress model
 
+### `stress.support_buffer` — Perceived support buffers stressors
+
+*Evidence: literature · timescale: daily · delay: none*
+
+- **Target**: `stress`
+- **Inputs**: `perceived_support`, `academic_pressure`, `financial_stress`, `relationship_satisfaction`, `faith_crisis`
+- **Form**: −β·(perceived support − 0.35)·(academic + financial + relationship + faith-crisis terms)
+- **Parameters**: `beta` = 0.5 (range 0.2–0.9)
+- **Notes**: An interaction, not a main effect — someone with no stressors gains nothing; someone under strain who feels backed gains a lot.
+- *Ref*: Cohen & Wills (1985): the stress-buffering hypothesis — support matters most under stress
+- *Ref*: Perceived (not received) support carries the buffering effect (Lakey & Orehek 2011)
+
+### `stress.coping` — Coping relief lowers stress
+
+*Evidence: hypothetical · timescale: daily · delay: none*
+
+- **Target**: `stress`
+- **Inputs**: `coping_relief`
+- **Form**: −β·coping relief
+- **Parameters**: `beta` = 0.15 (range 0.05–0.3)
+- *Ref*: See coping.relief for how relief is earned
+
 ### `loneliness.setpoint` — Trait loneliness set-point
 
 *Evidence: literature · timescale: daily · delay: none*
@@ -252,7 +411,28 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Target**: `loneliness`
 - **Inputs**: `n_close_friends`
 - **Form**: −β·log(1+n_close)/log 6
-- **Parameters**: `beta` = 0.07 (range 0.03–0.15)
+- **Parameters**: `beta` = 0.05 (range 0.02–0.12)
+- **Notes**: Lowered from 0.07 when the perceived-support term took over part of what close friends do for loneliness.
+
+### `loneliness.coping` — Being supported through a hard time eases loneliness
+
+*Evidence: hypothetical · timescale: daily · delay: none*
+
+- **Target**: `loneliness`
+- **Inputs**: `coping_relief`, `coping_strategy`
+- **Form**: −β·coping relief while coping by seeking support
+- **Parameters**: `beta` = 0.1 (range 0.03–0.2)
+
+### `loneliness.perceived_support` — Believing support is there eases loneliness
+
+*Evidence: literature · timescale: daily · delay: none*
+
+- **Target**: `loneliness`
+- **Inputs**: `perceived_support`
+- **Form**: −β·(perceived support − 0.45)
+- **Parameters**: `beta` = 0.12 (range 0.05–0.25)
+- *Ref*: Loneliness is perceived social isolation, distinct from network size (Hawkley & Cacioppo 2010)
+- *Ref*: Perceived support predicts wellbeing better than received support (Uchino 2009)
 
 ### `loneliness.partner` — Partner buffers loneliness
 
@@ -610,6 +790,26 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Inputs**: `depressive_episode`
 - **Form**: −0.15
 
+### `mood.coping` — Coping relief lifts mood
+
+*Evidence: hypothetical · timescale: daily · delay: none*
+
+- **Target**: `mood`
+- **Inputs**: `coping_relief`
+- **Form**: β·coping relief
+- **Parameters**: `beta` = 0.12 (range 0.04–0.25)
+
+### `mood.rumination` — Rumination prolongs low mood
+
+*Evidence: literature · timescale: daily · delay: none*
+
+- **Target**: `mood`
+- **Inputs**: `rumination`, `n_memories`
+- **Form**: −β·rumination·clip(negative memory load, 0, 3)/3 — load = Σ strength of negative memories from the last 60 days, kept high by rehearsal
+- **Parameters**: `beta` = 0.1 (range 0.03–0.2)
+- *Ref*: Nolen-Hoeksema (2000): rumination predicts onset and duration of depressed mood
+- *Ref*: Watkins (2008): constructive and unconstructive repetitive thought
+
 ### `mental_health.depression` — Depressive episode onset/remission
 
 *Evidence: hypothetical · timescale: daily · delay: none*
@@ -740,6 +940,16 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Inputs**: `graduated`, `family_local`
 - **Form**: after graduation P(leave) ≈ 0.62 BYU / 0.42 UVU, −0.25 if family local
 
+### `lifecourse.stay` — How long non-students stay in the college scene
+
+*Evidence: calibrated · timescale: daily · delay: none*
+
+- **Target**: `present`
+- **Inputs**: `role`, `rel_status`
+- **Form**: graduates who stay, dropouts and young adults leave after an exponential stay (mean = years); married couples leave together, and wait while a spouse is still enrolled
+- **Parameters**: `young_adult_years` = 1.6 (range 0.8–3.0)
+- **Notes**: Holds the non-student young-adult stock near its configured size (inflow from graduates who stay and dropouts ≈ outflow). Without it that stock grew ~10% a year with no exit (see scripts/accounting.py). Real residence durations for post-college young adults in Provo/Orem are not measured here; the value is chosen for stock balance.
+
 ### `lifecourse.illness` — Short illnesses
 
 *Evidence: calibrated · timescale: daily · delay: none*
@@ -790,6 +1000,116 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Form**: monthly P(quit) = base·(1 + 2·academic pressure) for employed students with financial stress < 0.3
 - **Parameters**: `base` = 0.05 (range 0.01–0.12)
 - **Notes**: Balances job-taking under financial strain so student work hours stay near the survey levels over a year.
+
+## mind
+
+### `mind.importance` — What matters to someone (motive importance)
+
+*Evidence: structural · timescale: daily · delay: none*
+
+- **Target**: `cares_connection`, `cares_partnership`, `cares_achievement`, `cares_security`, `cares_faith`, `cares_rest`, `cares_fun`, `cares_health`
+- **Inputs**: `extraversion`, `agreeableness`, `attachment_anxiety`, `attachment_avoidance`, `social_events_month`, `wants_relationship`, `activity`, `age`, `rel_status`, `conscientiousness`, `academic_ability`, `enrolled`, `parent_income`, `children`, `neuroticism`, `religious_identity`, `faith_belief`, `own_religiosity`, `sensation_seeking`, `openness`, `workouts_week`, `sports`, `world.marriage_norm`
+- **Form**: cares_m = logistic(trait/value/circumstance index_m); weekly drift toward the target at rate `drift` (priorities change when identity or circumstances do)
+- **Parameters**: `marriage_norm` = 1.0 (range 0.4–1.6); `drift` = 0.1 (range 0.03–0.25)
+- **Notes**: Eight concerns rather than hundreds of direct arrows. Weights are a structural assumption; their inputs are the survey-grounded traits.
+- *Ref*: Deci & Ryan (2000): self-determination theory — relatedness, competence, autonomy
+- *Ref*: Kenrick et al. (2010): fundamental social motives
+- *Ref*: Schwartz (1992): value priorities are stable but shift with life stage
+
+### `mind.drive` — Drives and the top priority (importance × unmet)
+
+*Evidence: structural · timescale: daily · delay: none*
+
+- **Target**: `drive_connection`, `drive_partnership`, `drive_achievement`, `drive_security`, `drive_faith`, `drive_rest`, `drive_fun`, `drive_health`, `top_priority`, `sat_fun`, `sat_health`
+- **Inputs**: `loneliness`, `romantic_longing`, `relationship_satisfaction`, `academic_pressure`, `self_eff_academic`, `financial_stress`, `guilt`, `religious_identity`, `attend_rate`, `private_practice`, `own_religiosity`, `service_attend`, `outsider`, `fatigue`
+- **Form**: drive_m = cares_m × (1 − felt fulfilment_m); fulfilment reads the felt state (1 − loneliness, 1 − financial stress, …) or recent experience (outings, workouts vs appetite)
+- **Notes**: The shared currency that lets subsystems compete — money worries and coursework pull effort away from dating and fun through the same drives.
+- *Ref*: Cacioppo & Hawkley (2009): loneliness as an aversive signal that motivates reconnection (a 'social hunger')
+- *Ref*: Homeostatic need models (e.g. Hull; Berridge 2004 on wanting)
+
+### `mind.choice` — Drives steer free-time choices
+
+*Evidence: calibrated · timescale: daily · delay: none*
+
+- **Target**: `activity_now`
+- **Inputs**: `drive_connection`, `drive_partnership`, `drive_achievement`, `drive_rest`, `drive_fun`, `drive_health`, `expect_social`, `coping_strategy`, `routine_strength`
+- **Form**: U(option) = habit/trait base + Σ_m w_m·drive_m·gain(option, m) + routine bonus + coping bias + Gumbel noise; gains: home→rest, campus→achievement, gym→health, venue/outdoors→fun, dance→partnership+fun, visiting a friend→connection (scaled by expected warmth)
+- **Parameters**: `rest` = 2.0 (range 1.0–3.0); `achievement` = 2.4 (range 1.2–3.6); `health` = 1.0 (range 0.4–2.0); `fun` = 1.2 (range 0.4–2.0); `partnership` = 1.6 (range 0.6–2.6)
+- *Ref*: McFadden (1974): random-utility choice
+- *Ref*: Replaces direct state terms (1.2·fatigue, 1.3·academic pressure, 0.8·romantic longing) with drives
+
+### `mind.expect_accept` — Learning what to expect when asking someone out
+
+*Evidence: literature · timescale: daily · delay: none*
+
+- **Target**: `expect_accept`
+- **Inputs**: `attractiveness`, `rejection_sensitivity`, `extraversion`
+- **Form**: after each ask: V ← V + α·(accepted − V); after a no, α × (1 + β_rs·max(0, z_RS))
+- **Parameters**: `alpha` = 0.15 (range 0.05–0.3); `rs_asymmetry` = 0.6 (range 0.0–1.2)
+- **Notes**: Replaces the direct 'recent rejections × rejection sensitivity → fewer asks' term; a run of rejections now works through a learned, inspectable expectation.
+- *Ref*: Rescorla & Wagner (1972): prediction-error learning
+- *Ref*: Downey & Feldman (1996): rejection sensitivity — anxious expectation of rejection
+
+### `mind.expect_social` — Learning how warm people are
+
+*Evidence: literature · timescale: daily · delay: none*
+
+- **Target**: `expect_social`
+- **Inputs**: `extraversion`, `social_anxiety`, `neuroticism`
+- **Form**: daily, from interactions in social settings: V ← V + α·min(n,4)/4·(½ + ½·tanh(mean valence) − V); bad moments weigh (1 + β·max(0, z_SA)) more
+- **Parameters**: `alpha` = 0.05 (range 0.01–0.12); `threat_bias` = 0.5 (range 0.0–1.0)
+- *Ref*: Cacioppo & Hawkley (2009): loneliness heightens attention to social threat
+- *Ref*: Clark & Wells (1995): social anxiety and threat-biased processing
+
+### `mind.self_efficacy` — Academic confidence from mastery experiences
+
+*Evidence: literature · timescale: daily · delay: none*
+
+- **Target**: `self_eff_academic`
+- **Inputs**: `academic_ability`, `conscientiousness`, `neuroticism`, `gpa`, `gpa_term`
+- **Form**: at term end: eff ← eff + α·(class rank of term GPA − eff) − 0.02·z_N; study target += β_s·(eff − 0.5); dropout logit −= β_d·(eff − 0.5)
+- **Parameters**: `alpha` = 0.25 (range 0.1–0.4); `study` = 4.0 (range 1.0–7.0); `dropout` = 1.2 (range 0.4–2.0)
+- **Notes**: Effects on GPA run only through effort (study hours), so confidence and ability are not double counted.
+- *Ref*: Bandura (1997): mastery experiences are the strongest source of self-efficacy
+- *Ref*: Multon, Brown & Lent (1991): self-efficacy ↔ performance r≈.38, persistence r≈.34
+
+### `mind.perceived_support` — Support people believe they have
+
+*Evidence: literature · timescale: daily · delay: none*
+
+- **Target**: `perceived_support`
+- **Inputs**: `support_actual`, `neuroticism`, `attachment_anxiety`, `loneliness`
+- **Form**: perceived = logistic(r·logit(actual) + (1 − r)·0.4 − β_N·z_N − β_A·z_attach_anx − β_L·(loneliness − 0.33) + β_lens·personal lens)
+- **Parameters**: `reality` = 0.125 (range 0.1–0.6); `neuroticism` = 0.35 (range 0.1–0.6); `attachment` = 0.3 (range 0.1–0.5); `loneliness` = 1.0 (range 0.3–2.0); `lens` = 0.8 (range 0.3–1.3)
+- **Notes**: The personal lens and trait biases are set so perceived and actual support correlate around .35–.5 (checked in validation).
+- *Ref*: Haber, Cohen, Lucas & Baltes (2007): received vs perceived support r = .35 (23 studies)
+- *Ref*: Lakey & Drew (1997): perceived support reflects the perceiver as much as the network
+
+### `mind.pluralistic_ignorance` — Concealed doubt and misread norms
+
+*Evidence: literature · timescale: daily · delay: none*
+
+- **Target**: `perceived_friend_belief`, `friend_belief_actual`
+- **Inputs**: `faith_belief`, `moral_autonomy`, `perceived_norm`, `edge.closeness`
+- **Form**: expressed = belief + λ·(1 − autonomy)·max(0, local pressure − belief) for members (only doubt is concealed); perceived friends' belief = Σ closeness·(disclosure·belief + (1 − disclosure)·expressed) / Σ closeness
+- **Parameters**: `concealment` = 0.5 (range 0.0–0.9)
+- **Notes**: Doubters see more devotion around them than exists, so faith influence (which reads the perceived figure) props up the norm; confiding in close friends dissolves the illusion.
+- *Ref*: Prentice & Miller (1993): students misjudge peers' private attitudes toward a visible norm
+- *Ref*: Miller & McFarland (1987): pluralistic ignorance
+- *Ref*: Noelle-Neumann (1974): spiral of silence
+
+### `mind.romantic_perception` — Reading whether someone is interested
+
+*Evidence: literature · timescale: daily · delay: none*
+
+- **Target**: `edge.attraction_lh`
+- **Inputs**: `social_anxiety`, `sex`; other inputs: n_inter
+- **Form**: read = (1 − π)·(actual + noise·0.35·e^{0.3·z_SA}) + π·own attraction − gap·e^{−interactions/8} + male over-perception; belief ← belief + η·(read − belief) each interaction; a yes, no, kiss or date reveals much more
+- **Parameters**: `projection` = 0.35 (range 0.1–0.6); `liking_gap` = 0.12 (range 0.0–0.25); `male_overperception` = 0.08 (range 0.0–0.2); `learning_rate` = 0.08 (range 0.03–0.2); `date_reveal` = 0.5 (range 0.2–0.8); `ask_weight` = 1.2 (range 0.4–2.0)
+- **Notes**: Asking out now depends on believed interest, so crushes can be unrequited (believed yes, actual no) and connections missed (mutual interest that neither believes). Magnitudes are hypothetical; directions follow the literature.
+- *Ref*: Boothby, Cooney, Sandstrom & Clark (2018): the liking gap after conversations
+- *Ref*: Haselton & Buss (2000); Perilloux, Easton & Buss (2012): men over-perceive women's sexual interest
+- *Ref*: Lemay, Clark & Feeney (2007): projection of one's own feelings onto partners
 
 ## norms
 
@@ -851,6 +1171,54 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Form**: weekly P(quit) = β·guilt·orthodoxy·[active member]
 - **Parameters**: `guilt` = 0.15 (range 0.05–0.3)
 
+## plans
+
+### `plans.formation` — Forming a weekly intention
+
+*Evidence: structural · timescale: daily · delay: none*
+
+- **Target**: `intention`
+- **Inputs**: `drive_partnership`, `drive_connection`, `drive_achievement`, `drive_security`, `drive_faith`, `expect_accept`, `n_friends`, `gpa`, `employed`, `attend_rate`, `cares_faith`
+- **Form**: weekly, for people without one: score per intention (ask out = partnership drive × crush attraction × (0.5 + expected yes); reconnect = connection drive × closeness of the closest friend unseen for 2+ weeks; meet people = connection drive × few friends; study more = achievement drive (more with GPA < 3); find work = security drive if not employed; return to church = faith drive if attendance lapsed); form the best if score > threshold
+- **Parameters**: `threshold` = 0.12 (range 0.06–0.25)
+- *Ref*: Rao & Georgeff (1995): BDI agents — desires become committed intentions
+- *Ref*: Ajzen (1991): intentions as the proximal cause of behavior
+
+### `plans.execution` — Acting on an intention (the intention–behavior gap)
+
+*Evidence: literature · timescale: daily · delay: none*
+
+- **Target**: `dates_30d`, `study_hours`, `attend_rate`, `employed`, `social_events_month`
+- **Inputs**: `intention`, `conscientiousness`, `self_control`
+- **Form**: follow-through = logistic(0.4 + 0.5·z_C + 0.4·z_self-control); boosts × follow-through: ask logit +ask (toward the intended person), study +study h, church logit +church, meeting people: venues/dances/complex/visits and invitation acceptance; job search for 'find work'; reconnecting picks the intended friend 70% × follow-through
+- **Parameters**: `ask` = 1.2 (range 0.4–2.0); `study` = 3.0 (range 1.0–5.0); `church` = 0.8 (range 0.2–1.4); `meet` = 1.0 (range 0.3–1.6)
+- **Notes**: Calibrated so roughly half of intentions are carried out within their window (see the plan ledger summary in validation).
+- *Ref*: Sheeran (2002): intentions explain a modest share of behavior; 'inclined abstainers' drive the gap
+- *Ref*: Sheeran & Webb (2016): the intention–behavior gap
+- *Ref*: Gollwitzer (1999): implementation intentions
+
+### `plans.reconsider` — Why plans change
+
+*Evidence: structural · timescale: daily · delay: none*
+
+- **Target**: `intention`
+- **Inputs**: `rel_status`, `present`, `drive_partnership`, `drive_connection`, `drive_achievement`, `drive_security`, `drive_faith`
+- **Form**: kept when the behavior happens; abandoned when the target is gone (the crush started dating someone, a friend moved) or priorities shifted (this drive fell under half its strength and another is 2.5× larger); lapsed when the window (10–35 days) passes
+- *Ref*: Bratman (1987): intentions are stable but open to reconsideration when circumstances change
+
+### `routine.habit` — Weekly routines and habit strength
+
+*Evidence: literature · timescale: daily · delay: none*
+
+- **Target**: `routine_strength`, `activity_now`
+- **Inputs**: `activity_now`
+- **Form**: per weekly slot: same option → s ← s + α(1 − s); different → s ← s(1 − 1.5α), switch when s < 0.15; utility of the habitual option += weight·s
+- **Parameters**: `alpha` = 0.12 (range 0.05–0.25); `weight` = 0.8 (range 0.2–1.5)
+- **Notes**: A slot met once a week plateaus after ~15–20 repetitions (≈4 months), slower than a daily habit.
+- *Ref*: Lally, van Jaarsveld, Potts & Wardle (2010): median 66 days (18–254) to habit plateau
+- *Ref*: Wood & Neal (2007): habits are cued by context and bypass deliberation
+- *Ref*: MATSim (Horni, Nagel & Axhausen 2016): agents keep and reuse daily plans
+
 ## religion
 
 ### `faith.attend` — Sunday attendance
@@ -891,11 +1259,13 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 *Evidence: literature · timescale: daily · delay: none*
 
 - **Target**: `faith_belief`
-- **Inputs**: `faith_belief`, `faith_certainty`, `conformity`
+- **Inputs**: `perceived_friend_belief`, `faith_certainty`, `conformity`
 - **Moderators**: `faith_certainty`, `conformity`
-- **Form**: Δbelief = β·(1 − certainty)·exp(0.3·conformity)·(closeness-weighted friends' belief − belief), weekly
-- **Parameters**: `base` = 0.03 (range 0.0–0.08)
+- **Form**: Δbelief = β·(1 − certainty)·exp(0.3·conformity)·(what they perceive friends believe − belief), weekly (perception per mind.pluralistic_ignorance); alternative form (form = 1): bounded confidence — the pull drops to 20% when the gap exceeds `bound`
+- **Parameters**: `base` = 0.03 (range 0.0–0.08); `form` = 0 (range 0–1); `bound` = 0.3 (range 0.15–0.5)
+- **Notes**: Model uncertainty, not just parameter uncertainty: assimilation (form 0, default) and bounded confidence (form 1) are both defensible; uncertainty ensembles draw the form so conclusions that depend on it are flagged.
 - *Ref*: DeGroot-type opinion dynamics; uncertainty increases susceptibility to influence (general social-influence finding)
+- *Ref*: Hegselmann & Krause (2002): bounded-confidence opinion dynamics (the alternative form)
 
 ### `faith.spiritual` — Spiritual experiences
 
@@ -996,21 +1366,20 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 *Evidence: hypothetical · timescale: daily · delay: none*
 
 - **Target**: `dating_motivation`
-- **Inputs**: `wants_relationship`, `romantic_longing`, `age`, `activity`, `mission_status`, `extraversion`, `depressive_episode`, `academic_pressure`, `fatigue`
-- **Form**: m = logistic(base + βw·wants + βl·longing + βn·marriage_norm·age_norm·active + 0.4·recent RM + 0.25·E − …)
-- **Parameters**: `base` = -0.5 (range -1.5–0.5); `wants` = 1.0 (range 0.4–1.6); `longing` = 1.5 (range 0.5–2.5); `marriage_norm` = 1.0 (range 0.3–1.8)
-- **Notes**: Encodes the strong LDS young-adult marriage norm (returned missionaries are expected to date toward marriage).
+- **Inputs**: `wants_relationship`, `drive_partnership`, `age`, `activity`, `mission_status`, `extraversion`, `depressive_episode`, `drive_achievement`, `drive_security`, `drive_rest`
+- **Form**: m = logistic(base + βw·wants + βl·partnership drive/0.55 + βn·marriage_norm·age_norm·active + 0.4·recent RM + 0.25·E − 0.8·depressed − βc·(achievement + security + rest drives)/0.55)
+- **Parameters**: `base` = -0.5 (range -1.5–0.5); `wants` = 1.0 (range 0.4–1.6); `longing` = 1.5 (range 0.5–2.5); `marriage_norm` = 1.0 (range 0.3–1.8); `competing` = 0.4 (range 0.1–0.9)
+- **Notes**: Encodes the strong LDS young-adult marriage norm (returned missionaries are expected to date toward marriage). Longing enters through the partnership drive (how much a partner matters × how much they miss one), and coursework, money and exhaustion compete through their drives instead of separate direct terms.
 
 ### `romance.ask` — Asking someone out
 
 *Evidence: empirical · timescale: daily · delay: none*
 
 - **Target**: `dates_30d`
-- **Inputs**: `edge.attraction_lh`, `dating_motivation`, `self_esteem`, `rejection_sensitivity`, `rejections_recent`, `sex`, `dating_propensity`, `asks_for_numbers`
-- **Moderators**: `rejection_sensitivity`
-- **Form**: P/day = logistic(base + βa·attraction + βm·motivation + βc·confidence − βrs·RS⁺·log(1+recent rejections) ± βmale·norm + βp·log(propensity)) × weekday factor
-- **Parameters**: `base` = -4 (range -5.5–-2.5); `attraction` = 2.5 (range 1–4); `motivation` = 1.5 (range 0.5–2.5); `confidence` = 1.0 (range 0.3–2.0); `rejection_sensitivity` = 0.6 (range 0.2–1.2); `male` = 1.0 (range 0.3–1.8); `propensity` = 0.6 (range 0.2–1.0); `min_attraction` = 0.25 (range 0.1–0.4)
-- **Notes**: Repeated rejection matters non-linearly — the log of recent rejections multiplies rejection sensitivity.
+- **Inputs**: `edge.attraction_lh`, `dating_motivation`, `self_esteem`, `expect_accept`, `sex`, `dating_propensity`, `asks_for_numbers`
+- **Form**: P/day = logistic(base + βa·attraction + βm·motivation + βc·confidence + βe·(logit expected yes − logit 0.6) + βb·(believed interest − 0.15) ± βmale·norm + βp·log(propensity)) × weekday factor
+- **Parameters**: `base` = -4 (range -5.5–-2.5); `attraction` = 2.5 (range 1–4); `motivation` = 1.5 (range 0.5–2.5); `confidence` = 1.0 (range 0.3–2.0); `expectation` = 0.6 (range 0.2–1.2); `male` = 1.0 (range 0.3–1.8); `propensity` = 0.6 (range 0.2–1.0); `min_attraction` = 0.25 (range 0.1–0.4)
+- **Notes**: People ask when they are attracted, motivated and expect a yes — from their learned expectation (mind.expect_accept) and their read of the other's interest (mind.romantic_perception), not the other's true feelings. Rejection works through the expectation it teaches.
 - *Ref*: Dating survey: most agree men should make the first move
 - *Ref*: ProvoStats: dates per month by sex/relationship/activity
 
@@ -1053,7 +1422,7 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Target**: `n_kissed`
 - **Inputs**: `edge.attraction_lh`, `edge.dates`, `kiss_first_date_ok`, `scared_initiate_kiss`, `sensation_seeking`
 - **Form**: P(first kiss with partner) = logistic(base + βa·min attraction + 0.6·log(dates) + βok·first-date OK − 0.3·scared + 0.3·SS)
-- **Parameters**: `base` = -2.6 (range -4–-1.5); `attraction` = 3.0 (range 1.5–4.5); `first_date_ok` = 0.8 (range 0.2–1.4)
+- **Parameters**: `base` = -3.23 (range -4–-1.5); `attraction` = 3.0 (range 1.5–4.5); `first_date_ok` = 0.8 (range 0.2–1.4)
 - *Ref*: ProvoStats: people kissed by age; 'OK kissing on the first date'
 - *Ref*: Dating survey: 'scared to initiate a kiss'
 
@@ -1103,7 +1472,7 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Target**: `rel_status`
 - **Inputs**: `relationship_commitment`, `edge.conflict`; other inputs: religious mismatch
 - **Form**: weekly h = logistic(base − βc·commitment + βm·mismatch + 1.5·conflict); ×0.25 engaged; ×married_mult married. Initiator = less-attracted partner.
-- **Parameters**: `base` = -2.8 (range -3.8–-1.5); `commitment` = 3.5 (range 2.0–5.0); `religious_mismatch` = 2.0 (range 0.5–3.0); `married_mult` = 0.03 (range 0.01–0.08)
+- **Parameters**: `base` = -2.22 (range -3.8–-1.5); `commitment` = 3.5 (range 2.0–5.0); `religious_mismatch` = 2.0 (range 0.5–3.0); `married_mult` = 0.03 (range 0.01–0.08)
 - *Ref*: Rusbult (1980, 1983): investment model of commitment
 
 ### `romance.couple_time` — Couple dates per week by stage
@@ -1146,6 +1515,17 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - **Form**: P(confess within weeks) = logistic(base + 2·identity + 1.5·guilt − 1.2·autonomy) for members with commitment > 0.35
 - **Parameters**: `base` = -1.5 (range -3–0)
 - *Ref*: Culture & Lifestyle: adult repentance meetings and bishop-experience ratings
+
+### `romance.wedding` — Student weddings fall between semesters
+
+*Evidence: hypothetical · timescale: daily · delay: none*
+
+- **Target**: `married_day`
+- **Inputs**: `enrolled`, `engaged_day`
+- **Form**: at engagement, with probability break_share a student couple's wedding moves to the next break (late April–August or Christmas) starting within 75 days of the date they would otherwise pick, on a Saturday in its first month
+- **Parameters**: `break_share` = 0.7 (range 0.4–0.9)
+- **Notes**: Gives weddings the seasonal rhythm of a student town (summer and Christmas peaks) instead of an even spread.
+- *Ref*: BYU academic calendar; local practice of marrying between semesters (assumption, not measured here)
 
 ## social
 
@@ -1305,6 +1685,51 @@ Every parameter can be overridden per run (`ParamSet`), targeted by an intervent
 - *Ref*: Roberts & Dunbar (2011) Pers Relat: communication frequency sustains emotional closeness
 - *Ref*: Kalmijn (2003) Soc Networks: partners/marriage reduce time with friends (dyadic withdrawal)
 
+### `relationship.history` — Relationships are histories, not scores
+
+*Evidence: literature · timescale: daily · delay: none*
+
+- **Target**: `edge.closeness`
+- **Inputs**: `edge.disclosure`, `edge.shared`, `edge.hurt`, `edge.liking`, `edge.hours_leisure`
+- **Form**: weekly closeness target = 0.12·log(1 + leisure h/10) + 0.35·liking⁺ + β_d·disclosure + β_s·log(1 + shared experiences) − β_h·hurt
+- **Parameters**: `disclosure` = 0.15 (range 0.05–0.3); `shared` = 0.02 (range 0.0–0.05); `hurt` = 0.3 (range 0.1–0.6)
+- *Ref*: Laurenceau, Barrett & Pietromonaco (1998): intimacy grows from disclosure and perceived responsiveness
+- *Ref*: Altman & Taylor (1973): social penetration
+- *Ref*: Aron et al. (2000): shared novel activities and closeness
+
+### `relationship.disclosure` — Confiding deepens with closeness and warmth
+
+*Evidence: literature · timescale: daily · delay: none*
+
+- **Target**: `edge.disclosure`
+- **Inputs**: `edge.closeness`, `edge.stage`
+- **Form**: after warm interactions between friends: d ← d + rate·tanh(valence)·closeness·(1 − d); support-seeking adds more; fades 1%/week without contact
+- **Parameters**: `rate` = 0.02 (range 0.005–0.05)
+- **Notes**: Disclosure also decides what friends see of each other's real beliefs (mind.pluralistic_ignorance).
+- *Ref*: Collins & Miller (1994): disclosure and liking (meta-analysis)
+
+### `relationship.hurt` — Hurt and repair
+
+*Evidence: hypothetical · timescale: daily · delay: none*
+
+- **Target**: `edge.hurt`
+- **Inputs**: `edge.liking`
+- **Form**: a serious conflict adds +conflict; betrayal (discovered cheating) sets 1; a breakup leaves 0.5 (0.2 for fizzled talking); weekly ×(1 − repair) with warm contact, ×0.98 without; hurt lowers closeness, makes planned get-togethers fall through (60%·hurt) and raises breakup risk (+1.5·hurt)
+- **Parameters**: `conflict` = 0.25 (range 0.1–0.5); `repair` = 0.12 (range 0.04–0.25)
+- *Ref*: Gottman & Levenson (2000): repair attempts and relationship stability
+- *Ref*: Fincham (2000): forgiveness as gradual reduction of hurt-motivated avoidance
+
+### `relationship.introductions` — Friends bring friends (triadic closure)
+
+*Evidence: literature · timescale: daily · delay: none*
+
+- **Target**: `edge.introducer`
+- **Inputs**: `edge.stage`
+- **Form**: an in-person hangout includes a random friend of the friend with probability rate; the meeting is an interaction with the introducer recorded
+- **Parameters**: `rate` = 0.15 (range 0.05–0.5)
+- *Ref*: Kossinets & Watts (2006): triadic closure in an evolving university network
+- *Ref*: Snijders, van de Bunt & Steglich (2010): transitivity in stochastic actor-oriented models
+
 ## Event types
 
 Events push states with decaying effects (half-life in days) and carry causal parent links.
@@ -1315,6 +1740,8 @@ Events push states with decaying effects (half-life in days) and carry causal pa
 | `close_friend` Became close friends | social | 0.7 | loneliness: -0.05, 45; mood: +0.03, 20 | literature |
 | `friendship_faded` Close friendship faded | social | 0.55 | loneliness: +0.03, 25 | hypothetical |
 | `conflict` Interpersonal conflict | social | 0.4 | stress: +0.06, 4; mood: -0.05, 3 | literature |
+| `coping_started` Started coping with a hard time | coping | 0.4 |  | structural |
+| `coping_ended` A hard stretch eased | coping | 0.35 |  | structural |
 | `hosted_gathering` Hosted a get-together | social | 0.35 | belonging: +0.03, 6; mood: +0.02, 2 | hypothetical |
 | `asked_out` Asked someone out | romance | 0.3 |  | calibrated |
 | `rejected` Romantic rejection | romance | 0.5 | self_esteem: -0.05, 7; mood: -0.05, 4 | literature |
@@ -1349,6 +1776,7 @@ Events push states with decaying effects (half-life in days) and carry causal pa
 | `stopped_investigating` Stopped the missionary lessons | religion | 0.5 |  | hypothetical |
 | `joined_congregation` Found a congregation | religion | 0.6 | belonging: +0.05, 60 | hypothetical |
 | `disaffiliated` Left the Church | religion | 1.0 | stress: +0.08, 90; belonging: -0.08, 120; guilt: -0.06, 60; purpose: -0.04, 120 | hypothetical |
+| `resigned_membership` Removed name from Church records | religion | 0.6 |  | hypothetical |
 | `stopped_attending` Stopped attending church | religion | 0.75 | belonging: -0.05, 60 | calibrated |
 | `returned_to_activity` Returned to church activity | religion | 0.75 | belonging: +0.06, 60; purpose: +0.04, 60 | calibrated |
 | `mission_call` Received mission call | religion | 0.9 | purpose: +0.1, 60; mood: +0.08, 14 | calibrated |
@@ -1378,3 +1806,4 @@ Events push states with decaying effects (half-life in days) and carry causal pa
 | `started_coffee` Started drinking coffee | habits | 0.55 | guilt: +0.05, 20 | hypothetical |
 | `started_drinking` Started drinking alcohol | habits | 0.65 | guilt: +0.08, 30 | hypothetical |
 | `intervention_exposure` Affected by an intervention | intervention | 0.5 |  | calibrated |
+| `plan_abandoned` Gave up on a plan | plans | 0.3 | mood: -0.01, 3 | structural |

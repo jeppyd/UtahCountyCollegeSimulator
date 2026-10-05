@@ -16,6 +16,7 @@ export const DRAWERS: Drawer[] = [
   { id: 'work', label: 'Work & money', icon: 'money', blurb: 'Jobs, hours, wages, savings, debt, family support' },
   { id: 'home', label: 'Home & neighborhood', icon: 'places', blurb: 'Where they live, rent, commute, neighborhood' },
   { id: 'habits', label: 'Habits & interests', icon: 'coffee', blurb: 'Sleep, workouts, social media, coffee, hobbies' },
+  { id: 'mind', label: 'Inner life', icon: 'mind', blurb: 'What they care about, what pulls at them, what they expect and believe, how they cope, what they intend' },
   { id: 'personality', label: 'Personality', icon: 'mask', blurb: 'The Big Five and other stable traits' },
   { id: 'background', label: 'Background & body', icon: 'id', blurb: 'Age, sex, origin, family, height and looks' },
   { id: 'now', label: 'Right now', icon: 'clock', blurb: 'What they are doing at this hour' },
@@ -29,7 +30,7 @@ const LOOKING = new Set(['imp_spirituality', 'imp_physical', 'imp_personality', 
   'max_older', 'max_younger', 'picky'])
 const SCHOOL = new Set(['school', 'enrolled', 'class_standing', 'credits_done', 'credits_term', 'study_area', 'college', 'gpa', 'gpa_term',
   'academic_standing', 'study_hours', 'class_attendance', 'homework_early', 'cheats_school', 'graduated'])
-const HOME = new Set(['rent', 'rent_burden', 'city', 'neighborhood', 'living', 'dist_campus_km', 'commute_min'])
+const HOME = new Set(['rent', 'rent_burden', 'city', 'neighborhood', 'living', 'dist_campus_km', 'commute_min', 'home_social_culture', 'home_faith_culture'])
 const NOW = new Set(['activity_now', 'ill'])
 
 export function drawerOf(v: VarSpec): string {
@@ -41,6 +42,7 @@ export function drawerOf(v: VarSpec): string {
   if (HOME.has(id)) return 'home'
   if (SCHOOL.has(id)) return 'school'
   switch (v.domain) {
+    case 'mind': return 'mind'
     case 'dating': return 'dating'
     case 'religion': return 'faith'
     case 'values_sexuality': return 'values'

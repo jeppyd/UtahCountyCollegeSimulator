@@ -2,7 +2,7 @@
 
 Generated from `ucsim/config/variables/*.yaml` by `scripts/gen_catalogs.py` — do not edit by hand.
 
-296 variables. Evidence levels: **observed** 11, **empirical** 123, **literature** 32, **calibrated** 102, **extrapolated** 7, **hypothetical** 21.
+340 variables. Evidence levels: **observed** 11, **empirical** 123, **literature** 44, **calibrated** 102, **extrapolated** 7, **structural** 29, **hypothetical** 24, **speculative** 0.
 
 Columns: id · label · type (categories or range) · kind · update cadence · evidence · source · description.
 
@@ -41,6 +41,12 @@ Columns: id · label · type (categories or range) · kind · update cadence · 
 | `edge.introducer` | Introduced by | i4 | state | event | literature |  | Mutual friend who hosted the gathering where they met (-1 if none) — triadic closure provenance. |
 | `edge.dates` | Dates together | i2 [0, 1000] | state | event | literature |  |  |
 | `edge.chemistry` | Pair chemistry | f4 [-3, 3] | state | event | hypothetical |  | Persistent pair-specific compatibility, deterministic in the pair ids and seed (identical across paired universes). |
+| `edge.belief_lh` | Believed interest (lower id's read of the other) | f4 [-1, 1] | state | event | literature |  | What the lower-id person believes the other's romantic attraction to them is — perceived, not actual. Projection of their own feelings, the liking gap with strangers and men's over-reading of women's interest bias it; interactions are noisy signals, and a yes, a no, a kiss or a date reveal much more (mind.romantic_perception). |
+| `edge.belief_hl` | Believed interest (higher id's read of the other) | f4 [-1, 1] | state | event | literature |  |  |
+| `edge.disclosure` | Confiding (self-disclosure) | f4 [0, 1] | state | event | literature |  | How much they have let each other see — grows through warm contact between friends and support in hard times, fades without contact. Decides what friends see of each other's real beliefs. |
+| `edge.support` | Support given in hard times | f4 [0, 5] | state | event | hypothetical |  | Accumulated support exchanged when one of them was coping by reaching out; counts toward the support each believes is available. |
+| `edge.hurt` | Unrepaired hurt | f4 [0, 1] | state | event | hypothetical |  | Injury from serious conflict, betrayal or a breakup that has not been repaired; heals with warm contact, lowers closeness and makes plans fall through. |
+| `edge.shared` | Shared experiences | i2 [0, 30000] | state | event | literature |  | Days with a shared experience (a party, a team game, a hike, a date, FHE) rather than just passing contact. |
 
 ## person · academics_work
 
@@ -90,6 +96,8 @@ Columns: id · label · type (categories or range) · kind · update cadence · 
 | `loc_lon` | Current longitude | f4 | state | hourly | calibrated |  |  |
 | `loc_lat` | Current latitude | f4 | state | hourly | calibrated |  |  |
 | `activity_now` | Current activity | cat: home, class, work, church, campus, gym, gathering, date, venue, outdoors, ward_activity, away, club | state | hourly | calibrated |  |  |
+| `home_social_culture` | How social their apartment is | f4 [-3, 5] | derived | weekly | structural |  | Their apartment's sociability culture (z-score among occupied apartments): gatherings hosted and friends dropping by, with memory — it outlasts the residents who built it. |
+| `home_faith_culture` | How observant their complex is | f4 [0, 1] | derived | weekly | structural |  | Their complex's culture of religious observance (0-1): residents' church or service attendance, with slow inertia. Feeds the attendance norm residents perceive and who chooses to move in. |
 
 ## person · dating
 
@@ -169,7 +177,6 @@ Columns: id · label · type (categories or range) · kind · update cadence · 
 | `workouts_week` | Workouts / week | f4 [0, 14] | habit | weekly | empirical | provostats |  |
 | `social_media_hours` | Social media (hours/day) | f4 [0, 14] | habit | weekly | empirical | college-life |  |
 | `soda_shop_week` | Soda-shop visits / week | f4 [0, 14] | habit | weekly | empirical | provostats | Swig/Sodalicious-type dirty-soda shop visits — a Utah County social ritual and casual date venue. |
-| `social_events_month` | Social events / month (propensity) | f4 [0, 40] | habit | weekly | empirical | provostats |  |
 | `coffee` | Coffee use | u1 [0, 3] | habit | monthly | empirical | culture-lifestyle | Coffee consumption (prohibited by the Word of Wisdom as currently taught). Peer-influenced; a canonical intervention target. |
 | `tea` | Tea use | u1 [0, 3] | habit | monthly | empirical | culture-lifestyle |  |
 | `alcohol` | Alcohol use | u1 [0, 3] | habit | monthly | empirical | culture-lifestyle |  |
@@ -185,6 +192,48 @@ Columns: id · label · type (categories or range) · kind · update cadence · 
 | `arts` | Art/photo/writing | bool | habit | static | empirical | college-life |  |
 | `swiftie` | Swiftie | bool | habit | static | empirical | college-life, dating |  |
 | `pickleball` | Plays pickleball | bool | habit | weekly | hypothetical |  | Example diffusing cultural practice (complex contagion through friend networks). Seeded small at start. |
+| `social_events_month` | Social events / month | f4 [0, 40] | state | daily | empirical |  | Social events actually attended in the last month (gatherings, dances, ward and FHE activities, clubs and teams), a 30-day moving count. Compared with ProvoStats as an emergent row; the survey value seeds each person's social appetite. |
+
+## person · mind
+
+| id | label | type | kind | update | evidence | source | description |
+|---|---|---|---|---|---|---|---|
+| `cares_connection` | Cares about friends & belonging | f4 [0, 1] | preference | weekly | structural |  | How much close friendship and belonging matter to this person (0-1). From extraversion, agreeableness, attachment style and their social appetite; drifts slowly. Multiplies how strongly loneliness turns into social effort. |
+| `cares_partnership` | Cares about love & partnership | f4 [0, 1] | preference | weekly | structural |  | How much a romantic partnership (or, once married, the marriage and family) matters (0-1). From wanting a relationship, the age-graded marriage norm for active Latter-day Saints, and being partnered. |
+| `cares_achievement` | Cares about school & career | f4 [0, 1] | preference | weekly | structural |  | How much doing well in school or work matters (0-1). From conscientiousness, academic ability and being enrolled. |
+| `cares_security` | Cares about money & security | f4 [0, 1] | preference | weekly | structural |  | How much financial security matters (0-1). Higher with less family money, marriage and children, and neuroticism. |
+| `cares_faith` | Cares about faith & integrity | f4 [0, 1] | preference | weekly | structural |  | How much living their faith (or their own convictions) matters (0-1). Follows religious identity and belief for Latter-day Saints, own religiosity for others; shifts when identity shifts. |
+| `cares_rest` | Cares about rest | f4 [0, 1] | preference | weekly | structural |  | How much rest and recovery weigh (0-1). Higher with neuroticism and young children. |
+| `cares_fun` | Cares about fun & novelty | f4 [0, 1] | preference | weekly | structural |  | Appetite for fun, novelty and outings (0-1). From sensation seeking, openness, extraversion and social appetite. |
+| `cares_health` | Cares about fitness & health | f4 [0, 1] | preference | weekly | structural |  | How much exercise and fitness matter (0-1). From workout habits, sports and conscientiousness. |
+| `drive_connection` | Drive: friends & belonging | f4 [0, 1] | state | daily | structural |  | How much effort friendship is pulling right now: importance × unmet (1 − felt connection). Feeds social choices, reaching out and hosting. |
+| `drive_partnership` | Drive: love & partnership | f4 [0, 1] | state | daily | structural |  | Importance × unmet partnership (romantic longing for singles; low relationship satisfaction for couples). Feeds dating motivation. |
+| `drive_achievement` | Drive: school & career | f4 [0, 1] | state | daily | structural |  | Importance × unmet achievement (academic pressure net of confidence). Feeds studying and competes with social time. |
+| `drive_security` | Drive: money & security | f4 [0, 1] | state | daily | structural |  | Importance × financial stress. Feeds job search and extra hours; competes with dating and fun. |
+| `drive_faith` | Drive: faith & integrity | f4 [0, 1] | state | daily | structural |  | Importance × the gap between convictions and practice (guilt, practice below identity, feeling an outsider). |
+| `drive_rest` | Drive: rest | f4 [0, 1] | state | daily | structural |  | Importance × fatigue. Pulls toward staying home. |
+| `drive_fun` | Drive: fun & novelty | f4 [0, 1] | state | daily | structural |  | Importance × how few outings they have had lately relative to their appetite. |
+| `drive_health` | Drive: fitness | f4 [0, 1] | state | daily | structural |  | Importance × how far recent workouts fall short of what they want. |
+| `top_priority` | Top priority right now | cat: connection, partnership, achievement, security, faith, rest, fun, health | state | daily | structural |  | The concern with the strongest drive today: what this person's discretionary effort is mostly going to. |
+| `sat_fun` | Fun lately | f4 [0, 1] | state | daily | structural |  | Recent outings (gatherings, dates, venues, outdoors, clubs) relative to their appetite for fun (0-1). |
+| `sat_health` | Fitness lately | f4 [0, 1] | state | daily | structural |  | Recent gym visits relative to how much they want to exercise (0-1). |
+| `expect_accept` | Expects a yes when asking out | f4 [0, 1] | belief | weekly | literature |  | The chance this person believes an ask will be accepted, learned from their own asks (Rescorla-Wagner; rejection-sensitive people learn more from a no). Replaces a direct 'recent rejections → fewer asks' rule: rejection lowers the expectation, the expectation lowers asking. |
+| `expect_social` | Expects warmth from people | f4 [0, 1] | belief | weekly | literature |  | How warm they expect social situations to be (0-1), learned from how their interactions at gatherings, venues, dances, clubs and hangouts actually go. Socially anxious people start lower and weigh bad moments more. Low expectations make social options less appealing (withdrawal is learned, not scripted). |
+| `self_eff_academic` | Academic confidence | f4 [0, 1] | belief | weekly | literature |  | Belief in their own academic capability (0-1), which can differ from actual ability. Updated by mastery experiences (term grades relative to classmates; Bandura). Raises study effort and lowers dropout (Multon et al. 1991: r≈.34 with persistence). |
+| `perceived_support` | Support they believe they have | f4 [0, 1] | belief | weekly | literature |  | How much support they believe is available (0-1). Built from actual close, warm ties but biased by neuroticism, attachment anxiety and loneliness, plus a stable personal lens: perceived and received support correlate only modestly (Haber et al. 2007, r≈.35). Perceived — not actual — support buffers stress and eases loneliness. |
+| `support_actual` | Support actually available | f4 [0, 1] | derived | weekly | structural |  | Support their close ties could actually give (0-1): closeness × warmth summed over present close friends and partner, saturating. |
+| `perceived_friend_belief` | What they think friends believe | f4 [0, 1] | belief | weekly | literature |  | How strongly they think their friends believe (0-1). Friends who are not close show the belief they express, pulled toward the local norm (people conceal doubts where devotion is the norm); close friends who have confided show their real belief. The gap from the actual figure is pluralistic ignorance (Prentice & Miller 1993; Miller & McFarland 1987). Faith influence works through this perceived figure. |
+| `friend_belief_actual` | What friends actually believe | f4 [0, 1] | derived | weekly | structural |  | Closeness-weighted average belief of their friends (0-1), for comparison with what they perceive. |
+| `coping_need` | Need to cope | f4 [0, 1] | state | daily | structural |  | How far stress, low mood and loneliness sit above the person's tolerance today (0-1). A coping episode starts when this stays high. |
+| `coping_strategy` | How they are coping | cat: none, support, active, religious, distraction, withdrawal | state | event | literature |  | The strategy of their current coping episode: seeking support, tackling the problem, religious coping, distraction and exercise, or withdrawal. Chosen from traits, what is available and what has worked for them before; each changes behavior (reaching out, studying, attending, gym, staying in) and brings different relief. |
+| `coping_relief` | Relief from coping | f4 [0, 1] | state | daily | hypothetical |  | Current relief from coping (0-1), decaying over days; lowers stress and lifts mood through named terms. Support helps only if supportive friends respond; withdrawal brings little relief and costs contact. |
+| `rumination` | Tendency to ruminate | f4 [0, 1] | trait | static | literature |  | Tendency to dwell on negative events (0-1), mostly neuroticism. Keeps negative memories active, which prolongs low mood (Nolen-Hoeksema 2000). |
+| `intention` | What they are trying to do | cat: none, ask_out, reconnect, meet_people, study_more, find_work, return_to_church | state | weekly | structural |  | Their strongest current intention, formed weekly from their drives and situation. Intentions raise the odds of the behavior but are often not carried out (the intention-behavior gap; Sheeran 2002). |
+| `plans_kept` | Intentions carried out | i2 [0, 2000] | state | event | structural |  | How many weekly intentions they have followed through on. |
+| `plans_abandoned` | Intentions dropped | i2 [0, 2000] | state | event | structural |  | How many intentions they gave up on or let lapse (target gone, priorities changed, or never got to it). |
+| `routine_strength` | How settled their week is | f4 [0, 1] | habit | daily | literature |  | Average habit strength of their weekly free-time routine (0-1): the same activity in the same slot, week after week, becomes automatic (Lally et al. 2010: median ~66 days to plateau for a daily habit). |
+| `n_memories` | Memories kept | i2 [0, 500] | derived | weekly | structural |  | How many episodic memories this person currently retains (salient events that have not faded). |
+| `memory_tone` | How their recent past feels | f4 [-1, 1] | derived | weekly | structural |  | Balance of positive and negative memories still active (−1 to 1), weighted by strength. |
 
 ## person · personality
 

@@ -30,8 +30,8 @@ else.* The research tools are all still there, one layer down.
 
 Design principles that run through everything:
 
-- **Evidence-labelled.** Each of the 296 measures and 133 rules carries an evidence level (*observed*,
-  *empirical*, *literature*, *calibrated*, *extrapolated*, *hypothetical*). Hypothetical rules are allowed
+- **Evidence-labelled.** Each of the 340 measures and 171 rules carries an evidence level (*observed*,
+  *empirical*, *literature*, *calibrated*, *extrapolated*, *structural*, *hypothetical*, *speculative*). Hypothetical rules are allowed
   (this is an exploratory instrument) but are never hidden.
 - **Explainable.** Feelings are sums of named terms; events carry causes; differences between worlds are
   attributed to the rules that produced them.
@@ -114,6 +114,17 @@ freshmen), or make one of the model's rules stronger or weaker. Pick how long to
 With a What-if running you can **Add to What-if** (more changes from today) or **Start a new What-if**.
 
 ## 4. The model
+
+### 4.0 Inner lives (iteration 5)
+Between who someone is and what they do sits a mind (`docs/MIND.md`): eight concerns weighted by personality,
+values and situation; drives (importance × how unmet each feels) that compete for effort; expectations learned
+from experience (a yes when asking someone out, the warmth of people); academic confidence from grades;
+perception that can be wrong (the support they believe they have, what friends really believe, whether a crush
+likes them back); episodic memory with forgetting and rumination; appraisal of events by relevance and coping
+potential; coping episodes with learned strategies; weekly intentions with a ledger of what was kept, dropped
+and why; weekly routines. Relationships carry history (confiding, support, hurt and repair, shared experiences),
+friends introduce friends, and apartments, complexes and wards develop cultures that shape who lives there next.
+Open any person's **Inner life** tab to read it.
 
 ### 4.1 Layers
 World (economy, rents, tuition, calendar, weather, cultural norms) → Places (real homes, complexes,
@@ -223,16 +234,21 @@ engagement, breakups, job search) by coordinate search on two seeds with common 
 the weighted misfit (Census rows weighted 3×), and writes the chosen values back into the rule files.
 `scripts/stability.py` runs four years and reports drift.
 
-**Latest results** (one-year run at scale 0.15; details in `docs/VALIDATION.md` and the Model check page):
+**Latest results** (one-year run at scale 0.15, iteration 5; details in `docs/VALIDATION.md` and the Model check page):
 
 | Checks | Match | Close | Off |
 |---|---|---|---|
-| Census and institutional benchmarks (married share at 18–24; BYU and UVU married shares) | 4 | 2 | 0 |
-| Behavior (benchmarks + rows that emerge from simulated decisions) | 35 | 12 | 0 |
-| All scored rows (including starting values) | 50 | 20 | 3 |
+| Census and institutional benchmarks (married share at 18–24; BYU and UVU married shares) | 6 | 0 | 0 |
+| Behavior (benchmarks + rows that emerge from simulated decisions) | 34 | 11 | 2 |
+| Survey tables held out of calibration | 10 | 2 | 0 |
+| All scored rows (including starting values and pattern rows) | 50 | 21 | 5 |
 
-The four-year check keeps BYU fall enrollment within about 8% of its cap, loneliness and close friends
-steady, and the married share of students near 20% (the institutional figure is about 25%).
+Since iteration 5, social events are a realized count rather than a copied survey value (so they now miss
+honestly), and pattern rows check structure: perceived vs actual support (r ≈ .49, literature ≈ .35–.5),
+friendship clustering (.16), the share of intentions carried out (.66 vs ~.5), the liking gap and the direction
+of pluralistic ignorance. The four-year check keeps enrollment near target, loneliness, depression and
+missionaries steady (`scripts/accounting.py` balances stocks and flows), and the married share of students near
+17–20% (institutional ≈25%).
 
 **Known gaps.** Lifetime "people kissed" counts drift above the survey (they only grow); the married share
 of students settles a little low over several years; Census bands from age 25 compare different populations
@@ -352,9 +368,14 @@ housing managers, researchers and students themselves could try ideas (a new hou
 a mental-health program, a club fair) and see plausible consequences, with honest uncertainty and every
 claim traceable to evidence.
 
+### Done in iteration 5
+Inner lives (motives, drives, expectations, perception, memory, appraisal, coping, intentions, routines),
+relationship histories, place cultures, stock-flow accounting and drift fixes, pattern-oriented and longitudinal
+validation with held-out tables, uncertainty ensembles separating chance from assumptions, an ODD description.
+
 ### Quick wins (high value, low effort)
-1. **Uncertainty by default in the What-if view**: run 4–8 seeds in the background after a what-if and show
-   ranges on the change cards and the all-fields scan.
+1. **Uncertainty by default in the What-if view**: the ensemble machinery exists (Experiments → How sure?); run
+   it automatically after a what-if and show ranges on the change cards and the all-fields scan.
 2. **Calibrate more parameters on a schedule** (friendship formation, loneliness setpoint, faith influence)
    and add the four-year drift to the calibration loss.
 3. **Two filters at once**: compare two groups on the same chart (e.g. BYU vs UVU, LDS vs not) in Explore.

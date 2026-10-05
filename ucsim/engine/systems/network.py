@@ -50,7 +50,11 @@ class Network:
         flags = E["flags"]
         # closeness: grows toward a target set by recent leisure time & liking; decays without contact
         recent = np.clip((day - E["last_day"]) < 14, 0, 1)
-        target = np.clip(0.12 * np.log1p(hrs / 10) + 0.35 * np.clip(lik, 0, 1), 0, 1)
+        # closeness is built from time and liking, deepened by confiding and shared experiences, and held back
+        # by unrepaired hurt (relationship.history)
+        hurt = E["hurt"]
+        target = np.clip(0.12 * np.log1p(hrs / 10) + 0.35 * np.clip(lik, 0, 1) + p("relationship.history.disclosure") * E["disclosure"]
+                         + p("relationship.history.shared") * np.log1p(E["shared"]) - p("relationship.history.hurt") * hurt, 0, 1)
         clo = E["closeness"]
         grow = p("network.closeness.growth")
         decay = np.exp(-7.0 / p("network.closeness.decay_days"))
@@ -58,6 +62,10 @@ class Network:
         romantic = (flags & (Tie.ROMANTIC | Tie.SPOUSE | Tie.FAMILY)) > 0
         newc = np.where(romantic, np.maximum(newc, clo), newc)
         E.cols["closeness"][:n] = np.clip(newc, 0, 1)
+        # repair: hurt heals with warm contact, slowly without it; confiding fades when people stop talking
+        warm = recent & (lik > 0.1)
+        E.cols["hurt"][:n] = (hurt * np.where(warm, 1 - p("relationship.hurt.repair"), 0.98)).astype(np.float32)
+        E.cols["disclosure"][:n] = (E["disclosure"] * np.where(recent > 0, 1.0, 0.99)).astype(np.float32)
         # stage thresholds (Hall 2019: ~50 h casual friend, ~90 h friend, ~200 h close friend)
         fam = activation(E["n_inter"], E["first_day"], E["last_day"], day)
         up = np.ones(n, np.uint8)

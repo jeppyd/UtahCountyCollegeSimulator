@@ -1,0 +1,109 @@
+# Appraisal, coping and memory (engine/sim.py appraise, engine/systems/coping.py, engine/memory.py).
+system: coping
+mechanisms:
+  appraisal.relevance:
+    label: Events matter more when they touch what you care about
+    target: [mood, stress, loneliness, self_esteem, belonging]
+    sources: [cares_connection, cares_partnership, cares_achievement, cares_security, cares_faith, cares_health]
+    form: "every emotional effect of an event × ((0.5 + cares_m)/(0.5 + mean cares_m))^strength, m = the concern the event touches (its category or `motive`)"
+    params:
+      strength: {value: 1.0, range: [0.0, 1.5]}
+    evidence: literature
+    refs: ["Lazarus & Folkman (1984): primary appraisal — goal relevance",
+           "Scherer (2001): relevance check in component process appraisal"]
+    desc: The same rejection hurts more for someone who badly wants a partner; a failed exam hits harder for someone who cares about grades.
+  appraisal.coping_potential:
+    label: Feeling able to cope softens what hurts
+    target: [mood, stress, loneliness, self_esteem]
+    sources: [perceived_support, self_esteem, stress]
+    form: "harmful effects × exp(−strength·(coping potential − 0.55)); coping potential = 0.5·perceived support + 0.3·self-esteem + 0.2·(1 − stress)"
+    params:
+      strength: {value: 1.0, range: [0.0, 2.0]}
+    evidence: literature
+    refs: ["Lazarus & Folkman (1984): secondary appraisal — resources to cope", "Cohen & Wills (1985): buffering"]
+  coping.need:
+    label: When strain calls for coping
+    target: coping_need
+    sources: [stress, mood, loneliness, anxiety]
+    form: "need = clip((0.6·(stress − θs)⁺ + 0.8·(θm − mood)⁺ + 0.5·(loneliness − θl)⁺ + 0.4·(anxiety − 0.55)⁺)/0.25, 0, 1)"
+    params:
+      stress: {value: 0.55, range: [0.45, 0.65]}
+      mood: {value: 0.4, range: [0.33, 0.47]}
+      loneliness: {value: 0.58, range: [0.48, 0.68]}
+    evidence: structural
+  coping.episode:
+    label: Coping episodes start and end
+    target: coping_strategy
+    sources: [coping_need]
+    form: "start when the 2-day EWMA of need > on; end after 3 days below off, or after 35 days unresolved"
+    params:
+      "on": {value: 0.4, range: [0.25, 0.55]}
+      "off": {value: 0.15, range: [0.05, 0.25]}
+    evidence: structural
+  coping.choice:
+    label: Choosing how to cope
+    target: coping_strategy
+    sources: [extraversion, agreeableness, attachment_avoidance, perceived_support, n_close_friends, conscientiousness, self_eff_academic,
+              cares_faith, faith_belief, religious_identity, own_religiosity, sensation_seeking, cares_health, cares_fun, neuroticism,
+              social_anxiety, expect_social]
+    form: "Gumbel-max over strategies: support (E, A, low avoidance, perceived support; needs someone close), active (C, controllable stressor, confidence), religious (faith × belief), distraction (sensation seeking, fitness, fun), withdrawal (N, social anxiety, avoidance, low expected warmth); + learned × what has worked before"
+    params:
+      learned: {value: 1.5, range: [0.5, 3.0]}
+      withdrawal_base: {value: -0.9, range: [-1.8, 0.0]}
+      support_base: {value: 0.3, range: [-0.5, 1.0]}
+    evidence: literature
+    refs: ["Skinner, Edge, Altman & Sherwood (2003): families of coping", "Carver, Scheier & Weintraub (1989): COPE",
+           "Connor-Smith & Flachsbart (2007): personality and coping (meta-analysis)"]
+  coping.relief:
+    label: Relief each strategy brings
+    target: coping_relief
+    sources: [coping_strategy, support_actual, academic_pressure, financial_stress, faith_belief, own_religiosity]
+    form: "daily relief: support = s·(0.2 + 0.8·actual support)·(1 if they connected today else 0.3); active = a·progress on the stressor; religious = r·belief; distraction = d·(did something); withdrawal = w; coping_relief = EWMA (half-life ≈4 days)"
+    params:
+      scale: {value: 1.0, range: [0.5, 1.5]}
+      support: {value: 0.6, range: [0.3, 0.9]}
+      active: {value: 0.55, range: [0.3, 0.8]}
+      religious: {value: 0.5, range: [0.2, 0.8]}
+      distraction: {value: 0.4, range: [0.2, 0.6]}
+      withdrawal: {value: 0.15, range: [0.05, 0.3]}
+    evidence: hypothetical
+    refs: ["Ano & Vasconcelles (2005): positive religious coping ↔ better adjustment (49 studies)",
+           "Penley, Tomaka & Wiebe (2002): problem-focused vs avoidant coping and health outcomes (meta-analysis)",
+           "Holahan & Moos (1987): avoidance coping predicts later distress"]
+    desc: Ranked support ≈ active > religious > distraction > withdrawal on immediate relief, but support pays off only if supportive people are actually there.
+  coping.learning:
+    label: Learning what works
+    target: coping_strategy
+    sources: [coping_need, coping_relief]
+    form: "at the end of an episode: V_strategy ← V + α·(outcome − V), outcome = 0.5 + 0.8·(need at start − need now) + 0.6·(relief − 0.15)"
+    params:
+      alpha: {value: 0.3, range: [0.1, 0.5]}
+    evidence: hypothetical
+    refs: ["Rescorla & Wagner (1972)"]
+    desc: An isolated person who seeks support and finds no one learns to stop trying — the loneliness loop emerges from experience.
+  coping.behavior:
+    label: Coping changes what people do
+    target: [activity_now, study_hours, class_attendance, attend_rate, work_hours]
+    sources: [coping_strategy]
+    form: "support: +visiting friends, ×(1 + 1.2k) reaching out; withdrawal: +home, −visits, −outings, ÷(1 + 0.8k) reaching out, −0.6 class-attendance logit, −2 h study; distraction: +gym, outdoors, venues; active: +campus and +3 h study (school strain), job search and hours (money strain); religious: +0.6 church-attendance logit"
+    params:
+      strength: {value: 1.0, range: [0.3, 1.8]}
+    evidence: hypothetical
+  memory.forgetting:
+    label: Memories fade (unless rehearsed)
+    target: n_memories
+    sources: [rumination]
+    form: "strength = importance·(1 + 0.5·rehearsals)·(1 + age/7 days)^−decay; weekly prune below 0.07, at most 40 per person; core memories (importance ≥ 0.8) kept"
+    params:
+      decay: {value: 0.5, range: [0.3, 0.8]}
+    evidence: literature
+    refs: ["Wixted & Ebbesen (1991): power-law forgetting", "Anderson & Schooler (1991): ACT-R base-level activation",
+           "Park et al. (2023): Generative Agents — recency × importance × relevance retrieval"]
+  memory.tone:
+    label: How the remembered past colors life judgments
+    target: life_satisfaction
+    sources: [memory_tone]
+    form: "life satisfaction += 0.6·memory tone (monthly composite)"
+    evidence: literature
+    refs: ["Schwarz & Strack (1999): life-satisfaction judgments are built from what comes to mind",
+           "Kahneman (1999): the remembering self"]

@@ -108,6 +108,10 @@ export const api = {
     }
     return j(`/api/person/${id}?u=${u}`)
   },
+  async personInner(id: number, u: Universe = 'base') {
+    if (STATIC) { const p = await api.person(id, u); if (!p.inner) throw new Error('The inner life is not included in the static demo export'); return p.inner }
+    return j(`/api/person/${id}/inner?u=${u}`)
+  },
   async personNetwork(id: number, u: Universe = 'base') {
     if (STATIC) { const p = await api.person(id, u); return p.network_full ?? p.network }
     return j(`/api/person/${id}/network?u=${u}`)
@@ -261,6 +265,8 @@ export const api = {
   async fork(interventions: any[]) { return post('/api/fork', { interventions }) },
   async unfork() { return j('/api/fork', { method: 'DELETE' }) },
   async newWorld(scale: number, seed: number, warmup = 0) { return post('/api/world', { scale, seed, warmup }) },
+  async uncertaintyStart(body: any) { return post('/api/uncertainty', body) },
+  async uncertainty() { return STATIC ? j(`${D}/uncertainty.json`).catch(() => ({ state: 'none' })) : j('/api/uncertainty') },
   async montecarloStart(body: any) { return post('/api/montecarlo', body) },
   async montecarlo() { return STATIC ? j(`${D}/montecarlo.json`) : j('/api/montecarlo') },
   async sweepStart(body: any) { return post('/api/sweep', body) },

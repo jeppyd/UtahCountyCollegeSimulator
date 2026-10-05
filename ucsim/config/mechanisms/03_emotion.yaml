@@ -143,6 +143,24 @@ mechanisms:
     params: {beta: {value: 0.25, range: [0.1, 0.4]}}
     evidence: literature
     refs: ["Meyer (2003) Psychol Bull: minority stress model"]
+  stress.support_buffer:
+    label: Perceived support buffers stressors
+    target: stress
+    sources: [perceived_support, academic_pressure, financial_stress, relationship_satisfaction, faith_crisis]
+    form: "−β·(perceived support − 0.35)·(academic + financial + relationship + faith-crisis terms)"
+    params: {beta: {value: 0.5, range: [0.2, 0.9]}}
+    evidence: literature
+    refs: ["Cohen & Wills (1985): the stress-buffering hypothesis — support matters most under stress",
+           "Perceived (not received) support carries the buffering effect (Lakey & Orehek 2011)"]
+    desc: An interaction, not a main effect — someone with no stressors gains nothing; someone under strain who feels backed gains a lot.
+  stress.coping:
+    label: Coping relief lowers stress
+    target: stress
+    sources: [coping_relief]
+    form: "−β·coping relief"
+    params: {beta: {value: 0.15, range: [0.05, 0.3]}}
+    evidence: hypothetical
+    refs: ["See coping.relief for how relief is earned"]
   # ---------------------------------------------------------------- loneliness
   loneliness.setpoint:
     label: Trait loneliness set-point
@@ -169,8 +187,25 @@ mechanisms:
     target: loneliness
     sources: [n_close_friends]
     form: "−β·log(1+n_close)/log 6"
-    params: {beta: {value: 0.07, range: [0.03, 0.15]}}
+    params: {beta: {value: 0.05, range: [0.02, 0.12]}}
     evidence: literature
+    desc: Lowered from 0.07 when the perceived-support term took over part of what close friends do for loneliness.
+  loneliness.coping:
+    label: Being supported through a hard time eases loneliness
+    target: loneliness
+    sources: [coping_relief, coping_strategy]
+    form: "−β·coping relief while coping by seeking support"
+    params: {beta: {value: 0.1, range: [0.03, 0.2]}}
+    evidence: hypothetical
+  loneliness.perceived_support:
+    label: Believing support is there eases loneliness
+    target: loneliness
+    sources: [perceived_support]
+    form: "−β·(perceived support − 0.45)"
+    params: {beta: {value: 0.12, range: [0.05, 0.25]}}
+    evidence: literature
+    refs: ["Loneliness is perceived social isolation, distinct from network size (Hawkley & Cacioppo 2010)",
+           "Perceived support predicts wellbeing better than received support (Uchino 2009)"]
   loneliness.partner:
     label: Partner buffers loneliness
     target: loneliness
@@ -404,6 +439,22 @@ mechanisms:
     params: {beta: {value: 0.1, range: [0.03, 0.2]}}
     evidence: literature
   mood.depression: {label: Depressive episode → lower mood, target: mood, sources: [depressive_episode], form: "−0.15", evidence: literature}
+  mood.coping:
+    label: Coping relief lifts mood
+    target: mood
+    sources: [coping_relief]
+    form: "β·coping relief"
+    params: {beta: {value: 0.12, range: [0.04, 0.25]}}
+    evidence: hypothetical
+  mood.rumination:
+    label: Rumination prolongs low mood
+    target: mood
+    sources: [rumination, n_memories]
+    form: "−β·rumination·clip(negative memory load, 0, 3)/3 — load = Σ strength of negative memories from the last 60 days, kept high by rehearsal"
+    params: {beta: {value: 0.1, range: [0.03, 0.2]}}
+    evidence: literature
+    refs: ["Nolen-Hoeksema (2000): rumination predicts onset and duration of depressed mood",
+           "Watkins (2008): constructive and unconstructive repetitive thought"]
   mental_health.depression:
     label: Depressive episode onset/remission
     target: depressive_episode

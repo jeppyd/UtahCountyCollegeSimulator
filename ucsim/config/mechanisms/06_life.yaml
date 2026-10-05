@@ -108,6 +108,18 @@ mechanisms:
     sources: [graduated, family_local]
     form: "after graduation P(leave) ≈ 0.62 BYU / 0.42 UVU, −0.25 if family local"
     evidence: calibrated
+  lifecourse.stay:
+    label: How long non-students stay in the college scene
+    target: present
+    sources: [role, rel_status]
+    form: "graduates who stay, dropouts and young adults leave after an exponential stay (mean = years); married couples leave together, and wait while a spouse is still enrolled"
+    params:
+      young_adult_years: {value: 1.6, range: [0.8, 3.0], dist: uniform}
+    evidence: calibrated
+    desc: >-
+      Holds the non-student young-adult stock near its configured size (inflow from graduates who stay and dropouts ≈
+      outflow). Without it that stock grew ~10% a year with no exit (see scripts/accounting.py). Real residence durations
+      for post-college young adults in Provo/Orem are not measured here; the value is chosen for stock balance.
   lifecourse.illness:
     label: Short illnesses
     target: ill

@@ -45,7 +45,10 @@ class Romance:
         eng = np.where(P.is_("rel_status", "engaged") & (P["partner_id"] >= 0))[0]
         if len(eng):
             a = eng[eng < P["partner_id"][eng]]
-            lead = (10 + 110 * np.random.default_rng([self.sim.w.seed, 88]).random(len(a))).astype(int)
+            rng0 = np.random.default_rng([self.sim.w.seed, 88])
+            lead = (10 + 110 * rng0.random(len(a))).astype(int)
+            students = P["enrolled"][a] | P["enrolled"][P["partner_id"][a]]
+            lead = self._break_date(lead, students, rng0.random(len(a)))
             P.internal["wedding_planned"][a] = lead
             P.internal["wedding_planned"][P["partner_id"][a]] = lead
         self.weekly()
@@ -144,12 +147,14 @@ class Romance:
         lds_active = P.is_("activity", "active")
         age_norm = np.clip((age - 19.5) / 3, 0, 1) * np.clip((31 - age) / 5, 0, 1)
         rm_recent = (P.is_("mission_status", "returned")) & (age < 24)
+        # how much a partner is missed (the partnership drive) against what else is pressing (mind.drive)
+        competing = (P["drive_achievement"] + P["drive_security"] + P["drive_rest"]) / 0.55
         mot = expit(p("romance.motivation.base")
                     + p("romance.motivation.wants") * (P["wants_relationship"] - 2.5) / 1.5
-                    + p("romance.motivation.longing") * P["romantic_longing"]
+                    + p("romance.motivation.longing") * P["drive_partnership"] / 0.55
                     + p("romance.motivation.marriage_norm") * w.env["marriage_norm"] * age_norm * lds_active
                     + 0.4 * rm_recent + 0.25 * sim.z("extraversion")
-                    - 0.8 * P["depressive_episode"] - 0.5 * P["academic_pressure"] - 0.4 * P["fatigue"])
+                    - 0.8 * P["depressive_episode"] - p("romance.motivation.competing") * competing)
         P["dating_motivation"] = np.where(self.seeking_mask(), mot, 0.0).astype(np.float32)
         self._weddings()
         self._confessions()
@@ -185,13 +190,21 @@ class Romance:
         ids, tgt = ids[okt], tgt[okt]
         male = P["sex"][ids] == P.code("sex", "M")
         dow_mult = np.array([1.2, 1.2, 1.1, 1.0, 0.7, 0.4, 0.3])[wd]
+        # what they believe the other feels (perceived, not actual) and what they have learned to expect
+        ek = E.find(EdgeStore.make_keys(ids, tgt))
+        believed = np.where(ek >= 0, E.belief_from(np.maximum(ek, 0), ids), 0.0)
+        exp_yes = np.clip(P["expect_accept"][ids], 0.03, 0.97)
         logit = (p("romance.ask.base") + p("romance.ask.attraction") * catt[ids]
                  + p("romance.ask.motivation") * (P["dating_motivation"][ids] - 0.5)
                  + p("romance.ask.confidence") * (P["self_esteem"][ids] - 0.5)
-                 - p("romance.ask.rejection_sensitivity") * np.clip(sim.z("rejection_sensitivity")[ids], 0, None) * np.log1p(P["rejections_recent"][ids])
+                 + p("romance.ask.expectation") * (np.log(exp_yes / (1 - exp_yes)) - 0.405)
+                 + p("mind.romantic_perception.ask_weight") * (believed - 0.15)
                  + np.where(male, p("romance.ask.male") * w.env["men_initiate_norm"], -p("romance.ask.male") * w.env["men_initiate_norm"] * 0.9)
                  + p("romance.ask.propensity") * np.log(P["dating_propensity"][ids] + 0.5)
                  + 0.25 * (P["asks_for_numbers"][ids] - 2) / 2)
+        plans = sim.systems.get("plans")
+        if plans is not None:
+            logit = logit + plans.ask_boost(ids, tgt)
         u = sim.u("ask")[ids]
         go = u < expit(logit) * dow_mult
         ids, tgt = ids[go], tgt[go]
@@ -217,6 +230,11 @@ class Romance:
         ua = sim.u("accept")[tgt]
         yes = ua < acc
         ask_ev = sim.emit("asked_out", ids, b=tgt, value=a_ij, mech="romance.ask")
+        mind = sim.systems["mind"]
+        mind.learn_ask(ids, yes)
+        mind.reveal(eix, ids, tgt, np.where(yes, 0.4, 1.0))
+        if plans is not None:
+            plans.asked(ids, tgt, yes, ask_ev)
         # rejections
         no = ~yes
         if no.any():
@@ -299,6 +317,7 @@ class Romance:
             E.cols["att_lh"][ni] = self.initial_attraction(lo, hi)
             E.cols["att_hl"][ni] = self.initial_attraction(hi, lo)
             E.cols["origin_ctx"][ni] = CTX_ID["app"]
+            sim.systems["mind"].init_beliefs(ni, lo, hi)
         E.cols["flags"][eix] |= Tie.APP_MATCH
         ev = sim.emit("app_match", ids, b=tgt, mech="romance.app")
         # the match turns into a date with probability ~ conversation success
@@ -341,8 +360,14 @@ class Romance:
             cur = E.attraction_from(eix, src)
             directed = pair_normal(w.seed, src, dst, 31, directed=True)
             E.set_attraction_from(eix, src, np.clip(cur + eta * (q + 0.3 * directed), -1, 1))
+        # a date is far more informative than a passing conversation about how the other feels
+        mind = sim.systems["mind"]
+        dr = p("mind.romantic_perception.date_reveal")
+        mind.reveal(eix, a, b, dr)
+        mind.reveal(eix, b, a, dr)
         E.cols["dates"][eix] += 1
         E.cols["flags"][eix] |= Tie.DATED
+        E.cols["shared"][eix] += 1
         E.cols["hours"][eix] += 2.5
         E.cols["hours_leisure"][eix] += 2.5
         E.cols["last_day"][eix] = day
@@ -408,6 +433,8 @@ class Romance:
         sim, w = self.sim, self.sim.w
         P, E = w.P, w.E
         E.cols["flags"][eix] |= Tie.KISSED
+        sim.systems["mind"].reveal(eix, a, b, 1.0)
+        sim.systems["mind"].reveal(eix, b, a, 1.0)
         for x, y in ((a, b), (b, a)):
             first_ever = P["n_kissed"][x] == 0
             P.cols["n_kissed"][x] += 1
@@ -575,15 +602,18 @@ class Romance:
                 P.cols["rel_status"][x] = P.code("rel_status", "engaged")
                 P.cols["engaged_day"][x] = day
             lead = np.where(both_active[eng], rng.uniform(70, 140, eng.sum()), rng.uniform(120, 300, eng.sum())).astype(int)
-            P.internal["wedding_planned"][a_] = day + lead
-            P.internal["wedding_planned"][b_] = day + lead
+            # student couples usually marry between semesters: move the date to the next break if one starts soon after
+            students = P["enrolled"][a_] | P["enrolled"][b_]
+            wed = self._break_date(day + lead, students, rng.random(eng.sum()))
+            P.internal["wedding_planned"][a_] = wed
+            P.internal["wedding_planned"][b_] = wed
             ev = sim.emit("engaged", a_, b=b_, cause=P.internal["rel_event"][a_], mech="romance.engage")
             sim.emit("engaged", b_, b=a_, cause=P.internal["rel_event"][a_], mech="romance.engage")
             P.internal["rel_event"][a_] = ev
             P.internal["rel_event"][b_] = ev
         # breakups
         h_brk = expit(p("romance.breakup.base") - p("romance.breakup.commitment") * commit
-                      + p("romance.breakup.religious_mismatch") * rel_mis + 1.5 * conflict)
+                      + p("romance.breakup.religious_mismatch") * rel_mis + 1.5 * conflict + 1.5 * E["hurt"][eix])
         h_brk = np.where(engaged, h_brk * 0.25, np.where(married, h_brk * p("romance.breakup.married_mult"), h_brk))
         brk = (dating | engaged | married) & ~eng & (rng.random(len(ids)) < h_brk)
         if brk.any():
@@ -600,6 +630,7 @@ class Romance:
             P.cols["ever_cheated_on"][cj[found]] = True
             E.cols["conflict"][eix[cheat][found]] = 1.0
             E.cols["trust"][eix[cheat][found]] *= 0.3
+            E.cols["hurt"][eix[cheat][found]] = 1.0          # betrayal: a deep, slow-healing injury
             del ev
         # premarital sex
         unmarried_pair = (dating | engaged) & ~brk
@@ -613,6 +644,25 @@ class Romance:
             sx = unmarried_pair & ~sexual & (rng.random(len(ids)) < h_sex)
             if sx.any():
                 self._sex(ids[sx], j[sx], eix[sx])
+
+    def _break_date(self, want: np.ndarray, students: np.ndarray, u: np.ndarray) -> np.ndarray:
+        """Wedding dates for student couples snap (with probability `romance.wedding.break_share`) to the next
+        stretch between semesters — the end of winter semester through summer, or Christmas break — if it
+        begins within 75 days of the date they would otherwise pick."""
+        cal = self.sim.cal
+        out = want.copy()
+        share = self.sim.p("romance.wedding.break_share")
+        for k in np.where(students & (u < share))[0]:
+            d0 = int(want[k])
+            for d in range(d0, d0 + 76):
+                dt = cal.date(d)
+                md = (dt.month, dt.day)
+                in_break = ((4, 23) <= md <= (8, 22)) or md >= (12, 18) or md <= (1, 5)
+                if in_break:
+                    # spread across the break's first weeks (Saturdays are the usual wedding day)
+                    out[k] = d + int((u[k] / max(share, 1e-9)) * 28) // 7 * 7 + (5 - cal.weekday(d)) % 7
+                    break
+        return out
 
     def _sex(self, a, b, eix):
         sim, w = self.sim, self.sim.w
@@ -659,6 +709,7 @@ class Romance:
         ok = eix >= 0
         E.cols["flags"][eix[ok]] = (E["flags"][eix[ok]] & ~np.uint32(Tie.ROMANTIC)) | Tie.EX
         E.cols["liking"][eix[ok]] = E["liking"][eix[ok]] - 0.3
+        E.cols["hurt"][eix[ok]] = np.maximum(E["hurt"][eix[ok]], 0.5 if kind != "talking" else 0.2)
         E.cols["att_lh"][eix[ok]] *= 0.4
         E.cols["att_hl"][eix[ok]] *= 0.4
         cause = P.internal["rel_event"][a]
@@ -697,6 +748,17 @@ class Romance:
         if len(a) == 0:
             return
         ok = P["present"][a] & P["present"][b]
+        # a partner away on the day (a trip home, a mission farewell): the wedding moves a week rather than vanishing;
+        # if one of them has left the area for good, the engagement ends
+        gone = ~ok & ((P["departure_day"][a] >= 0) | (P["departure_day"][b] >= 0))
+        late = ~ok & ~gone
+        if late.any():
+            P.internal["wedding_planned"][a[late]] = day + 7
+            P.internal["wedding_planned"][b[late]] = day + 7
+        if gone.any():
+            ga, gb = a[gone], b[gone]
+            ge = E.upsert(EdgeStore.make_keys(ga, gb))
+            self._end(ga, gb, E.attraction_from(ge, ga), E.attraction_from(ge, gb))
         a, b = a[ok], b[ok]
         for x in (a, b):
             P.cols["rel_status"][x] = P.code("rel_status", "married")

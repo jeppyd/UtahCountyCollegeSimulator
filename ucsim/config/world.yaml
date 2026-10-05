@@ -40,6 +40,12 @@ mission:
   male_months: 24
   female_months: 18
   early_return_rate: 0.08    # (assumption; literature on early-returned missionaries suggests a minority)
+  # Missionaries from this ecosystem serving when the run starts (full scale). Calibrated to the flow equilibrium
+  # of the call hazard (calls/yr × mean service ≈ 5.8k × 1.85 yr; scripts/accounting.py) so the stock does not
+  # drift upward for two years after the start, as it did when only BYU returners were seeded.
+  serving_pool: 10500
+  serving_pool_male_share: 0.53
+  serving_pool_school_mix: {BYU: 0.78, UVU: 0.19, none: 0.03}
 
 calendar:                    # month-day boundaries (approx BYU calendar)
   byu_terms:
@@ -70,8 +76,10 @@ tuition:
 history:                     # per-person snapshots for flows and trajectories (see engine/systems/history.py)
   every_days: 14
   categorical: [rel_status, activity, mission_status, living, school, enrolled, class_standing, academic_standing,
-                employed, faith_crisis, depressive_episode, app_user, temple_recommend, affiliation, investigating]
+                employed, faith_crisis, depressive_episode, app_user, temple_recommend, affiliation, investigating,
+                top_priority, coping_strategy, intention]
   numeric: [loneliness, mood, stress, belonging, anxiety, self_esteem, purpose, life_satisfaction, faith_belief,
             faith_certainty, religious_identity, attend_rate, n_friends, n_close_friends, dates_30d, romantic_longing,
             relationship_satisfaction, financial_stress, rent_burden, savings, gpa, coffee, alcohol, outsider,
-            service_attend, n_groups]
+            service_attend, n_groups, perceived_support, expect_social, expect_accept, self_eff_academic, social_events_month,
+            drive_connection, drive_partnership, coping_need, routine_strength, memory_tone]

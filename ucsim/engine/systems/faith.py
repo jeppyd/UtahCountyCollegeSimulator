@@ -97,6 +97,10 @@ class Faith:
         lr = sim.p("faith.habit.learning_rate")
         P["practice_habit"] = np.where(members, np.where(att, h + lr * (1 - h), h * (1 - lr * 0.4)), h).astype(np.float32)
 
+    def _plan_bias(self):
+        plans = self.sim.systems.get("plans")
+        return plans.church_boost() if plans is not None else 0.0
+
     def _norms(self):
         sim, w = self.sim, self.sim.w
         P = w.P
@@ -113,8 +117,16 @@ class Faith:
         ward_mean = np.where(ward >= 0, wn[np.maximum(ward, 0)] / np.maximum(wc[np.maximum(ward, 0)], 1), 0.3)
         has = den > 0
         norm = np.where(has, 0.65 * np.nan_to_num(friend_norm) + 0.35 * ward_mean, ward_mean)
+        # where people live carries its own norm: a devout complex raises it, a secular one lowers it (culture.feedback.norm)
+        cul = sim.systems.get("culture")
+        if cul is not None and "culture" in w.meta:
+            cr = cul.complex_relig(P["complex_id"])
+            wn = sim.p("culture.feedback.norm")
+            norm = np.where(np.isfinite(cr), (1 - wn) * norm + wn * np.nan_to_num(cr), norm)
         P["perceived_norm"] = norm.astype(np.float32)
-        self.friend_belief = np.where(has, np.nan_to_num(friend_belief), P["faith_belief"])
+        # influence works through what people *perceive* their friends believe (mind.pluralistic_ignorance)
+        perceived = P["perceived_friend_belief"]
+        self.friend_belief = np.where(has, np.where(perceived > 0, perceived, np.nan_to_num(friend_belief)), P["faith_belief"])
         del n
 
     def weekly(self):
@@ -132,7 +144,7 @@ class Faith:
                    + p("faith.attend.habit") * (P["practice_habit"] - 0.5) + p("faith.attend.norm") * (P["perceived_norm"] - 0.5)
                    + p("faith.attend.family") * P["family_expectation"] - p("faith.attend.stress") * np.clip(P["stress"] - 0.3, 0, None)
                    - 0.8 * P["fatigue"] - 2.0 * P.internal["works_sunday"][:n] + np.log(w.env["church_attendance_norm"] + 1e-9)
-                   - 1.0 * P["faith_crisis"])
+                   - 1.0 * P["faith_crisis"] + sim.systems["coping"].church_bias() + self._plan_bias())
         P.internal["attend_prob"][:n] = np.where(lds, ap, 0)
         # ---- events: spiritual experiences & faith challenges
         u1, u2 = sim.u("spirit"), sim.u("challenge")
@@ -148,7 +160,11 @@ class Faith:
             sim.emit("faith_challenge", np.where(ch)[0], mech="faith.challenge")
         # ---- belief update
         susc = p("faith.influence.base") * (1 - cert) * np.exp(0.3 * sim.z("conformity"))
-        d_social = susc * (self.friend_belief - belief)
+        gap = self.friend_belief - belief
+        if p("faith.influence.form") >= 0.5:
+            # alternative form — bounded confidence (Hegselmann & Krause 2002): views far from one's own barely move it
+            susc = susc * np.where(np.abs(gap) <= p("faith.influence.bound"), 1.0, 0.2)
+        d_social = susc * gap
         d_events = 0.03 * sp - p("faith.challenge.belief_hit") * ch * (1 - cert)
         # dissonance: persistent guilt over standards → belief erosion for low-identity/high-autonomy agents,
         # otherwise behavior change (handled in norms) and repentance (romance)
@@ -213,7 +229,9 @@ class Faith:
                                                            np.where(alt < 0.95, P.code("affiliation", "Protestant"),
                                                                     P.code("affiliation", "Other faith")))
                     P.cols["ward_id"][gone] = -1
-                sim.emit("disaffiliated", lv, cause=cause[outcome == 2], mech="faith.crisis")
+                dis = sim.emit("disaffiliated", lv, cause=cause[outcome == 2], mech="faith.crisis")
+                if len(gone):
+                    sim.emit("resigned_membership", gone, cause=dis[resign], mech="faith.crisis")
         # ---- activity category from attendance
         old = P["activity"].copy()
         rate = P["attend_rate"]

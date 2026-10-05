@@ -79,33 +79,31 @@ def explain_state(sim, i: int, var: str) -> dict:
 
 
 def goals(sim, i: int) -> list[dict]:
-    """BDI-style current desires with intensities (derived from state; read-only)."""
+    """What the person wants right now, read from the mind: their current intention first, then their strongest
+    drives (importance × how unmet each concern feels), in plain words."""
     P = sim.w.P
     g = []
-    single = P.isin("rel_status", ["single", "divorced", "talking"])[i]
-    if single and P["dating_motivation"][i] > 0.3:
-        g.append({"goal": "Find a relationship", "intensity": float(P["dating_motivation"][i])})
-    if P.is_("rel_status", "dating")[i] or P.is_("rel_status", "engaged")[i]:
-        g.append({"goal": "Move toward marriage" if P["activity"][i] == 3 else "Grow the relationship",
-                  "intensity": float(np.nan_to_num(P["relationship_commitment"][i], nan=0.5))})
-    if P["enrolled"][i]:
-        g.append({"goal": "Graduate", "intensity": float(np.clip(P["credits_done"][i] / 120, 0.2, 1))})
-        if P["academic_pressure"][i] > 0.3:
-            g.append({"goal": "Raise grades", "intensity": float(P["academic_pressure"][i])})
-    if P["loneliness"][i] > 0.5:
-        g.append({"goal": "Make closer friends", "intensity": float(P["loneliness"][i])})
-    if P["financial_stress"][i] > 0.5:
-        g.append({"goal": "Get finances under control", "intensity": float(P["financial_stress"][i])})
+    words = {"connection": "Feel closer to friends", "partnership": "Find (or deepen) love", "achievement": "Do well in school or work",
+             "security": "Get finances under control", "faith": "Live their faith more fully", "rest": "Rest and recover",
+             "fun": "Have some fun", "health": "Get exercise in"}
+    if "intention" in P and int(P["intention"][i]) > 0:
+        from ..engine.systems.plans import KINDS
+        kind = KINDS[int(P["intention"][i])]
+        label = {"ask_out": "Ask someone out", "reconnect": "Reconnect with a friend", "meet_people": "Meet new people",
+                 "study_more": "Study more", "find_work": "Find work", "return_to_church": "Get back to church"}[kind]
+        g.append({"goal": f"This week: {label.lower()}", "intensity": 1.0, "kind": "intention"})
+    if "drive_connection" in P:
+        from ..engine.systems.mind import MOTIVES
+        for m in MOTIVES:
+            d = float(P[f"drive_{m}"][i])
+            if d > 0.12:
+                g.append({"goal": words[m], "intensity": min(1.0, d / 0.5), "kind": "drive", "motive": m})
     if P["faith_crisis"][i]:
-        g.append({"goal": "Resolve questions about faith", "intensity": 0.8})
+        g.append({"goal": "Resolve questions about faith", "intensity": 0.8, "kind": "state"})
     if (P["lds_member"][i] and P.is_("mission_status", "none")[i] and P["age"][i] < 21 and P["faith_belief"][i] > 0.7
             and P.isin("rel_status", ["single", "talking"])[i]):
-        g.append({"goal": "Prepare to serve a mission", "intensity": float(P["faith_belief"][i])})
-    if P["guilt"][i] > 0.3:
-        g.append({"goal": "Repent / resolve guilt", "intensity": float(P["guilt"][i])})
-    if not P["employed"][i] and not P["enrolled"][i]:
-        g.append({"goal": "Find work", "intensity": 0.7})
-    return sorted(g, key=lambda x: -x["intensity"])
+        g.append({"goal": "Prepare to serve a mission", "intensity": float(P["faith_belief"][i]), "kind": "state"})
+    return sorted(g, key=lambda x: -x["intensity"])[:6]
 
 
 def ego_network(sim, i: int, max_nodes: int = 60, min_stage: int = 1) -> dict:

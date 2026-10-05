@@ -36,15 +36,23 @@ PARAMS = [
     ("romance.engage.base", -8.5, -5.5),
     ("romance.breakup.base", -3.8, -1.5),
     ("economy.job_find.base", -2.0, 0.0),
+    ("economy.work_more.threshold", 0.4, 0.85),
+    # social life: realized social events (gatherings, FHE) are an emergent row since iteration 5
+    ("activity.gathering.accept_base", -1.5, 0.5),
+    ("activity.gathering.host_saturday", 0.02, 0.1),
+    ("activity.fhe.attend_mult", 0.5, 1.0),
+    # pattern rows: support perception and friendship clustering
+    ("mind.perceived_support.reality", 0.1, 0.6),
+    ("relationship.introductions.rate", 0.05, 0.5),
 ]
-WEIGHT = {"benchmark": 3.0, "emergent": 1.0, "input": 0.5, "diagnostic": 0.0}
+WEIGHT = {"benchmark": 3.0, "emergent": 1.0, "pattern": 1.0, "input": 0.5, "diagnostic": 0.0}
 CHECK_DAYS = (60, 200)
 
 
 def evaluate(job):
     """Run one candidate on one seed; return {row key: (kind, z at each check day)}."""
     overrides, seed, scale = job
-    from validate import benchmarks, compare  # scripts/ is on sys.path in spawned workers too (module level)
+    from validate import benchmarks, compare, patterns  # scripts/ is on sys.path in spawned workers too (module level)
 
     from ucsim.engine.runner import new_simulation
     from ucsim.population.sampling import load_priors
@@ -53,8 +61,8 @@ def evaluate(job):
     out: dict = {}
     for day in CHECK_DAYS:
         sim.run_until(day)
-        for r in benchmarks(sim) + compare(sim, priors):
-            if np.isfinite(r["diff"]):
+        for r in benchmarks(sim) + compare(sim, priors) + patterns(sim):
+            if np.isfinite(r["diff"]) and not r.get("holdout"):   # held-out tables are never used for fitting
                 out.setdefault(f"{r['table']}|{r['group']}", [r["kind"], []])[1].append(r["diff"] / r["tol"])
     return out
 

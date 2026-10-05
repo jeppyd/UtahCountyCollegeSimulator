@@ -175,3 +175,101 @@ def test_api_entities_apply_and_plans(monkeypatch):
     finally:
         server.WS.base, server.WS.alt, server.WS.divergence, server.WS.job = saved
         server.WS._index = None
+
+
+def _largest_complex(sim):
+    P = sim.w.P
+    return int(np.bincount(P["complex_id"][(P["complex_id"] >= 0) & P["present"]]).argmax())
+
+
+def _run_plan(sim, *changes, days=1):
+    v = validate(_plan(*changes), sim)
+    assert v["ok"], v["errors"]
+    alt = fork(sim, lower(v["plan"], sim.w.day, plan_id(v["plan"])))
+    for _ in range(days):
+        alt.step_day()
+    return alt
+
+
+def test_validator_is_idempotent_and_strict_about_filters(world):
+    plan = _plan({"kind": "nudge", "label": "n", "why": "", "target": "stress", "value": 0.05, "duration_days": 10,
+                  "who": {"var": "school", "op": "eq", "value": "byu"}},
+                 {"kind": "trait", "label": "t", "why": "", "target": "conscientiousness", "op": "add", "value": 0.1})
+    once = validate(plan, world)["plan"]
+    assert validate(once, world)["plan"] == once                               # apply re-validates the receipt's plan
+    for who in ({"var": "gpa", "op": "quantile_gt", "value": 7},             # out-of-range quantile
+                {"household": "roommates"},                                  # malformed household filter
+                {"transition": {"var": "rel_status"}},                       # not a population
+                {"var": "_routine_slot", "op": "eq", "value": 1},            # internal column
+                {"var": "school", "op": "eq", "value": 3}):                  # wrong type for a categorical
+        v = validate(_plan({"kind": "nudge", "label": "n", "why": "", "target": "stress", "value": 0.05, "who": who}), world)
+        assert not v["ok"] and not v["plan"]["changes"], who
+    # a who_json that isn't JSON must not widen to everyone
+    back = unstrict({"title": "t", "changes": [{"kind": "nudge", "target": "stress", "value": 0.05, "who_json": "{school: BYU"}]})
+    assert not validate({**_plan(), **back}, world)["ok"]
+
+
+def test_overlapping_place_changes_compose_and_unwind(world):
+    base = copy.deepcopy(world)
+    cx = _largest_complex(base)
+    U = base.w.units
+    units = np.where(U.complex_id == cx)[0]
+    cap0 = U.capacity[units].copy()
+    alt = _run_plan(base,
+                    {"kind": "place", "label": "half", "why": "", "target": f"complex:{cx}", "attr": "beds", "value": 0.5, "duration_days": 6},
+                    {"kind": "close", "label": "shut", "why": "", "target": f"complex:{cx}", "duration_days": 3})
+    assert (alt.w.units.capacity[units] == 0).all()
+    for _ in range(3):
+        alt.step_day()
+    assert np.array_equal(alt.w.units.capacity[units], np.rint(cap0 * 0.5).astype(cap0.dtype))   # closure ended, beds cut remains
+    for _ in range(4):
+        alt.step_day()
+    assert np.array_equal(alt.w.units.capacity[units], cap0)                                       # both ended
+
+
+def test_rent_change_unwinds_relative_to_market_drift(world):
+    base = copy.deepcopy(world)
+    cx = _largest_complex(base)
+    units = np.where(base.w.units.complex_id == cx)[0]
+    alt = _run_plan(base, {"kind": "place", "label": "rent", "why": "", "target": f"complex:{cx}", "attr": "rent", "value": 2.0,
+                           "duration_days": 3})
+    U = alt.w.units
+    U.rent_total[units] = (U.rent_total[units] * 1.1).astype(U.rent_total.dtype)                # the market moves meanwhile
+    drifted = U.rent_total[units].astype(float) / 2.0
+    for _ in range(3):
+        alt.step_day()
+    assert np.allclose(U.rent_total[units].astype(float), drifted, rtol=0.01, atol=1)
+
+
+def test_nudge_on_residents_of_a_closed_complex_follows_them(world):
+    base = copy.deepcopy(world)
+    cx = _largest_complex(base)
+    res = np.where((base.w.P["complex_id"] == cx) & base.w.P["present"])[0]
+    alt = _run_plan(base,
+                    {"kind": "close", "label": "fire", "why": "", "target": f"complex:{cx}"},
+                    {"kind": "nudge", "label": "upset", "why": "", "target": "stress", "value": 0.08,
+                     "who": {"var": "complex_id", "op": "eq", "value": cx}}, days=9)    # past the weekly refresh
+    k = next(k for k, it in enumerate(alt.whatif.items) if it["target_type"] == "offset")
+    assert alt.whatif.items[k].get("freeze_population")
+    m = alt.whatif._population(k, alt.whatif.items[k])
+    assert m[res].all() and not (alt.w.P["complex_id"][res] == cx).any()
+
+
+def test_practice_share_limits_who_can_adopt(world):
+    base = copy.deepcopy(world)
+    alt = _run_plan(base, {"kind": "practice", "label": "p", "why": "", "practice_label": "Thing", "seed_share": 0.2, "base": 2,
+                           "share": 0.3, "effects_while": [{"var": "self_esteem", "value": 0.01}]}, days=8)
+    k, st = next(iter(alt.whatif.practices.items()))
+    scope = alt.whatif._scope(k, alt.whatif.items[k])
+    adopted = st["adopted"][:len(scope)]
+    assert adopted.any() and not (adopted & ~scope).any()                  # nobody outside the share adopts
+    assert scope[alt.w.P["present"].astype(bool)].mean() < 0.4
+
+
+def test_whatif_endpoints_refuse_other_websites(monkeypatch):
+    from ucsim.llm import compiler
+    monkeypatch.setattr(compiler, "save_settings", lambda body: {"ok": True})
+    c = TestClient(server.app)
+    assert c.post("/api/whatif/llm/settings", json={}, headers={"Origin": "https://evil.example"}).status_code == 403
+    assert c.post("/api/whatif/llm/settings", json={}, headers={"Origin": "http://localhost:5173"}).status_code == 200
+    assert c.post("/api/whatif/llm/settings", json={}).status_code == 200

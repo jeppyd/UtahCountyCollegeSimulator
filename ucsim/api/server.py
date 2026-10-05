@@ -17,7 +17,7 @@ from pathlib import Path
 import numpy as np
 import orjson
 import polars as pl
-from fastapi import Body, FastAPI, HTTPException, Query, Request
+from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -936,6 +936,19 @@ def _entity_index():
     return WS._index
 
 
+def _local_only(request: Request):
+    """The What-if compiler runs your own Claude/Codex login, so only pages served from this machine may drive it
+    (the API's CORS is open for the static viewer; this keeps other websites from spending your plan)."""
+    origin = request.headers.get("origin")
+    if not origin or origin == "null":
+        return
+    from urllib.parse import urlsplit
+    host = (urlsplit(origin).hostname or "").lower()
+    own = (request.headers.get("host") or "").rsplit(":", 1)[0].strip("[]").lower()
+    if host not in ("localhost", "127.0.0.1", "::1") and host != own:
+        raise HTTPException(403, "What-if requests are only accepted from this computer")
+
+
 def _server_url(request: Request) -> str:
     host, port = (request.scope.get("server") or ("127.0.0.1", 8000))[:2]
     return f"http://{'127.0.0.1' if host in ('0.0.0.0', '::', None) else host}:{port}"
@@ -969,7 +982,8 @@ def llm_status():
 
 
 @app.post("/api/whatif/llm/settings")
-def llm_settings(body: dict = Body(...)):
+def llm_settings(request: Request, body: dict = Body(...)):
+    _local_only(request)
     from ..llm import compiler
     return jresp(compiler.save_settings(body))
 
@@ -977,6 +991,7 @@ def llm_settings(body: dict = Body(...)):
 @app.post("/api/whatif/compile")
 def whatif_compile(request: Request, body: dict = Body(...)):
     """Start turning a plain-language What-if into a plan: {text, mentions: [{ref,...}], history: [...], mode: new|add}."""
+    _local_only(request)
     from ..llm import compiler
     if WS.base is None:
         raise HTTPException(409, "build a world first")
@@ -998,7 +1013,8 @@ def whatif_compile_poll(jid: str):
 
 
 @app.post("/api/whatif/compile/{jid}/cancel")
-def whatif_compile_cancel(jid: str):
+def whatif_compile_cancel(jid: str, request: Request):
+    _local_only(request)
     from ..llm import compiler
     job = compiler.JOBS.get(jid)
     if job is not None:
@@ -1009,6 +1025,7 @@ def whatif_compile_cancel(jid: str):
 @app.post("/api/whatif/tool/{name}")
 def whatif_tool(name: str, request: Request, body: dict = Body(default={})):
     """The compiler's read-only tools (called by Claude Code through the MCP bridge, or by the local tool loop)."""
+    _local_only(request)
     from ..llm import compiler
     if WS.base is None:
         raise HTTPException(409, "no world")
@@ -1027,8 +1044,9 @@ def whatif_tool(name: str, request: Request, body: dict = Body(default={})):
 
 
 @app.post("/api/whatif/validate")
-def whatif_validate(body: dict = Body(...)):
+def whatif_validate(request: Request, body: dict = Body(...)):
     """Re-check a (possibly edited) plan: {plan} → receipt."""
+    _local_only(request)
     from ..llm.plan import plan_id, validate
     if WS.base is None:
         raise HTTPException(409, "no world")
@@ -1039,8 +1057,9 @@ def whatif_validate(body: dict = Body(...)):
 
 
 @app.post("/api/whatif/apply")
-def whatif_apply(body: dict = Body(...)):
+def whatif_apply(request: Request, body: dict = Body(...)):
     """Apply a plan: {plan, mode: new|add, include: [bool per change]} → splits the world (new) or adds to the What-if."""
+    _local_only(request)
     from ..llm.plan import lower, plan_id, validate
     if WS.base is None:
         raise HTTPException(409, "no world")
@@ -1058,7 +1077,8 @@ def whatif_apply(body: dict = Body(...)):
         if not v["ok"]:
             raise HTTPException(409, "the plan still has problems: " + "; ".join(v["errors"][:4]))
         pid = plan_id(v["plan"])
-        today = WS.base.w.day
+        # mid-day (the morning phase already ran), changes start tomorrow so delays and durations count whole days
+        today = WS.base.w.day + (1 if getattr(WS.base, "_phases_done", 0) else 0)
         atoms = lower(v["plan"], today, pid)
         if mode == "new":
             WS.alt = runner.fork(WS.base, atoms)
@@ -1068,7 +1088,7 @@ def whatif_apply(body: dict = Body(...)):
             alt = WS.alt
             man = alt.systems["environment"].manager
             for a in atoms:
-                a["start_day"] = max(int(a["start_day"]), alt.w.day)
+                a["start_day"] = max(int(a["start_day"]), alt.w.day + (1 if getattr(alt, "_phases_done", 0) else 0))
                 man.add(a)
                 alt.interventions.append(a)
         WS.compare_cache = None

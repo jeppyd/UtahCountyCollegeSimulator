@@ -29,6 +29,8 @@ DEFAULTS = {"backend": "claude", "claude_model": "", "claude_effort": "", "codex
             "openai_url": "http://localhost:1234/v1", "openai_model": "", "openai_key": "lm-studio",
             "use_subscription": True, "use_tools": True, "max_turns": 40, "timeout": 600}
 BACKENDS = ("claude", "codex", "openai")
+# where the CLIs live, when they aren't on PATH: read from llm.json only (never set over HTTP, since they name a program to run)
+PATH_KEYS = ("claude_path", "codex_path")
 
 
 # ---------------------------------------------------------------------- settings
@@ -36,7 +38,8 @@ def load_settings() -> dict:
     s = dict(DEFAULTS)
     try:
         if SETTINGS_FILE.exists():
-            s.update({k: v for k, v in json.loads(SETTINGS_FILE.read_text(encoding="utf-8")).items() if k in DEFAULTS})
+            s.update({k: v for k, v in json.loads(SETTINGS_FILE.read_text(encoding="utf-8")).items()
+                      if k in DEFAULTS or (k in PATH_KEYS and isinstance(v, str))})
     except Exception:  # noqa: BLE001
         pass
     if os.environ.get("UCSIM_LLM_BACKEND") in BACKENDS:

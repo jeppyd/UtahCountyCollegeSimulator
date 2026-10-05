@@ -93,6 +93,8 @@ your words + tagged entities + the conversation
 | Symptom | Fix |
 |---|---|
 | "Claude Code isn't installed or isn't on PATH" | Install it; on Windows, open a new terminal after installing so PATH updates. |
+| Claude Code or Codex is installed somewhere PATH doesn't reach | Add `"claude_path": "C:\\path\\to\\claude.exe"` (or `"codex_path"`) to `~/.ucsim/llm.json`. |
+| "only accepted from this computer" | The What-if endpoints answer only pages opened from this machine (localhost), so other websites can't use your plan. |
 | "ended without an answer… is Claude Code signed in?" | Run `claude` once in a terminal and sign in. |
 | A note says to `pip install mcp` | Run `pip install -e .` or `pip install mcp`. Claude works without it but can't check its plan while it works. |
 | You hit a usage limit | Claude Pro has rolling 5-hour and weekly limits shared with claude.ai. Wait for the window to reset, or switch to Codex or a local model in settings. |

@@ -139,7 +139,7 @@ def test_compile_job_with_a_stand_in_model_repairs_errors(world, monkeypatch, tm
     class WS:
         base, alt, plans = world, None, {}
         lock = server.FairLock()
-    job = compiler.start(WS, lambda: EntityIndex(world), "alcohol is allowed", [], [], "new", "http://127.0.0.1:1")
+    job = compiler.start(WS, lambda mode="new": EntityIndex(world), "alcohol is allowed", [], [], "new", "http://127.0.0.1:1")
     for _ in range(200):
         if job.state in ("done", "error"):
             break
@@ -273,3 +273,40 @@ def test_whatif_endpoints_refuse_other_websites(monkeypatch):
     assert c.post("/api/whatif/llm/settings", json={}, headers={"Origin": "https://evil.example"}).status_code == 403
     assert c.post("/api/whatif/llm/settings", json={}, headers={"Origin": "http://localhost:5173"}).status_code == 200
     assert c.post("/api/whatif/llm/settings", json={}).status_code == 200
+
+
+def test_new_whatif_is_checked_against_the_original():
+    """A fresh What-if forks from the Original, so it must be validated there, not in the running What-if."""
+    saved = (server.WS.base, server.WS.alt, server.WS.divergence, server.WS.job, dict(server.WS.plans))
+    base = new_simulation(scale=0.03, seed=11)
+    base.run_days(2)
+    server.WS.base, server.WS.alt, server.WS.divergence, server.WS.job = base, None, [], {"state": "idle"}
+    server.WS._index = None
+    try:
+        c = TestClient(server.app)
+        act = base.systems["activity"]
+        cafe = int(next(v for v in range(len(act.v_type)) if str(act.v_type[v]) == "cafe"))
+        cx = _largest_complex(base)
+        first = _plan({"kind": "close", "label": "no cafes", "why": "", "target": "venue_type:cafe"},
+                      {"kind": "close", "label": "fire", "why": "", "target": f"complex:{cx}"})
+        assert c.post("/api/whatif/apply", json={"plan": first, "mode": "new"}).json()["ok"]
+        server.WS.base.step_day()
+        server.WS.alt.step_day()
+        second = _plan({"kind": "close", "label": "one cafe", "why": "", "target": f"venue:{cafe}"},
+                       {"kind": "nudge", "label": "residents", "why": "", "target": "stress", "value": 0.05,
+                        "who": {"var": "complex_id", "op": "eq", "value": cx}})
+        fresh = c.post("/api/whatif/validate", json={"plan": second, "mode": "new"}).json()
+        assert fresh["ok"] and fresh["changes"][1]["n"] > 0
+        assert not c.post("/api/whatif/validate", json={"plan": second, "mode": "add"}).json()["ok"]    # already closed there
+        # the request survives unticking a change (the trimmed plan gets a new id)
+        server.WS.plans[plan_id(validate(second, base)["plan"])] = {"plan": second, "request": "close a cafe"}
+        r = c.post("/api/whatif/apply", json={"plan": validate(second, base)["plan"], "mode": "new", "include": [True, False]}).json()
+        assert r["ok"] and server.WS.plans[r["plan_id"]]["request"] == "close a cafe"
+        # a rebound domain is not this computer
+        assert c.post("/api/whatif/validate", json={"plan": second},
+                      headers={"Origin": "http://evil.test:8000", "Host": "evil.test:8000"}).status_code == 403
+    finally:
+        server.WS.base, server.WS.alt, server.WS.divergence, server.WS.job = saved[:4]
+        server.WS.plans.clear()
+        server.WS.plans.update(saved[4])
+        server.WS._index = None

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, STATIC } from '../../api'
 import { G, useAsync } from '../../game'
 import { timeCtl, useOutside } from '../../hud'
-import { AskMsg, Mention, useStore } from '../../store'
+import { AskMsg, Mention, useStore, worldKey } from '../../store'
 
 const EXAMPLES = [
   'The Church announces that alcohol is now permitted',
@@ -58,6 +58,8 @@ async function poll(at: number, job: string) {
   } finally { polling.delete(job) }
 }
 
+const sending = new Set<number>()   // assistant messages whose compile request is still in flight (no job id yet)
+
 export function AskPanel({ onDone }: { onDone?: () => void }) {
   const { ask, setAsk, status } = useStore()
   const hasAlt = !!status.has_alt
@@ -69,22 +71,34 @@ export function AskPanel({ onDone }: { onDone?: () => void }) {
   const endRef = useRef<HTMLDivElement>(null)
   const busy = ask.msgs.some(m => m.state === 'queued' || m.state === 'running')
   // resume watching jobs that were running before a reload or a drawer close
-  useEffect(() => { for (const m of ask.msgs) if (m.job && (m.state === 'running' || m.state === 'queued')) poll(m.at, m.job) }, [])
+  useEffect(() => {
+    for (const m of ask.msgs) {
+      if (m.state !== 'running' && m.state !== 'queued') continue
+      if (m.job) poll(m.at, m.job)
+      else if (!sending.has(m.at)) useStore.getState().updateMsg(m.at, { state: 'error', error: 'Interrupted before it started. Send it again.' })
+    }
+  }, [])
+  // a different world clears the conversation (its tags would point at other people and places)
+  const wk = worldKey(status)
+  useEffect(() => { if (status?.seed != null && ask.world !== wk) setAsk({}) }, [wk])
   useEffect(() => { endRef.current?.scrollIntoView({ block: 'nearest' }) }, [ask.msgs.length, ask.msgs[ask.msgs.length - 1]?.steps?.length])
 
   const send = async (text: string) => {
     const t = text.trim()
-    if (!t || busy) return
-    const mentions = ask.mentions
+    const cur = useStore.getState().ask
+    if (!t || cur.msgs.some(m => m.state === 'queued' || m.state === 'running')) return
+    const mentions = cur.mentions
     const at = Date.now()
-    const history = ask.msgs.flatMap((m): any[] => m.role === 'user' ? [{ role: 'user', text: m.text }]
+    const history = cur.msgs.flatMap((m): any[] => m.role === 'user' ? [{ role: 'user', text: m.text }]
       : m.plan ? [{ role: 'assistant', plan: m.plan }] : m.text ? [{ role: 'assistant', text: m.text }] : [])
     setAsk(a => ({ msgs: [...a.msgs, { role: 'user', text: t, mentions, at }, { role: 'assistant', text: '', at: at + 1, state: 'queued', steps: [] }], draft: '' }))
+    sending.add(at + 1)
     try {
       const { job } = await api.whatifCompile({ text: t, mentions, history, mode })
       useStore.getState().updateMsg(at + 1, { job, state: 'running' })
       poll(at + 1, job)
     } catch (e: any) { useStore.getState().updateMsg(at + 1, { state: 'error', error: String(e?.message ?? e) }) }
+    finally { sending.delete(at + 1) }
   }
   const s: any = st.data
   const ready = s?.ready
@@ -122,7 +136,7 @@ export function AskPanel({ onDone }: { onDone?: () => void }) {
           </div>
         </div>
       )}
-      <Composer onSend={send} busy={busy} refining={ask.msgs.some(m => m.plan)} />
+      <Composer onSend={send} busy={busy} refining={ask.msgs.some(m => m.plan)} mode={mode} />
       {STATIC && <p className="small muted" style={{ margin: '0 16px 12px' }}>Describing What-ifs needs the installed app.</p>}
     </div>
   )
@@ -145,7 +159,7 @@ function ClaudeMsg({ m, mode, onDone, onRetry }: { m: AskMsg; mode: 'new' | 'add
     <div className="ask-msg claude">
       <div className="avatar-c">{G.butterfly}</div>
       <div className="bubble">
-        {(running || (m.steps?.length && !m.plan)) && <Steps m={m} running={running} />}
+        {(running || (!!m.steps?.length && !m.plan)) && <Steps m={m} running={running} />}
         {running && m.job && <button className="btn ghost small" onClick={() => api.whatifCancel(m.job!)}>Stop</button>}
         {m.error && <div className="banner">{m.error} <button className="btn small" onClick={onRetry}>Try again</button></div>}
         {m.plan && <>
@@ -187,7 +201,7 @@ function PlanCard({ m, mode, onDone }: { m: AskMsg; mode: 'new' | 'add'; onDone?
     setBusy(true); setErr('')
     try {
       if (useStore.getState().status?.job?.state === 'running') { await api.cancel(); await timeCtl.waitIdle() }
-      await api.whatifApply({ plan: p, mode: how, include })
+      await api.whatifApply({ plan: p, plan_id: m.planId, mode: how, include })
       updateMsg(m.at, { applied: how })
       await refreshStatus()
       setLens('compare')
@@ -251,21 +265,27 @@ function PlanCard({ m, mode, onDone }: { m: AskMsg; mode: 'new' | 'add'; onDone?
 }
 
 // ------------------------------------------------------------------ composer with @-mentions
-function Composer({ onSend, busy, refining }: { onSend: (t: string) => void; busy: boolean; refining: boolean }) {
+function Composer({ onSend, busy, refining, mode }: { onSend: (t: string) => void; busy: boolean; refining: boolean; mode: 'new' | 'add' }) {
   const { ask, setAsk, addMention, removeMention } = useStore()
   const ta = useRef<HTMLTextAreaElement>(null)
   const [pick, setPick] = useState<null | { start: number; q: string }>(null)   // start = index of '@' (-1: opened by button)
   const [kind, setKind] = useState('all')
-  const [hits, setHits] = useState<any[]>([])
+  const [found, setFound] = useState<{ key: string; rows: any[] }>({ key: '', rows: [] })
   const [sel, setSel] = useState(0)
   const wrap = useRef<HTMLDivElement>(null)
   useOutside(wrap, () => setPick(null))
   const kinds = useMemo(() => KIND_FILTERS.find(k => k[0] === kind)?.[2] ?? [], [kind])
+  const qkey = pick ? `${pick.q}|${kind}|${mode}` : ''
+  const current = found.key === qkey
+  const hits = current ? found.rows : []
   useEffect(() => {
     if (!pick) return
-    const t = window.setTimeout(() => api.entities(pick.q, kinds, 10).then(r => { setHits(r as any[]); setSel(0) }).catch(() => setHits([])), 140)
-    return () => window.clearTimeout(t)
-  }, [pick?.q, kind, !!pick])
+    let live = true      // a slower answer to an earlier query must not replace this one
+    const t = window.setTimeout(() => api.entities(pick.q, kinds, 10, mode)
+      .then(r => { if (live) { setFound({ key: qkey, rows: r as any[] }); setSel(0) } })
+      .catch(() => { if (live) setFound({ key: qkey, rows: [] }) }), 140)
+    return () => { live = false; window.clearTimeout(t) }
+  }, [qkey])
   const onChange = (v: string) => {
     setAsk({ draft: v })
     const caret = ta.current?.selectionStart ?? v.length
@@ -279,17 +299,22 @@ function Composer({ onSend, busy, refining }: { onSend: (t: string) => void; bus
     addMention(m)
     if (pick && pick.start >= 0) {
       const v = ask.draft
-      const caret = ta.current?.selectionStart ?? v.length
-      setAsk({ draft: v.slice(0, pick.start) + r.label + ' ' + v.slice(caret) })
+      setAsk({ draft: v.slice(0, pick.start) + r.label + ' ' + v.slice(pick.start + 1 + pick.q.length) })
     }
     setPick(null)
     window.setTimeout(() => ta.current?.focus(), 0)
   }
   const onKey = (e: React.KeyboardEvent) => {
-    if (pick && hits.length) {
-      if (e.key === 'ArrowDown') { e.preventDefault(); setSel((sel + 1) % hits.length); return }
-      if (e.key === 'ArrowUp') { e.preventDefault(); setSel((sel - 1 + hits.length) % hits.length); return }
-      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); choose(hits[sel]); return }
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return       // the IME is still composing a word
+    if (pick) {
+      if (hits.length && e.key === 'ArrowDown') { e.preventDefault(); setSel((sel + 1) % hits.length); return }
+      if (hits.length && e.key === 'ArrowUp') { e.preventDefault(); setSel((sel - 1 + hits.length) % hits.length); return }
+      if (e.key === 'Enter' || e.key === 'Tab') {      // picks a result for what's typed now; never sends while the picker is open
+        e.preventDefault()
+        if (hits[sel]) choose(hits[sel])
+        else if (e.key === 'Enter') setPick(null)
+        return
+      }
     }
     if (e.key === 'Escape' && pick) { e.preventDefault(); e.stopPropagation(); setPick(null); return }
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend(ask.draft) }
@@ -315,7 +340,7 @@ function Composer({ onSend, busy, refining }: { onSend: (t: string) => void; bus
             <div className="seg small-seg">{KIND_FILTERS.map(([k, l]) => <button key={k} className={kind === k ? 'on' : ''} onMouseDown={e => e.preventDefault()} onClick={() => setKind(k)}>{l}</button>)}</div>
           </div>
           <div className="ask-hits">
-            {hits.length === 0 && <div className="small muted" style={{ padding: 8 }}>{pick.q ? 'Nothing matches yet.' : 'Start typing a name.'}</div>}
+            {hits.length === 0 && <div className="small muted" style={{ padding: 8 }}>{!current ? 'Searching…' : pick.q ? 'Nothing matches yet.' : 'Start typing a name.'}</div>}
             {hits.map((r, i) => (
               <button key={r.ref} className={`pal-item ${i === sel ? 'on' : ''}`} onMouseDown={e => e.preventDefault()} onClick={() => choose(r)} onMouseEnter={() => setSel(i)}>
                 <span className="pal-icon">{G[KIND_ICON[r.kind] ?? 'link']}</span>

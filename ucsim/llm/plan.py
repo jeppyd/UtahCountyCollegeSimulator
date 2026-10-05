@@ -455,11 +455,14 @@ def validate(plan: dict, sim, index=None) -> dict:
         ee = {"text": str(e["text"])[:200], "direction": e.get("direction") if e.get("direction") in ("up", "down", "unclear") else "unclear"}
         v = e.get("variable")
         if isinstance(v, str) and v in P.specs and P.specs[v].dtype in ("f4", "f8", "u1", "i2", "bool"):
-            ee["variable"] = v
             wp = Problems()
             w = check_filter(e.get("who"), sim, wp, "expectation.who")
-            if w is not None and not wp.errors:
-                ee["who"] = w
+            if wp.errors:          # not graded, rather than graded against everyone
+                prob.warnings.append(f"prediction “{ee['text'][:60]}” won't be checked: " + "; ".join(wp.errors[:2]))
+            else:
+                ee["variable"] = v
+                if w is not None:
+                    ee["who"] = w
         out["expectations"].append(ee)
     if not out["changes"] and not prob.errors:
         prob.errors.append("the plan has no changes")

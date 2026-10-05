@@ -224,16 +224,21 @@ def build_prompt(ws, index, text: str, mentions: list[dict], history: list[dict]
 
 
 # ---------------------------------------------------------------------- tools (shared by MCP and the local tool loop)
-def run_tool(ws, index, name: str, args: dict) -> dict:
+def target_world(ws, mode: str):
+    """The world a plan is checked against: the Original for a new What-if, the running What-if when adding to it."""
+    return ws.alt if mode == "add" and ws.alt is not None else ws.base
+
+
+def run_tool(ws, index, name: str, args: dict, mode: str = "new") -> dict:
     """Read-only tools; any failure comes back as {"error": …} for the model to see, never as a crash."""
     try:
-        return _tool(ws, index, name, args if isinstance(args, dict) else {})
+        return _tool(ws, index, name, args if isinstance(args, dict) else {}, mode)
     except Exception as e:  # noqa: BLE001
         return {"error": f"{type(e).__name__}: {e}"}
 
 
-def _tool(ws, index, name: str, args: dict) -> dict:
-    sim = ws.alt or ws.base
+def _tool(ws, index, name: str, args: dict, mode: str) -> dict:
+    sim = target_world(ws, mode)
     if name == "search_entities":
         lim = args.get("limit", 8)
         lim = int(min(max(lim, 1), 25)) if isinstance(lim, (int, float)) and not isinstance(lim, bool) else 8
@@ -306,19 +311,22 @@ def _run(job: Job, ws, index_fn, server_url: str):
     s = load_settings()
     job.backend = s["backend"]
     job.state = "running"
+
+    def check(plan):
+        # against the world the plan will run in, as it is now (the world can be rebuilt or re-split while the model thinks)
+        with ws.lock:
+            return validate(plan, target_world(ws, job.mode), index_fn(job.mode))
     try:
         with ws.lock:
-            index = index_fn()
-            prompt = build_prompt(ws, index, job.text, job.mentions, job.history, job.mode)
+            prompt = build_prompt(ws, index_fn(job.mode), job.text, job.mentions, job.history, job.mode)
         pack = pack_dir()
         job.step("start", {"claude": "Sending your idea to Claude (your subscription)", "codex": "Sending your idea to Codex (your ChatGPT plan)",
                            "openai": "Sending your idea to your local model"}[s["backend"]])
-        res = _ask(job, ws, index, s, pack, prompt, server_url)
+        res = _ask(job, ws, index_fn, s, pack, prompt, server_url)
         attempts = 1
         best, best_err = None, None          # keep the most usable plan seen, in case a repair attempt fails
         while res.get("plan") is not None and attempts < 3:
-            with ws.lock:
-                v = validate(res["plan"], ws.alt or ws.base, index)
+            v = check(res["plan"])
             if best is None or len(v["errors"]) < best_err:
                 best, best_err = res, len(v["errors"])
             if v["ok"]:
@@ -328,28 +336,25 @@ def _run(job: Job, ws, index_fn, server_url: str):
             job.step("fix", f"The plan had {len(v['errors'])} problem{'s' if len(v['errors']) != 1 else ''} — asking for a fix")
             fix = (prompt + "\n\n## Your previous answer had problems\n```json\n" + json.dumps(res["plan"])[:12000] + "\n```\nErrors:\n"
                    + "\n".join(f"- {e}" for e in v["errors"]) + "\nReturn the complete corrected plan.")
-            res = _ask(job, ws, index, s, pack, fix, server_url)
+            res = _ask(job, ws, index_fn, s, pack, fix, server_url)
             attempts += 1
             if res.get("plan") is None and best is not None:
                 job.step("note", f"The fix attempt failed ({res.get('error') or 'no answer'}); showing the best plan so far")
                 res = best
                 break
             if res.get("plan") is not None and attempts >= 3:
-                with ws.lock:
-                    v2 = validate(res["plan"], ws.alt or ws.base, index)
-                if len(v2["errors"]) > best_err:
+                if len(check(res["plan"])["errors"]) > best_err:
                     res = best
         if res.get("plan") is None:
             job.error = res.get("error") or "no plan came back"
             job.state = "error" if job.error != "cancelled" else "cancelled"
             return
-        with ws.lock:
-            v = validate(res["plan"], ws.alt or ws.base, index)
+        v = check(res["plan"])
         from .plan import plan_id
         pid = plan_id(v["plan"])
         job.result = {"plan_id": pid, "plan": v["plan"], "receipt": v["changes"], "errors": v["errors"], "warnings": v["warnings"],
                       "ok": v["ok"], "notes": res.get("text", ""), "meta": res.get("meta", {}), "request": job.text}
-        ws.plans[pid] = {"plan": v["plan"], "receipt": v["changes"], "request": job.text, "created": time.time(), "mentions": job.mentions}
+        ws.plans[pid] = {**ws.plans.get(pid, {}), "plan": v["plan"], "receipt": v["changes"], "request": job.text, "created": time.time(), "mentions": job.mentions}
         job.step("done", "Plan ready" if v["ok"] else "Plan ready, with problems to look at")
         job.state = "done"
     except backends.Cancelled:
@@ -361,7 +366,7 @@ def _run(job: Job, ws, index_fn, server_url: str):
         job.finished = time.time()
 
 
-def _ask(job: Job, ws, index, s: dict, pack: Path, prompt: str, server_url: str) -> dict:
+def _ask(job: Job, ws, index_fn, s: dict, pack: Path, prompt: str, server_url: str) -> dict:
     if s["backend"] == "claude":
         mcp_cfg = None
         # the desktop build has no separate Python to run the tool server; Claude then works from the catalog alone
@@ -384,5 +389,5 @@ def _ask(job: Job, ws, index, s: dict, pack: Path, prompt: str, server_url: str)
 
     def tool_fn(name, args):
         with ws.lock:
-            return run_tool(ws, index, name, args)
+            return run_tool(ws, index_fn(job.mode), name, args, job.mode)
     return backends.run_openai(compact_system(job.text), prompt, strict_schema(), s, job.step, job.cancel, tool_fn)

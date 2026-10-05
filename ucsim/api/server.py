@@ -132,7 +132,6 @@ class Workspace:
         self.fork_id = 0      # bumped whenever the What-if world is replaced (cache tags must never match across experiments)
         self.plans: dict[str, dict] = {}   # compiled What-if plans by id (natural-language What-ifs)
         self._index = None
-        self._index_tag = None
         self.registry = get_registry()
 
     def sim(self, u: str):
@@ -174,6 +173,7 @@ class Workspace:
             with self.lock:
                 self.base, self.alt, self.divergence, self.compare_cache = sim, None, [], None
                 self.world_id += 1
+                self._index = None
             self.finish_job("build", "done")
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
@@ -401,6 +401,7 @@ def fork(body: dict = Body(...)):
     with WS.lock:
         WS.alt = runner.fork(WS.base, body.get("interventions", []))
         WS.fork_id += 1
+        WS._index = None
         WS.divergence = [runner.divergence(WS.base, WS.alt)]
         WS.compare_cache = None
     return {"ok": True, "fork_day": WS.base.w.day}
@@ -411,6 +412,7 @@ def unfork():
     with WS.lock:
         WS.alt = None
         WS.fork_id += 1
+        WS._index = None
         WS.divergence = []
         WS.compare_cache = None
     return {"ok": True}
@@ -925,15 +927,23 @@ def fork_add(body: dict = Body(...)):
 
 
 # ----------------------------------------------------------------------------- natural-language What-ifs (LLM)
-def _entity_index():
-    """Entity index over the Original world (ids are shared with the What-if), rebuilt daily or when worlds change.
-    Call with WS.lock held."""
+def _target(mode: str = "new"):
+    from ..llm.compiler import target_world
+    return target_world(WS, mode)
+
+
+def _entity_index(mode: str = "new"):
+    """Entity index over the world a plan will run in (the Original for a new What-if, the What-if when adding to it),
+    rebuilt daily or when worlds change. Call with WS.lock held."""
     from ..llm.entities import EntityIndex
-    tag = (WS.world_id, WS.fork_id, WS.base.w.day)
-    if WS._index is None or WS._index_tag != tag:
-        WS._index = EntityIndex(WS.alt or WS.base)
-        WS._index_tag = tag
-    return WS._index
+    sim = _target(mode)
+    which = "alt" if sim is WS.alt else "base"
+    tag = (WS.world_id, WS.fork_id, sim.w.day)
+    cache = {k: v for k, v in (WS._index or {}).items() if v[0][:2] == tag[:2]}     # forget replaced worlds
+    if cache.get(which, (None,))[0] != tag:
+        cache[which] = (tag, EntityIndex(sim))
+    WS._index = cache
+    return cache[which][1]
 
 
 def _local_only(request: Request):
@@ -945,8 +955,18 @@ def _local_only(request: Request):
     from urllib.parse import urlsplit
     host = (urlsplit(origin).hostname or "").lower()
     own = (request.headers.get("host") or "").rsplit(":", 1)[0].strip("[]").lower()
-    if host not in ("localhost", "127.0.0.1", "::1") and host != own:
-        raise HTTPException(403, "What-if requests are only accepted from this computer")
+    if host in ("localhost", "127.0.0.1", "::1") or (host == own and _is_ip(host)):     # a domain could be rebound
+        return
+    raise HTTPException(403, "What-if requests are only accepted from this computer")
+
+
+def _is_ip(host: str) -> bool:
+    import ipaddress
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        return False
 
 
 def _server_url(request: Request) -> str:
@@ -955,21 +975,21 @@ def _server_url(request: Request) -> str:
 
 
 @app.get("/api/entities/search")
-def entities_search(q: str = "", kinds: str = "", limit: int = 12):
+def entities_search(q: str = "", kinds: str = "", limit: int = 12, mode: str = "new"):
     """Everything a What-if can point at: people, places, groups and model concepts, with exact refs and filters."""
     if WS.base is None:
         raise HTTPException(404, "no world")
     with WS.lock:
-        ix = _entity_index()
+        ix = _entity_index(mode)
         return jresp(ix.search(q, [k for k in kinds.split(",") if k] or None, limit=max(1, min(limit, 40))))
 
 
 @app.get("/api/entities/get")
-def entities_get(ref: str):
+def entities_get(ref: str, mode: str = "new"):
     if WS.base is None:
         raise HTTPException(404, "no world")
     with WS.lock:
-        r = _entity_index().get(ref)
+        r = _entity_index(mode).get(ref)
     if r is None:
         raise HTTPException(404, f"no entity {ref}")
     return jresp(r)
@@ -1029,9 +1049,10 @@ def whatif_tool(name: str, request: Request, body: dict = Body(default={})):
     from ..llm import compiler
     if WS.base is None:
         raise HTTPException(409, "no world")
-    with WS.lock:
-        res = compiler.run_tool(WS, _entity_index(), name, body)
     job = compiler.JOBS.get(request.headers.get("x-ucsim-job", ""))
+    mode = job.mode if job is not None else "new"
+    with WS.lock:
+        res = compiler.run_tool(WS, _entity_index(mode), name, body, mode)
     if job is not None:
         if name == "search_entities" and res.get("results"):
             top = res["results"][0]
@@ -1051,7 +1072,8 @@ def whatif_validate(request: Request, body: dict = Body(...)):
     if WS.base is None:
         raise HTTPException(409, "no world")
     with WS.lock:
-        v = validate(body.get("plan") or {}, WS.alt or WS.base, _entity_index())
+        mode = "add" if body.get("mode") == "add" else "new"
+        v = validate(body.get("plan") or {}, _target(mode), _entity_index(mode))
     v["plan_id"] = plan_id(v["plan"])
     return jresp(v)
 
@@ -1068,12 +1090,15 @@ def whatif_apply(request: Request, body: dict = Body(...)):
     plan = body.get("plan") or (WS.plans.get(body.get("plan_id", "")) or {}).get("plan")
     if not plan:
         raise HTTPException(400, "no plan")
+    if not isinstance(plan, dict):
+        raise HTTPException(400, "the plan must be an object")
+    src = WS.plans.get(body.get("plan_id") or "") or WS.plans.get(plan_id(plan)) or {}     # the request it came from
     include = body.get("include")
-    if isinstance(include, list) and len(include) == len(plan.get("changes", [])):
+    if isinstance(include, list) and len(include) == len(plan.get("changes") or []):
         plan = {**plan, "changes": [c for c, keep in zip(plan["changes"], include) if keep]}
-    mode = "add" if body.get("mode") == "add" and WS.alt is not None else "new"
     with WS.lock:
-        v = validate(plan, WS.alt or WS.base, _entity_index())
+        mode = "add" if body.get("mode") == "add" and WS.alt is not None else "new"
+        v = validate(plan, _target(mode), _entity_index(mode))
         if not v["ok"]:
             raise HTTPException(409, "the plan still has problems: " + "; ".join(v["errors"][:4]))
         pid = plan_id(v["plan"])
@@ -1083,6 +1108,7 @@ def whatif_apply(request: Request, body: dict = Body(...)):
         if mode == "new":
             WS.alt = runner.fork(WS.base, atoms)
             WS.fork_id += 1
+            WS._index = None
             WS.divergence = [runner.divergence(WS.base, WS.alt)]
         else:
             alt = WS.alt
@@ -1092,7 +1118,7 @@ def whatif_apply(request: Request, body: dict = Body(...)):
                 man.add(a)
                 alt.interventions.append(a)
         WS.compare_cache = None
-        WS.plans[pid] = {**WS.plans.get(pid, {}), "plan": v["plan"], "receipt": v["changes"], "applied": True,
+        WS.plans[pid] = {**{k: src[k] for k in ("request", "mentions", "created") if k in src}, **WS.plans.get(pid, {}), "plan": v["plan"], "receipt": v["changes"], "applied": True,
                          "applied_day": today, "mode": mode, "atoms": [a["id"] for a in atoms]}
     return jresp({"ok": True, "plan_id": pid, "mode": mode, "changes": len(atoms), "fork_day": WS.alt.meta_fork_day if WS.alt is not None else None})
 
@@ -1101,11 +1127,11 @@ def whatif_apply(request: Request, body: dict = Body(...)):
 def whatif_plans():
     """Plans applied to the running What-if: their changes, who they reached, practice adoption curves, and how the
     LLM's predictions are holding up against the simulation."""
-    if WS.alt is None:
-        return jresp([])
     from ..analysis.query import evaluate_filter
     with WS.lock:
         alt, base = WS.alt, WS.base
+        if alt is None:
+            return jresp([])
         live = {a.get("plan") for a in alt.interventions if a.get("plan")}
         report = {r["k"]: r for r in alt.whatif.report()}
         items = alt.whatif.items

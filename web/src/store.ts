@@ -35,7 +35,7 @@ export type AskMsg = {
   plan?: any; receipt?: any[]; errors?: string[]; warnings?: string[]; ok?: boolean; planId?: string; include?: boolean[]
   applied?: 'new' | 'add'; error?: string
 }
-export type Ask = { msgs: AskMsg[]; draft: string; mentions: Mention[] }
+export type Ask = { msgs: AskMsg[]; draft: string; mentions: Mention[]; world?: string }   // world: refs are ids in one generated world
 export type Toast = { id: number; kind: 'event' | 'world' | 'info' | 'recap'; title: string; body?: string; category?: string; route?: string[]; ttl?: number }
 
 function load<T>(key: string, fallback: T): T {
@@ -192,7 +192,11 @@ export const useStore = create<State>((set, get) => ({
   setNews: (v) => { save('ucsim-news', v); set({ news: v }) },
   // the What-if conversation survives drawer closes, page changes and reloads (kept short)
   setAsk: (a) => {
-    const next = { ...get().ask, ...(typeof a === 'function' ? a(get().ask) : a) }
+    // tags and plans point at ids in one generated world: a different world starts a fresh conversation
+    const st = get().status, key = worldKey(st)
+    let cur = get().ask
+    if (st?.seed != null && cur.world !== key) cur = cur.world == null ? { ...cur, world: key } : { msgs: [], draft: cur.draft, mentions: [], world: key }
+    const next = { ...cur, ...(typeof a === 'function' ? a(cur) : a) }
     next.msgs = next.msgs.slice(-40)
     set({ ask: next }); save('ucsim-ask-v1', next)
   },

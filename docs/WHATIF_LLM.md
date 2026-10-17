@@ -31,7 +31,7 @@ In settings you can pick the model:
 1. Install Node.js (the LTS download from nodejs.org).
 2. In a new PowerShell window: `npm install -g @openai/codex`
 3. `codex login` → *Sign in with ChatGPT*.
-4. Pick *ChatGPT (Plus)* in the tab's settings and press **Check again**.
+4. Pick *ChatGPT (Plus)* in the tab's settings and press **Check again**. Choose the **model** and **reasoning** level from the dropdowns (they list what your Codex offers); more reasoning is more careful but slower and uses more of your plan.
 
 Codex gets the same lookup tools as Claude, for each run only; nothing is added to your Codex settings.
 
@@ -40,7 +40,7 @@ Codex gets the same lookup tools as Claude, for each run only; nothing is added 
 1. Install LM Studio (lmstudio.ai).
 2. In its Discover tab, download a model: about 12–14B parameters for an 8–12 GB graphics card, 27–32B for 24 GB. Models under 8B often produce plans that fail the checks.
 3. In the Developer tab, load the model with **Context Length** set to 16,384 or more (32,768 is comfortable; the simulator's instructions alone are about 12,500 tokens, and LM Studio often defaults to 4,096), and switch on **Start server** (`http://localhost:1234`).
-4. Pick *Local model* in the tab's settings and keep the address. The **Model** dropdown lists what LM Studio has (loaded models first; others load on first use). Pick one and Save. The panel warns if the model's context window is too small.
+4. Pick *Local model* in the tab's settings and keep the address. The **Model** dropdown lists every model LM Studio has downloaded. Pick one and press **Load**: the simulator loads it into LM Studio with a 32k context window (unloading other models first, unless you untick that) and saves it as your model. This needs LM Studio 0.4 or newer; with an older one, load the model in LM Studio's Developer tab. The panel warns, with a one-click fix, if a loaded model's context window is too small.
 
 Ollama works too, at `http://localhost:11434/v1`; set `OLLAMA_CONTEXT_LENGTH=32768` before starting it.
 

@@ -1020,6 +1020,25 @@ def llm_models(request: Request, url: str = ""):
     return jresp({"url": url, "models": backends.local_models(url)})
 
 
+@app.post("/api/whatif/llm/load")
+def llm_load(request: Request, body: dict = Body(...)):
+    """Load a model into LM Studio with a big enough context window: {url?, model, context_length?, unload_others?}.
+    Blocks until LM Studio has loaded it (seconds to a few minutes for big models)."""
+    _local_only(request)
+    import re
+    from ..llm import backends, compiler
+    s = compiler.load_settings()
+    url = str(body.get("url") or s["openai_url"])
+    if not re.match(r"^https?://[\w.\-\[\]:]+(/[\w./-]*)?$", url):
+        raise HTTPException(400, "not a server address")
+    model = str(body.get("model") or "")
+    if not model or len(model) > 200:
+        raise HTTPException(400, "pick a model")
+    ctx = body.get("context_length") or 32768
+    ctx = int(min(max(int(ctx) if isinstance(ctx, (int, float)) else 32768, 8192), 262144))
+    return jresp(backends.load_local_model(url, model, ctx, bool(body.get("unload_others", True)), s.get("openai_key") or ""))
+
+
 @app.post("/api/whatif/compile")
 def whatif_compile(request: Request, body: dict = Body(...)):
     """Start turning a plain-language What-if into a plan: {text, mentions: [{ref,...}], history: [...], mode: new|add}."""

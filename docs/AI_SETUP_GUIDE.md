@@ -63,6 +63,7 @@ Follow this guide literally. It describes this exact app; don't substitute gener
   | `claude_model` | `""` (Claude Code's default), `"sonnet"`, `"opus"`, `"haiku"` | `""` |
   | `claude_effort` | `""`, `"low"`, `"medium"`, `"high"` | `""` |
   | `codex_model` | `""` or a Codex model name | `""` |
+  | `codex_effort` | `""` (the model's default), `"minimal"`, `"low"`, `"medium"`, `"high"`, `"xhigh"`, `"max"` (what each model supports: `codex debug models`) | `""` |
   | `openai_url` | local server base URL **ending in `/v1`** | `"http://localhost:1234/v1"` |
   | `openai_model` | `""` (first loaded model) or a model id exactly as the server lists it | `""` |
   | `use_tools` | `true` / `false` | `true` |
@@ -79,6 +80,7 @@ Follow this guide literally. It describes this exact app; don't substitute gener
   - `GET  {app}/api/whatif/llm/status?refresh=1`: what the app sees right now (see [Verify](#verify)).
   - `POST {app}/api/whatif/llm/settings` with a JSON body of the keys to change; it returns the saved settings.
   - `GET  {app}/api/whatif/llm/models?url=<openai_url>`: the models a local server offers.
+  - `POST {app}/api/whatif/llm/load` with `{"model": "<id>", "context_length": 32768}`: has LM Studio (0.4+) load that model with that context window, unloading other models first (`"unload_others": false` to keep them). It blocks until the model is loaded.
 
   These answer only requests from the same computer. Plain `curl` or PowerShell works; a web page on another
   site won't.
@@ -148,7 +150,7 @@ written to the person's `~/.codex/config.toml`.
    - or from the terminal: `lms get <model-name>`.
 
    Then `lms ls` lists what's on disk.
-3. **Load it with a big enough context window.** The simulator's instructions are about 12,500 tokens, and LM
+3. **Load it with a big enough context window.** Easiest: in the simulator's ⚙ panel, pick the model and press **Load** (or call `POST {app}/api/whatif/llm/load`); it uses 32k. By hand: The simulator's instructions are about 12,500 tokens, and LM
    Studio often loads models with only 4,096. Load with **16,384 or more; 32,768 is comfortable**:
    - terminal: `lms load <model-name> --context-length 32768` (add `--gpu max` to use the graphics card fully);
    - app: **Developer** tab → load the model → open its settings → **Context Length**.

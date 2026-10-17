@@ -369,6 +369,8 @@ function Found({ ok, yes, no, note }: { ok: boolean; yes: React.ReactNode; no: R
   return <p className={`small ask-found ${ok ? 'ok' : 'warn'}`}>{ok ? '✓ ' : '✕ '}{ok ? yes : no}{!ok && note ? <><br />{note}</> : null}</p>
 }
 
+const EFFORT_LABEL: Record<string, string> = { minimal: 'minimal', low: 'low', medium: 'medium', high: 'high', xhigh: 'extra high', max: 'maximum' }
+
 function Setup({ s, onSaved, onCheck, checking }: { s: any; onSaved: () => void; onCheck: () => void; checking: boolean }) {
   const [form, setForm] = useState<any>(s?.settings ?? {})
   const [saving, setSaving] = useState(false)
@@ -381,10 +383,30 @@ function Setup({ s, onSaved, onCheck, checking }: { s: any; onSaved: () => void;
   const check = <button className="btn small" disabled={checking} onClick={onCheck}>{checking ? 'Checking…' : 'Check again'}</button>
   const tools = <label className="inline" title="Search the live world, count people and check its draft while it works. Every plan is checked again before it runs either way.">
     <input type="checkbox" checked={form.use_tools ?? true} onChange={e => set('use_tools', e.target.checked)} />let it look things up and check its plan{s && !s.mcp ? ' (needs: pip install mcp)' : ''}</label>
+  // Codex: its own model catalog, with each model's reasoning levels
+  const cxModels: any[] = s?.codex_models ?? []
+  const cxModel = cxModels.find((m: any) => m.slug === form.codex_model) ?? cxModels[0]
+  const cxEfforts: string[] = (form.codex_model ? cxModel?.efforts : [...new Set(cxModels.flatMap((m: any) => m.efforts))]) ?? ['low', 'medium', 'high']
+  // local server: load a model with a big enough window, from here
+  const [ctx, setCtx] = useState(32768)
+  const [unloadOthers, setUnloadOthers] = useState(true)
+  const [loading, setLoading] = useState<{ busy: boolean; msg: string; ok?: boolean }>({ busy: false, msg: '' })
+  const loadModel = async (model: string, context: number) => {
+    setLoading({ busy: true, msg: `Loading ${model} in LM Studio… big models can take a minute or two.` })
+    try {
+      const r: any = await api.llmLoad({ url: form.openai_url, model, context_length: context, unload_others: unloadOthers })
+      if (!r.ok) { setLoading({ busy: false, msg: r.error, ok: false }); return }
+      const next = { ...form, backend: 'openai', openai_model: model }
+      setForm(next)
+      await api.llmSettings(next)
+      setLoading({ busy: false, msg: `✓ Loaded ${model}${r.seconds ? ` in ${Math.round(r.seconds)} s` : ''} with a ${(r.context ?? context).toLocaleString()}-token window, and saved it as your model.`, ok: true })
+      setLocalVer(v => v + 1)
+    } catch (e: any) { setLoading({ busy: false, msg: String(e?.message ?? e), ok: false }) }
+  }
   // local server: the models it offers, fetched live (debounced while the address is typed)
   const [localVer, setLocalVer] = useState(0)
   const [custom, setCustom] = useState(false)
-  const [local, setLocal] = useState<{ loading: boolean; models: { id: string; loaded: boolean | null; context?: number | null }[] }>({ loading: false, models: [] })
+  const [local, setLocal] = useState<{ loading: boolean; models: { id: string; loaded: boolean | null; context?: number | null; max_context?: number | null; name?: string; params?: string; size_gb?: number }[] }>({ loading: false, models: [] })
   useEffect(() => {
     if (b !== 'openai' || !form.openai_url) return
     let live = true
@@ -443,8 +465,24 @@ function Setup({ s, onSaved, onCheck, checking }: { s: any; onSaved: () => void;
           <li>Sign in: <Cmd c="codex login" /> and choose <b>Sign in with ChatGPT</b>.</li>
           <li>Come back here and press {check}</li>
         </ol>
-        <div className="row small"><span>Model (optional)</span><input type="text" value={form.codex_model ?? ''} onChange={e => set('codex_model', e.target.value)} placeholder="Codex default" />
+        <div className="row small"><span>Model</span>
+          {cxModels.length
+            ? <select value={form.codex_model ?? ''} onChange={e => {
+                const m = cxModels.find((x: any) => x.slug === e.target.value)
+                setForm({ ...form, codex_model: e.target.value, codex_effort: m && form.codex_effort && !m.efforts.includes(form.codex_effort) ? '' : form.codex_effort })
+              }}>
+                <option value="">Codex default</option>
+                {cxModels.map((m: any) => <option key={m.slug} value={m.slug}>{m.name}</option>)}
+                {form.codex_model && !cxModels.some((m: any) => m.slug === form.codex_model) && <option value={form.codex_model}>{form.codex_model}</option>}
+              </select>
+            : <input type="text" value={form.codex_model ?? ''} onChange={e => set('codex_model', e.target.value)} placeholder="Codex default" />}
+          <span>Reasoning</span>
+          <select value={form.codex_effort ?? ''} onChange={e => set('codex_effort', e.target.value)}>
+            <option value="">{cxModel?.default_effort ? `default (${EFFORT_LABEL[cxModel.default_effort] ?? cxModel.default_effort})` : 'default'}</option>
+            {cxEfforts.map(e => <option key={e} value={e}>{EFFORT_LABEL[e] ?? e}</option>)}
+          </select>
           {tools}</div>
+        <p className="small muted" style={{ margin: '4px 0 0' }}>More reasoning gives more careful plans but takes longer and uses more of your ChatGPT plan's limits.</p>
       </>}
 
       {b === 'openai' && <>
@@ -453,8 +491,8 @@ function Setup({ s, onSaved, onCheck, checking }: { s: any; onSaved: () => void;
         <ol className="small ask-steps-setup">
           <li>Install <b>LM Studio</b> from <a href="https://lmstudio.ai" target="_blank" rel="noreferrer">lmstudio.ai</a>.</li>
           <li>In its <b>Discover</b> tab, download a model. Bigger follows the catalog better: about 12–14B parameters for a graphics card with 8–12 GB, about 27–32B for 24 GB. Small models (under 8B) often produce plans that fail the checks.</li>
-          <li>Open the <b>Developer</b> tab, load the model, and switch <b>Start server</b> on (it should say it's running at <code>http://localhost:1234</code>).</li>
-          <li>Leave the address below as it is, pick the model from the list (press <b>Refresh</b> if it isn't there yet), and press Save.</li>
+          <li>In its <b>Developer</b> tab, switch <b>Start server</b> on (it should say it's running at <code>http://localhost:1234</code>). You don't need to load a model there.</li>
+          <li>Leave the address below as it is, pick a model from the list (press <b>Refresh</b> if it isn't there yet), and press <b>Load</b>. The simulator loads it with a big enough context window and saves it as your choice.</li>
         </ol>
         <p className="small muted">Ollama works too: run <code>ollama pull</code> with a model name, and set the server to <code>http://localhost:11434/v1</code>.</p>
         <div className="row small"><span>Server</span><input type="text" value={form.openai_url ?? ''} onChange={e => set('openai_url', e.target.value)} style={{ width: 220 }} />
@@ -462,17 +500,31 @@ function Setup({ s, onSaved, onCheck, checking }: { s: any; onSaved: () => void;
           {local.models.length > 0 && !custom
             ? <select value={form.openai_model ?? ''} onChange={e => e.target.value === '__other' ? setCustom(true) : set('openai_model', e.target.value)} style={{ maxWidth: 280 }}>
                 <option value="">Automatic (the first loaded model)</option>
-                {local.models.map(m => <option key={m.id} value={m.id}>{m.id}{m.loaded === true ? ' · loaded' : m.loaded === false ? ' · loads on first use' : ''}</option>)}
+                {local.models.map(m => <option key={m.id} value={m.id}>{m.name ?? m.id}{m.params ? ` · ${m.params}` : ''}{m.size_gb ? ` · ${m.size_gb} GB` : ''}{m.loaded === true ? ` · loaded${m.context ? ` (${Math.round(m.context / 1024)}k)` : ''}` : ''}</option>)}
                 {form.openai_model && !local.models.some(m => m.id === form.openai_model) && <option value={form.openai_model}>{form.openai_model} (not on the server)</option>}
                 <option value="__other">Type a name…</option>
               </select>
             : <input type="text" value={form.openai_model ?? ''} onChange={e => set('openai_model', e.target.value)} placeholder="model name, or empty for the first loaded one" />}
           <button className="btn ghost small" disabled={local.loading} onClick={() => { setCustom(false); setLocalVer(v => v + 1) }}>{local.loading ? 'Looking…' : 'Refresh'}</button></div>
+        {local.models.some(m => m.loaded !== null) && (() => {
+          const target = local.models.find(m => m.id === form.openai_model) ?? local.models[0]
+          const ready = target?.loaded && (target.context ?? 0) >= 16384
+          const sizes = [16384, 32768, 65536].filter(c => !target?.max_context || c <= target.max_context)
+          return <div className="row small ask-load">
+            <button className={`btn small ${ready ? '' : 'primary'}`} disabled={!target || loading.busy} onClick={() => loadModel(target!.id, ctx)}>
+              {loading.busy ? 'Loading…' : ready ? 'Reload' : 'Load'} {target?.name ?? target?.id}</button>
+            <span>with a</span>
+            <select value={ctx} onChange={e => setCtx(+e.target.value)}>{sizes.map(c => <option key={c} value={c}>{c / 1024}k-token</option>)}</select>
+            <span>context window</span>
+            <label className="inline"><input type="checkbox" checked={unloadOthers} onChange={e => setUnloadOthers(e.target.checked)} />unload other models first</label>
+          </div>
+        })()}
+        {loading.msg && <p className={`small ${loading.ok === false ? 'pc-warn' : 'muted'}`} style={{ margin: '2px 0' }}>{loading.msg}</p>}
         <div className="row small">{tools}<span className="muted">(turn it off if your model handles tools badly)</span></div>
         {(() => {   // LM Studio often loads models with a 4,096-token window; the guide and catalog alone are ~12k tokens
           const m = local.models.find(x => x.id === form.openai_model) ?? local.models.find(x => x.loaded)
           return m?.context && m.context < 16384
-            ? <p className="small pc-warn">⚠ {m.id} is loaded with a {m.context.toLocaleString()}-token context window, too small for the simulator's instructions (about 12,500 tokens). In LM Studio, eject the model and load it again with <b>Context Length</b> set to 16,384 or more (32,768 is comfortable), or run <code>lms load {m.id} --context-length 32768</code>.</p>
+            ? <p className="small pc-warn">⚠ {m.id} is loaded with a {m.context.toLocaleString()}-token context window, too small for the simulator's instructions (about 12,500 tokens). <button className="btn small" disabled={loading.busy} onClick={() => loadModel(m.id, 32768)}>Reload it with 32k</button></p>
             : null
         })()}
       </>}

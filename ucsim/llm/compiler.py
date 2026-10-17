@@ -25,7 +25,7 @@ from .plan import PLAN_SCHEMA, check_filter, count_who, strict_schema, validate,
 GUIDE = Path(__file__).with_name("prompts") / "guide.md"
 HOME = Path(os.environ.get("UCSIM_HOME", Path.home() / ".ucsim"))
 SETTINGS_FILE = HOME / "llm.json"
-DEFAULTS = {"backend": "claude", "claude_model": "", "claude_effort": "", "codex_model": "",
+DEFAULTS = {"backend": "claude", "claude_model": "", "claude_effort": "", "codex_model": "", "codex_effort": "",
             "openai_url": "http://localhost:1234/v1", "openai_model": "", "openai_key": "lm-studio",
             "use_subscription": True, "use_tools": True, "max_turns": 40, "timeout": 600}
 BACKENDS = ("claude", "codex", "openai")
@@ -66,6 +66,8 @@ def save_settings(new: dict) -> dict:
             s[k] = ""
     if s["claude_effort"] not in ("", *backends.EFFORTS):
         s["claude_effort"] = ""
+    if s["codex_effort"] not in ("", *backends.CODEX_EFFORTS):
+        s["codex_effort"] = ""
     if not re.match(r"^https?://[\w.\-\[\]:]+(/[\w./-]*)?$", s["openai_url"]):
         s["openai_url"] = DEFAULTS["openai_url"]
     s["max_turns"] = int(min(max(s["max_turns"], 5), 80))
@@ -82,6 +84,7 @@ def status(fresh: bool = False) -> dict:
     # why a CLI that is installed can't be used (an npm launcher with no safe way to run it)
     notes = {k: backends.resolve_cli(k, s.get(f"{k}_path") or None)[1] for k in ("claude", "codex")}
     models = backends.openai_models(s["openai_url"]) if s["backend"] == "openai" else []
+    cx_models = backends.codex_models(s.get("codex_path") or None) if codex_v else []
     try:
         from . import mcp_server  # noqa: F401
         has_mcp = True
@@ -91,7 +94,7 @@ def status(fresh: bool = False) -> dict:
     shown = {k: v for k, v in s.items() if k != "openai_key"}
     return {"settings": shown, "claude": claude_v, "codex": codex_v, "openai_models": models, "mcp": has_mcp,
             "ready": ready[s["backend"]], "api_key_in_env": bool(os.environ.get("ANTHROPIC_API_KEY")),
-            "claude_note": notes["claude"], "codex_note": notes["codex"], "desktop": bool(getattr(sys, "frozen", False)),
+            "claude_note": notes["claude"], "codex_note": notes["codex"], "codex_models": cx_models, "desktop": bool(getattr(sys, "frozen", False)),
             "windows": backends.WINDOWS}
 
 

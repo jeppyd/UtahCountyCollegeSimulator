@@ -31,6 +31,10 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
+      - name: Stamp the version (the app compares it with the latest release to offer updates)
+        shell: pwsh
+        run: Set-Content -Path ucsim/_build_version.py -Value 'VERSION = "0.1.${{ github.run_number }}"'
+
       - name: Install Python packages
         run: |
           python -m pip install --upgrade pip

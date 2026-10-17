@@ -22,6 +22,7 @@ class Environment:
             "tuition_uvu": cfg["tuition"]["uvu_semester"],
             "app_appeal": 1.0,
             "coffee_permitted": False,
+            "alcohol_permitted": False,
             "contracted_housing_required": True,
             # Since fall 2022 the rule covers only single undergrads' first two semesters (freshmen); before, all years.
             "contracted_housing_all_years": False,

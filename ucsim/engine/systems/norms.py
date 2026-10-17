@@ -44,6 +44,7 @@ class Norms:
         present = P["present"]
         lds_active = P["lds_member"] & (P["activity"] >= 2)
         permitted = 1.0 if env["coffee_permitted"] else 0.0
+        alc_permitted = 1.0 if env.get("alcohol_permitted") else 0.0
         prohib = P["orthodoxy"] * lds_active * (1 - permitted)
         thr = p("norms.contagion.threshold")
         for name, (col, ev, val) in PRACTICES.items():
@@ -58,10 +59,11 @@ class Norms:
                 quit_h = p("norms.quit.guilt") * P["guilt"] * prohib
             elif name == "alcohol":
                 muslim = P.is_("affiliation", "Muslim")
-                att = (p("norms.alcohol.base") - 2.5 * P["orthodoxy"] * lds_active - 1.2 * P["faith_belief"] * P["lds_member"]
+                att = (p("norms.alcohol.base") - 2.5 * P["orthodoxy"] * lds_active * (1 - alc_permitted) - 1.2 * P["faith_belief"] * P["lds_member"]
+                       + p("norms.alcohol.permitted_boost") * alc_permitted * P["lds_member"]
                        - P["own_religiosity"] * np.where(muslim, 3.5, 0.8) * ~P["lds_member"]
                        + 0.6 * P["moral_autonomy"] + 0.4 * sim.z("sensation_seeking") + 0.4 * (P["age"] >= 21))
-                quit_h = p("norms.quit.guilt") * P["guilt"] * P["orthodoxy"] * lds_active
+                quit_h = p("norms.quit.guilt") * P["guilt"] * P["orthodoxy"] * lds_active * (1 - alc_permitted)
             elif name == "pickleball":
                 att = p("norms.pickleball.base") + 0.8 * P["sports"] + 0.3 * sim.z("extraversion") + 0.3 * P["hikes"]
                 quit_h = np.full(n, 0.004)
@@ -70,7 +72,7 @@ class Norms:
                 att = np.where(seek, p("norms.app.base") + 1.5 * P["dating_motivation"] + np.log(env["app_appeal"] + 1e-9)
                                + 0.3 * (P["picky"] - 2) / 2, -9)
                 quit_h = np.where(seek, 0.01, 0.15)
-            hz = expit(att + peer) * 0.05
+            hz = expit(att + peer + sim.nudge(f"adopt:{name}")) * 0.05
             u = sim.u(f"adopt_{name}")
             new = present & ~adopted & (u < hz)
             qq = present & adopted & (sim.u(f"quit_{name}") < np.clip(quit_h, 0, 0.5))
@@ -85,5 +87,6 @@ class Norms:
                 P.cols[col][np.where(qq)[0]] = 0 if val is not True else False
             if name == "dating_app" and new.any():
                 P.cols["app_hours"][np.where(new)[0]] = np.maximum(P["app_hours"][np.where(new)[0]], 1.0)
+        sim.whatif.weekly_practices()
         # moral incongruence around pornography (Grubbs et al. 2019): use × moral disapproval
         P["porn_incongruence"] = np.clip(P["porn_use"] / 3 * P["chastity_commitment"] * (0.5 + P["orthodoxy"]) * 1.4, 0, 1).astype(np.float32)

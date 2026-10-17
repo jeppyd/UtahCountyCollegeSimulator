@@ -108,6 +108,8 @@ class Housing:
                         np.where(rng.random() < 0.55, ~U.contracted, True)
                 elig = elig & ((U.sex_restriction == 0) | (U.sex_restriction == sexc))
                 cand = self._vacant(elig)
+                if len(cand) == 0:   # shortage: relax the contract and unit-type rules, never the same-sex rule
+                    cand = self._vacant(~U.married_only & ((U.sex_restriction == 0) | (U.sex_restriction == sexc)))
                 if len(cand) == 0:
                     cand = self._vacant(~U.married_only)
                 take = rng.choice(cand, size=min(25, len(cand)), replace=False)
@@ -178,7 +180,7 @@ class Housing:
         ok = u >= 0
         occ = np.maximum(self.occ[np.maximum(u, 0)], 1)
         married = P.is_("rel_status", "married")[ids]
-        share = np.where(U.unit_type[np.maximum(u, 0)] == 0, U.rent_total[np.maximum(u, 0)] / U.capacity[np.maximum(u, 0)],
+        share = np.where(U.unit_type[np.maximum(u, 0)] == 0, U.rent_total[np.maximum(u, 0)] / np.maximum(U.capacity[np.maximum(u, 0)], 1),
                          np.where(married, U.rent_total[np.maximum(u, 0)] / 2, U.rent_total[np.maximum(u, 0)] / np.maximum(U.capacity[np.maximum(u, 0)], occ)))
         P.cols["rent"][ids] = np.where(ok, share, 0)
 

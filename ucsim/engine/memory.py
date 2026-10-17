@@ -54,8 +54,10 @@ class MemoryStore:
         self.min_salience = 0.3
 
     # ------------------------------------------------------------------ encoding
-    def encode(self, event_ids, agents, etype_code: int, others, day: int, quality=None, relevance=None):
-        if self.salience[etype_code] < self.min_salience:
+    def encode(self, event_ids, agents, etype_code: int, others, day: int, quality=None, relevance=None,
+               valence: float | None = None, salience: float | None = None):
+        sal = self.salience[etype_code] if salience is None else float(salience)
+        if sal < self.min_salience:
             return
         agents = np.atleast_1d(np.asarray(agents))
         k = len(agents)
@@ -68,11 +70,11 @@ class MemoryStore:
                 g[: self.cap] = arr
                 self.cols[c] = g
             self.cap = new_cap
-        val = np.full(k, self.base_valence[etype_code], np.float32)
+        val = np.full(k, self.base_valence[etype_code] if valence is None else float(valence), np.float32)
         if quality is not None:
             val = np.clip(val + 0.4 * np.tanh(np.broadcast_to(np.asarray(quality, np.float32), (k,))), -1, 1)
         rel = np.ones(k, np.float32) if relevance is None else np.broadcast_to(np.asarray(relevance, np.float32), (k,))
-        imp = np.clip(self.salience[etype_code] * (0.6 + 0.4 * np.abs(val)) * rel, 0, 1)
+        imp = np.clip(sal * (0.6 + 0.4 * np.abs(val)) * rel, 0, 1)
         s = slice(self.n, self.n + k)
         self.cols["agent"][s] = agents
         self.cols["event"][s] = np.broadcast_to(np.asarray(event_ids), (k,))

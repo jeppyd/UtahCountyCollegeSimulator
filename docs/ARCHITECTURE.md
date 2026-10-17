@@ -79,9 +79,23 @@ intervention or its butterfly effects. `compare_universes` decomposes Δstate in
 `divergence` tracks state/network distance; `monte_carlo` and `sweep` run seeds/values in a process pool
 with paired differences.
 
-Interventions (`engine/interventions.py`) are JSON: `world` (environment variables), `param` (mechanism
-parameters), `agent` (a filtered population, logged as exposure events) and `venue` (new places), with
-start day, ramp and duration.
+Interventions (`engine/interventions.py`) are JSON with start day, ramp and duration:
+- `world` — environment variables;
+- `param` — mechanism parameters;
+- `agent` — a once-only change for a filtered population;
+- `offset` — a persistent nudge on a feeling or behavior channel for a population, re-checked weekly; it appears as the `intervention` term in every decomposition;
+- `event` / `shock` — registered or custom events injected into a cohort, appraised and remembered;
+- `close` — a complex (residents rehoused) or venues;
+- `place` — complex rent, beds, quality or contracted status;
+- `practice` — a new behavior spreading by complex contagion;
+- `venue` — new places.
+
+Interventions draw only from their own streams or stable hashes, never from the Original's.
+
+**Plain-language What-ifs** (`ucsim/llm/`, [WHATIF_LLM.md](WHATIF_LLM.md)): a model reached through the user's subscription turns a request into a plan, which the server validates and lowers into these atoms. The model is Claude Code headless (`claude -p`, stream-json, `--json-schema`, MCP tools served by `mcp_server.py`), Codex (`codex exec`) or an OpenAI-compatible local server.
+- The pieces: `levers.py` is the catalog the model reads, `plan.py` holds the schema, validator, receipt and lowering, `entities.py` resolves @-mentions to exact ids and filters, and `compiler.py` runs the background jobs with one repair round.
+- The endpoints: `/api/entities/search`, `/api/whatif/compile` (start, poll, cancel), `/api/whatif/tool/*`, `/api/whatif/validate`, `/api/whatif/apply` and `/api/whatif/plans` (applied plans with live checks of the model's predictions).
+- No LLM ever decides an agent's behavior.
 
 ## Analysis & API
 
@@ -103,9 +117,12 @@ start day, ramp and duration.
   `FairLock`, so page requests queued during a day are answered before the next day starts (a plain lock let
   the run re-take it every day and pages waited for the whole run). `/api/status` and `/api/cancel` run on the
   event loop without the lock, so the clock and Pause always respond. Comparisons are memoized until either
-  world moves; a run that fails records which world and day in `last_job` and stops, and the What-if catches
+  world moves (tagged by world, experiment and day) and a memoized answer is served without waiting for the
+  lock; a run that fails records which world and day in `last_job` and stops, and the What-if catches
   up on the next run if it was left a day behind. In the browser, pages reload at most every 2.5 s while time
-  runs and at once when it stops; `useAsync` keeps one request per view in flight; requests time out.
+  runs and at once when it stops; `useAsync` keeps one request per view in flight, shows an answer even when
+  newer inputs arrived while it was in flight (on large worlds a day can outlast the refresh interval), and
+  caches the last good answer per key so a view that remounts shows it at once; requests time out.
 
 ## Workstation (`web/`)
 

@@ -17,7 +17,7 @@ from pathlib import Path
 import numpy as np
 import orjson
 import polars as pl
-from fastapi import Body, FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -129,6 +129,9 @@ class Workspace:
         self.unc = None
         self.compare_cache = None
         self.world_id = 0
+        self.fork_id = 0      # bumped whenever the What-if world is replaced (cache tags must never match across experiments)
+        self.plans: dict[str, dict] = {}   # compiled What-if plans by id (natural-language What-ifs)
+        self._index = None
         self.registry = get_registry()
 
     def sim(self, u: str):
@@ -170,6 +173,7 @@ class Workspace:
             with self.lock:
                 self.base, self.alt, self.divergence, self.compare_cache = sim, None, [], None
                 self.world_id += 1
+                self._index = None
             self.finish_job("build", "done")
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
@@ -396,6 +400,8 @@ def fork(body: dict = Body(...)):
         raise HTTPException(409, "a new world is being built; wait for it to finish")
     with WS.lock:
         WS.alt = runner.fork(WS.base, body.get("interventions", []))
+        WS.fork_id += 1
+        WS._index = None
         WS.divergence = [runner.divergence(WS.base, WS.alt)]
         WS.compare_cache = None
     return {"ok": True, "fork_day": WS.base.w.day}
@@ -405,6 +411,8 @@ def fork(body: dict = Body(...)):
 def unfork():
     with WS.lock:
         WS.alt = None
+        WS.fork_id += 1
+        WS._index = None
         WS.divergence = []
         WS.compare_cache = None
     return {"ok": True}
@@ -806,17 +814,19 @@ def cohort_timeline(body: dict = Body(...)):
 def compare():
     if WS.alt is None:
         raise HTTPException(404, "no intervention universe")
-    with WS.lock:
-        if WS.compare_cache is None:
-            c = X.compare_universes(WS.base, WS.alt)
-            c["divergence"] = WS.divergence
-            c["interventions"] = WS.alt.interventions
-            c["most_affected"] = {v: X.most_affected(WS.base, WS.alt, v) for v in ("mood", "loneliness", "faith_belief", "financial_stress")}
-            for v, rows in c["most_affected"].items():
-                for r in rows:
-                    r["name"] = synthetic_name(WS.base.w.P, r["id"])
-            WS.compare_cache = c
-        return jresp(WS.compare_cache)
+
+    def build():
+        c = X.compare_universes(WS.base, WS.alt)
+        c["divergence"] = list(WS.divergence)
+        c["interventions"] = WS.alt.interventions
+        c["most_affected"] = {v: X.most_affected(WS.base, WS.alt, v) for v in ("mood", "loneliness", "faith_belief", "financial_stress")}
+        for v, rows in c["most_affected"].items():
+            for r in rows:
+                r["name"] = synthetic_name(WS.base.w.P, r["id"])
+        return c
+    c = _cached(("compare",), build)
+    WS.compare_cache = c     # the cause-and-effect graph reads the latest comparison
+    return jresp(c)
 
 
 def _need_alt():
@@ -824,20 +834,30 @@ def _need_alt():
         raise HTTPException(404, "no what-if world; make a change first")
 
 
-_memo: dict = {"tag": None}
+_memo: dict = {}   # key -> (state tag, answer)
+
+
+def _tag() -> tuple:
+    alt = WS.alt
+    return (WS.world_id, WS.fork_id, id(WS.base), id(alt), WS.base.w.day, WS.base.w.hour, alt.w.day, alt.w.hour, len(alt.interventions))
 
 
 def _cached(key: tuple, fn):
     """Reuse a comparison until either world moves, so pages polling during a run don't recompute it.
-    Call with WS.lock held."""
-    alt = WS.alt
-    tag = (WS.world_id, WS.base.w.day, WS.base.w.hour, id(alt), alt.w.day, len(alt.interventions))
-    if _memo["tag"] != tag:
-        _memo.clear()
-        _memo["tag"] = tag
-    if key not in _memo:
-        _memo[key] = fn()
-    return _memo[key]
+    An answer already computed for the current state is a finished snapshot, so it is returned without waiting for
+    the workspace lock (a run holds it for a whole simulated day); otherwise it is computed under the lock."""
+    hit = _memo.get(key)
+    if hit is not None and hit[0] == _tag():
+        return hit[1]
+    with WS.lock:
+        tag = _tag()
+        hit = _memo.get(key)
+        if hit is None or hit[0] != tag:
+            for k in [k for k, v in _memo.items() if v[0] != tag]:
+                _memo.pop(k, None)
+            hit = (tag, fn())
+            _memo[key] = hit
+        return hit[1]
 
 
 @app.get("/api/compare/fields")
@@ -845,8 +865,7 @@ def compare_fields():
     """Every chartable field, Original vs What-if: averages or shares, effect size, how many people changed,
     and the difference over time since the split."""
     _need_alt()
-    with WS.lock:
-        return jresp(_cached(("fields",), lambda: B.compare_fields(WS.base, WS.alt)))
+    return jresp(_cached(("fields",), lambda: B.compare_fields(WS.base, WS.alt)))
 
 
 @app.get("/api/compare/people")
@@ -854,8 +873,7 @@ def compare_people(k: int = 40):
     """The people whose lives diverged most between the two worlds, and why."""
     _need_alt()
     k = max(1, min(k, 200))
-    with WS.lock:
-        return jresp(_cached(("people", k), lambda: B.diverged_people(WS.base, WS.alt, k=k)))
+    return jresp(_cached(("people", k), lambda: B.diverged_people(WS.base, WS.alt, k=k)))
 
 
 @app.get("/api/compare/person/{i}")
@@ -873,8 +891,7 @@ def compare_relationships(k: int = 40):
     """Couples and friendships that exist in only one of the two worlds."""
     _need_alt()
     k = max(1, min(k, 200))
-    with WS.lock:
-        return jresp(_cached(("relationships", k), lambda: B.compare_relationships(WS.base, WS.alt, k=k)))
+    return jresp(_cached(("relationships", k), lambda: B.compare_relationships(WS.base, WS.alt, k=k)))
 
 
 @app.get("/api/compare/places")
@@ -882,10 +899,9 @@ def compare_places(kind: str = "complex", var: str = "loneliness"):
     _need_alt()
     if kind not in ("complex", "ward", "neighborhood", "school"):
         raise HTTPException(400, "kind must be complex|ward|neighborhood|school")
-    with WS.lock:
-        if var not in WS.base.w.P.specs:
-            raise HTTPException(400, f"unknown field {var}")
-        return jresp(_cached(("places", kind, var), lambda: B.compare_places(WS.base, WS.alt, kind, var)))
+    if var not in WS.base.w.P.specs:
+        raise HTTPException(400, f"unknown field {var}")
+    return jresp(_cached(("places", kind, var), lambda: B.compare_places(WS.base, WS.alt, kind, var)))
 
 
 @app.post("/api/fork/add")
@@ -903,11 +919,257 @@ def fork_add(body: dict = Body(...)):
                 atom.setdefault("ramp_days", 0)
                 atom.setdefault("duration_days", None)
                 atom.setdefault("op", "set")
-                man.items.append(atom)
+                man.add(atom)
                 alt.interventions.append(atom)
                 added.append(atom)
         WS.compare_cache = None
     return jresp({"ok": True, "added": len(added)})
+
+
+# ----------------------------------------------------------------------------- natural-language What-ifs (LLM)
+def _target(mode: str = "new"):
+    from ..llm.compiler import target_world
+    return target_world(WS, mode)
+
+
+def _entity_index(mode: str = "new"):
+    """Entity index over the world a plan will run in (the Original for a new What-if, the What-if when adding to it),
+    rebuilt daily or when worlds change. Call with WS.lock held."""
+    from ..llm.entities import EntityIndex
+    sim = _target(mode)
+    which = "alt" if sim is WS.alt else "base"
+    tag = (WS.world_id, WS.fork_id, sim.w.day)
+    cache = {k: v for k, v in (WS._index or {}).items() if v[0][:2] == tag[:2]}     # forget replaced worlds
+    if cache.get(which, (None,))[0] != tag:
+        cache[which] = (tag, EntityIndex(sim))
+    WS._index = cache
+    return cache[which][1]
+
+
+def _local_only(request: Request):
+    """The What-if compiler runs your own Claude/Codex login, so only pages served from this machine may drive it
+    (the API's CORS is open for the static viewer; this keeps other websites from spending your plan)."""
+    origin = request.headers.get("origin")
+    if not origin or origin == "null":
+        return
+    from urllib.parse import urlsplit
+    host = (urlsplit(origin).hostname or "").lower()
+    own = (request.headers.get("host") or "").rsplit(":", 1)[0].strip("[]").lower()
+    if host in ("localhost", "127.0.0.1", "::1") or (host == own and _is_ip(host)):     # a domain could be rebound
+        return
+    raise HTTPException(403, "What-if requests are only accepted from this computer")
+
+
+def _is_ip(host: str) -> bool:
+    import ipaddress
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        return False
+
+
+def _server_url(request: Request) -> str:
+    host, port = (request.scope.get("server") or ("127.0.0.1", 8000))[:2]
+    return f"http://{'127.0.0.1' if host in ('0.0.0.0', '::', None) else host}:{port}"
+
+
+@app.get("/api/entities/search")
+def entities_search(q: str = "", kinds: str = "", limit: int = 12, mode: str = "new"):
+    """Everything a What-if can point at: people, places, groups and model concepts, with exact refs and filters."""
+    if WS.base is None:
+        raise HTTPException(404, "no world")
+    with WS.lock:
+        ix = _entity_index(mode)
+        return jresp(ix.search(q, [k for k in kinds.split(",") if k] or None, limit=max(1, min(limit, 40))))
+
+
+@app.get("/api/entities/get")
+def entities_get(ref: str, mode: str = "new"):
+    if WS.base is None:
+        raise HTTPException(404, "no world")
+    with WS.lock:
+        r = _entity_index(mode).get(ref)
+    if r is None:
+        raise HTTPException(404, f"no entity {ref}")
+    return jresp(r)
+
+
+@app.get("/api/whatif/llm/status")
+def llm_status(refresh: bool = False):
+    from ..llm import compiler
+    return jresp(compiler.status(fresh=refresh))
+
+
+@app.post("/api/whatif/llm/settings")
+def llm_settings(request: Request, body: dict = Body(...)):
+    _local_only(request)
+    from ..llm import compiler
+    return jresp(compiler.save_settings(body))
+
+
+@app.post("/api/whatif/compile")
+def whatif_compile(request: Request, body: dict = Body(...)):
+    """Start turning a plain-language What-if into a plan: {text, mentions: [{ref,...}], history: [...], mode: new|add}."""
+    _local_only(request)
+    from ..llm import compiler
+    if WS.base is None:
+        raise HTTPException(409, "build a world first")
+    text = str(body.get("text", "")).strip()
+    if not text:
+        raise HTTPException(400, "describe your What-if")
+    job = compiler.start(WS, _entity_index, text[:4000], list(body.get("mentions") or [])[:20], list(body.get("history") or [])[-12:],
+                         "add" if body.get("mode") == "add" else "new", _server_url(request))
+    return jresp({"job": job.id})
+
+
+@app.get("/api/whatif/compile/{jid}")
+def whatif_compile_poll(jid: str):
+    from ..llm import compiler
+    job = compiler.JOBS.get(jid)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    return jresp(job.view())
+
+
+@app.post("/api/whatif/compile/{jid}/cancel")
+def whatif_compile_cancel(jid: str, request: Request):
+    _local_only(request)
+    from ..llm import compiler
+    job = compiler.JOBS.get(jid)
+    if job is not None:
+        job.cancel.set()
+    return {"ok": True}
+
+
+@app.post("/api/whatif/tool/{name}")
+def whatif_tool(name: str, request: Request, body: dict = Body(default={})):
+    """The compiler's read-only tools (called by Claude Code through the MCP bridge, or by the local tool loop)."""
+    _local_only(request)
+    from ..llm import compiler
+    if WS.base is None:
+        raise HTTPException(409, "no world")
+    job = compiler.JOBS.get(request.headers.get("x-ucsim-job", ""))
+    mode = job.mode if job is not None else "new"
+    with WS.lock:
+        res = compiler.run_tool(WS, _entity_index(mode), name, body, mode)
+    if job is not None:
+        if name == "search_entities" and res.get("results"):
+            top = res["results"][0]
+            job.step("found", f"Found {top['label']} ({top['ref']})" + (f" · {top['n']} people" if top.get("n") else ""))
+        elif name == "count_people" and "n" in res:
+            job.step("found", f"{res['n']:,} people match: {res.get('who', '')}")
+        elif name == "validate_plan":
+            job.step("found", "Draft checks out" if res.get("ok") else f"Draft has {len(res.get('errors', []))} problem(s) to fix")
+    return jresp(res)
+
+
+@app.post("/api/whatif/validate")
+def whatif_validate(request: Request, body: dict = Body(...)):
+    """Re-check a (possibly edited) plan: {plan} → receipt."""
+    _local_only(request)
+    from ..llm.plan import plan_id, validate
+    if WS.base is None:
+        raise HTTPException(409, "no world")
+    with WS.lock:
+        mode = "add" if body.get("mode") == "add" else "new"
+        v = validate(body.get("plan") or {}, _target(mode), _entity_index(mode))
+    v["plan_id"] = plan_id(v["plan"])
+    return jresp(v)
+
+
+@app.post("/api/whatif/apply")
+def whatif_apply(request: Request, body: dict = Body(...)):
+    """Apply a plan: {plan, mode: new|add, include: [bool per change]} → splits the world (new) or adds to the What-if."""
+    _local_only(request)
+    from ..llm.plan import lower, plan_id, validate
+    if WS.base is None:
+        raise HTTPException(409, "no world")
+    if WS.job.get("state") == "building":
+        raise HTTPException(409, "a new world is being built; wait for it to finish")
+    plan = body.get("plan") or (WS.plans.get(body.get("plan_id", "")) or {}).get("plan")
+    if not plan:
+        raise HTTPException(400, "no plan")
+    if not isinstance(plan, dict):
+        raise HTTPException(400, "the plan must be an object")
+    src = WS.plans.get(body.get("plan_id") or "") or WS.plans.get(plan_id(plan)) or {}     # the request it came from
+    include = body.get("include")
+    if isinstance(include, list) and len(include) == len(plan.get("changes") or []):
+        plan = {**plan, "changes": [c for c, keep in zip(plan["changes"], include) if keep]}
+    with WS.lock:
+        mode = "add" if body.get("mode") == "add" and WS.alt is not None else "new"
+        v = validate(plan, _target(mode), _entity_index(mode))
+        if not v["ok"]:
+            raise HTTPException(409, "the plan still has problems: " + "; ".join(v["errors"][:4]))
+        pid = plan_id(v["plan"])
+        # mid-day (the morning phase already ran), changes start tomorrow so delays and durations count whole days
+        today = WS.base.w.day + (1 if getattr(WS.base, "_phases_done", 0) else 0)
+        atoms = lower(v["plan"], today, pid)
+        if mode == "new":
+            WS.alt = runner.fork(WS.base, atoms)
+            WS.fork_id += 1
+            WS._index = None
+            WS.divergence = [runner.divergence(WS.base, WS.alt)]
+        else:
+            alt = WS.alt
+            man = alt.systems["environment"].manager
+            for a in atoms:
+                a["start_day"] = max(int(a["start_day"]), alt.w.day + (1 if getattr(alt, "_phases_done", 0) else 0))
+                man.add(a)
+                alt.interventions.append(a)
+        WS.compare_cache = None
+        WS.plans[pid] = {**{k: src[k] for k in ("request", "mentions", "created") if k in src}, **WS.plans.get(pid, {}), "plan": v["plan"], "receipt": v["changes"], "applied": True,
+                         "applied_day": today, "mode": mode, "atoms": [a["id"] for a in atoms]}
+    return jresp({"ok": True, "plan_id": pid, "mode": mode, "changes": len(atoms), "fork_day": WS.alt.meta_fork_day if WS.alt is not None else None})
+
+
+@app.get("/api/whatif/plans")
+def whatif_plans():
+    """Plans applied to the running What-if: their changes, who they reached, practice adoption curves, and how the
+    LLM's predictions are holding up against the simulation."""
+    from ..analysis.query import evaluate_filter
+    with WS.lock:
+        alt, base = WS.alt, WS.base
+        if alt is None:
+            return jresp([])
+        live = {a.get("plan") for a in alt.interventions if a.get("plan")}
+        report = {r["k"]: r for r in alt.whatif.report()}
+        items = alt.whatif.items
+        out = []
+        for pid in live:
+            rec = WS.plans.get(pid)
+            if not rec:
+                continue
+            plan = rec["plan"]
+            ks = [k for k, it in enumerate(items) if it.get("plan") == pid]
+            reach = [{"label": items[k].get("label"), "kind": items[k].get("target_type"), "reached": report[k].get("reached"),
+                      "practice": report[k].get("practice")} for k in ks]
+            exps = []
+            n = min(base.w.P.n, alt.w.P.n)
+            for e in plan.get("expectations", []):
+                row = dict(e)
+                var = e.get("variable")
+                if var and var in base.w.P.specs:
+                    try:
+                        mb = evaluate_filter(base.w, e.get("who"), sim=base)[:n] & alt.w.P["present"][:n].astype(bool)
+                        if mb.sum() >= 5:
+                            xb = base.w.P[var][:n][mb].astype(float)
+                            xa = alt.w.P[var][:n][mb].astype(float)
+                            d = float(np.nanmean(xa) - np.nanmean(xb))
+                            sd = float(np.nanstd(np.r_[xa, xb])) or 1.0
+                            eff = d / sd
+                            row.update(base=float(np.nanmean(xb)), alt=float(np.nanmean(xa)), effect=eff, n=int(mb.sum()))
+                            moved = abs(eff) >= 0.03
+                            row["status"] = ("too early" if not moved else
+                                             "as predicted" if (e["direction"] == "up") == (d > 0) and e["direction"] != "unclear" else
+                                             "moved" if e["direction"] == "unclear" else "opposite")
+                    except Exception:  # noqa: BLE001
+                        pass
+                exps.append(row)
+            out.append({"plan_id": pid, "title": plan["title"], "request": rec.get("request"), "reply": plan.get("reply"),
+                        "changes": rec.get("receipt"), "assumptions": plan.get("assumptions"), "not_modeled": plan.get("not_modeled"),
+                        "expectations": exps, "reach": reach, "applied_day": rec.get("applied_day")})
+        return jresp(out)
 
 
 # ----------------------------------------------------------------------------- fields (the explorer)
@@ -1291,6 +1553,29 @@ def runs():
             if cfg.exists():
                 rows.append(json.loads(cfg.read_text(encoding="utf-8")))
     return jresp(rows)
+
+
+# ----------------------------------------------------------------------------- app updates
+@app.get("/api/update/check")
+def update_check(force: bool = False):
+    """Is a newer release of the installed app on GitHub?"""
+    from .. import updater
+    return jresp(updater.check(force))
+
+
+@app.get("/api/update/status")
+def update_status():
+    from .. import updater
+    return jresp(dict(updater.STATE))
+
+
+@app.post("/api/update/install")
+def update_install(request: Request):
+    """Download the newer installer, run it silently and quit; the new version starts by itself."""
+    _local_only(request)
+    from .. import updater
+    from ..app import data_home
+    return jresp(updater.start_install(data_home()))
 
 
 # ----------------------------------------------------------------------------- static

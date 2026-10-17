@@ -159,9 +159,10 @@ class Emotion:
             T["academic"] = enrolled * 0.06 * np.clip((gpa - 3.3) / 0.7, -1, 1)
         elif s == "guilt":
             not_permitted = 0.0 if env["coffee_permitted"] else 1.0
+            alc_not_permitted = 0.0 if env.get("alcohol_permitted") else 1.0
             ortho = P["orthodoxy"] * (1 - P["moral_autonomy"]) * P["lds_member"]
             T["setpoint"] = np.full(n, 0.03)
-            T["word_of_wisdom"] = p("guilt.word_of_wisdom.beta") * ortho * (np.minimum(P["coffee"], 2) / 2 * not_permitted + np.minimum(P["alcohol"], 2) / 2)
+            T["word_of_wisdom"] = p("guilt.word_of_wisdom.beta") * ortho * (np.minimum(P["coffee"], 2) / 2 * not_permitted + np.minimum(P["alcohol"], 2) / 2 * alc_not_permitted)
             T["chastity"] = p("guilt.chastity.beta") * P["premarital_sex_current"] * P["chastity_commitment"]
             T["porn_incongruence"] = p("guilt.porn_incongruence.beta") * P["porn_incongruence"]
         elif s == "purpose":
@@ -207,7 +208,7 @@ class Emotion:
             base = P.internal["sleep_base"][:n]
             noise = sim.streams.normal("sleep", day, n) * 0.5
             newborn = P.internal["newborn_until"][:n] > day if "newborn_until" in P.internal else np.zeros(n, bool)
-            P["sleep_hours"] = np.clip(base - 0.9 * np.clip(P["stress"] - 0.35, 0, None) - 1.2 * newborn + noise, 3.5, 11)
+            P["sleep_hours"] = np.clip(base - 0.9 * np.clip(P["stress"] - 0.35, 0, None) - 1.2 * newborn + noise + sim.nudge("sleep"), 3.5, 11)
             dated = P["activity_now"] == 7
             P.internal["last_date_day"][:n][dated] = day
         totals = sim.effects.totals(day, n) if not settle else {s: np.zeros(n) for s in STATE_ORDER}
@@ -216,6 +217,8 @@ class Emotion:
         eps = sim.streams.normal("emotion_noise", day, n * len(STATE_ORDER)).reshape(len(STATE_ORDER), n)
         for k, s in enumerate(STATE_ORDER):
             T = self.terms(s)
+            # a What-if's persistent nudge on this feeling (always present, zero in the Original, so it decomposes exactly)
+            T["intervention"] = np.zeros(n) + (0.0 if settle else sim.nudge(s))
             base = np.zeros(n)
             for v in T.values():
                 base = base + v

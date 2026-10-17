@@ -11,9 +11,16 @@ A filter is JSON:
   {"var": "faith_belief", "op": "quantile_ge", "value": 0.8}       # top 20%
   {"transition": {"var": "rel_status", "from": ["single"], "to": ["married"], "d0": 0, "d1": 120}}
                                                                    # changed state between two days (history)
+  {"ids": [12, 40]}                                                  # specific people
+  {"friends_of": f, "min_stage": 3, "exclude": true}                 # people with a friendship (stage >= 3: friend,
+                                                                   # 4: close) to anyone matching f (f's members excluded)
+  {"share": 0.3, "of": f, "salt": "x"}                               # a stable random 30% of f (nested as share grows)
+  {"all": true}                                                      # everyone
 Ops: eq, ne, lt, le, gt, ge, between, in, notin, isnull, notnull, quantile_ge, quantile_le.
 """
 from __future__ import annotations
+
+import zlib
 
 import numpy as np
 
@@ -49,9 +56,41 @@ def state_codes(P, var: str, labels) -> list[int]:
     return out
 
 
+def hash_uniform(ids: np.ndarray, salt: str) -> np.ndarray:
+    """A stable pseudo-random number in [0, 1) per person and salt: the same people are picked every time, and a
+    larger share always contains a smaller one."""
+    x = (np.asarray(ids, np.uint64) * np.uint64(2654435761) + np.uint64(zlib.crc32(salt.encode()))) & np.uint64(0xFFFFFFFF)
+    x ^= x >> np.uint64(16)
+    x = (x * np.uint64(0x45D9F3B)) & np.uint64(0xFFFFFFFF)
+    x ^= x >> np.uint64(16)
+    return x.astype(np.float64) / 4294967296.0
+
+
 def _cond(world, c: dict, sim=None) -> np.ndarray:
     P = world.P
     n = P.n
+    if c.get("all"):
+        return np.ones(n, bool)
+    if "ids" in c:
+        m = np.zeros(n, bool)
+        ids = np.asarray(c["ids"], np.int64)
+        m[ids[(ids >= 0) & (ids < n)]] = True
+        return m
+    if "friends_of" in c:
+        inner = _cond(world, c["friends_of"], sim)
+        E = world.E
+        lo, hi = E.endpoints()
+        ok = E["stage"] >= int(c.get("min_stage", 3))
+        lo, hi = lo[ok], hi[ok]
+        m = np.zeros(n, bool)
+        m[hi[inner[lo]]] = True
+        m[lo[inner[hi]]] = True
+        if c.get("exclude", True):
+            m &= ~inner
+        return m
+    if "share" in c and "household" not in c:
+        inner = _cond(world, c["of"], sim) if c.get("of") else np.ones(n, bool)
+        return inner & (hash_uniform(np.arange(n), str(c.get("salt", "share"))) < float(c["share"]))
     if "and" in c:
         m = np.ones(n, bool)
         for f in c["and"]:
@@ -149,4 +188,12 @@ def describe_filter(filt: dict | None) -> str:
         return f"{filt['recent_event']} in last {filt.get('days', 90)} days"
     if "household" in filt:
         return f"co-residents {filt.get('share', '>=')} {filt.get('value')} with ({describe_filter(filt['household'])})"
+    if filt.get("all"):
+        return "everyone present"
+    if "ids" in filt:
+        return f"{len(filt['ids'])} specific people"
+    if "friends_of" in filt:
+        return f"friends of ({describe_filter(filt['friends_of'])})"
+    if "share" in filt and "household" not in filt:
+        return f"{round(100 * float(filt['share']))}% of ({describe_filter(filt.get('of'))})"
     return f"{filt['var']} {filt.get('op', 'eq')} {filt.get('value')}"

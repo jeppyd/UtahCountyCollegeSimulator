@@ -178,6 +178,7 @@ class Academics:
         cop = sim.systems.get("coping")
         if cop is not None:
             target = target + cop.study_bias()
+        target = target + sim.nudge("study")
         P["study_hours"] = np.where(in_term, np.clip(0.6 * P["study_hours"] + 0.4 * target, 0, 60), 0).astype(np.float32)
 
     def end_term(self, school: str):

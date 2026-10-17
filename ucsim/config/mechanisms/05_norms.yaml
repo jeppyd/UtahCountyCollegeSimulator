@@ -26,9 +26,10 @@ mechanisms:
     label: Alcohol adoption
     target: alcohol
     sources: [orthodoxy, faith_belief, moral_autonomy, sensation_seeking, age]
-    form: "weekly h = 0.05·logistic(base − 2.5·orthodoxy·active − 1.2·belief·member + 0.6·autonomy + 0.4·SS + 0.4·[21+] + peer)"
+    form: "weekly h = 0.05·logistic(base − 2.5·orthodoxy·active·(1 − permitted) − 1.2·belief·member + permitted_boost·permitted·member + 0.6·autonomy + 0.4·SS + 0.4·[21+] + peer)"
     params:
       base: {value: -5.0, range: [-6.5, -3.5]}
+      permitted_boost: {value: 1.0, range: [0.3, 2.5]}
     evidence: hypothetical
   norms.pickleball:
     label: Pickleball craze (example cultural diffusion)

@@ -19,8 +19,23 @@ def event_record(sim, eid: int) -> dict:
     b = int(log["b"][eid])
     mech = int(log["mech"][eid])
     spec = sim.reg.events[sim.reg.event_names[log["type"][eid]]]
-    return {"id": int(eid), "day": int(log["day"][eid]), "date": str(sim.cal.date(int(log["day"][eid]))),
-            "type": spec.id, "label": spec.label, "category": spec.category, "salience": spec.salience,
+    label, story = spec.label, None
+    if spec.id in ("whatif_shock", "whatif_practice", "intervention_exposure"):
+        # a What-if's own events carry their label from the item that made them (value = item index)
+        k = int(log["value"][eid])
+        items = sim.whatif.items if hasattr(sim, "whatif") else []
+        if 0 <= k < len(items):
+            it = items[k]
+            if spec.id == "whatif_shock":
+                label, story = str(it.get("target") or label), it.get("story")
+            elif spec.id == "whatif_practice":
+                label = f"Took up: {it.get('label') or it.get('target')}"
+                story = "{a} took up " + str(it.get("label") or it.get("target") or "a new practice").lower()
+            else:
+                label = f"What-if: {it.get('label') or it.get('name') or 'change'}"
+    rec_story = {"story": story} if story else {}
+    return {"id": int(eid), "day": int(log["day"][eid]), "date": str(sim.cal.date(int(log["day"][eid]))), **rec_story,
+            "type": spec.id, "label": label, "category": spec.category, "salience": spec.salience,
             "a": a, "b": b if b >= 0 else None, "value": float(log["value"][eid]),
             "cause": int(log["cause"][eid]) if log["cause"][eid] >= 0 else None,
             "mechanism": log.mech_names[mech] if mech >= 0 else None,

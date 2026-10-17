@@ -14,8 +14,10 @@ Four local online surveys supplied by the project owner (ProvoStats/LDStats audi
 **Privacy boundary.** Raw files live only in `data/raw/` (gitignored) on the owner's machine.
 `python -m ucsim.ingest.priors` turns them into `ucsim/priors/survey_priors.json`, which contains only:
 smoothed conditional probability tables, marginal quantile grids (1–99), within-sex correlation matrices
-(nearest-PD), and group summaries (mean/median/IQR/share) — every cell with fewer than **10** respondents is
-suppressed or backed off to a coarser group, and sample sizes are reported as bands (`10-29`, `30-99`, …).
+(nearest-PD), group summaries (mean/median/IQR/share) and one-way frequency tables (majors, complexes, mission
+places, origin states): every cell with fewer than **10** respondents is suppressed, pooled or backed off to a coarser
+group. Group summaries report their sample sizes as bands (`10-29`, `30-99`, …); each survey's total and each
+question's number of answers by sex (all 90 or more) are exact.
 No respondent row, free-text answer, timestamp or identifier is stored, and synthetic agents are new draws
 from these distributions, never copies of respondents. A test (`tests/test_analysis_api.py`) guards that the
 committed priors contain no long arrays.

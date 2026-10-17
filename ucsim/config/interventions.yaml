@@ -64,6 +64,14 @@ interventions:
     target: coffee_permitted
     op: set
     value: true
+  alcohol_permitted:
+    name: General Conference — alcohol now permitted
+    description: Hypothetical Word of Wisdom change. Removes the alcohol prohibition from adoption, guilt, quitting and temple-recommend eligibility; belief-based abstention remains a personal choice.
+    confidence: speculative
+    target_type: world
+    target: alcohol_permitted
+    op: set
+    value: true
   contracted_housing_removed:
     name: BYU contracted-housing requirement removed
     description: First-year single BYU students may live anywhere too (today's rule already frees everyone after two semesters) — changes roommate composition (religiosity, sex mixing), wards, and peer norms.

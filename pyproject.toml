@@ -13,6 +13,7 @@ dependencies = [
   "fastapi>=0.110",
   "uvicorn>=0.29",
   "orjson>=3.9",
+  "mcp>=1.2",            # lets Claude Code look things up in the live world while it designs a What-if
 ]
 
 [project.optional-dependencies]
@@ -27,7 +28,7 @@ build-backend = "setuptools.build_meta"
 include = ["ucsim*"]
 
 [tool.setuptools.package-data]
-ucsim = ["config/*.yaml", "priors/*.json", "geo/*.json"]
+ucsim = ["config/*.yaml", "config/**/*.yaml", "priors/*.json", "geo/*.json", "llm/prompts/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

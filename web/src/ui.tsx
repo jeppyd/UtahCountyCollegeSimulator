@@ -39,7 +39,7 @@ export function Advanced({ children }: { children: ReactNode }) { return useAdva
 /** Turn an event record into a sentence with clickable names, using the registry's story template. */
 export function Story({ e, me }: { e: any; me?: number }) {
   const reg = useStore(s => s.registry)
-  const tpl: string = reg?.events?.[e.type]?.story || `{a}: ${String(e.label ?? e.type).toLowerCase()}`
+  const tpl: string = e.story || reg?.events?.[e.type]?.story || `{a}: ${String(e.label ?? e.type).toLowerCase()}`
   const parts = tpl.split(/(\{a\}|\{b\})/)
   return (
     <>

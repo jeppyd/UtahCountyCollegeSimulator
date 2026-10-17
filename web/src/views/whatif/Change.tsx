@@ -7,6 +7,7 @@ import { condLabel, VarPicker } from '../../components'
 import { G } from '../../game'
 import { timeCtl } from '../../hud'
 import { useStore } from '../../store'
+import { AskPanel } from './Ask'
 
 export const THEMES: [string, string[]][] = [
   ['Money & housing', ['rent_up_20', 'tuition_up_20', 'construction_30', 'recession', 'contracted_housing_removed', 'contracted_housing_all_years', 'transit_improved', 'enrollment_up_20']],
@@ -52,10 +53,10 @@ function leverName(l: Lever, v: number | boolean) {
   return `${l.label} = ${l.unit === '%' ? `${((v as number) * 100).toFixed(1)}%` : fmt(v as number, 2)}`
 }
 
-export function ChangeBuilder({ preset, onDone, inline = false }: { preset?: string; onDone?: () => void; inline?: boolean }) {
+export function ChangeBuilder({ preset, onDone, inline = false, initialTab }: { preset?: string; onDone?: () => void; inline?: boolean; initialTab?: string }) {
   const { presets, status, refreshStatus, setRoute, setLens, mode, registry } = useStore()
   const hasAlt = !!status.has_alt
-  const [tab, setTab] = useState<'ideas' | 'levers' | 'people'>('ideas')
+  const [tab, setTab] = useState<'ask' | 'ideas' | 'levers' | 'people'>((initialTab as any) ?? (preset ? 'ideas' : 'ask'))
   const [queue, setQueue] = useState<Q[]>(() => (preset && presets?.[preset] ? [{ key: `p:${preset}`, name: presets[preset].name, spec: { preset } }] : []))
   const [days, setDays] = useState(30)
   const [busy, setBusy] = useState(false)
@@ -105,6 +106,7 @@ export function ChangeBuilder({ preset, onDone, inline = false }: { preset?: str
         </div>
       )}
       <div className="tabs">
+        <button className={tab === 'ask' ? 'on' : ''} onClick={() => setTab('ask')}>{G.mind} Describe it</button>
         <button className={tab === 'ideas' ? 'on' : ''} onClick={() => setTab('ideas')}>{G.spark} Ideas</button>
         <button className={tab === 'levers' ? 'on' : ''} onClick={() => setTab('levers')}>{G.gear} Levers</button>
         <button className={tab === 'people' ? 'on' : ''} onClick={() => setTab('people')}>{G.people} People & rules</button>
@@ -139,7 +141,8 @@ export function ChangeBuilder({ preset, onDone, inline = false }: { preset?: str
         </div>
       )}
       {tab === 'people' && <PeopleChange onAdd={q => setQueue([...queue, q])} advanced={mode === 'advanced'} />}
-      <div className="change-foot">
+      {tab === 'ask' && <AskPanel onDone={onDone} />}
+      {tab !== 'ask' && <div className="change-foot">
         <div className="cf-queue">
           {queue.length ? queue.map(q => <span key={q.key} className="cond">{q.name}<button onClick={() => setQueue(queue.filter(x => x.key !== q.key))} aria-label="remove">×</button></span>)
             : <span className="small muted">Pick an idea or move a lever.</span>}
@@ -157,7 +160,7 @@ export function ChangeBuilder({ preset, onDone, inline = false }: { preset?: str
         {status.day < 14 && !hasAlt && <p className="small muted" style={{ margin: '6px 0 0' }}>Tip: the world is only {status.day} days old; friendships and dating need a few weeks to get going, so effects show more clearly after a couple of weeks.</p>}
         {err && <div className="banner" style={{ marginTop: 8 }}>{err}</div>}
         {STATIC && <p className="small muted" style={{ margin: '6px 0 0' }}>Making changes needs the installed app.</p>}
-      </div>
+      </div>}
     </div>
   )
 }
@@ -262,7 +265,7 @@ export function ChangeDrawer() {
           </div>
           <button className="btn ghost" onClick={() => openDrawer(null)} aria-label="Close">{G.close}</button>
         </div>
-        <ChangeBuilder preset={drawer.preset} onDone={() => openDrawer(null)} />
+        <ChangeBuilder key={drawer.tab ?? ''} preset={drawer.preset} initialTab={drawer.tab} onDone={() => openDrawer(null)} />
       </aside>
     </div>
   )

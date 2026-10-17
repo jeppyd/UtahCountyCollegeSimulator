@@ -120,7 +120,8 @@ class Mind:
         }
         for m in MOTIVES:
             col = P.cols[f"cares_{m}"]
-            target = np.clip(expit(tgt[m]), 0.02, 0.98)
+            nb = self.sim.nudge(f"cares:{m}")   # a What-if that changes what people value
+            target = np.clip(expit(tgt[m] + (nb[ids] if not np.isscalar(nb) else nb)), 0.02, 0.98)
             col[ids] = (1 - blend) * col[ids] + blend * target
 
     def satisfactions(self) -> dict[str, np.ndarray]:

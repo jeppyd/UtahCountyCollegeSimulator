@@ -16,3 +16,15 @@ web/dist-static/
 *.tsbuildinfo
 /build/
 /dist/
+
+# secrets (Claude API key for LLM features)
+.env
+.env.*
+
+# stamped by the release build (in-app updates compare against it)
+ucsim/_build_version.py
+
+# survey exports dropped outside data/raw/ by mistake
+/surveys/
+/raw/
+*.sav

@@ -13,8 +13,9 @@ datas = [
     (str(ROOT / "ucsim" / "geo" / "data"), "ucsim/geo/data"),
     (str(ROOT / "web" / "dist"), "web/dist"),
     (str(ROOT / "web" / "public" / "geo"), "web/public/geo"),
+    (str(ROOT / "ucsim" / "llm" / "prompts"), "ucsim/llm/prompts"),
 ]
-hidden = collect_submodules("uvicorn") + collect_submodules("ucsim.engine") + collect_submodules("ucsim.api") + [
+hidden = collect_submodules("uvicorn") + collect_submodules("ucsim.engine") + collect_submodules("ucsim.api") + collect_submodules("ucsim.llm") + ["ucsim.updater", "ucsim._build_version",
     "ucsim.analysis.query", "ucsim.analysis.explain", "ucsim.analysis.person", "ucsim.population.build",
     "scipy.special", "scipy.spatial", "scipy.stats", "yaml", "orjson",
 ]

@@ -74,6 +74,19 @@ def test_pages_answer_while_both_worlds_run(ws):
     assert s["job"]["state"] == "idle" and s["last_job"]["reason"] == "paused" and s["last_job"]["progress"] < 40
 
 
+def test_comparisons_are_reused_until_a_world_moves_and_never_across_experiments(ws):
+    calls = []
+    fn = lambda: calls.append(1) or {"n": len(calls)}   # noqa: E731
+    first = server._cached(("probe",), fn)
+    assert server._cached(("probe",), fn) is first and len(calls) == 1   # same state: served from the cache
+    ws.base.step_day()
+    ws.alt.step_day()
+    assert server._cached(("probe",), fn) is not first and len(calls) == 2
+    ws.fork_id += 1                                                      # a new experiment on the same day
+    server._cached(("probe",), fn)
+    assert len(calls) == 3
+
+
 def test_a_run_that_breaks_stops_visibly(ws, monkeypatch):
     c = TestClient(server.app)
     day = ws.base.w.day

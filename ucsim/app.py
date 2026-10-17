@@ -133,6 +133,8 @@ def selftest(url: str) -> int:
         time.sleep(0.2)
     assert call("api/compare/fields")["fields"], "compare fields"
     assert "people" in call("api/compare/people?k=5"), "compare people"
+    if getattr(sys, "frozen", False):
+        assert call("api/update/check").get("current"), "the build has no version stamp, so it could never offer updates"
     page = urllib.request.urlopen(url, timeout=10).read().decode("utf-8", "replace")
     assert "<div id=\"root\">" in page, "workstation page missing"
     urllib.request.urlopen(url + "geo/roads.json", timeout=10).read()

@@ -14,6 +14,8 @@ export type VarSpec = {
   range?: number[]; categories?: string[]; ordinal?: string[]; update: string; desc?: string; init?: string
   source?: string[]; evidence: string; flags?: string[]; filterable?: boolean; chartable?: boolean; mappable?: boolean
   intervenable?: boolean; group?: string
+  /** what the numbers mean: the ends in words, survey answer wording per step, percent or standard-score scales */
+  scale?: { min?: number; max?: number; low?: string; high?: string; levels?: string[]; percent?: boolean; z?: boolean; note?: string }
 }
 
 export type Registry = {
@@ -27,6 +29,15 @@ export type Mode = 'simple' | 'advanced'
 /** Which world every page shows: the Original, the What-if, or both side by side. */
 export type Lens = 'base' | 'alt' | 'compare'
 export type Pin = { kind: 'field'; var: string; group?: string } | { kind: 'person'; id: number; name?: string }
+/** Something the user pointed at for a What-if: a person, place, group or model concept, with its exact ref. */
+export type Mention = { ref: string; kind: string; label: string; sub?: string; n?: number | null }
+export type AskMsg = {
+  role: 'user' | 'assistant'; text: string; mentions?: Mention[]; at: number
+  job?: string; state?: string; steps?: { t: number; kind: string; text: string }[]; elapsed?: number; backend?: string
+  plan?: any; receipt?: any[]; errors?: string[]; warnings?: string[]; ok?: boolean; planId?: string; include?: boolean[]
+  applied?: 'new' | 'add'; error?: string
+}
+export type Ask = { msgs: AskMsg[]; draft: string; mentions: Mention[]; world?: string }   // world: refs are ids in one generated world
 export type Toast = { id: number; kind: 'event' | 'world' | 'info' | 'recap'; title: string; body?: string; category?: string; route?: string[]; ttl?: number }
 
 function load<T>(key: string, fallback: T): T {
@@ -74,6 +85,12 @@ type State = {
   toast: (t: Omit<Toast, 'id'>) => void
   dismiss: (id: number) => void
   setNews: (v: boolean) => void
+  ask: Ask
+  setAsk: (a: Partial<Ask> | ((a: Ask) => Partial<Ask>)) => void
+  updateMsg: (at: number, patch: Partial<AskMsg>) => void
+  addMention: (m: Mention) => void
+  removeMention: (ref: string) => void
+  useInWhatIf: (m: Mention) => void
 }
 
 function parseHash(): string[] {
@@ -125,6 +142,7 @@ export const useStore = create<State>((set, get) => ({
   drawer: null,
   toasts: [],
   news: load<boolean>('ucsim-news', true),
+  ask: load<Ask>('ucsim-ask-v1', { msgs: [], draft: '', mentions: [] }),
   setRoute: (r) => { window.location.hash = '/' + r.map(encodeURIComponent).join('/'); set({ route: r }); document.querySelector('.main')?.scrollTo(0, 0) },
   setLens: (l) => set({ lens: l, universe: l === 'alt' ? 'alt' : 'base' }),
   setUniverse: (u) => get().setLens(u),
@@ -141,8 +159,11 @@ export const useStore = create<State>((set, get) => ({
     // one status request at a time: callers that ask while one is in flight share its answer
     if (statusInflight) return statusInflight
     statusInflight = (async () => {
-      const s = await api.status()
+      const raw = await api.status()
       const prev = get().status
+      // A status read that raced a simulated day comes back partial: keep the last full picture, update the job
+      const s = raw.partial && prev?.day != null && prev.world_id === raw.world_id && prev.has_alt === raw.has_alt
+        ? { ...prev, job: raw.job, last_job: raw.last_job } : raw
       const structural = !prev || prev.world_id !== s.world_id || prev.has_alt !== s.has_alt || prev.agents !== s.agents
         || prev.job?.state !== s.job?.state || prev.fork_day !== s.fork_day
         || JSON.stringify(prev.alt_interventions ?? []) !== JSON.stringify(s.alt_interventions ?? [])
@@ -171,6 +192,24 @@ export const useStore = create<State>((set, get) => ({
   },
   dismiss: (id) => set({ toasts: get().toasts.filter(t => t.id !== id) }),
   setNews: (v) => { save('ucsim-news', v); set({ news: v }) },
+  // the What-if conversation survives drawer closes, page changes and reloads (kept short)
+  setAsk: (a) => {
+    // tags and plans point at ids in one generated world: a different world starts a fresh conversation
+    const st = get().status, key = worldKey(st)
+    let cur = get().ask
+    if (st?.seed != null && cur.world !== key) cur = cur.world == null ? { ...cur, world: key } : { msgs: [], draft: cur.draft, mentions: [], world: key }
+    const next = { ...cur, ...(typeof a === 'function' ? a(cur) : a) }
+    next.msgs = next.msgs.slice(-40)
+    set({ ask: next }); save('ucsim-ask-v1', next)
+  },
+  updateMsg: (at, patch) => get().setAsk(a => ({ msgs: a.msgs.map(m => (m.at === at ? { ...m, ...patch } : m)) })),
+  addMention: (m) => get().setAsk(a => ({ mentions: a.mentions.some(x => x.ref === m.ref) ? a.mentions : [...a.mentions, m].slice(-12) })),
+  removeMention: (ref) => get().setAsk(a => ({ mentions: a.mentions.filter(x => x.ref !== ref) })),
+  useInWhatIf: (m) => {
+    get().addMention(m)
+    if (get().status?.has_alt) set({ drawer: { tab: 'ask' } })
+    else get().setRoute(['whatif'])
+  },
 }))
 
 window.addEventListener('hashchange', () => useStore.setState({ route: parseHash() }))

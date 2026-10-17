@@ -228,7 +228,7 @@ def _nband(n: int) -> str:
     return "10-29" if n < 30 else "30-99" if n < 100 else "100-299" if n < 300 else "300+"
 
 
-def counts_table(df: pl.DataFrame, col: str, min_count: int = 5, by: str | None = None) -> dict:
+def counts_table(df: pl.DataFrame, col: str, min_count: int = K_MIN, by: str | None = None) -> dict:
     d = df.filter(pl.col(col).is_not_null())
     if by is None:
         vc = d[col].value_counts().sort("count", descending=True)
@@ -380,14 +380,14 @@ def build(write: bool = True) -> dict:
     }
 
     tables = {
-        "complexes": counts_table(ps_local, "complex", min_count=5),
-        "complexes_by_school": counts_table(ps_local.filter(pl.col("school_proxy").is_in(["BYU", "UVU"])), "complex", 5, by="school_proxy"),
-        "met_spouse": counts_table(ps_local, "met_spouse", 5),
-        "study_area": counts_table(pl.concat([cl.select("study_area", "school_proxy"), dt.select("study_area", "school_proxy")]), "study_area", 5, by="school_proxy"),
-        "majors_byu": counts_table(ps_local, "major_byu", 5),
-        "majors_uvu": counts_table(ps_local, "major_uvu", 3),
+        "complexes": counts_table(ps_local, "complex", min_count=K_MIN),
+        "complexes_by_school": counts_table(ps_local.filter(pl.col("school_proxy").is_in(["BYU", "UVU"])), "complex", K_MIN, by="school_proxy"),
+        "met_spouse": counts_table(ps_local, "met_spouse", K_MIN),
+        "study_area": counts_table(pl.concat([cl.select("study_area", "school_proxy"), dt.select("study_area", "school_proxy")]), "study_area", K_MIN, by="school_proxy"),
+        "majors_byu": counts_table(ps_local, "major_byu", K_MIN),
+        "majors_uvu": counts_table(ps_local, "major_uvu", K_MIN),
         "origin_state": counts_table(ps_local, "origin", 10),
-        "mission_place": counts_table(ps_local, "mission_place", 8),
+        "mission_place": counts_table(ps_local, "mission_place", K_MIN),
         "dance_venues": {v: round(float(cl[v].mean()), 4) for v in cl.columns if v.startswith("venue_") and cl[v].drop_nulls().len() >= K_MIN},
         "dance_reasons": {v: round(float(cl[v].mean()), 4) for v in cl.columns if v.startswith("dr_")},
         "first_date_pref_mean_by_sex": {

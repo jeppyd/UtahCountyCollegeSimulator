@@ -2,7 +2,7 @@
 
 Generated from `ucsim/config/variables/*.yaml` by `scripts/gen_catalogs.py` — do not edit by hand.
 
-340 variables. Evidence levels: **observed** 11, **empirical** 123, **literature** 44, **calibrated** 102, **extrapolated** 7, **structural** 29, **hypothetical** 24, **speculative** 0.
+341 variables. Evidence levels: **observed** 11, **empirical** 123, **literature** 44, **calibrated** 102, **extrapolated** 7, **structural** 29, **hypothetical** 25, **speculative** 0.
 
 Columns: id · label · type (categories or range) · kind · update cadence · evidence · source · description.
 
@@ -404,6 +404,7 @@ Columns: id · label · type (categories or range) · kind · update cadence · 
 | `world.tuition_uvu` | UVU tuition (resident) | f4 (USD/semester) | state | yearly | calibrated |  | ≈$3k/semester full-time resident (approximate). |
 | `world.app_appeal` | Dating-app appeal multiplier | f4 | state | daily | calibrated |  | Scales app adoption/engagement (e.g. a new app takes off). |
 | `world.coffee_permitted` | Coffee permitted by church | bool | state | daily | hypothetical |  | Word of Wisdom norm switch (hypothetical intervention). |
+| `world.alcohol_permitted` | Alcohol permitted by church | bool | state | daily | hypothetical |  | Word of Wisdom alcohol switch (hypothetical): removes the alcohol prohibition from adoption, guilt, quitting and temple-recommend eligibility. |
 | `world.contracted_housing_required` | BYU contracted-housing requirement | bool | state | daily | calibrated |  | Single first-year BYU undergraduates must live on campus or in BYU-contracted housing (BYU policy since fall 2022: first two semesters only). |
 | `world.interfaith_welcome` | Interfaith welcome initiative | f4 | state | daily | hypothetical |  | 0-1: how actively campuses and wards welcome people of other faiths and none (lowers the religious-outsider feeling). |
 | `world.contracted_housing_all_years` | Contracted housing for all years (pre-2022 rule) | bool | state | daily | hypothetical |  | When true, the requirement covers every single BYU undergraduate, as it did before fall 2022. |

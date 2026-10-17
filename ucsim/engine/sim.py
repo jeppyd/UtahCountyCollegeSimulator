@@ -106,34 +106,52 @@ class Simulation:
         x = P[var].astype(np.float64)
         return np.where(np.isfinite(x), (x - mu) / sd, 0.0)
 
+    @property
+    def whatif(self):
+        """The intervention manager (the What-if's changes; empty in the Original)."""
+        return self.systems["environment"].manager
+
+    def nudge(self, channel: str):
+        """Population-scoped persistent offset a What-if puts on a behavior or feeling channel (0.0 when none)."""
+        env = self.systems.get("environment")
+        return env.manager.bias(channel) if env is not None else 0.0
+
     def emit(self, etype: str, a, b=None, value=None, cause=None, place=None, block: int = 0,
-             mech: str | None = None, ev: dict | None = None, effects_for: str = "a") -> np.ndarray:
-        """Log events, appraise them, apply their registered emotional effects and lay down memories."""
+             mech: str | None = None, ev: dict | None = None, effects_for: str = "a", effects: list | None = None,
+             motive: str | None = None, valence: float | None = None, salience: float | None = None,
+             scale: float = 1.0, salt: int = 991) -> np.ndarray:
+        """Log events, appraise them, apply their registered emotional effects and lay down memories.
+
+        What-if injections can override the template: `effects` (instance effects instead of the registered ones),
+        `motive` (which concern appraisal reads), `valence`/`salience` (how the memory feels and how memorable it is),
+        `scale` (a severity multiplier on every effect, 0.25–4) and `salt` (independent effect noise per injection)."""
         a = np.atleast_1d(np.asarray(a, dtype=np.int64))
         ids = self.log.emit(etype, self.w.day, a, b=b, value=value, cause=cause, place=place, block=block, mech=mech)
         if not len(a):
             return ids
         spec = self.reg.events[etype]
         targets = a if effects_for == "a" else np.atleast_1d(np.asarray(b, dtype=np.int64))
-        relevance, coping = self.appraise(etype, targets)
-        if spec.effects:
-            self.apply_effects(etype, targets, ids, ev or {}, relevance, coping)
+        relevance, coping = self.appraise(etype, targets, motive)
+        effs = spec.effects if effects is None else effects
+        if effs:
+            self.apply_effects(etype, targets, ids, ev or {}, relevance, coping, effects=effs, scale=scale, salt=salt)
         quality = (ev or {}).get("quality")
-        self.memory.encode(ids, targets, self.reg.event_ids[etype], b, self.w.day, quality=quality, relevance=relevance)
+        self.memory.encode(ids, targets, self.reg.event_ids[etype], b if effects_for == "a" else None, self.w.day,
+                           quality=quality, relevance=relevance, valence=valence, salience=salience)
         return ids
 
     # the concern an event touches comes from its category unless the event names one
     _NEG_STATES = frozenset(("stress", "loneliness", "anxiety", "guilt", "fatigue", "financial_stress", "academic_pressure",
                              "romantic_longing"))
 
-    def appraise(self, etype: str, agents: np.ndarray):
+    def appraise(self, etype: str, agents: np.ndarray, motive: str | None = None):
         """Appraisal (Lazarus & Folkman 1984; Scherer 2001): how relevant the event is to what this person cares
         about, and how able they feel to cope. Returns per-agent multipliers (≈1 on average): relevance scales
         every effect; low coping potential amplifies harmful effects."""
         P = self.w.P
         k = len(agents)
         mind = self.systems.get("mind")
-        motive = self.memory.motive_of[self.reg.event_ids[etype]]
+        motive = motive or self.memory.motive_of[self.reg.event_ids[etype]]
         if mind is None or not getattr(mind, "cares_mean", None) or motive is None:
             return np.ones(k, np.float32), np.ones(k, np.float32)
         p = self.p
@@ -144,11 +162,13 @@ class Simulation:
         return rel.astype(np.float32), cop.astype(np.float32)
 
     def apply_effects(self, etype: str, agents: np.ndarray, event_ids: np.ndarray, ev: dict,
-                      relevance: np.ndarray | None = None, coping: np.ndarray | None = None):
+                      relevance: np.ndarray | None = None, coping: np.ndarray | None = None, effects: list | None = None,
+                      scale: float = 1.0, salt: int = 991):
         from .core import pair_normal
         spec = self.reg.events[etype]
         code = self.reg.event_ids[etype]
-        for k, eff in enumerate(spec.effects):
+        log_scale = float(np.log(np.clip(scale, 0.25, 4.0)))
+        for k, eff in enumerate(spec.effects if effects is None else effects):
             logm = np.zeros(len(agents))
             for mod, beta in (eff.get("mods") or {}).items():
                 if mod.startswith("ev."):
@@ -156,8 +176,8 @@ class Simulation:
                     logm += beta * np.broadcast_to(val, (len(agents),))
                 else:
                     logm += beta * self.z(mod)[agents]
-            noise = pair_normal(self.w.seed, agents, np.full(len(agents), self.w.day * 131 + code * 7 + k), 991, True)
-            mag = eff["mag"] * np.exp(np.clip(logm, -3, 3) + eff.get("sd", 0.3) * noise - 0.5 * eff.get("sd", 0.3) ** 2)
+            noise = pair_normal(self.w.seed, agents, np.full(len(agents), self.w.day * 131 + code * 7 + k), salt, True)
+            mag = eff["mag"] * np.exp(np.clip(logm, -3, 3) + log_scale + eff.get("sd", 0.3) * noise - 0.5 * eff.get("sd", 0.3) ** 2)
             if relevance is not None:
                 harmful = (eff["var"] in self._NEG_STATES) == (eff["mag"] > 0)
                 mag = mag * relevance * (coping if harmful and coping is not None else 1.0)

@@ -20,6 +20,10 @@ start the simulator from the desktop or Start-menu shortcut. Windows may warn th
 choose **More info → Run anyway**. Every push rebuilds and self-tests the installer
 (`.github/workflows/windows-app.yml`).
 
+**Updates:** the installed app checks GitHub when it starts. When a newer release exists, an **⬆ Update** button appears
+at the top right (also under ⚙ → *Check for updates*): it downloads the new installer, checks it, installs it
+silently and reopens the app. (The repository must be public for the app to see its releases.)
+
 **From source** (any OS) needs Python ≥ 3.10, Git and Node.js 18+ (for the web UI). Works on Windows, macOS and Linux.
 
 ```bash
@@ -60,7 +64,7 @@ runs, and a recap appears after every time skip.
 | follow individual lives | **People** → a person: their inner life (what they care about, believe, remember and intend, how they cope, what they learned), feelings and why, their people, school and work, faith, money and home, story, history, and their other life in the What-if |
 | see couples and friendships | **Relationships** (couples, the friendship network, how people meet, couples that exist in only one world) |
 | look at places and events | **Places** (complexes, wards, schools) and **Events** (every event, with its chain of causes) |
-| change the world | **What if…?** (top bar or anywhere): ideas, levers (rent, tuition, wages, dating apps, marriage pressure, missions, coffee…), or nudges to a group of people or a rule |
+| change the world | **What if…?** (top bar or anywhere): **describe it in plain language**: tag people and places with @, and Claude (on your Claude Pro login, no API key), Codex or a local model turns it into a plan you review and run ([docs/WHATIF_LLM.md](docs/WHATIF_LLM.md)). Or use ideas, levers (rent, tuition, wages, dating apps, marriage pressure, missions, coffee…), or nudges to a group of people or a rule |
 | follow the butterfly effect | **What-if**: how far the worlds drifted, every field side by side, events more or less common, lives that diverged, couples and places that changed, and why |
 | browse every field the model tracks | **Explore**: every field in friendly drawers; each one now, over time, by group, against another field, the people behind it, and what drives it; pin it to your board |
 | go deeper | **Research desk**: vital signs, flows, cross-tabs, cause & effect, Monte Carlo, sweeps and uncertainty ensembles, model check (incl. patterns, longitudinal structure, stock-flow accounting), data dictionary, rules, evidence |
@@ -113,3 +117,5 @@ explorer, live news), real Provo/Orem places, religious diversity, map replays, 
 against the Census and surveys, and a four-year stability check.
 See the in-app **Model check** (or `docs/VALIDATION.md`) for how well it matches real data and
 `docs/ROADMAP.md` for what is next. The natural-language (LLM) layer is deliberately deferred.
+
+Map data © OpenStreetMap contributors (ODbL) and the Utah Geospatial Resource Center; see [NOTICE.md](NOTICE.md).

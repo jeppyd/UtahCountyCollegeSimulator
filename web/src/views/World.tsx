@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, STATIC } from '../api'
 import { cssVar } from '../components'
 import { DRAWERS, drawerOf, favg, fdelta, fpair, pairs, pctStr, polarity, pretty, sizeWord } from '../fields'
-import { CatIcon, DeltaChip, G, Spark, Ticker, UBadge, useAsync } from '../game'
+import { CatIcon, DeltaChip, G, Spark, Ticker, UBadge, useAsync, whatifKey } from '../game'
 import { timeCtl } from '../hud'
 import { Cond, Pin, useLens, useStore } from '../store'
 import { CATEGORY_LABEL, FollowButton, Story } from '../ui'
@@ -184,7 +184,7 @@ function TrendCard({ tr, ts }: { tr: any; ts: any }) {
 
 function TwoWorlds() {
   const { status, dataVersion, setRoute, registry, presets, openDrawer } = useStore()
-  const f = useAsync(() => (status.has_alt ? api.compareFields() : Promise.resolve(null)), [status.has_alt, dataVersion])
+  const f = useAsync(() => (status.has_alt ? api.compareFields() : Promise.resolve(null)), [status.has_alt, dataVersion], { key: status.has_alt ? whatifKey(status, 'fields') : undefined })
   if (!status.has_alt) {
     return (
       <div className="card twoworlds empty-tw">

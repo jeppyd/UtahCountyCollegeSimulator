@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fmt } from '../analysis'
-import { api } from '../api'
+import { api, STATIC } from '../api'
 import { axisStyle, EChart, Loading, PersonLink, VarPicker } from '../components'
 import { favg, fdelta, fpair } from '../fields'
 import { G, UBadge } from '../game'
@@ -117,7 +117,7 @@ function Culture({ c, kind, name }: { c: any; kind: string; name: string }) {
 }
 
 function Institution({ kind, id }: { kind: string; id: number }) {
-  const { dataVersion, setRoute, registry } = useStore()
+  const { dataVersion, setRoute, registry, useInWhatIf } = useStore()
   const { u: universe } = useLens()
   const [d, setD] = useState<any>(null)
   const [err, setErr] = useState('')
@@ -137,7 +137,9 @@ function Institution({ kind, id }: { kind: string; id: number }) {
   return (
     <div className="page">
       <button className="btn small" onClick={() => setRoute(['places'])}>‹ Places</button>
-      <div className="scene-head" style={{ ['--sc' as any]: 'var(--s4)', marginTop: 10 }}><span className="sh-icon">{G[kind === 'school' ? 'school' : kind === 'ward' ? 'faith' : kind === 'employer' ? 'work' : 'places']}</span><div className="sh-text"><h1>{d.name}</h1></div></div>
+      <div className="scene-head" style={{ ['--sc' as any]: 'var(--s4)', marginTop: 10 }}><span className="sh-icon">{G[kind === 'school' ? 'school' : kind === 'ward' ? 'faith' : kind === 'employer' ? 'work' : 'places']}</span><div className="sh-text"><h1>{d.name}</h1></div>
+        {!STATIC && kind !== 'unit' && <button className="btn" style={{ marginLeft: 'auto' }} title="Tag this place in a What-if"
+          onClick={() => useInWhatIf({ ref: kind === 'school' ? `school:${id === 2 ? 'UVU' : 'BYU'}` : `${kind}:${id}`, kind, label: d.name, n: d.n })}>{G.butterfly} What if…</button>}</div>
       <p className="sub">{d.n.toLocaleString()} people present · {d.friend_ties_inside.toLocaleString()} friendships inside (density {fmt(d.density, 4)})</p>
       <div className="kpis" style={{ marginBottom: 14 }}>
         {Object.entries(d.stats).slice(0, 12).map(([k, v]: any) => <div key={k} className="kpi click" onClick={() => setRoute(['explore', k])}><span className="k-label">{registry!.variables[k]?.label ?? k.replace(/_/g, ' ')}</span><span className="k-val tabular">{favg(registry!.variables[k], v)}</span></div>)}

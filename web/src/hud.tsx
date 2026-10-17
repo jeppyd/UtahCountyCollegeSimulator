@@ -105,6 +105,7 @@ export function Hud() {
         {G.search}<span>Search anything</span><kbd>Ctrl K</kbd>
       </button>
       <span className="hud-pop small tabular" title="People living in Provo/Orem right now">{G.people}{status.present?.toLocaleString()}</span>
+      <UpdatePill />
       <Settings />
     </header>
   )
@@ -161,7 +162,8 @@ function Settings() {
           <div className="menu-row"><span className="small muted" style={{ width: 92 }} title="Show formulas, evidence labels, parameters and research tools inside pages">Research details</span>
             <div className="seg small-seg"><button className={mode === 'simple' ? 'on' : ''} onClick={() => setMode('simple')}>hide</button><button className={mode === 'advanced' ? 'on' : ''} onClick={() => setMode('advanced')}>show</button></div></div>
           {!STATIC && <><div className="menu-sep" />
-            <button onClick={() => { setOpen(false); setWorldOpen(true) }}>Build a new world… <span className="muted">scale {status.scale} · seed {status.seed}</span></button></>}
+            <button onClick={() => { setOpen(false); setWorldOpen(true) }}>Build a new world… <span className="muted">scale {status.scale} · seed {status.seed}</span></button>
+            <UpdateRow /></>}
           <div className="menu-sep" />
           <div className="small muted" style={{ padding: '4px 9px 6px', lineHeight: 1.6 }}>
             Keys: <span className="kbd">Space</span> play/pause · <span className="kbd">1</span><span className="kbd">2</span><span className="kbd">3</span> Original / What-if / Compare · <span className="kbd">.</span> +1 day · <span className="kbd">&gt;</span> +1 week · <span className="kbd">/</span> search
@@ -171,4 +173,81 @@ function Settings() {
       {worldOpen && <WorldDialog onClose={() => setWorldOpen(false)} />}
     </div>
   )
+}
+
+// ------------------------------------------------------------------ in-app updates
+let updateInfo: any = null                 // one check per session, shared by the pill and the settings menu
+const updateSubs = new Set<(u: any) => void>()
+function setUpdate(u: any) { updateInfo = u; updateSubs.forEach(f => f(u)) }
+function useUpdate() {
+  const [u, setU] = useState<any>(updateInfo)
+  useEffect(() => { updateSubs.add(setU); return () => { updateSubs.delete(setU) } }, [])
+  return u
+}
+let checked = false
+async function checkUpdate(force = false) {
+  try { setUpdate(await api.updateCheck(force)) } catch (e: any) { setUpdate({ error: String(e?.message ?? e) }) }
+}
+
+function UpdatePanel({ u }: { u: any }) {
+  const [st, setSt] = useState<any>(u?.state ?? { state: 'idle' })
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    if (st.state !== 'downloading' && st.state !== 'installing') return
+    const t = window.setInterval(() => api.updateStatus().then(setSt).catch(() => setSt({ state: 'installing' })), 700)   // the app quits while installing
+    return () => window.clearInterval(t)
+  }, [st.state])
+  const go = async () => {
+    setErr('')
+    const r: any = await api.updateInstall().catch((e: any) => ({ ok: false, error: String(e?.message ?? e) }))
+    if (!r.ok) setErr(r.error); else setSt(r.state)
+  }
+  if (!u) return <p className="small muted">Checking for updates…</p>
+  const pct = st.total ? Math.round((100 * (st.done ?? 0)) / st.total) : 0
+  return (
+    <div className="update-panel">
+      <div className="small">This version: <b>{u.current ?? 'running from source'}</b>{u.latest ? <> · latest: <b>{u.latest}</b></> : null}</div>
+      {u.error && <p className="small pc-warn">{u.error}</p>}
+      {u.source && !u.error && <p className="small muted">You're running from source: update with <code>git pull</code>, then restart.</p>}
+      {!u.available && !u.error && !u.source && <p className="small">✓ You have the latest version.</p>}
+      {u.available && <>
+        <p className="small">Version {u.latest} is ready{u.published ? ` (released ${new Date(u.published).toLocaleDateString()})` : ''}.</p>
+        {st.state === 'downloading' && <div className="progress" style={{ position: 'relative', height: 6 }}><i style={{ width: `${pct}%` }} /></div>}
+        {st.state === 'downloading' && <p className="small muted">Downloading… {pct}%</p>}
+        {st.state === 'installing' && <p className="small"><b>Installing.</b> The simulator closes and reopens by itself in a few seconds.</p>}
+        {st.state === 'error' && <p className="small pc-warn">The update failed: {st.error}</p>}
+        {(st.state === 'idle' || st.state === 'error') && <>
+          {u.can_install
+            ? <button className="btn primary small" onClick={go}>Update now</button>
+            : <a className="btn small" href={u.page} target="_blank" rel="noreferrer">Download from GitHub</a>}
+          <p className="small muted" style={{ marginBottom: 0 }}>The app restarts, so the current world closes; build a new one after the update.</p>
+        </>}
+      </>}
+      {err && <p className="small pc-warn">{err}</p>}
+    </div>
+  )
+}
+
+function UpdatePill() {
+  const u = useUpdate()
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useOutside(ref, () => setOpen(false))
+  useEffect(() => { if (!checked && !STATIC) { checked = true; window.setTimeout(() => checkUpdate(), 3000) } }, [])
+  if (!u?.available) return null
+  return (
+    <div className="menu-wrap" ref={ref}>
+      <button className="pill update-pill" onClick={() => setOpen(!open)} title={`Version ${u.latest} is available`}>⬆ Update</button>
+      {open && <div className="menu right" style={{ width: 300, padding: 12 }}><UpdatePanel u={u} /></div>}
+    </div>
+  )
+}
+
+function UpdateRow() {
+  const u = useUpdate()
+  const [open, setOpen] = useState(false)
+  return <>
+    <button onClick={() => { setOpen(!open); if (!open) checkUpdate(true) }}>Check for updates <span className="muted">{u?.current ? `v${u.current}` : ''}{u?.available ? ' · update ready' : ''}</span></button>
+    {open && <div style={{ padding: '4px 9px 8px', maxWidth: 300 }}><UpdatePanel u={u} /></div>}
+  </>
 }

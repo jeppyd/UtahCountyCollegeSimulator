@@ -144,7 +144,7 @@ class Faith:
                    + p("faith.attend.habit") * (P["practice_habit"] - 0.5) + p("faith.attend.norm") * (P["perceived_norm"] - 0.5)
                    + p("faith.attend.family") * P["family_expectation"] - p("faith.attend.stress") * np.clip(P["stress"] - 0.3, 0, None)
                    - 0.8 * P["fatigue"] - 2.0 * P.internal["works_sunday"][:n] + np.log(w.env["church_attendance_norm"] + 1e-9)
-                   - 1.0 * P["faith_crisis"] + sim.systems["coping"].church_bias() + self._plan_bias())
+                   - 1.0 * P["faith_crisis"] + sim.systems["coping"].church_bias() + self._plan_bias() + sim.nudge("attend"))
         P.internal["attend_prob"][:n] = np.where(lds, ap, 0)
         # ---- events: spiritual experiences & faith challenges
         u1, u2 = sim.u("spirit"), sim.u("challenge")
@@ -250,7 +250,9 @@ class Faith:
         if back.any():
             sim.emit("returned_to_activity", np.where(back)[0], mech="faith.attend")
         # temple recommend gained/lost
-        clean = (P["coffee"] == 0) & (P["alcohol"] == 0) & ~P["premarital_sex_current"]
+        # a practice the Church permits no longer costs a recommend
+        clean = (((P["coffee"] == 0) | bool(w.env.get("coffee_permitted"))) & ((P["alcohol"] == 0) | bool(w.env.get("alcohol_permitted")))
+                 & ~P["premarital_sex_current"])
         eligible = P["lds_member"] & (P["activity"] == 3) & (P["faith_belief"] > 0.6) & clean & (P["age"] >= 18)
         gain = eligible & ~P["temple_recommend"] & (sim.u("tr") < 0.03)
         lose = P["temple_recommend"] & (~clean | (P["activity"] < 3)) & (sim.u("tr2") < 0.2)

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { api } from '../api'
 import { axisStyle, EChart, PersonLink, tokens } from '../components'
 import { pctStr, pretty } from '../fields'
-import { G, Ticker, UBadge, uColor, useAsync } from '../game'
+import { G, Ticker, UBadge, uColor, useAsync, whatifKey } from '../game'
 import { useLens, useStore } from '../store'
 import NetworkView from './NetworkView'
 
@@ -123,8 +123,8 @@ function Meet({ d, da }: { d: any; da: any }) {
 }
 
 function Diff() {
-  const { dataVersion, setRoute } = useStore()
-  const r = useAsync(() => api.compareRelationships(), [dataVersion])
+  const { status, dataVersion, setRoute } = useStore()
+  const r = useAsync(() => api.compareRelationships(), [dataVersion], { key: whatifKey(status, 'relationships') })
   const d: any = r.data
   if (!d) return <div className="empty">{r.error || 'Comparing…'}</div>
   const C = ({ c, u }: { c: any; u: 'base' | 'alt' }) => (

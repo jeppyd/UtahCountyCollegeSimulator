@@ -1555,6 +1555,29 @@ def runs():
     return jresp(rows)
 
 
+# ----------------------------------------------------------------------------- app updates
+@app.get("/api/update/check")
+def update_check(force: bool = False):
+    """Is a newer release of the installed app on GitHub?"""
+    from .. import updater
+    return jresp(updater.check(force))
+
+
+@app.get("/api/update/status")
+def update_status():
+    from .. import updater
+    return jresp(dict(updater.STATE))
+
+
+@app.post("/api/update/install")
+def update_install(request: Request):
+    """Download the newer installer, run it silently and quit; the new version starts by itself."""
+    _local_only(request)
+    from .. import updater
+    from ..app import data_home
+    return jresp(updater.start_install(data_home()))
+
+
 # ----------------------------------------------------------------------------- static
 @app.get("/geo/{name}")
 def geo(name: str):

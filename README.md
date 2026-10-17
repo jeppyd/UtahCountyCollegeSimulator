@@ -20,6 +20,10 @@ start the simulator from the desktop or Start-menu shortcut. Windows may warn th
 choose **More info → Run anyway**. Every push rebuilds and self-tests the installer
 (`.github/workflows/windows-app.yml`).
 
+**Updates:** the installed app checks GitHub when it starts. When a newer release exists, an **⬆ Update** button appears
+at the top right (also under ⚙ → *Check for updates*): it downloads the new installer, checks it, installs it
+silently and reopens the app. (The repository must be public for the app to see its releases.)
+
 **From source** (any OS) needs Python ≥ 3.10, Git and Node.js 18+ (for the web UI). Works on Windows, macOS and Linux.
 
 ```bash

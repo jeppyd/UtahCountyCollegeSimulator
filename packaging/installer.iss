@@ -23,6 +23,9 @@ UninstallDisplayName={#AppName}
 Compression=lzma2/fast
 SolidCompression=yes
 WizardStyle=modern
+; in-app updates run this installer silently while the old app is quitting
+CloseApplications=force
+RestartApplications=no
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"
@@ -36,3 +39,5 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\ProvoOremSimulator.exe"; Task
 
 [Run]
 Filename: "{app}\ProvoOremSimulator.exe"; Description: "Start the simulator now"; Flags: nowait postinstall skipifsilent
+; after a silent (in-app) update, start the new version straight away
+Filename: "{app}\ProvoOremSimulator.exe"; Flags: nowait skipifnotsilent

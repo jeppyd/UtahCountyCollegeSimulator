@@ -20,3 +20,6 @@ web/dist-static/
 # secrets (Claude API key for LLM features)
 .env
 .env.*
+
+# stamped by the release build (in-app updates compare against it)
+ucsim/_build_version.py

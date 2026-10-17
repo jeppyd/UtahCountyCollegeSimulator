@@ -69,12 +69,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "installer build failed" }
           Compress-Archive -Path dist\ProvoOremSimulator -DestinationPath dist\ProvoOremSimulator-portable.zip
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ProvoOremSimulator-windows
-          path: dist/ProvoOremSimulator-Setup.exe
-          retention-days: 14
-
+      # (no workflow artifact: the release below carries the files, and artifacts count against the Actions storage quota)
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:

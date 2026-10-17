@@ -75,10 +75,12 @@ def save_settings(new: dict) -> dict:
     return s
 
 
-def status() -> dict:
+def status(fresh: bool = False) -> dict:
     s = load_settings()
-    claude_v = backends.version("claude", s.get("claude_path") or None)
-    codex_v = backends.version("codex", s.get("codex_path") or None)
+    claude_v = backends.version("claude", s.get("claude_path") or None, fresh)
+    codex_v = backends.version("codex", s.get("codex_path") or None, fresh)
+    # why a CLI that is installed can't be used (an npm launcher with no safe way to run it)
+    notes = {k: backends.resolve_cli(k, s.get(f"{k}_path") or None)[1] for k in ("claude", "codex")}
     models = backends.openai_models(s["openai_url"]) if s["backend"] == "openai" else []
     try:
         import mcp  # noqa: F401
@@ -88,7 +90,9 @@ def status() -> dict:
     ready = {"claude": bool(claude_v), "codex": bool(codex_v), "openai": bool(models)}
     shown = {k: v for k, v in s.items() if k != "openai_key"}
     return {"settings": shown, "claude": claude_v, "codex": codex_v, "openai_models": models, "mcp": has_mcp,
-            "ready": ready[s["backend"]], "api_key_in_env": bool(os.environ.get("ANTHROPIC_API_KEY"))}
+            "ready": ready[s["backend"]], "api_key_in_env": bool(os.environ.get("ANTHROPIC_API_KEY")),
+            "claude_note": notes["claude"], "codex_note": notes["codex"], "desktop": bool(getattr(sys, "frozen", False)),
+            "windows": backends.WINDOWS}
 
 
 # ---------------------------------------------------------------------- the context pack

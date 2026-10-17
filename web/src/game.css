@@ -300,6 +300,17 @@ kbd { font-family: ui-monospace, monospace; font-size: 10px; padding: 1px 5px; b
 .ask-setup { margin: 0 16px; padding: 12px 14px; }
 .ask-setup .row { flex-wrap: wrap; gap: 8px; }
 .ask-setup code { background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
+.ask-setup a { color: var(--accent, inherit); }
+.ask-why { margin: 0 0 8px; }
+.ask-why summary { cursor: pointer; font-weight: 600; }
+.ask-why p { margin: 6px 0; line-height: 1.45; }
+.ask-found { margin: 4px 0; }
+.ask-found.ok { color: var(--good, #2e9d5b); }
+.ask-found.warn { color: var(--warn, #c9821b); }
+.ask-steps-setup { margin: 6px 0 8px; padding-left: 20px; line-height: 1.5; }
+.ask-steps-setup li { margin: 4px 0; }
+.ask-cmd { display: inline-flex; align-items: center; gap: 4px; margin: 2px 0; max-width: 100%; }
+.ask-cmd code { user-select: all; overflow-wrap: anywhere; }
 .ask-thread { flex: 1; min-height: 140px; overflow: auto; padding: 4px 16px; display: flex; flex-direction: column; gap: 12px; }
 .change.inline .ask-thread { max-height: 62vh; }
 .ask-empty { display: grid; gap: 12px; padding: 6px 0 4px; }

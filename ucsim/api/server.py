@@ -996,9 +996,9 @@ def entities_get(ref: str, mode: str = "new"):
 
 
 @app.get("/api/whatif/llm/status")
-def llm_status():
+def llm_status(refresh: bool = False):
     from ..llm import compiler
-    return jresp(compiler.status())
+    return jresp(compiler.status(fresh=refresh))
 
 
 @app.post("/api/whatif/llm/settings")

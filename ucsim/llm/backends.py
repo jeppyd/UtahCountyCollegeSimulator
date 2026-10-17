@@ -36,8 +36,22 @@ _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0) if WINDOWS else 0
 _version_cache: dict[str, tuple[float, str | None]] = {}
 
 
+def _usual_places(cmd: str) -> list[Path]:
+    """Where installers put the CLIs, for when PATH is stale (the app was started before the install)."""
+    home = Path.home()
+    if WINDOWS:
+        appdata, local = Path(os.environ.get("APPDATA", home / "AppData/Roaming")), Path(os.environ.get("LOCALAPPDATA", home / "AppData/Local"))
+        return [home / ".local/bin" / f"{cmd}.exe", appdata / "npm" / f"{cmd}.cmd", local / "Programs" / cmd / f"{cmd}.exe",
+                Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "nodejs" / f"{cmd}.cmd"]
+    return [home / ".local/bin" / cmd, home / ".claude/local" / cmd, home / ".npm-global/bin" / cmd,
+            Path("/opt/homebrew/bin") / cmd, Path("/usr/local/bin") / cmd]
+
+
 def which(cmd: str) -> str | None:
-    return shutil.which(cmd)
+    hit = shutil.which(cmd)
+    if hit or os.sep in cmd or "/" in cmd:
+        return hit
+    return next((str(c) for c in _usual_places(cmd) if c.is_file()), None)
 
 
 def resolve_cli(name: str, override: str | None = None) -> tuple[list[str] | None, str | None]:
@@ -110,10 +124,10 @@ def _help(argv: list[str]) -> str:
     return _help_cache[key]
 
 
-def version(cmd: str, override: str | None = None) -> str | None:
+def version(cmd: str, override: str | None = None, fresh: bool = False) -> str | None:
     """Installed version (cached for a minute: the status panel asks often)."""
     hit = _version_cache.get(cmd)
-    if hit and time.time() - hit[0] < 60:
+    if hit and time.time() - hit[0] < 60 and not fresh:
         return hit[1]
     argv, err = resolve_cli(cmd, override)
     v = None

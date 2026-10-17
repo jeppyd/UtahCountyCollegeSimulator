@@ -66,7 +66,7 @@ export function AskPanel({ onDone }: { onDone?: () => void }) {
   const [mode, setMode] = useState<'new' | 'add'>(hasAlt ? 'add' : 'new')
   useEffect(() => setMode(hasAlt ? 'add' : 'new'), [hasAlt])
   const [ver, setVer] = useState(0)
-  const st = useAsync(() => api.llmStatus(), [ver], { key: 'llm-status' })
+  const st = useAsync(() => api.llmStatus(ver > 0), [ver], { key: 'llm-status' })
   const [showSetup, setShowSetup] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
   const busy = ask.msgs.some(m => m.state === 'queued' || m.state === 'running')
@@ -114,7 +114,7 @@ export function AskPanel({ onDone }: { onDone?: () => void }) {
         <button className="btn ghost small" onClick={() => setShowSetup(!showSetup)} aria-label="Model settings">{G.gear}</button>
         {ask.msgs.length > 0 && <button className="btn ghost small" disabled={busy} onClick={() => setAsk({ msgs: [], mentions: [] })} title="Start a new conversation">New idea</button>}
       </div>
-      {(showSetup || (s && !ready && !ask.msgs.length)) && <Setup s={s} onSaved={() => { setShowSetup(false); setVer(v => v + 1) }} />}
+      {(showSetup || (s && !ready && !ask.msgs.length)) && <Setup s={s} onSaved={() => { setShowSetup(false); setVer(v => v + 1) }} onCheck={() => setVer(v => v + 1)} checking={st.loading} />}
       <div className="ask-thread">
         {ask.msgs.length === 0 && (
           <div className="ask-empty">
@@ -356,42 +356,97 @@ function Composer({ onSend, busy, refining, mode }: { onSend: (t: string) => voi
 }
 
 // ------------------------------------------------------------------ setup
-function Setup({ s, onSaved }: { s: any; onSaved: () => void }) {
+function Cmd({ c }: { c: string }) {
+  const [done, setDone] = useState(false)
+  return (
+    <span className="ask-cmd"><code>{c}</code>
+      <button className="btn ghost small" onClick={() => { navigator.clipboard?.writeText(c).then(() => { setDone(true); window.setTimeout(() => setDone(false), 1500) }) }}>{done ? 'Copied' : 'Copy'}</button>
+    </span>
+  )
+}
+
+function Found({ ok, yes, no, note }: { ok: boolean; yes: React.ReactNode; no: React.ReactNode; note?: string | null }) {
+  return <p className={`small ask-found ${ok ? 'ok' : 'warn'}`}>{ok ? '✓ ' : '✕ '}{ok ? yes : no}{!ok && note ? <><br />{note}</> : null}</p>
+}
+
+function Setup({ s, onSaved, onCheck, checking }: { s: any; onSaved: () => void; onCheck: () => void; checking: boolean }) {
   const [form, setForm] = useState<any>(s?.settings ?? {})
   const [saving, setSaving] = useState(false)
   useEffect(() => { if (s?.settings) setForm(s.settings) }, [s?.settings?.backend])
   const set = (k: string, v: any) => setForm({ ...form, [k]: v })
   const save = async () => { setSaving(true); try { await api.llmSettings(form); onSaved() } finally { setSaving(false) } }
   const b = form.backend ?? 'claude'
+  const win = s?.windows ?? /Win/.test(navigator.platform)
+  const shell = win ? <>Open <b>PowerShell</b> (press Start, type <i>PowerShell</i>, press Enter)</> : <>Open <b>Terminal</b></>
+  const check = <button className="btn small" disabled={checking} onClick={onCheck}>{checking ? 'Checking…' : 'Check again'}</button>
   return (
     <div className="ask-setup card flat">
       <div className="row" style={{ marginBottom: 8 }}>
         <b className="small">Which model turns your words into changes?</b><span className="spacer" />
         <div className="seg small-seg">
-          {[['claude', 'Claude (Pro)'], ['codex', 'ChatGPT (Codex)'], ['openai', 'Local (LM Studio)']].map(([k, l]) => <button key={k} className={b === k ? 'on' : ''} onClick={() => set('backend', k)}>{l}</button>)}
+          {[['claude', 'Claude (Pro/Max)'], ['codex', 'ChatGPT (Plus)'], ['openai', 'Local model']].map(([k, l]) => <button key={k} className={b === k ? 'on' : ''} onClick={() => set('backend', k)}>{l}</button>)}
         </div>
       </div>
+      <details className="small ask-why">
+        <summary>Do I need to install anything?</summary>
+        <p>For <b>Claude</b> or <b>ChatGPT</b>, yes, once: a small free program from Anthropic (<i>Claude Code</i>) or OpenAI (<i>Codex</i>)
+          that you sign in to with your account. The simulator borrows that sign-in, which is how it uses your existing subscription with
+          no API key and no extra bill. After the one-time setup you never need to open it yourself; it runs out of sight when you press Send,
+          and each What-if counts toward your plan's normal usage limits.</p>
+        <p>For a <b>local model</b>, there's no account and nothing to sign in to: you only need LM Studio (or Ollama) running on this computer.
+          It's free and private, but slower and less careful than Claude or ChatGPT unless you have a strong graphics card.</p>
+      </details>
+
       {b === 'claude' && <>
-        <p className="small" style={{ marginTop: 0 }}>{s?.claude ? <>✓ Claude Code found ({s.claude}).</> : <>✕ Claude Code not found.</>} It runs on your Claude subscription. No API key or extra bill is needed.</p>
-        {!s?.claude && <ol className="small"><li>Install Claude Code (see code.claude.com).</li><li>Open a terminal, run <code>claude</code>, and sign in with your Claude account.</li><li>Restart the simulator.</li></ol>}
-        {s?.api_key_in_env && <p className="small pc-warn">⚠ ANTHROPIC_API_KEY is set in your environment. The simulator removes it when it calls Claude Code, so your subscription is used rather than API billing.</p>}
+        <Found ok={!!s?.claude} yes={<>Claude Code is installed ({s?.claude}). If you haven't signed in yet, do step 3 below.</>}
+          no={<>Claude Code isn't installed yet (or the simulator can't find it).</>} note={s?.claude_note} />
+        <ol className="small ask-steps-setup">
+          <li>{shell}.</li>
+          <li>Install Claude Code by pasting this and pressing Enter:<br />
+            <Cmd c={win ? 'irm https://claude.ai/install.ps1 | iex' : 'curl -fsSL https://claude.ai/install.sh | bash'} /></li>
+          <li>Sign in: type <Cmd c="claude" /> and press Enter. Sign in with your Claude account (Pro or Max; the free plan doesn't
+            include Claude Code) in the browser window that opens, then type <code>/exit</code>. If <code>claude</code> isn't recognized,
+            close PowerShell and open a new window first.</li>
+          <li>Come back here and press {check}</li>
+        </ol>
+        {s?.api_key_in_env && <p className="small pc-warn">⚠ ANTHROPIC_API_KEY is set on this computer. The simulator removes it when it calls Claude Code, so your subscription is used, not API billing.</p>}
+        {s?.desktop && <p className="small muted">In the installed app, Claude works from the full catalog without its live lookup tools; the simulator checks the plan afterwards and asks for fixes.</p>}
         <div className="row small"><span>Model</span>
-          <select value={form.claude_model ?? ''} onChange={e => set('claude_model', e.target.value)}><option value="">Claude Code default</option><option value="sonnet">Sonnet (fast, recommended)</option><option value="opus">Opus (deepest reasoning)</option><option value="haiku">Haiku (quickest)</option></select>
+          <select value={form.claude_model ?? ''} onChange={e => set('claude_model', e.target.value)}><option value="">Claude Code default</option><option value="sonnet">Sonnet (fast, recommended)</option><option value="opus">Opus (deepest reasoning, uses more of your limit)</option><option value="haiku">Haiku (quickest)</option></select>
           <span>Effort</span>
           <select value={form.claude_effort ?? ''} onChange={e => set('claude_effort', e.target.value)}><option value="">default</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select>
-          <label className="inline"><input type="checkbox" checked={form.use_tools ?? true} onChange={e => set('use_tools', e.target.checked)} />let it look things up and check its plan{s && !s.mcp ? ' (needs: pip install mcp)' : ''}</label>
+          {!s?.desktop && <label className="inline"><input type="checkbox" checked={form.use_tools ?? true} onChange={e => set('use_tools', e.target.checked)} />let it look things up and check its plan{s && !s.mcp ? ' (needs: pip install mcp)' : ''}</label>}
         </div>
       </>}
+
       {b === 'codex' && <>
-        <p className="small" style={{ marginTop: 0 }}>{s?.codex ? <>✓ Codex CLI found ({s.codex}).</> : <>✕ Codex CLI not found: install it, then run <code>codex login</code> and choose "Sign in with ChatGPT".</>} It uses your ChatGPT plan. Codex can't use the simulator's lookup tools, so the simulator checks its plan afterwards.</p>
+        <Found ok={!!s?.codex} yes={<>Codex is installed ({s?.codex}). If you haven't signed in yet, do step 4 below.</>}
+          no={<>Codex isn't installed yet (or the simulator can't find it).</>} note={s?.codex_note} />
+        <ol className="small ask-steps-setup">
+          <li>Install <b>Node.js</b> (the "LTS" download from <a href="https://nodejs.org" target="_blank" rel="noreferrer">nodejs.org</a>) if you don't have it. Accept the defaults.</li>
+          <li>{shell}. If you just installed Node.js, open a new window so it's found.</li>
+          <li>Install Codex: <Cmd c="npm install -g @openai/codex" /></li>
+          <li>Sign in: <Cmd c="codex login" /> and choose <b>Sign in with ChatGPT</b>.</li>
+          <li>Come back here and press {check}</li>
+        </ol>
+        <p className="small muted">Codex can't use the simulator's lookup tools, so the simulator checks its plan afterwards and asks it to fix any problems. Plans take a little longer than with Claude.</p>
         <div className="row small"><span>Model (optional)</span><input type="text" value={form.codex_model ?? ''} onChange={e => set('codex_model', e.target.value)} placeholder="Codex default" /></div>
       </>}
+
       {b === 'openai' && <>
-        <p className="small" style={{ marginTop: 0 }}>Any OpenAI-compatible local server. In LM Studio, open the Developer tab, load a model, and start the server. Larger models (14B+) follow the catalog far better.</p>
+        <Found ok={!!s?.openai_models?.length} yes={<>Connected: {s?.openai_models?.length} model{s?.openai_models?.length === 1 ? '' : 's'} available ({s?.openai_models?.slice(0, 3).join(', ')}).</>}
+          no={<>No local server answering at {form.openai_url || 'the address below'} yet.</>} />
+        <ol className="small ask-steps-setup">
+          <li>Install <b>LM Studio</b> from <a href="https://lmstudio.ai" target="_blank" rel="noreferrer">lmstudio.ai</a>.</li>
+          <li>In its <b>Discover</b> tab, download a model. Bigger follows the catalog better: about 12–14B parameters for a graphics card with 8–12 GB, about 27–32B for 24 GB. Small models (under 8B) often produce plans that fail the checks.</li>
+          <li>Open the <b>Developer</b> tab, load the model, and switch <b>Start server</b> on (it should say it's running at <code>http://localhost:1234</code>).</li>
+          <li>Leave the address below as it is, press Save, then {check}</li>
+        </ol>
+        <p className="small muted">Ollama works too: run <code>ollama pull</code> with a model name, and set the server to <code>http://localhost:11434/v1</code>.</p>
         <div className="row small"><span>Server</span><input type="text" value={form.openai_url ?? ''} onChange={e => set('openai_url', e.target.value)} style={{ width: 220 }} />
           <span>Model</span><input type="text" value={form.openai_model ?? ''} onChange={e => set('openai_model', e.target.value)} placeholder={s?.openai_models?.[0] ?? 'first loaded model'} /></div>
       </>}
-      <div className="row" style={{ marginTop: 8 }}><span className="spacer" /><button className="btn primary small" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</button></div>
+      <div className="row" style={{ marginTop: 8 }}><span className="small muted">Settings are saved on this computer.</span><span className="spacer" /><button className="btn primary small" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</button></div>
     </div>
   )
 }

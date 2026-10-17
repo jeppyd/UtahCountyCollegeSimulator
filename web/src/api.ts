@@ -266,7 +266,7 @@ export const api = {
   async unfork() { return j('/api/fork', { method: 'DELETE' }) },
   // natural-language What-ifs (an LLM through your Claude/ChatGPT subscription or a local model)
   async entities(q: string, kinds: string[] = [], limit = 12, mode: 'new' | 'add' = 'new') { return STATIC ? [] : j(`/api/entities/search?q=${encodeURIComponent(q)}&kinds=${kinds.join(',')}&limit=${limit}&mode=${mode}`) },
-  async llmStatus() { return STATIC ? { ready: false, settings: {} } : j('/api/whatif/llm/status', undefined, 60000) },
+  async llmStatus(refresh = false) { return STATIC ? { ready: false, settings: {} } : j(`/api/whatif/llm/status${refresh ? '?refresh=1' : ''}`, undefined, 60000) },
   async llmSettings(body: any) { return post('/api/whatif/llm/settings', body) },
   async whatifCompile(body: any) { return post('/api/whatif/compile', body) },
   async whatifJob(id: string) { return j(`/api/whatif/compile/${id}`, undefined, 30000) },

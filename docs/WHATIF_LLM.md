@@ -6,28 +6,41 @@ It runs on the subscriptions you already have: **no API key and no extra bill.**
 
 ## Setup (one time)
 
-**Claude (recommended): uses your Claude Pro or Max plan**
+**Do you need to install anything?** For Claude or ChatGPT, yes, once: a small free program from Anthropic (*Claude Code*) or OpenAI (*Codex*) that you sign in to with your account. The simulator borrows that sign-in, which is how it uses your subscription with no API key. You never have to open it again afterwards; it runs out of sight when you press Send. For a local model you only need LM Studio or Ollama running; there's no account. The same steps, with copy buttons and a **Check again** button, are in the What-if tab under ⚙.
 
-1. Install Claude Code (see code.claude.com).
-2. Open a terminal, run `claude`, and sign in with your Claude account. Close it again.
-3. Make sure `ANTHROPIC_API_KEY` isn't set in your environment. If it is, Claude Code would bill that key; the simulator removes it from the environment it passes to Claude Code, but it's cleaner to unset it.
-4. Update the simulator's Python packages: `pip install -e .` (this adds `mcp`, which lets Claude look things up in the live world while it works).
-5. Start the simulator as usual. The What-if tab shows **● Claude Code** when it's ready.
+**Claude (recommended): uses your Claude Pro or Max plan** (the free plan doesn't include Claude Code)
 
-In the tab's settings (the ⚙ button) you can pick the model:
+1. Open PowerShell (Start → type *PowerShell* → Enter). On a Mac, open Terminal.
+2. Install Claude Code:
+   - Windows: `irm https://claude.ai/install.ps1 | iex`
+   - Mac/Linux: `curl -fsSL https://claude.ai/install.sh | bash`
+3. Open a new PowerShell window, type `claude` and press Enter. Sign in with your Claude account in the browser window that opens, then type `/exit`.
+4. In the simulator's What-if tab, press ⚙ → **Check again**. It shows **✓ Claude Code is installed**.
+
+Make sure `ANTHROPIC_API_KEY` isn't set on your computer; if it is, Claude Code would bill that key. (The simulator removes it from the environment it passes to Claude Code anyway.) If you run the simulator from source, `pip install -e .` adds `mcp`, which lets Claude look things up in the live world while it works; the installed app works without it.
+
+In settings you can pick the model:
 - **Default/Sonnet** is fast (10–30 s per plan) and works very well.
-- **Opus** reasons more deeply for complicated scenarios.
+- **Opus** reasons more deeply for complicated scenarios and uses more of your limit.
 - **Haiku** is quickest.
-
-Usage counts against your plan's normal limits; one What-if is a few short turns.
 
 **ChatGPT: uses your ChatGPT Plus plan**
 
-Install the Codex CLI, run `codex login` and choose *Sign in with ChatGPT*. Then pick *ChatGPT (Codex)* in the tab's settings. Codex can't use the simulator's lookup tools, so the simulator checks its plan afterwards and asks it to fix any problems.
+1. Install Node.js (the LTS download from nodejs.org).
+2. In a new PowerShell window: `npm install -g @openai/codex`
+3. `codex login` → *Sign in with ChatGPT*.
+4. Pick *ChatGPT (Plus)* in the tab's settings and press **Check again**.
 
-**Local model (LM Studio, Ollama), no account at all**
+Codex can't use the simulator's lookup tools, so the simulator checks its plan afterwards and asks it to fix any problems.
 
-Start LM Studio's server (Developer tab → load a model → Start server). Pick *Local (LM Studio)* in the settings; the default address `http://localhost:1234/v1` is LM Studio's. Ollama works too, at `http://localhost:11434/v1`. Models of 14B parameters and up follow the catalog far better than small ones.
+**Local model (LM Studio, Ollama): no account at all**
+
+1. Install LM Studio (lmstudio.ai).
+2. In its Discover tab, download a model: about 12–14B parameters for an 8–12 GB graphics card, 27–32B for 24 GB. Models under 8B often produce plans that fail the checks.
+3. In the Developer tab, load the model and switch on **Start server** (`http://localhost:1234`).
+4. Pick *Local model* in the tab's settings, keep the address, Save, then **Check again**: the loaded models are listed.
+
+Ollama works too, at `http://localhost:11434/v1`.
 
 **Settings** are stored in `~/.ucsim/llm.json`. You can also set `UCSIM_LLM_BACKEND=claude|codex|openai`.
 

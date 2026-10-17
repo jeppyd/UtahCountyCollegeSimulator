@@ -23,3 +23,8 @@ web/dist-static/
 
 # stamped by the release build (in-app updates compare against it)
 ucsim/_build_version.py
+
+# survey exports dropped outside data/raw/ by mistake
+/surveys/
+/raw/
+*.sav

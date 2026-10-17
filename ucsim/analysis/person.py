@@ -10,8 +10,8 @@ FIRST_F = ["Emma", "Abigail", "Hannah", "Ellie", "Olivia", "Ava", "Sarah", "Rach
 FIRST_M = ["Jacob", "Ethan", "Tyler", "Spencer", "Josh", "Caleb", "Sam", "Nathan", "Ben", "Isaac", "Tanner", "Jared", "Dallin",
            "Brigham", "Carter", "Logan", "Michael", "Daniel", "Austin", "Parker", "Hunter", "Mason", "Luke", "Andrew"]
 LAST = ["Anderson", "Christensen", "Jensen", "Larsen", "Peterson", "Smith", "Johnson", "Bowen", "Hansen", "Nielsen",
-        "Taylor", "Clark", "Allen", "Hall", "Walker", "Robinson", "Thompson", "Martinez", "Nguyen", "Garcia", "Kimball",
-        "Cannon", "Richards", "Snow", "Lee", "Pratt", "Bennion", "Ashby", "Rasband", "Wilkinson"]
+        "Taylor", "Clark", "Allen", "Hall", "Walker", "Robinson", "Thompson", "Martinez", "Nguyen", "Garcia", "Whitaker",
+        "Cannon", "Richards", "Lund", "Lee", "Barlow", "Bennion", "Ashby", "Hale", "Wilkinson"]
 
 
 from ..population.majors import label as major_label  # noqa: E402

@@ -117,3 +117,5 @@ explorer, live news), real Provo/Orem places, religious diversity, map replays, 
 against the Census and surveys, and a four-year stability check.
 See the in-app **Model check** (or `docs/VALIDATION.md`) for how well it matches real data and
 `docs/ROADMAP.md` for what is next. The natural-language (LLM) layer is deliberately deferred.
+
+Map data © OpenStreetMap contributors (ODbL) and the Utah Geospatial Resource Center; see [NOTICE.md](NOTICE.md).

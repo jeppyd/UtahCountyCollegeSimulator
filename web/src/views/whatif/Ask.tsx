@@ -379,6 +379,20 @@ function Setup({ s, onSaved, onCheck, checking }: { s: any; onSaved: () => void;
   const win = s?.windows ?? /Win/.test(navigator.platform)
   const shell = win ? <>Open <b>PowerShell</b> (press Start, type <i>PowerShell</i>, press Enter)</> : <>Open <b>Terminal</b></>
   const check = <button className="btn small" disabled={checking} onClick={onCheck}>{checking ? 'Checking…' : 'Check again'}</button>
+  const tools = <label className="inline" title="Search the live world, count people and check its draft while it works. Every plan is checked again before it runs either way.">
+    <input type="checkbox" checked={form.use_tools ?? true} onChange={e => set('use_tools', e.target.checked)} />let it look things up and check its plan{s && !s.mcp ? ' (needs: pip install mcp)' : ''}</label>
+  // local server: the models it offers, fetched live (debounced while the address is typed)
+  const [localVer, setLocalVer] = useState(0)
+  const [custom, setCustom] = useState(false)
+  const [local, setLocal] = useState<{ loading: boolean; models: { id: string; loaded: boolean | null; context?: number | null }[] }>({ loading: false, models: [] })
+  useEffect(() => {
+    if (b !== 'openai' || !form.openai_url) return
+    let live = true
+    setLocal(l => ({ ...l, loading: true }))
+    const t = window.setTimeout(() => api.llmModels(form.openai_url).then((r: any) => { if (live) setLocal({ loading: false, models: r.models ?? [] }) })
+      .catch(() => { if (live) setLocal({ loading: false, models: [] }) }), localVer ? 0 : 500)
+    return () => { live = false; window.clearTimeout(t) }
+  }, [b, form.openai_url, localVer])
   return (
     <div className="ask-setup card flat">
       <div className="row" style={{ marginBottom: 8 }}>
@@ -395,6 +409,7 @@ function Setup({ s, onSaved, onCheck, checking }: { s: any; onSaved: () => void;
           and each What-if counts toward your plan's normal usage limits.</p>
         <p>For a <b>local model</b>, there's no account and nothing to sign in to: you only need LM Studio (or Ollama) running on this computer.
           It's free and private, but slower and less careful than Claude or ChatGPT unless you have a strong graphics card.</p>
+        <p><b>Stuck?</b> Give the file <code>docs/AI_SETUP_GUIDE.md</code> (in the simulator's GitHub repository) to an AI assistant like Claude or ChatGPT and ask it to set this up with you. It's written for the assistant, step by step.</p>
       </details>
 
       {b === 'claude' && <>
@@ -410,12 +425,11 @@ function Setup({ s, onSaved, onCheck, checking }: { s: any; onSaved: () => void;
           <li>Come back here and press {check}</li>
         </ol>
         {s?.api_key_in_env && <p className="small pc-warn">⚠ ANTHROPIC_API_KEY is set on this computer. The simulator removes it when it calls Claude Code, so your subscription is used, not API billing.</p>}
-        {s?.desktop && <p className="small muted">In the installed app, Claude works from the full catalog without its live lookup tools; the simulator checks the plan afterwards and asks for fixes.</p>}
         <div className="row small"><span>Model</span>
           <select value={form.claude_model ?? ''} onChange={e => set('claude_model', e.target.value)}><option value="">Claude Code default</option><option value="sonnet">Sonnet (fast, recommended)</option><option value="opus">Opus (deepest reasoning, uses more of your limit)</option><option value="haiku">Haiku (quickest)</option></select>
           <span>Effort</span>
           <select value={form.claude_effort ?? ''} onChange={e => set('claude_effort', e.target.value)}><option value="">default</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select>
-          {!s?.desktop && <label className="inline"><input type="checkbox" checked={form.use_tools ?? true} onChange={e => set('use_tools', e.target.checked)} />let it look things up and check its plan{s && !s.mcp ? ' (needs: pip install mcp)' : ''}</label>}
+          {tools}
         </div>
       </>}
 
@@ -429,22 +443,38 @@ function Setup({ s, onSaved, onCheck, checking }: { s: any; onSaved: () => void;
           <li>Sign in: <Cmd c="codex login" /> and choose <b>Sign in with ChatGPT</b>.</li>
           <li>Come back here and press {check}</li>
         </ol>
-        <p className="small muted">Codex can't use the simulator's lookup tools, so the simulator checks its plan afterwards and asks it to fix any problems. Plans take a little longer than with Claude.</p>
-        <div className="row small"><span>Model (optional)</span><input type="text" value={form.codex_model ?? ''} onChange={e => set('codex_model', e.target.value)} placeholder="Codex default" /></div>
+        <div className="row small"><span>Model (optional)</span><input type="text" value={form.codex_model ?? ''} onChange={e => set('codex_model', e.target.value)} placeholder="Codex default" />
+          {tools}</div>
       </>}
 
       {b === 'openai' && <>
-        <Found ok={!!s?.openai_models?.length} yes={<>Connected: {s?.openai_models?.length} model{s?.openai_models?.length === 1 ? '' : 's'} available ({s?.openai_models?.slice(0, 3).join(', ')}).</>}
-          no={<>No local server answering at {form.openai_url || 'the address below'} yet.</>} />
+        <Found ok={!!local.models.length} yes={<>Connected to {form.openai_url}: {local.models.length} model{local.models.length === 1 ? '' : 's'} to choose from{local.models.some(m => m.loaded) ? `, ${local.models.filter(m => m.loaded).length} loaded` : ''}.</>}
+          no={local.loading ? <>Looking for a local server at {form.openai_url}…</> : <>No local server answering at {form.openai_url || 'the address below'} yet.</>} />
         <ol className="small ask-steps-setup">
           <li>Install <b>LM Studio</b> from <a href="https://lmstudio.ai" target="_blank" rel="noreferrer">lmstudio.ai</a>.</li>
           <li>In its <b>Discover</b> tab, download a model. Bigger follows the catalog better: about 12–14B parameters for a graphics card with 8–12 GB, about 27–32B for 24 GB. Small models (under 8B) often produce plans that fail the checks.</li>
           <li>Open the <b>Developer</b> tab, load the model, and switch <b>Start server</b> on (it should say it's running at <code>http://localhost:1234</code>).</li>
-          <li>Leave the address below as it is, press Save, then {check}</li>
+          <li>Leave the address below as it is, pick the model from the list (press <b>Refresh</b> if it isn't there yet), and press Save.</li>
         </ol>
         <p className="small muted">Ollama works too: run <code>ollama pull</code> with a model name, and set the server to <code>http://localhost:11434/v1</code>.</p>
         <div className="row small"><span>Server</span><input type="text" value={form.openai_url ?? ''} onChange={e => set('openai_url', e.target.value)} style={{ width: 220 }} />
-          <span>Model</span><input type="text" value={form.openai_model ?? ''} onChange={e => set('openai_model', e.target.value)} placeholder={s?.openai_models?.[0] ?? 'first loaded model'} /></div>
+          <span>Model</span>
+          {local.models.length > 0 && !custom
+            ? <select value={form.openai_model ?? ''} onChange={e => e.target.value === '__other' ? setCustom(true) : set('openai_model', e.target.value)} style={{ maxWidth: 280 }}>
+                <option value="">Automatic (the first loaded model)</option>
+                {local.models.map(m => <option key={m.id} value={m.id}>{m.id}{m.loaded === true ? ' · loaded' : m.loaded === false ? ' · loads on first use' : ''}</option>)}
+                {form.openai_model && !local.models.some(m => m.id === form.openai_model) && <option value={form.openai_model}>{form.openai_model} (not on the server)</option>}
+                <option value="__other">Type a name…</option>
+              </select>
+            : <input type="text" value={form.openai_model ?? ''} onChange={e => set('openai_model', e.target.value)} placeholder="model name, or empty for the first loaded one" />}
+          <button className="btn ghost small" disabled={local.loading} onClick={() => { setCustom(false); setLocalVer(v => v + 1) }}>{local.loading ? 'Looking…' : 'Refresh'}</button></div>
+        <div className="row small">{tools}<span className="muted">(turn it off if your model handles tools badly)</span></div>
+        {(() => {   // LM Studio often loads models with a 4,096-token window; the guide and catalog alone are ~12k tokens
+          const m = local.models.find(x => x.id === form.openai_model) ?? local.models.find(x => x.loaded)
+          return m?.context && m.context < 16384
+            ? <p className="small pc-warn">⚠ {m.id} is loaded with a {m.context.toLocaleString()}-token context window, too small for the simulator's instructions (about 12,500 tokens). In LM Studio, eject the model and load it again with <b>Context Length</b> set to 16,384 or more (32,768 is comfortable), or run <code>lms load {m.id} --context-length 32768</code>.</p>
+            : null
+        })()}
       </>}
       <div className="row" style={{ marginTop: 8 }}><span className="small muted">Settings are saved on this computer.</span><span className="spacer" /><button className="btn primary small" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</button></div>
     </div>

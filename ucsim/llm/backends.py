@@ -329,7 +329,29 @@ def _json_from_text(s: str):
 
 
 # ---------------------------------------------------------------------- Codex CLI
-def run_codex(prompt: str, schema: dict, pack: Path, settings: dict, on_step, cancel: threading.Event) -> dict:
+def _toml(v) -> str:
+    """A value for `codex -c key=value` (parsed as TOML): JSON strings and arrays are valid TOML; tables go inline."""
+    if isinstance(v, dict):
+        return "{" + ",".join(f"{k}={json.dumps(str(x))}" for k, x in v.items()) + "}"
+    return json.dumps(v)
+
+
+def codex_tool_args(server: dict | None) -> list[str]:
+    """`-c` overrides that give Codex the simulator's lookup tools for this run only (nothing is written to the
+    user's ~/.codex/config.toml). Read-only tools, approved without asking; Codex carries on without them if the
+    server can't start."""
+    if not server:
+        return []
+    keys = {"command": server["command"], "args": server["args"], "env": server["env"], "required": False,
+            "startup_timeout_sec": 30, "tool_timeout_sec": 90, "default_tools_approval_mode": "approve"}
+    out = []
+    for k, v in keys.items():
+        out += ["-c", f"mcp_servers.ucsim.{k}={_toml(v)}"]
+    return out
+
+
+def run_codex(prompt: str, schema: dict, pack: Path, settings: dict, on_step, cancel: threading.Event,
+              tool_server: dict | None = None) -> dict:
     argv, why = resolve_cli("codex", settings.get("codex_path") or None)
     if not argv:
         return {"plan": None, "text": "", "error": why or "Codex CLI isn't installed or isn't on PATH (install it and run `codex login`).", "meta": {}}
@@ -340,7 +362,7 @@ def run_codex(prompt: str, schema: dict, pack: Path, settings: dict, on_step, ca
     try:
         schema_file.write_text(json.dumps(schema), encoding="utf-8")
         cmd = [*argv, "exec", "--json", "--output-schema", str(schema_file), "-o", str(out_file), "--sandbox", "read-only",
-               "--skip-git-repo-check", "-C", str(pack)]
+               "--skip-git-repo-check", "-C", str(pack), *codex_tool_args(tool_server)]
         if settings.get("codex_model") and SAFE_TOKEN.match(str(settings["codex_model"])):
             cmd += ["-m", settings["codex_model"]]
         cmd.append("-")
@@ -369,7 +391,13 @@ def _codex_read(proc, out_file: Path, settings: dict, on_step, cancel: threading
         item = d.get("item") or d.get("msg") or {}
         item = item if isinstance(item, dict) else {}
         typ = item.get("type") or d.get("type", "")
-        if "command" in str(typ):
+        if typ == "mcp_tool_call":
+            if d.get("type") == "item.started":
+                on_step("tool", {"search_entities": "Looking something up", "describe_entity": "Reading about it",
+                                 "count_people": "Counting people", "validate_plan": "Checking the draft"}.get(item.get("tool"), f"Using {item.get('tool')}"))
+            elif item.get("error"):
+                on_step("note", f"A lookup failed: {str((item.get('error') or {}).get('message', ''))[:200]}")
+        elif "command" in str(typ):
             on_step("tool", f"Reading: {str(item.get('command', ''))[:120]}")
         elif "reasoning" in str(typ) and item.get("text"):
             on_step("think", str(item["text"])[:400])
@@ -399,17 +427,46 @@ def _post(url: str, body: dict, key: str, timeout: float) -> dict:
         return json.loads(r.read().decode())
 
 
-def openai_models(base_url: str) -> list[str]:
+def _get_json(url: str, timeout: float = 3):
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"Accept": "application/json"}), timeout=timeout) as r:
+        return json.loads(r.read().decode())
+
+
+# The local model reads the compact guide and catalog (~12k tokens) plus tool results and writes the plan.
+MIN_CONTEXT = 16384
+
+
+def local_models(base_url: str) -> list[dict]:
+    """Chat models a local server offers: [{id, loaded, type}], loaded ones first. LM Studio's own API says which
+    models are downloaded vs loaded and which are embedding models; any other OpenAI-compatible server (Ollama…)
+    just lists ids. LM Studio loads a downloaded model on first use, so any of them can be picked."""
+    base = base_url.rstrip("/")
+    root = base[:-3] if base.endswith("/v1") else base
     try:
-        with urllib.request.urlopen(base_url.rstrip("/") + "/models", timeout=3) as r:
-            return [m.get("id") for m in json.loads(r.read().decode()).get("data", [])]
+        rows = _get_json(root + "/api/v0/models").get("data", [])
+        out = [{"id": m.get("id"), "loaded": m.get("state") == "loaded", "type": m.get("type", "llm"),
+                "context": m.get("loaded_context_length"), "max_context": m.get("max_context_length")}
+               for m in rows if m.get("id") and m.get("type", "llm") in ("llm", "vlm")]
+        if out:
+            return sorted(out, key=lambda m: not m["loaded"])
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        rows = _get_json(base + "/models").get("data", [])
     except Exception:  # noqa: BLE001
         return []
+    return [{"id": m["id"], "loaded": None, "type": "llm"} for m in rows if m.get("id") and "embed" not in m["id"].lower()]
+
+
+def openai_models(base_url: str) -> list[str]:
+    return [m["id"] for m in local_models(base_url)]
 
 
 OPENAI_TOOLS = [
     {"type": "function", "function": {"name": "search_entities", "description": "Find people, places, groups or model concepts by name; returns exact refs and ready-made `who` filters.",
                                       "parameters": {"type": "object", "properties": {"query": {"type": "string"}, "kinds": {"type": "array", "items": {"type": "string"}}}, "required": ["query"]}}},
+    {"type": "function", "function": {"name": "describe_entity", "description": "Details of one entity by ref, e.g. complex:587, ward:12, person:4031.",
+                                      "parameters": {"type": "object", "properties": {"ref": {"type": "string"}}, "required": ["ref"]}}},
     {"type": "function", "function": {"name": "count_people", "description": "Count how many people a `who` filter selects right now.",
                                       "parameters": {"type": "object", "properties": {"who": {"type": "object"}}, "required": ["who"]}}},
     {"type": "function", "function": {"name": "validate_plan", "description": "Check a draft plan; returns errors to fix and warnings.",
@@ -433,7 +490,7 @@ def run_openai(system: str, prompt: str, schema: dict, settings: dict, on_step, 
     msgs = [{"role": "system", "content": system}, {"role": "user", "content": prompt}]
     on_step("start", f"Asking {model} at {base}")
     try:
-        for _ in range(int(settings.get("openai_tool_rounds", 6))):
+        for _ in range(int(settings.get("openai_tool_rounds", 6)) if tool_fn is not None else 0):
             if cancel.is_set():
                 return {"plan": None, "text": "", "error": "cancelled", "meta": {}}
             r = _post(base + "/chat/completions", {"model": model, "messages": msgs, "tools": OPENAI_TOOLS, "temperature": 0.3}, key, left())
@@ -480,3 +537,35 @@ def run_openai(system: str, prompt: str, schema: dict, settings: dict, on_step, 
 
 def python_exe() -> str:
     return sys.executable
+
+
+def probe_tool_server(server: dict, timeout: float = 60) -> list[str]:
+    """Start the tool server the way Claude/Codex would and list its tools (MCP over stdio). Raises on failure."""
+    msgs = [{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+                "protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "ucsim-probe", "version": "1"}}},
+            {"jsonrpc": "2.0", "method": "notifications/initialized"},
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/list"}]
+    proc = _spawn([server["command"], *server["args"]], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                  env={**os.environ, **server["env"]}, text=True, encoding="utf-8")
+    try:
+        proc.stdin.write("".join(json.dumps(m) + "\n" for m in msgs))
+        proc.stdin.flush()
+        box: dict = {}
+
+        def read():
+            for line in proc.stdout:
+                try:
+                    d = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if d.get("id") == 2:
+                    box["tools"] = [t["name"] for t in d.get("result", {}).get("tools", [])]
+                    return
+        t = threading.Thread(target=read, daemon=True)
+        t.start()
+        t.join(timeout)
+        if "tools" not in box:
+            raise RuntimeError("the tool server didn't answer: " + (proc.stderr.read(2000) if proc.poll() is not None else "timed out"))
+        return box["tools"]
+    finally:
+        _kill_tree(proc)

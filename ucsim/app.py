@@ -135,6 +135,14 @@ def selftest(url: str) -> int:
     assert "people" in call("api/compare/people?k=5"), "compare people"
     if getattr(sys, "frozen", False):
         assert call("api/update/check").get("current"), "the build has no version stamp, so it could never offer updates"
+        # the What-if lookup tools must start from the packaged .exe, as Claude Code and Codex will start them
+        from ucsim.llm import backends, compiler
+        # (reported, not fatal: without them What-ifs still work, the plan is just checked afterwards)
+        try:
+            tools = backends.probe_tool_server(compiler.tool_server("selftest", url.rstrip("/")))
+            print(f"selftest tool server: ok {tools}")
+        except Exception as e:  # noqa: BLE001
+            print(f"selftest tool server: FAILED {e!r}")
     page = urllib.request.urlopen(url, timeout=10).read().decode("utf-8", "replace")
     assert "<div id=\"root\">" in page, "workstation page missing"
     urllib.request.urlopen(url + "geo/roads.json", timeout=10).read()
@@ -153,6 +161,12 @@ def selftest(url: str) -> int:
 
 def main():
     multiprocessing.freeze_support()  # Monte Carlo workers re-enter here in the packaged app
+    if "--mcp-server" in sys.argv[1:]:
+        # Claude Code / Codex start the app's own .exe as the What-if lookup tools (MCP over stdio); the installed
+        # app has no separate Python to run `python -m ucsim.llm.mcp_server`
+        from ucsim.llm.mcp_server import mcp
+        mcp.run()
+        return
     home = data_home()
     os.environ.setdefault("UCSIM_RUNS", str(home / "runs"))
     if getattr(sys, "frozen", False) and (sys.stdout is None or sys.stderr is None):

@@ -83,9 +83,9 @@ def status(fresh: bool = False) -> dict:
     notes = {k: backends.resolve_cli(k, s.get(f"{k}_path") or None)[1] for k in ("claude", "codex")}
     models = backends.openai_models(s["openai_url"]) if s["backend"] == "openai" else []
     try:
-        import mcp  # noqa: F401
+        from . import mcp_server  # noqa: F401
         has_mcp = True
-    except ImportError:
+    except Exception:  # noqa: BLE001
         has_mcp = False
     ready = {"claude": bool(claude_v), "codex": bool(codex_v), "openai": bool(models)}
     shown = {k: v for k, v in s.items() if k != "openai_key"}
@@ -377,8 +377,8 @@ def tool_server(job_id: str, server_url: str) -> dict | None:
     """How Claude Code and Codex start the simulator's lookup tools (MCP over stdio): `python -m ucsim.llm.mcp_server`
     from source, or the installed app's own .exe with --mcp-server. None when the `mcp` package is missing."""
     try:
-        import mcp  # noqa: F401
-    except ImportError:
+        from . import mcp_server  # noqa: F401   (imports the MCP SDK, whichever major version)
+    except Exception:  # noqa: BLE001
         return None
     env = {"UCSIM_URL": server_url, "UCSIM_JOB": job_id}
     if getattr(sys, "frozen", False):

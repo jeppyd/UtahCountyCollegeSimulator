@@ -565,7 +565,13 @@ def probe_tool_server(server: dict, timeout: float = 60) -> list[str]:
         t.start()
         t.join(timeout)
         if "tools" not in box:
-            raise RuntimeError("the tool server didn't answer: " + (proc.stderr.read(2000) if proc.poll() is not None else "timed out"))
+            if t.is_alive():
+                raise RuntimeError(f"the tool server didn't answer within {timeout:g} s")
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                pass
+            raise RuntimeError("the tool server stopped without answering: " + (proc.stderr.read(4000) if proc.poll() is not None else "(still running)"))
         return box["tools"]
     finally:
         _kill_tree(proc)

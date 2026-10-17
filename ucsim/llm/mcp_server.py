@@ -9,11 +9,14 @@ import json
 import os
 import urllib.request
 
-from mcp.server.fastmcp import FastMCP
+try:                                   # mcp 2.x renamed FastMCP to MCPServer; same decorator and run()
+    from mcp.server.mcpserver import MCPServer as _Server
+except ImportError:                    # mcp 1.x
+    from mcp.server.fastmcp import FastMCP as _Server
 
 URL = os.environ.get("UCSIM_URL", "http://127.0.0.1:8000").rstrip("/")
 JOB = os.environ.get("UCSIM_JOB", "")
-mcp = FastMCP("ucsim")
+mcp = _Server("ucsim")
 
 
 def _call(name: str, args: dict) -> str:

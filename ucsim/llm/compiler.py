@@ -370,28 +370,48 @@ def _run(job: Job, ws, index_fn, server_url: str):
         job.finished = time.time()
 
 
+_TOOLS_OK: dict = {}
+
+
+def tool_server(job_id: str, server_url: str) -> dict | None:
+    """How Claude Code and Codex start the simulator's lookup tools (MCP over stdio): `python -m ucsim.llm.mcp_server`
+    from source, or the installed app's own .exe with --mcp-server. None when the `mcp` package is missing."""
+    try:
+        import mcp  # noqa: F401
+    except ImportError:
+        return None
+    env = {"UCSIM_URL": server_url, "UCSIM_JOB": job_id}
+    if getattr(sys, "frozen", False):
+        spec = {"command": sys.executable, "args": ["--mcp-server"], "env": env}
+        if "frozen_ok" not in _TOOLS_OK:      # check once per session that the packaged .exe can serve them
+            try:
+                _TOOLS_OK["frozen_ok"] = "validate_plan" in backends.probe_tool_server(spec, timeout=30)
+            except Exception:  # noqa: BLE001
+                traceback.print_exc()
+                _TOOLS_OK["frozen_ok"] = False
+        return spec if _TOOLS_OK["frozen_ok"] else None
+    return {"command": backends.python_exe(), "args": ["-m", "ucsim.llm.mcp_server"], "env": {**env, "PYTHONPATH": str(backends.ROOT)}}
+
+
 def _ask(job: Job, ws, index_fn, s: dict, pack: Path, prompt: str, server_url: str) -> dict:
+    server = tool_server(job.id, server_url) if s.get("use_tools", True) else None
+    if server is None and s.get("use_tools", True) and s["backend"] in ("claude", "codex"):
+        job.step("note", "Tip: `pip install mcp` lets the model look things up and check its plan while it works.")
     if s["backend"] == "claude":
         mcp_cfg = None
-        # the desktop build has no separate Python to run the tool server; Claude then works from the catalog alone
-        if s.get("use_tools", True) and not getattr(sys, "frozen", False):
-            try:
-                import mcp  # noqa: F401
-                mcp_cfg = pack / f"mcp_{job.id}.json"
-                mcp_cfg.write_text(json.dumps({"mcpServers": {"ucsim": {
-                    "command": backends.python_exe(), "args": ["-m", "ucsim.llm.mcp_server"],
-                    "env": {"UCSIM_URL": server_url, "UCSIM_JOB": job.id, "PYTHONPATH": str(backends.ROOT)}}}}), encoding="utf-8")
-            except ImportError:
-                job.step("note", "Tip: `pip install mcp` lets Claude look things up and check its plan while it works.")
+        if server is not None:
+            mcp_cfg = pack / f"mcp_{job.id}.json"
+            mcp_cfg.write_text(json.dumps({"mcpServers": {"ucsim": server}}), encoding="utf-8")
         try:
             return backends.run_claude(prompt, PLAN_SCHEMA, pack, s, job.step, job.cancel, mcp_cfg)
         finally:
             if mcp_cfg is not None:
                 mcp_cfg.unlink(missing_ok=True)
     if s["backend"] == "codex":
-        return backends.run_codex(prompt, strict_schema(), pack, s, job.step, job.cancel)
+        return backends.run_codex(prompt, strict_schema(), pack, s, job.step, job.cancel, server)
 
     def tool_fn(name, args):
         with ws.lock:
             return run_tool(ws, index_fn(job.mode), name, args, job.mode)
-    return backends.run_openai(compact_system(job.text), prompt, strict_schema(), s, job.step, job.cancel, tool_fn)
+    return backends.run_openai(compact_system(job.text), prompt, strict_schema(), s, job.step, job.cancel,
+                               tool_fn if s.get("use_tools", True) else None)

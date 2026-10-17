@@ -1008,6 +1008,18 @@ def llm_settings(request: Request, body: dict = Body(...)):
     return jresp(compiler.save_settings(body))
 
 
+@app.get("/api/whatif/llm/models")
+def llm_models(request: Request, url: str = ""):
+    """Models a local server (LM Studio, Ollama) offers, for the settings dropdown."""
+    _local_only(request)      # the server fetches this URL, so only this computer's pages may ask
+    import re
+    from ..llm import backends, compiler
+    url = url or compiler.load_settings()["openai_url"]
+    if not re.match(r"^https?://[\w.\-\[\]:]+(/[\w./-]*)?$", url):
+        raise HTTPException(400, "not a server address")
+    return jresp({"url": url, "models": backends.local_models(url)})
+
+
 @app.post("/api/whatif/compile")
 def whatif_compile(request: Request, body: dict = Body(...)):
     """Start turning a plain-language What-if into a plan: {text, mentions: [{ref,...}], history: [...], mode: new|add}."""

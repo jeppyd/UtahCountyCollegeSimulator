@@ -92,7 +92,7 @@ Interventions (`engine/interventions.py`) are JSON with start day, ramp and dura
 
 Interventions draw only from their own streams or stable hashes, never from the Original's.
 
-**Plain-language What-ifs** (`ucsim/llm/`, [WHATIF_LLM.md](WHATIF_LLM.md)): a model reached through the user's subscription turns a request into a plan, which the server validates and lowers into these atoms. The model is Claude Code headless (`claude -p`, stream-json, `--json-schema`, MCP tools served by `mcp_server.py`), Codex (`codex exec`) or an OpenAI-compatible local server.
+**Plain-language What-ifs** (`ucsim/llm/`, [WHATIF_LLM.md](WHATIF_LLM.md)): a model reached through the user's subscription turns a request into a plan, which the server validates and lowers into these atoms. The model is Claude Code headless (`claude -p`, stream-json, `--json-schema`), Codex (`codex exec`, `--output-schema`) or an OpenAI-compatible local server. All three get the same four read-only lookup tools: Claude and Codex through the MCP server in `mcp_server.py` (started as `python -m ucsim.llm.mcp_server`, or as the installed app's own `.exe --mcp-server`; Codex receives it through per-run `-c mcp_servers.*` overrides), and local models through a built-in tool loop.
 - The pieces: `levers.py` is the catalog the model reads, `plan.py` holds the schema, validator, receipt and lowering, `entities.py` resolves @-mentions to exact ids and filters, and `compiler.py` runs the background jobs with one repair round.
 - The endpoints: `/api/entities/search`, `/api/whatif/compile` (start, poll, cancel), `/api/whatif/tool/*`, `/api/whatif/validate`, `/api/whatif/apply` and `/api/whatif/plans` (applied plans with live checks of the model's predictions).
 - No LLM ever decides an agent's behavior.

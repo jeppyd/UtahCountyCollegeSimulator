@@ -6,6 +6,8 @@ It runs on the subscriptions you already have: **no API key and no extra bill.**
 
 ## Setup (one time)
 
+> **Not technical?** Give [AI_SETUP_GUIDE.md](AI_SETUP_GUIDE.md) to an AI assistant (Claude, ChatGPT, Claude Code, Codex) and ask it to set this up for you. It's written for the assistant, step by step.
+
 **Do you need to install anything?** For Claude or ChatGPT, yes, once: a small free program from Anthropic (*Claude Code*) or OpenAI (*Codex*) that you sign in to with your account. The simulator borrows that sign-in, which is how it uses your subscription with no API key. You never have to open it again afterwards; it runs out of sight when you press Send. For a local model you only need LM Studio or Ollama running; there's no account. The same steps, with copy buttons and a **Check again** button, are in the What-if tab under ⚙.
 
 **Claude (recommended): uses your Claude Pro or Max plan** (the free plan doesn't include Claude Code)
@@ -31,16 +33,16 @@ In settings you can pick the model:
 3. `codex login` → *Sign in with ChatGPT*.
 4. Pick *ChatGPT (Plus)* in the tab's settings and press **Check again**.
 
-Codex can't use the simulator's lookup tools, so the simulator checks its plan afterwards and asks it to fix any problems.
+Codex gets the same lookup tools as Claude, for each run only; nothing is added to your Codex settings.
 
 **Local model (LM Studio, Ollama): no account at all**
 
 1. Install LM Studio (lmstudio.ai).
 2. In its Discover tab, download a model: about 12–14B parameters for an 8–12 GB graphics card, 27–32B for 24 GB. Models under 8B often produce plans that fail the checks.
-3. In the Developer tab, load the model and switch on **Start server** (`http://localhost:1234`).
-4. Pick *Local model* in the tab's settings, keep the address, Save, then **Check again**: the loaded models are listed.
+3. In the Developer tab, load the model with **Context Length** set to 16,384 or more (32,768 is comfortable; the simulator's instructions alone are about 12,500 tokens, and LM Studio often defaults to 4,096), and switch on **Start server** (`http://localhost:1234`).
+4. Pick *Local model* in the tab's settings and keep the address. The **Model** dropdown lists what LM Studio has (loaded models first; others load on first use). Pick one and Save. The panel warns if the model's context window is too small.
 
-Ollama works too, at `http://localhost:11434/v1`.
+Ollama works too, at `http://localhost:11434/v1`; set `OLLAMA_CONTEXT_LENGTH=32768` before starting it.
 
 **Settings** are stored in `~/.ucsim/llm.json`. You can also set `UCSIM_LLM_BACKEND=claude|codex|openai`.
 
@@ -112,6 +114,5 @@ your words + tagged entities + the conversation
 | A note says to `pip install mcp` | Run `pip install -e .` or `pip install mcp`. Claude works without it but can't check its plan while it works. |
 | You hit a usage limit | Claude Pro has rolling 5-hour and weekly limits shared with claude.ai. Wait for the window to reset, or switch to Codex or a local model in settings. |
 | A plan has red ✕ rows | Those changes were rejected by the validator (the reason is shown) and won't run. Reply asking for a fix, or run the rest. |
-| The desktop (installed) app | Uses Claude Code too, but without the live lookup tools; the simulator checks the plan afterwards instead. |
 
 What it can't do: change the engine's code. If your idea needs a mechanism the model doesn't have (grooming, curfews, a specific building with no entity), the plan says so and uses the closest honest approximation.

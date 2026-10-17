@@ -365,6 +365,8 @@ def run_codex(prompt: str, schema: dict, pack: Path, settings: dict, on_step, ca
                "--skip-git-repo-check", "-C", str(pack), *codex_tool_args(tool_server)]
         if settings.get("codex_model") and SAFE_TOKEN.match(str(settings["codex_model"])):
             cmd += ["-m", settings["codex_model"]]
+        if settings.get("codex_effort") in CODEX_EFFORTS:
+            cmd += ["-c", f'model_reasoning_effort="{settings["codex_effort"]}"']
         cmd.append("-")
         try:
             proc = _spawn(cmd, cwd=str(pack), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -436,15 +438,41 @@ def _get_json(url: str, timeout: float = 3):
 MIN_CONTEXT = 16384
 
 
-def local_models(base_url: str) -> list[dict]:
-    """Chat models a local server offers: [{id, loaded, type}], loaded ones first. LM Studio's own API says which
-    models are downloaded vs loaded and which are embedding models; any other OpenAI-compatible server (Ollama…)
-    just lists ids. LM Studio loads a downloaded model on first use, so any of them can be picked."""
+def _lms_root(base_url: str) -> str:
     base = base_url.rstrip("/")
-    root = base[:-3] if base.endswith("/v1") else base
-    try:
-        rows = _get_json(root + "/api/v0/models").get("data", [])
-        out = [{"id": m.get("id"), "loaded": m.get("state") == "loaded", "type": m.get("type", "llm"),
+    return base[:-3] if base.endswith("/v1") else base
+
+
+def local_models(base_url: str, key: str = "") -> list[dict]:
+    """Chat models a local server offers, loaded ones first:
+    [{id, loaded, context, max_context, instances, params, size_gb, tools}].
+    LM Studio's own API (v1 since 0.4, else v0) says which models are downloaded vs loaded, with what context window,
+    and hides embedding models; any other OpenAI-compatible server (Ollama…) just lists ids."""
+    base = base_url.rstrip("/")
+    root = _lms_root(base)
+    hdr = {"Accept": "application/json", "Authorization": f"Bearer {key or 'lm-studio'}"}
+
+    def get(url):
+        with urllib.request.urlopen(urllib.request.Request(url, headers=hdr), timeout=3) as r:
+            return json.loads(r.read().decode())
+    try:                                   # LM Studio ≥ 0.4
+        out = []
+        for m in get(root + "/api/v1/models").get("models", []):
+            if m.get("type", "llm") != "llm" or not m.get("key"):
+                continue
+            inst = m.get("loaded_instances") or []
+            out.append({"id": m["key"], "loaded": bool(inst), "instances": [i.get("id") for i in inst if i.get("id")],
+                        "context": ((inst[0].get("config") or {}).get("context_length") if inst else None),
+                        "max_context": m.get("max_context_length"), "params": m.get("params_string"),
+                        "size_gb": round(m["size_bytes"] / 1e9, 1) if m.get("size_bytes") else None,
+                        "tools": (m.get("capabilities") or {}).get("trained_for_tool_use"), "name": m.get("display_name")})
+        if out:
+            return sorted(out, key=lambda m: not m["loaded"])
+    except Exception:  # noqa: BLE001
+        pass
+    try:                                   # older LM Studio
+        rows = get(root + "/api/v0/models").get("data", [])
+        out = [{"id": m.get("id"), "loaded": m.get("state") == "loaded", "instances": [m.get("id")] if m.get("state") == "loaded" else [],
                 "context": m.get("loaded_context_length"), "max_context": m.get("max_context_length")}
                for m in rows if m.get("id") and m.get("type", "llm") in ("llm", "vlm")]
         if out:
@@ -452,10 +480,71 @@ def local_models(base_url: str) -> list[dict]:
     except Exception:  # noqa: BLE001
         pass
     try:
-        rows = _get_json(base + "/models").get("data", [])
+        rows = get(base + "/models").get("data", [])
     except Exception:  # noqa: BLE001
         return []
-    return [{"id": m["id"], "loaded": None, "type": "llm"} for m in rows if m.get("id") and "embed" not in m["id"].lower()]
+    return [{"id": m["id"], "loaded": None, "instances": []} for m in rows if m.get("id") and "embed" not in m["id"].lower()]
+
+
+def load_local_model(base_url: str, model: str, context_length: int = 32768, unload_others: bool = True, key: str = "") -> dict:
+    """Load a model into LM Studio (its v1 REST API, LM Studio 0.4+) with a context window big enough for the
+    simulator's instructions; optionally unload whatever else is loaded first, so they don't share the GPU."""
+    root = _lms_root(base_url)
+    models = local_models(base_url, key)
+    target = next((m for m in models if m["id"] == model), None)
+    if target is None:
+        return {"ok": False, "error": f"LM Studio doesn't list a model called {model}."}
+    if target.get("max_context"):
+        context_length = min(int(context_length), int(target["max_context"]))
+    unloaded = []
+    for m in models:
+        for inst in m.get("instances") or []:
+            if unload_others or m["id"] == model:      # the target too, so it comes back with the new context window
+                try:
+                    _post(root + "/api/v1/models/unload", {"instance_id": inst}, key, 60)
+                    unloaded.append(inst)
+                except Exception:  # noqa: BLE001
+                    pass
+    try:
+        r = _post(root + "/api/v1/models/load", {"model": model, "context_length": int(context_length), "echo_load_config": True}, key, 900)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return {"ok": False, "error": "This LM Studio is too old to load models on request (it needs version 0.4 or newer). "
+                                          "Update LM Studio, or load the model in LM Studio's Developer tab."}
+        return {"ok": False, "error": f"LM Studio refused: {e.read().decode(errors='replace')[:300] or e.code}"}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": f"Couldn't load the model: {e}"}
+    cfg = r.get("load_config") or {}
+    return {"ok": True, "model": model, "instance": r.get("instance_id"), "seconds": r.get("load_time_seconds"),
+            "context": cfg.get("context_length", context_length), "unloaded": unloaded}
+
+
+# reasoning levels the simulator offers for Codex (the catalog also has "ultra", which delegates to sub-agents)
+CODEX_EFFORTS = ("minimal", "low", "medium", "high", "xhigh", "max")
+_codex_models_cache: dict = {}
+
+
+def codex_models(override: str | None = None) -> list[dict]:
+    """The models Codex offers (its own catalog: `codex debug models`, no sign-in needed), in Codex's order, with each
+    model's reasoning levels: [{slug, name, default_effort, efforts}]. Cached for 10 minutes."""
+    hit = _codex_models_cache.get(override)
+    if hit and time.time() - hit[0] < 600:
+        return hit[1]
+    argv, _ = resolve_cli("codex", override)
+    out = []
+    if argv:
+        res = _run_quick([*argv, "debug", "models"], timeout=30)
+        try:
+            rows = json.loads(res.stdout).get("models", []) if res and res.stdout else []
+        except (json.JSONDecodeError, AttributeError):
+            rows = []
+        for m in sorted((m for m in rows if isinstance(m, dict) and m.get("visibility", "list") == "list" and m.get("slug")),
+                        key=lambda m: m.get("priority", 999)):
+            efforts = [e.get("effort") for e in m.get("supported_reasoning_levels") or [] if e.get("effort") in CODEX_EFFORTS]
+            out.append({"slug": m["slug"], "name": m.get("display_name") or m["slug"], "default_effort": m.get("default_reasoning_level"),
+                        "efforts": efforts, "description": (m.get("description") or "")[:160]})
+    _codex_models_cache[override] = (time.time(), out)
+    return out
 
 
 def openai_models(base_url: str) -> list[str]:

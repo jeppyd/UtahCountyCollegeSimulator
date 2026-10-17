@@ -14,6 +14,8 @@ export type VarSpec = {
   range?: number[]; categories?: string[]; ordinal?: string[]; update: string; desc?: string; init?: string
   source?: string[]; evidence: string; flags?: string[]; filterable?: boolean; chartable?: boolean; mappable?: boolean
   intervenable?: boolean; group?: string
+  /** what the numbers mean: the ends in words, survey answer wording per step, percent or standard-score scales */
+  scale?: { min?: number; max?: number; low?: string; high?: string; levels?: string[]; percent?: boolean; z?: boolean; note?: string }
 }
 
 export type Registry = {

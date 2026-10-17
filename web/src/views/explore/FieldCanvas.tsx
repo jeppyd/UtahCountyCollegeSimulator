@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { fmt, groupsOf, histogram, pearson, quantile, regress, summary as stats, useCohortData, values } from '../../analysis'
 import { api, Column, STATIC } from '../../api'
 import { axisStyle, CohortBar, condLabel, cssVar, Decomposition, EChart, Evidence, tokens, VarPicker } from '../../components'
-import { DRAWERS, drawerOf, favg, fdelta, fpair, fval, GROUPS, isCat, pctStr, polarity, pretty, sizeWord, SPLITS } from '../../fields'
+import { DRAWERS, drawerOf, favg, fdelta, fmeaning, fpair, fval, GROUPS, isCat, pctStr, polarity, pretty, sizeWord, SPLITS } from '../../fields'
 import { DeltaChip, G, UBadge, uColor, useAsync } from '../../game'
 import { nameOf } from '../../names'
 import { Cond, useLens, useStore, VarSpec } from '../../store'
@@ -66,6 +66,7 @@ export function FieldCanvas({ v, tracked, compareRow, split0 }: { v: string; tra
           </div>
         )}
       </div>
+      <ScaleBar spec={spec} a={colA} ma={A.mask} b={colB} mb={compare ? B.mask : undefined} />
 
       <div className="grid g2">
         <div className="card">
@@ -120,14 +121,41 @@ function kpiOf(spec: VarSpec, a?: Column, ma?: Uint8Array | null, b?: Column, mb
   const s = stats(va)
   const sbm = b && mb ? stats(values(b, mb)).mean : null
   const [avA, avB] = sbm !== null ? fpair(spec, s.mean, sbm) : [favg(spec, s.mean), '']
-  out.push({ label: 'Average', value: avA, sub: `typical ${fval(spec, s.median)}`, u: b ? 'base' : undefined })
+  out.push({ label: 'Average', value: avA, sub: [fmeaning(spec, s.mean), `typical ${fval(spec, s.median)}`].filter(Boolean).join(' · '), u: b ? 'base' : undefined })
   out.push({ label: 'Middle half', value: `${fval(spec, s.q1)} – ${fval(spec, s.q3)}`, sub: `range ${fval(spec, s.min)} to ${fval(spec, s.max)}` })
   if (b && mb) {
-    out.push({ label: 'Average', value: avB, sub: `${fdelta(spec, (sbm as number) - s.mean)} vs Original`, u: 'alt' })
+    out.push({ label: 'Average', value: avB, sub: [fmeaning(spec, sbm), `${fdelta(spec, (sbm as number) - s.mean)} vs Original`].filter(Boolean).join(' · '), u: 'alt' })
   }
   out.push({ label: 'People', value: s.n.toLocaleString() })
   return out
 }
+/** Where the numbers sit on their scale: the ends in words (or each survey answer), the middle half of people, and the average. */
+function ScaleBar({ spec, a, ma, b, mb }: { spec: VarSpec; a?: Column; ma?: Uint8Array | null; b?: Column; mb?: Uint8Array | null }) {
+  const sc = spec.scale
+  const st = useMemo(() => (a && ma ? stats(values(a, ma)) : null), [a, ma])
+  const mB = useMemo(() => (b && mb ? stats(values(b, mb)).mean : null), [b, mb])
+  if (!sc || isCat(spec) || !st || !(sc.low || sc.percent || sc.z)) return null
+  const lo = sc.z ? -3 : sc.min ?? 0, hi = sc.z ? 3 : sc.max ?? 1
+  const pos = (x: number) => `${Math.max(0, Math.min(100, (100 * (x - lo)) / (hi - lo || 1)))}%`
+  const ticks: [number, string][] = sc.levels ? sc.levels.map((l, k) => [(sc.min ?? 0) + k, l])
+    : sc.z ? [[-2, '−2'], [-1, '−1'], [0, 'average'], [1, '+1'], [2, '+2']]
+    : sc.percent ? [[0, '0%'], [0.25, '25%'], [0.5, '50%'], [0.75, '75%'], [1, '100%']]
+    : [[lo, `${fmt(lo, 2)}`], [(lo + hi) / 2, `${fmt((lo + hi) / 2, 2)}`], [hi, `${fmt(hi, 2)}`]]
+  return (
+    <div className="scalebar" aria-label={`${spec.label} scale`}>
+      {!sc.levels && !sc.percent && <div className="sb-ends small"><span>← {sc.low}</span><span>{sc.high} →</span></div>}
+      <div className="sb-track">
+        <div className="sb-iqr" style={{ left: pos(st.q1), width: `calc(${pos(st.q3)} - ${pos(st.q1)})` }} title={`middle half of people: ${fval(spec, st.q1)} – ${fval(spec, st.q3)}`} />
+        {ticks.map(([x]) => <i key={x} className="sb-tick" style={{ left: pos(x) }} />)}
+        <div className={`sb-mark ${mB !== null ? 'base' : ''}`} style={{ left: pos(st.mean) }}><span>{mB !== null ? 'Original ' : 'average '}{favg(spec, st.mean)}</span></div>
+        {mB !== null && <div className="sb-mark alt" style={{ left: pos(mB) }}><span>What-if {favg(spec, mB)}</span></div>}
+      </div>
+      <div className="sb-labels">{ticks.map(([x, l]) => <span key={x} style={{ left: pos(x) }}>{l}</span>)}</div>
+      {sc.note && <p className="small muted" style={{ margin: '4px 0 0' }}>{sc.note}</p>}
+    </div>
+  )
+}
+
 const count = (m: Uint8Array) => { let k = 0; for (let i = 0; i < m.length; i++) k += m[i]; return k }
 function catLabels(spec: VarSpec, c: Column) { return spec.dtype === 'bool' ? ['no', 'yes'] : (c.categories ?? spec.categories ?? []) }
 function shares(spec: VarSpec, c: Column, m: Uint8Array) {

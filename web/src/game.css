@@ -384,3 +384,21 @@ kbd { font-family: ui-monospace, monospace; font-size: 10px; padding: 1px 5px; b
 .pl-st.ok { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
 .pl-st.bad { background: color-mix(in srgb, var(--critical) 15%, transparent); color: var(--critical); }
 .pl-prac { display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; }
+
+/* where a field's numbers sit on their scale */
+.scalebar { margin: -2px 0 16px; padding: 10px 14px 8px; border: 1px solid var(--border, rgba(127,127,127,.2)); border-radius: 12px; background: var(--surface-1); }
+.sb-ends { display: flex; justify-content: space-between; color: var(--text-secondary); margin-bottom: 26px; }
+.scalebar .sb-track { position: relative; height: 8px; border-radius: 4px; margin: 26px 8px 0; background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 12%, var(--surface-2)), color-mix(in srgb, var(--accent) 45%, var(--surface-2))); }
+.sb-ends + .sb-track { margin-top: 0; }
+.sb-iqr { position: absolute; top: -3px; bottom: -3px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 30%, transparent); outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); }
+.sb-tick { position: absolute; top: -2px; width: 1px; height: 12px; background: var(--text-secondary); opacity: .45; }
+.sb-mark { position: absolute; top: -6px; width: 4px; height: 20px; margin-left: -2px; border-radius: 2px; background: var(--text-primary); }
+.sb-mark.base { background: var(--u-base, #4f7fd9); }
+.sb-mark.alt { background: var(--u-alt, #e8833a); }
+.sb-mark span { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 11px; font-weight: 600; }
+.sb-mark.alt span { bottom: auto; top: 24px; }
+.sb-labels { position: relative; height: 30px; margin: 8px 8px 0; }
+.sb-labels span { position: absolute; transform: translateX(-50%); max-width: 19%; text-align: center; font-size: 11px; line-height: 1.2; color: var(--text-secondary); }
+.sb-labels span:first-child { transform: none; text-align: left; }
+.sb-labels span:last-child { transform: translateX(-100%); text-align: right; }
+.fp-mean { color: var(--text-secondary); font-weight: 400; font-size: 10.5px; }

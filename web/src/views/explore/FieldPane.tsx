@@ -1,7 +1,7 @@
 // The field pane: every field the model tracks, in friendly drawers, searchable, with live values
 // (and Original → What-if changes in Compare).
 import { useEffect, useMemo, useState } from 'react'
-import { catalog, favg, fdelta, isCat, pctStr, polarity, sizeWord } from '../../fields'
+import { catalog, favg, fdelta, fmeaning, isCat, pctStr, polarity, sizeWord } from '../../fields'
 import { DeltaChip, G } from '../../game'
 import { useStore, VarSpec } from '../../store'
 
@@ -59,7 +59,7 @@ export function FieldPane({ value, onPick, summary, tracked, compare }: {
                 return (
                   <button key={f.id} className={`fp-field ${value === f.id ? 'on' : ''}`} onClick={() => onPick(f.id)} title={f.desc ?? f.label}>
                     <span className="fp-name">{f.label}{tracked.person.has(f.id) && <i className="fp-dot" title="Per-person history kept" />}</span>
-                    {c ? <FieldDelta f={f} c={c} /> : <span className="fp-val tabular">{summaryText(f, summary?.[f.id])}</span>}
+                    {c ? <FieldDelta f={f} c={c} /> : <span className="fp-val tabular" title={f.scale?.note}>{summaryText(f, summary?.[f.id])}{summary?.[f.id]?.kind !== 'cat' && summary?.[f.id]?.kind !== 'bool' && fmeaning(f, summary?.[f.id]?.mean) ? <small className="fp-mean"> {fmeaning(f, summary?.[f.id]?.mean)}</small> : null}</span>}
                   </button>
                 )
               })}

@@ -79,6 +79,7 @@ export function fval(v: VarSpec | undefined, x: any, digits = 2): string {
   if (typeof x !== 'number') return pretty(x)
   if (v.ordinal && Number.isInteger(x) && v.ordinal[x]) return pretty(v.ordinal[x])
   if (MONEY.test(v.units ?? '')) return `$${Math.round(x).toLocaleString()}`
+  if (v.scale?.percent) return `${Math.round(100 * x)}%`
   if (v.id === 'gpa' || v.id === 'gpa_term') return x.toFixed(2)
   if (v.id === 'age') return x.toFixed(1)
   if (v.dtype !== 'f4' && v.dtype !== 'f8') return Math.abs(x) >= 1000 ? Math.round(x).toLocaleString() : String(Math.round(x * 10) / 10)
@@ -106,9 +107,26 @@ export function fdelta(v: VarSpec | undefined, d: number, share = false): string
   if (d === null || d === undefined || Number.isNaN(d)) return '—'
   const s = d > 0 ? '+' : d < 0 ? '−' : '±'
   const a = Math.abs(d)
-  if (share) return `${s}${(100 * a).toFixed(a < 0.001 ? 2 : 1)} pts`
+  if (share || v?.scale?.percent) return `${s}${(100 * a).toFixed(a < 0.001 ? 2 : 1)} pts`
   if (v && MONEY.test(v.units ?? '')) return `${s}$${Math.round(a).toLocaleString()}`
   return `${s}${a >= 100 ? Math.round(a).toLocaleString() : a >= 1 ? a.toFixed(2) : a.toPrecision(2)}`
+}
+
+/** A value in plain words: the survey answer it is closest to, where it sits against the average student, or how high
+ *  it is on its scale ("≈ neutral", "about average", "low"). Empty when the number speaks for itself. */
+export function fmeaning(v: VarSpec | undefined, x: any): string {
+  const sc = v?.scale
+  if (!sc || typeof x !== 'number' || Number.isNaN(x) || sc.percent) return ''
+  if (sc.levels?.length) {
+    const k = Math.max(0, Math.min(sc.levels.length - 1, Math.round(x - (sc.min ?? 0))))
+    return `≈ “${sc.levels[k]}”`
+  }
+  if (sc.z) return x <= -1.5 ? 'far below average' : x <= -0.5 ? 'below average' : x < 0.5 ? 'about average' : x < 1.5 ? 'above average' : 'far above average'
+  if (sc.low && sc.min !== undefined && sc.max !== undefined && sc.max > sc.min) {
+    const f = (x - sc.min) / (sc.max - sc.min)
+    return f < 0.2 ? 'very low' : f < 0.4 ? 'low' : f < 0.6 ? 'moderate' : f < 0.8 ? 'high' : 'very high'
+  }
+  return ''
 }
 
 export const pctStr = (p: number, d = 1) => (p === null || p === undefined || Number.isNaN(p) ? '—' : `${(100 * p).toFixed(d)}%`)

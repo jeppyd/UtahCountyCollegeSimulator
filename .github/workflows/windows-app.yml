@@ -3,7 +3,7 @@ name: Windows app
 
 on:
   push:
-    branches: [main, "claude/**"]
+    branches: [main]          # one source of truth: work is merged into main, and each merge is one release
     paths-ignore: ["docs/**", "**/*.md"]
   workflow_dispatch:
 

@@ -17,7 +17,7 @@ meaningful change is an event with a mechanism and a causal parent, so any outco
 **Windows, no setup:** download `ProvoOremSimulator-Setup.exe` from the
 [latest release](https://github.com/jeppyd/UtahCountyCollegeSimulator/releases/latest), double-click it, and
 start the simulator from the desktop or Start-menu shortcut. Windows may warn that the app isn't signed:
-choose **More info → Run anyway**. Every push rebuilds and self-tests the installer
+choose **More info → Run anyway**. Every merge into `main` rebuilds, self-tests and releases the installer
 (`.github/workflows/windows-app.yml`).
 
 **Updates:** the installed app checks GitHub when it starts. When a newer release exists, an **⬆ Update** button appears

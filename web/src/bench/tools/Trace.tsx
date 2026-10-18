@@ -157,6 +157,7 @@ function dayColumns(nodes: TraceNode[], links: TraceLink[], dayOf: (n: TraceNode
 function stepsFromRoot(nodes: TraceNode[], links: TraceLink[]) {
   const into = new Map<string, string[]>(), out = new Map<string, string[]>()
   for (const L of links) {
+    if (L.kind === 'bridge') continue          // a link through a hidden step never outranks a recorded one
     (into.get(L.target) ?? into.set(L.target, []).get(L.target)!).push(L.source);
     (out.get(L.source) ?? out.set(L.source, []).get(L.source)!).push(L.target)
   }
@@ -248,13 +249,14 @@ function TraceTool({ sel, setSel, opts, setOpts }: PanelProps) {
   const colW = compact ? 46 : 158
 
   const got = useAsync<TraceGraph | null>(() => (ref ? traceApi.trace(ref, u, dir, depth, 80, 8) : Promise.resolve(null)),
-    [ref, u, dir, depth, dataVersion], { keepOld: false, key: ref ? `trace:${u}:${ref}:${dir}:${depth}` : undefined })
+    [ref, u, dir, depth, dataVersion], { keepOld: true, key: ref ? `trace:${u}:${ref}:${dir}:${depth}` : undefined })
   const [exp, setExp] = useState<Expansion>(emptyExp)
   const [picked, setPicked] = useState<string | null>(null)
   const [hover, setHover] = useState<{ key?: string; link?: number; x: number; y: number } | null>(null)
   const [menu, setMenu] = useState<{ id: number; name: string; x: number; y: number } | null>(null)
   const [trail, setTrail] = useState<{ ref: Ref; label: string }[]>([])
   const [busy, setBusy] = useState('')
+  const rootRef = useRef<HTMLDivElement>(null)
   useEffect(() => { setExp(emptyExp()); setPicked(null); setMenu(null) }, [ref, u])
 
   // the trail of things traced in this panel (breadcrumbs)
@@ -350,7 +352,7 @@ function TraceTool({ sel, setSel, opts, setOpts }: PanelProps) {
   const budget = Math.floor((colW - 30) / 6.4)
 
   return (
-    <div className="tr" onClick={() => setMenu(null)}>
+    <div className="tr" ref={rootRef} onClick={() => setMenu(null)}>
       <div className="tr-bar">
         <div className="tr-crumbs">
           {trail.map((t, i) => (
@@ -380,6 +382,7 @@ function TraceTool({ sel, setSel, opts, setOpts }: PanelProps) {
           )
         })}
         {got.loading && <span className="muted tr-loading">updating…</span>}
+        {got.error && !got.loading && <span className="tr-loading" style={{ color: 'var(--critical)' }}>Couldn't follow that: {got.error}</span>}
       </div>
       <div className="tr-body">
         <Canvas L={L} view={view} g={g} colW={colW} compact={compact} budget={budget} hl={hl} hk={hk} picked={picked} busy={busy}
@@ -400,7 +403,7 @@ function TraceTool({ sel, setSel, opts, setOpts }: PanelProps) {
         {g.notes.map((t, i) => <span key={i} className="muted">{t}</span>)}
       </div>
       {hover && (hoverNode || hover.link !== undefined) && (
-        <div className="tr-tip" style={{ left: hover.x + 14, top: hover.y + 12 }}>
+        <div className="tr-tip" style={{ left: hover.x + 360 > (rootRef.current?.clientWidth ?? 9999) ? Math.max(4, hover.x - 354) : hover.x + 14, top: hover.y + 12 }}>
           {hoverNode ? (
             <>
               <div className="tr-tip-k">{KIND_WORD[kindOf(hoverNode)]}{when(hoverNode, g.start_date) ? ` · ${when(hoverNode, g.start_date)}` : ''}</div>
@@ -414,7 +417,7 @@ function TraceTool({ sel, setSel, opts, setOpts }: PanelProps) {
             const s = view.nodes.find(n => n.key === Lk.source), t = view.nodes.find(n => n.key === Lk.target)
             return (
               <>
-                <div className="tr-tip-k">{LINK[Lk.kind]?.label ?? Lk.kind}{Lk.weight !== null ? ` · strength ${Lk.weight > 0 ? '+' : ''}${Lk.weight.toFixed(2)}` : ''}</div>
+                <div className="tr-tip-k">{LINK[Lk.kind]?.label ?? Lk.kind}{Lk.weight !== null && (Lk.kind === 'contributed' || Lk.kind === 'factor') ? ` · size ${Lk.weight > 0 ? '+' : ''}${Lk.weight.toFixed(2)}` : ''}</div>
                 {Lk.words && <div>{cap(Lk.words)}</div>}
                 <div className="muted">{s ? clip(s.label, 60) : ''} → {t ? clip(t.label, 60) : ''}</div>
               </>

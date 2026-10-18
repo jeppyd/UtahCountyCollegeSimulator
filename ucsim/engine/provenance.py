@@ -464,8 +464,8 @@ def tie_story_causes(sim, events, eix, E=None):
     occ = CTX_ID.get("occasion", -1)
     at_occ = oc == occ
     link(sim, events[at_occ], "occasion", op[at_occ], 0.6, "met_at")
-    pre = oc == CTX_ID["preexisting"]
-    other = ~at_occ & ~pre
+    # elsewhere: the kind of place and its id (people who knew each other before the story began say so)
+    other = ~at_occ
     link(sim, events[other], "place", place_ref(oc[other], op[other]), 0.6, "met_at")
     intro = E["introducer"][eix].astype(np.int64)
     link(sim, events, "person", intro, 0.5, "introduced")

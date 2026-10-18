@@ -1,0 +1,29 @@
+system: environment
+# Weather effects (engine/systems/environment.py, engine/weather.py). Daily Provo observations replace the old
+# temperature curve plus noise; the effects of rain, snow and cold on going out are modest and mostly hypothetical:
+# directions are well documented (bad weather lowers outdoor activity and attendance), magnitudes are guesses.
+mechanisms:
+  weather.outdoor:
+    label: Weather and the appeal of being outside
+    target: social_events_month
+    sources: []
+    form: "appeal = clip(1 − |high − 72| / 35, 0.05, 1) × (1 − rain·[rain ≥ 0.05 in]) × (1 − snow·min(new snow, 6)/6)"
+    params:
+      rain: {value: 0.35, range: [0.1, 0.6]}
+      snow: {value: 0.5, range: [0.2, 0.8]}
+    timescale: daily
+    evidence: hypothetical
+    desc: "Rain and fresh snow make walks, parks and outdoor dates less appealing on top of the temperature."
+    refs: ["Tucker & Gilliland 2007, The effect of season and weather on physical activity: a systematic review (Public Health)"]
+  weather.going_out:
+    label: Weather and going out in the evening
+    target: social_events_month
+    sources: []
+    form: "penalty (log-odds, subtracted from going to an occasion that needs a trip) = cold·max(0, 35 − low)/20 + snow·min(new snow, 6)/6 + rain·[rain ≥ 0.05 in]"
+    params:
+      cold: {value: 0.15, range: [0.0, 0.4]}
+      snow: {value: 0.45, range: [0.1, 0.9]}
+      rain: {value: 0.15, range: [0.0, 0.4]}
+    timescale: daily
+    evidence: hypothetical
+    desc: "Cold, snowy or rainy evenings keep some people home; nobody's plans are cancelled outright."

@@ -4,6 +4,7 @@ decisions:
   attend_occasion:
     extend: true
     factors:
+      weather:   {label: "the weather for getting there", more: "", less: "cold, snowy or wet out"}
       interest:  {label: "how much this kind of event appeals to them", more: "the kind of event they love", less: "not their kind of event"}
       ride:      {label: "a ride there", more: "someone offered a ride", less: ""}
       introduced: {label: "someone wants them to meet a person", more: "a friend wants them to meet someone", less: ""}

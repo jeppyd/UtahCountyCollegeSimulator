@@ -15,7 +15,9 @@ export type VarSpec = {
   source?: string[]; evidence: string; flags?: string[]; filterable?: boolean; chartable?: boolean; mappable?: boolean
   intervenable?: boolean; group?: string
   /** what the numbers mean: the ends in words, survey answer wording per step, percent or standard-score scales */
-  scale?: { min?: number; max?: number; low?: string; high?: string; levels?: string[]; percent?: boolean; z?: boolean; note?: string }
+  scale?: { min?: number; max?: number; low?: string; high?: string; levels?: string[]; percent?: boolean; z?: boolean; note?: string
+    /** words at points along the range, the part of the range shown, a log axis for long-tailed amounts, units and how it's measured (ucsim/scales.py) */
+    anchors?: { at: number; label: string; more?: string }[]; view?: [number, number]; axis?: 'log'; log_c?: number; basis?: string; unit?: string; how?: string }
 }
 
 export type Registry = {

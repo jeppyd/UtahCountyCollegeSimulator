@@ -98,3 +98,14 @@
 .bd-free { fill: none; stroke: var(--s3); stroke-dasharray: 3 3; }
 .bd-label { fill: var(--text-primary); font-size: 11px; pointer-events: none; }
 .bd-sub { fill: var(--text-muted); font-size: 10px; pointer-events: none; }
+
+/* ---------- Scales */
+.bsc-group { display: flex; flex-direction: column; }
+.bsc-h { border: 0; background: none; font: inherit; text-align: left; padding: 8px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--text-muted); font-weight: 600; cursor: pointer; border-bottom: 1px solid var(--grid); }
+.bsc-h small { font-weight: 400; margin-left: 4px; }
+.bsc-row { display: grid; grid-template-columns: minmax(110px, 30%) minmax(0, 1fr); gap: 12px; align-items: center; padding: 6px 4px; border-bottom: 1px solid var(--grid); cursor: pointer; }
+.bsc-row:hover { background: var(--surface-2); }
+.bsc-row.on { background: var(--accent-soft); }
+.bsc-name { display: flex; flex-direction: column; min-width: 0; font-size: 12.5px; }
+.bsc-name small { color: var(--text-muted); font-size: 11px; }

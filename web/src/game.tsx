@@ -53,8 +53,10 @@ export function DivergenceMeter({ onClick }: { onClick?: () => void }) {
 
 // ---------------------------------------------------------------- meters & numbers
 /** A life bar (0–1), colored by whether higher is better, worse or neither. */
-export function Meter({ label, value, alt, polarity = 0, onClick, active, hint }: {
+export function Meter({ label, value, alt, polarity = 0, onClick, active, hint, shown }: {
   label: string; value: number | null | undefined; alt?: number | null; polarity?: 1 | -1 | 0; onClick?: () => void; active?: boolean; hint?: string
+  /** how to show the number (e.g. a <Val> that opens its scale); the plain number otherwise */
+  shown?: ReactNode
 }) {
   const v = value === null || value === undefined || Number.isNaN(value) ? null : Math.max(0, Math.min(1, value))
   const a = alt === null || alt === undefined || Number.isNaN(alt as number) ? null : Math.max(0, Math.min(1, alt as number))
@@ -66,7 +68,7 @@ export function Meter({ label, value, alt, polarity = 0, onClick, active, hint }
         {v !== null && <i style={{ width: `${100 * v}%` }} />}
         {a !== null && <b className="m-alt" style={{ left: `${100 * a}%` }} title={`What-if: ${a.toFixed(2)}`} />}
       </span>
-      <span className="m-val tabular">{v === null ? '—' : v.toFixed(2)}{a !== null && <small className="m-altv"> → {a.toFixed(2)}</small>}</span>
+      <span className="m-val tabular">{v === null ? '—' : shown ?? v.toFixed(2)}{a !== null && <small className="m-altv"> → {a.toFixed(2)}</small>}</span>
     </div>
   )
 }

@@ -10,6 +10,8 @@ import { CyGraph } from '../graph'
 import { useLens, useStore } from '../store'
 import { CATEGORY_LABEL, FollowButton, Story, useAdvanced } from '../ui'
 import { InnerLife } from './InnerLife'
+import { Ruler } from '../kit/Ruler'
+import { Val } from '../kit/Val'
 
 const FEEL = ['mood', 'loneliness', 'stress', 'anxiety', 'belonging', 'self_esteem', 'purpose', 'guilt', 'fatigue', 'financial_stress', 'academic_pressure', 'romantic_longing']
 const BIG5 = ['extraversion', 'agreeableness', 'conscientiousness', 'neuroticism', 'openness', 'sensation_seeking', 'self_control', 'attachment_anxiety', 'attachment_avoidance', 'social_anxiety', 'rejection_sensitivity', 'conformity', 'empathy']
@@ -84,7 +86,7 @@ export default function PersonView({ id, tab: tab0 }: { id: number; tab?: string
             <div className="card">
               <h3>How {first} is doing</h3>
               <p className="hint">0 = not at all, 1 = extremely. Click one to see why.{compare ? ' Orange marks show the What-if world.' : ''}</p>
-              {['mood', 'loneliness', 'stress', 'belonging', 'purpose', 'financial_stress', 'romantic_longing'].map(s => vals[s] && <Meter key={s} label={vals[s].label} value={vals[s].value} alt={compare ? valsA[s]?.value : undefined} polarity={polarity(s)} onClick={() => { setWhy(s); go('feel') }} />)}
+              {['mood', 'loneliness', 'stress', 'belonging', 'purpose', 'financial_stress', 'romantic_longing'].map(s => vals[s] && <Meter key={s} label={vals[s].label} value={vals[s].value} alt={compare ? valsA[s]?.value : undefined} polarity={polarity(s)} onClick={() => { setWhy(s); go('feel') }} shown={<Val v={s} value={vals[s].value} />} />)}
             </div>
             <div className="card">
               <h3>Lately</h3>
@@ -102,7 +104,7 @@ export default function PersonView({ id, tab: tab0 }: { id: number; tab?: string
               <h3>At a glance</h3>
               <div className="kpis compact">
                 {['n_friends', 'n_close_friends', 'dates_30d', 'gpa', 'work_hours', 'rent'].filter(k => vals[k] && vals[k].value !== null).map(k => (
-                  <div key={k} className="kpi click" onClick={() => setRoute(['explore', k])}><span className="k-label">{vals[k].label}</span><span className="k-val tabular">{fval(registry!.variables[k], vals[k].value)}{compare && valsA[k] && valsA[k].value !== vals[k].value ? <small className="u-alt-t"> → {fval(registry!.variables[k], valsA[k].value)}</small> : null}</span><Standing v={k} x={vals[k].value} pop={pop.data} /></div>
+                  <div key={k} className="kpi click" onClick={() => setRoute(['explore', k])}><span className="k-label">{vals[k].label}</span><span className="k-val tabular"><Val v={k} value={vals[k].value} />{compare && valsA[k] && valsA[k].value !== vals[k].value ? <small className="u-alt-t"> → {fval(registry!.variables[k], valsA[k].value)}</small> : null}</span><Standing v={k} x={vals[k].value} pop={pop.data} /></div>
                 ))}
               </div>
             </div>
@@ -211,8 +213,8 @@ function FieldCards({ groups, vals, valsA, pop, single }: { groups: [string, str
             return (
               <tr key={k} className="click" onClick={() => setRoute(['explore', k])}>
                 <td>{vals[k].label}</td>
-                <td className="num tabular"><b>{fval(spec, x)}</b>{diff ? <span className="u-alt-t"> → {fval(spec, xa)}</span> : null}{vals[k].units && typeof x === 'number' && !/usd|\$/i.test(vals[k].units) ? <span className="muted small"> {vals[k].units}</span> : null}</td>
-                <td style={{ width: 120 }}><Standing v={k} x={x} pop={pop} /></td>
+                <td className="num tabular"><b>{typeof x === 'number' ? <Val v={k} value={x} show="words" /> : fval(spec, x)}</b>{diff ? <span className="u-alt-t"> → {fval(spec, xa)}</span> : null}{vals[k].units && typeof x === 'number' && !/usd|\$/i.test(vals[k].units) ? <span className="muted small"> {vals[k].units}</span> : null}</td>
+                <td style={{ width: 140 }}>{spec?.scale && typeof x === 'number' ? <Ruler v={k} value={x} variant="inline" /> : <Standing v={k} x={x} pop={pop} />}</td>
               </tr>)
           })}</tbody></table>
         </div>

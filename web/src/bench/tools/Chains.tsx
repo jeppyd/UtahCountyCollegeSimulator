@@ -20,6 +20,16 @@ const WINDOWS: { k: string; label: string; days?: number }[] = [
   { k: 'all', label: 'The whole story' }, { k: 'sel', label: 'Selected time' },
 ]
 
+/** A flow node's words. A choice leads with what was chosen, so a cut-off label still says it:
+ *  "◆ withdrawal: how to cope with a hard stretch". */
+function nodeText(d: { kind: string; text: string }) {
+  if (d.kind !== 'decision') return d.text
+  const k = d.text.lastIndexOf(' → ')
+  if (k < 0) return '◆ ' + d.text
+  const label = d.text.slice(0, k)
+  return `◆ ${d.text.slice(k + 3)}: ${label[0]?.toLowerCase() ?? ''}${label.slice(1)}`
+}
+
 type Flow = {
   source: string; target: string; value: number; kind: string; from_label: string; to_label: string
   examples: { event: number; from?: number; decision?: number; day: number; label: string; from_label?: string }[]
@@ -62,14 +72,18 @@ function ChainsTool({ sel, setSel, opts, setOpts }: PanelProps) {
         trigger: 'item', confine: true,
         formatter: (p: any) => (p.dataType === 'edge'
           ? `${p.data.from_label} → ${p.data.to_label}<br/><b>${p.data.value.toLocaleString()}</b> times · click for examples`
-          : `${p.data.label}<br/><b>${(p.data.n ?? 0).toLocaleString()}</b>`),
+          : `${nodeText(p.data)}<br/><b>${(p.data.n ?? 0).toLocaleString()}</b>`),
       },
       series: [{
-        type: 'sankey', left: 8, right: 150, top: 10, bottom: 10, nodeWidth: 12, nodeGap: 9, layoutIterations: 48,
+        // causes are labeled on their left, results on their right, so no label sits on top of the flows
+        type: 'sankey', left: 215, right: 190, top: 10, bottom: 10, nodeWidth: 12, nodeGap: 13, layoutIterations: 48,
         emphasis: { focus: 'adjacency' }, draggable: false,
-        label: { color: text, fontSize: 11.5, formatter: (p: any) => (p.data.kind === 'decision' ? '◆ ' : '') + p.data.label },
+        label: { color: text, fontSize: 11.5, width: 200, overflow: 'truncate', formatter: (p: any) => nodeText(p.data) },
         lineStyle: { color: 'gradient', opacity: 0.32, curveness: 0.5 },
-        data: c.nodes.map((n: any) => ({ name: n.id, label: n.label, kind: n.kind, n: n.n, itemStyle: { color: color(n.id, n.kind), borderWidth: 0 } })),
+        data: c.nodes.map((n: any) => ({
+          name: n.id, text: n.label, kind: n.kind, n: n.n, itemStyle: { color: color(n.id, n.kind), borderWidth: 0 },
+          ...(n.side === 'from' ? { label: { position: 'left', width: 200, overflow: 'truncate' } } : {}),
+        })),
         links: c.links.map((L: Flow, i: number) => ({ source: L.source, target: L.target, value: L.value, i, from_label: L.from_label, to_label: L.to_label,
           lineStyle: i === flow ? { opacity: 0.75 } : undefined })),
       }],

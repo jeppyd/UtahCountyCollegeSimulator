@@ -9,13 +9,24 @@ from fastapi import APIRouter, HTTPException
 router = APIRouter()
 
 
+def _server():
+    """(WS, jresp) of the running server. Started as `python -m ucsim.api.server`, the server module is `__main__`, and
+    importing `.server` would load a second, empty copy (no worlds); use the copy that is serving."""
+    import sys
+    main = sys.modules.get("__main__")
+    if getattr(main, "WS", None) is not None and getattr(main, "_include_routers", None) is not None:
+        return main.WS, main.jresp
+    from .server import WS, jresp
+    return WS, jresp
+
+
 @router.get("/api/trace")
 def trace(ref: str, u: str = "base", dir: str = "both", depth: int = 3, max_nodes: int = 80, fanout: int = 8,
           since: int | None = None):
     """The causal graph around one item: ref = event:<id> | decision:<id> | occasion:<id> | person:<id> | tie:<a>-<b> |
     var:<field>@<person> | place:<kind>:<id>; dir = back (what led to it) | fwd (what it led to) | both."""
     from ..analysis import trace as T
-    from .server import WS, jresp
+    WS, jresp = _server()
     if dir not in ("back", "fwd", "both"):
         raise HTTPException(400, "dir must be back, fwd or both")
     with WS.lock:
@@ -39,7 +50,7 @@ def chains(u: str = "base", since: int | None = None, until: int | None = None, 
 
     from ..analysis import trace as T
     from ..analysis.query import evaluate_filter
-    from .server import WS, jresp
+    WS, jresp = _server()
     with WS.lock:
         sim = WS.sim(u)
         who = None
@@ -70,7 +81,7 @@ def decision(did: int, u: str = "base"):
     """One recorded decision: its factors in words (with what they point at), the outcome, its probability, and the
     events it produced."""
     from ..analysis import trace as T
-    from .server import WS, jresp
+    WS, jresp = _server()
     with WS.lock:
         sim = WS.sim(u)
         d = T.decision_detail(sim, did)
@@ -83,7 +94,7 @@ def decision(did: int, u: str = "base"):
 def person_decisions(i: int, u: str = "base", since: int | None = None, limit: int = 200):
     """A person's recorded decisions, newest first, each with its top reason."""
     from ..analysis import trace as T
-    from .server import WS, jresp
+    WS, jresp = _server()
     with WS.lock:
         sim = WS.sim(u)
         if i < 0 or i >= sim.w.P.n:

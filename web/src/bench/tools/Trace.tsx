@@ -47,18 +47,7 @@ type Layout = { pos: Map<string, Pos>; lanes: Lane[]; width: number; height: num
 function layout(nodes: TraceNode[], links: TraceLink[], lanesIn: TraceGraph['lanes'], colW: number, start: string): Layout {
   const dayOf = (n: TraceNode) => (n.day < 0 ? -1 : n.day)          // everything before the story shares one column
   const days = [...new Set(nodes.map(dayOf))].sort((a, b) => a - b)
-  const g = new Map(nodes.map(n => [n.key, dayOf(n)]))
-  // within a day, a cause sits left of what it caused (longest path over that day's links; bounded for cycles)
-  const col = new Map(nodes.map(n => [n.key, 0]))
-  for (let it = 0; it < 10; it++) {
-    let changed = false
-    for (const L of links) {
-      if (g.get(L.source) === undefined || g.get(L.source) !== g.get(L.target)) continue
-      const c = (col.get(L.source) ?? 0) + 1
-      if (c > (col.get(L.target) ?? 0) && c < 8) { col.set(L.target, c); changed = true }
-    }
-    if (!changed) break
-  }
+  const col = dayColumns(nodes, links, dayOf)
   const width0 = new Map<number, number>()
   for (const n of nodes) width0.set(dayOf(n), Math.max(width0.get(dayOf(n)) ?? 0, col.get(n.key)! + 1))
   const ticks: Tick[] = []
@@ -119,6 +108,73 @@ function layout(nodes: TraceNode[], links: TraceLink[], lanesIn: TraceGraph['lan
   return { pos, lanes, width: x + 40, height: y + 10, ticks }
 }
 
+/** Columns within each day: a cause sits left of what it caused. Same-day links can form cycles (a feeling is both a
+ *  cause of a choice and an effect of what the choice led to), so the back edges of a depth-first walk that visits
+ *  causes before consequences are set aside, and the rest are layered by longest path. */
+function dayColumns(nodes: TraceNode[], links: TraceLink[], dayOf: (n: TraceNode) => number) {
+  const steps = stepsFromRoot(nodes, links)
+  const day = new Map(nodes.map(n => [n.key, dayOf(n)]))
+  const out = new Map<string, string[]>()
+  for (const L of links) {
+    if (day.get(L.source) === undefined || day.get(L.source) !== day.get(L.target) || L.source === L.target) continue
+    (out.get(L.source) ?? out.set(L.source, []).get(L.source)!).push(L.target)
+  }
+  const order = [...nodes].sort((a, b) => steps.get(a.key)! - steps.get(b.key)! || (a.minute ?? 0) - (b.minute ?? 0) || a.key.localeCompare(b.key))
+  const state = new Map<string, number>()          // 1 = on the current path, 2 = done
+  const kept = new Map<string, string[]>()
+  const indeg = new Map<string, number>(nodes.map(n => [n.key, 0]))
+  for (const start of order) {
+    if (state.has(start.key)) continue
+    const stack: [string, number][] = [[start.key, 0]]
+    state.set(start.key, 1)
+    while (stack.length) {
+      const top = stack[stack.length - 1]
+      const nb = out.get(top[0]) ?? []
+      if (top[1] >= nb.length) { state.set(top[0], 2); stack.pop(); continue }
+      const m = nb[top[1]++]
+      if (state.get(m) === 1) continue                 // a back edge: drawing it as a loop is enough
+      ;(kept.get(top[0]) ?? kept.set(top[0], []).get(top[0])!).push(m)
+      indeg.set(m, (indeg.get(m) ?? 0) + 1)
+      if (!state.has(m)) { state.set(m, 1); stack.push([m, 0]) }
+    }
+  }
+  const col = new Map<string, number>(nodes.map(n => [n.key, 0]))
+  const queue = order.map(n => n.key).filter(k => !indeg.get(k))
+  while (queue.length) {
+    const k = queue.shift()!
+    for (const m of kept.get(k) ?? []) {
+      col.set(m, Math.max(col.get(m)!, col.get(k)! + 1))
+      indeg.set(m, indeg.get(m)! - 1)
+      if (!indeg.get(m)) queue.push(m)
+    }
+  }
+  return col
+}
+
+/** Signed steps from the root: causes negative (walking links backward), consequences positive (forward). Items that
+ *  came in through an expansion are measured from the root too, so the layout stays one story. */
+function stepsFromRoot(nodes: TraceNode[], links: TraceLink[]) {
+  const into = new Map<string, string[]>(), out = new Map<string, string[]>()
+  for (const L of links) {
+    (into.get(L.target) ?? into.set(L.target, []).get(L.target)!).push(L.source);
+    (out.get(L.source) ?? out.set(L.source, []).get(L.source)!).push(L.target)
+  }
+  const roots = nodes.filter(n => n.root).map(n => n.key)
+  const seen = new Map<string, number>(roots.map(k => [k, 0]))
+  for (const [adj, sign] of [[into, -1], [out, 1]] as const) {
+    let frontier = [...roots], d = 0
+    while (frontier.length) {
+      d++
+      const next: string[] = []
+      for (const k of frontier) for (const m of adj.get(k) ?? []) if (!seen.has(m)) { seen.set(m, sign * d); next.push(m) }
+      frontier = next
+    }
+  }
+  // anything not reachable from the root keeps the server's own measure
+  for (const n of nodes) if (!seen.has(n.key)) seen.set(n.key, n.depth ?? 0)
+  return seen
+}
+
 function linkPath(a: Pos, b: Pos) {
   const x1 = a.x + 9, x2 = b.x - 9
   if (x2 - x1 > 14) {
@@ -159,8 +215,14 @@ const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s)
 /** A node's line without the lane's own name in front ("asked Emma out" in Logan's lane). */
 function shortLabel(n: TraceNode, laneName?: string) {
   let s = n.label
-  if (laneName && kindOf(n) !== 'person') {
-    for (const p of [laneName + "'s ", laneName + ': ', laneName + ' ']) if (s.startsWith(p)) { s = s.slice(p.length); break }
+  if (kindOf(n) === 'person') return laneName === n.label ? '' : s       // a person in their own lane needs no label
+  if (laneName) {
+    // in Ann's lane, "Ann asked Ben out" reads "Asked Ben out" and "Ann and Ben became friends" "…and Ben became friends"
+    for (const p of [laneName + "'s ", laneName + ': ', laneName + ' ']) {
+      if (!s.startsWith(p)) continue
+      s = s.slice(p.length)
+      return s.startsWith('and ') ? '…' + s : cap(s)
+    }
   }
   return cap(s)
 }
@@ -385,7 +447,8 @@ function Canvas({ L, view, g, colW, compact, budget, hl, hk, picked, busy, onPic
   // open on the item itself
   useEffect(() => {
     const p = L.pos.get(rootKey), el = scroller.current
-    if (p && el) el.scrollLeft = Math.max(0, p.x - el.clientWidth / 2)
+    // causes sit to the left, so keep more of the left in view
+    if (p && el) el.scrollLeft = Math.max(0, p.x - el.clientWidth * 0.62)
   }, [rootKey])
   const at = (e: RMouseEvent) => {
     const box = (e.currentTarget as Element).closest('.tr')!.getBoundingClientRect()
@@ -420,9 +483,10 @@ function Canvas({ L, view, g, colW, compact, budget, hl, hk, picked, busy, onPic
         </div>
         <svg width={L.width} height={L.height} className="tr-svg" onMouseLeave={() => onHover(null)}>
           <defs>
-            {Object.values(LINK).map(s => (
-              <marker key={s.cls} id={`a-${uid}-${s.cls}`} viewBox="0 0 8 8" refX={7} refY={4} markerWidth={6} markerHeight={6} orient="auto-start-reverse">
-                <path d="M0,0.5 L7.5,4 L0,7.5 z" className={`tm tm-${s.cls}`} />
+            {[...new Set(Object.values(LINK).map(s => s.cls))].map(cls => (
+              <marker key={cls} id={`a-${uid}-${cls}`} viewBox="0 0 8 8" refX={7} refY={4} markerWidth={7} markerHeight={7}
+                markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+                <path d="M0,0.5 L7.5,4 L0,7.5 z" className={`tm tm-${cls}`} />
               </marker>
             ))}
           </defs>
@@ -459,7 +523,7 @@ function Canvas({ L, view, g, colW, compact, budget, hl, hk, picked, busy, onPic
                 onClick={e => { e.stopPropagation(); onPick(n.key) }} onMouseMove={e => onHover({ key: n.key, ...at(e) })} onMouseLeave={() => onHover(null)}>
                 {(n.root || on) && <circle r={13} className="tn-halo" />}
                 <Shape n={n} laneName={ln} />
-                {!compact && <text x={14} y={4} className="tn-label">{clip(shortLabel(n, ln), budget)}</text>}
+                {!compact && <text x={kindOf(n) === 'occasion' ? 16 : 14} y={4} className="tn-label">{clip(shortLabel(n, ln), budget)}</text>}
                 {n.more_back > 0 && (
                   <g className="tn-more" transform="translate(-22,-11)" onClick={e => { e.stopPropagation(); onExpand(n, 'back') }}>
                     <title>{`Show ${n.more_back} more causes`}</title>
@@ -534,7 +598,7 @@ function LinkList({ title, links, other, onPick }: { title: string; links: Trace
             <svg width={16} height={8} aria-hidden="true"><line x1={1} x2={15} y1={4} y2={4} className={`tl tl-${(LINK[L.kind] ?? LINK.contributed).cls}`} /></svg>
             <span>
               <span className="tr-link-o">{o.label}</span>
-              {L.words && <span className="muted"> — {L.words}{L.weight !== null && L.kind !== 'caused' ? ` (${L.weight > 0 ? '+' : ''}${L.weight.toFixed(2)})` : ''}</span>}
+              {L.words && <span className="muted"> — {L.words}{L.weight !== null && (L.kind === 'contributed' || L.kind === 'factor') ? ` (${L.weight > 0 ? '+' : ''}${L.weight.toFixed(2)})` : ''}</span>}
             </span>
           </button>
         )

@@ -320,7 +320,7 @@ class _Graph:
         spec = self.sim.reg.events[self.sim.reg.event_names[log["type"][eid]]]
         a, b, blk = int(log["a"][eid]), int(log["b"][eid]), int(log["block"][eid])
         people = [a] + ([b] if b >= 0 else [])
-        return {"day": int(log["day"][eid]), "block": blk, "minute": int(clock.START[min(blk, clock.N_BLOCKS - 1)]),
+        return {"day": int(log["day"][eid]), "block": blk, "minute": None,
                 "people": people, "lane": a, "label": self.W.event_line(eid), "type": spec.id, "category": spec.category,
                 "weight": float(spec.salience), "detail": {"value": round(float(log["value"][eid]), 3), "title": spec.label}}
 
@@ -338,7 +338,7 @@ class _Graph:
         chance = f" — the model gave this a {prob:.0%} chance" if prob is not None and np.isfinite(prob) else ""
         factors = _factor_refs(self.sim, self.W, d["factors"])
         people = [int(d["agent"])] + ([int(d["other"])] if d.get("other") is not None else [])
-        return {"day": int(d["day"]), "block": int(d["block"]), "minute": int(clock.START[min(int(d["block"]), clock.N_BLOCKS - 1)]),
+        return {"day": int(d["day"]), "block": int(d["block"]), "minute": None,
                 "people": people, "lane": int(d["agent"]), "label": f"{who}: {lc(d['label'])} → {outcome}{other}",
                 "type": d["kind"], "category": "decision", "weight": float(prob) if prob is not None else 0.5,
                 "detail": {"title": d["label"], "outcome": outcome, "prob": prob, "units": units,

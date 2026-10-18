@@ -59,7 +59,7 @@
 .tr-svg { display: block; }
 .tr-band { fill: transparent; }
 .tr-band.odd { fill: color-mix(in srgb, var(--surface-2) 55%, transparent); }
-.tr-band.root { fill: color-mix(in srgb, var(--accent-soft) 22%, transparent); }
+.tr-band.root { fill: color-mix(in srgb, var(--accent) 6%, transparent); }
 .tr-daygrid { stroke: var(--grid); stroke-width: 1; }
 .tr-today { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 2 3; opacity: .6; }
 .tr-day { font-size: 11px; fill: var(--text-secondary); font-weight: 600; }

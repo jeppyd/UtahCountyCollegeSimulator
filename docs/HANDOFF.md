@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| — | — | — | Nobody. Workbench and scales merged 2026-10-18; next is calendar-weather (see the session log). |
+| Claude Code (cloud) | 2026-10-18 | calendar-weather | Pushing progress to `wip/calendar-weather`. |
 
 ## The goal in one paragraph
 
@@ -66,7 +66,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [workbench](workstreams/workbench.md) | **done, merged** | working branch | open issues below |
 | [scales](workstreams/scales.md) | **done, merged** | working branch | — |
 | [sexuality-survey](workstreams/sexuality-survey.md) (+ dealbreakers) | not started | — | needs the raw xlsx in `data/raw/` (owner supplies) |
-| [calendar-weather](workstreams/calendar-weather.md) | not started | — | after time-occasions is merged |
+| [calendar-weather](workstreams/calendar-weather.md) | **in progress** | — | after time-occasions is merged |
 | [talk](workstreams/talk.md) (Ask + interviews) | not started | — | after provenance-trace is merged |
 | [travel](workstreams/travel.md) | not started | — | can start any time (keeps `ucsim/geo/travel.py`'s interface) |
 | [messaging](workstreams/messaging.md) (wave 2) | not started | — | after time-occasions |

@@ -134,6 +134,18 @@ class Romance:
         occ = sim.systems.get("occasions")
         self.date_occ = occ.plan_dates(self.dates_today, self._dates_meta) if occ is not None else \
             np.full(len(self.dates_today), -1, np.int64)
+        # a date their schedules can't fit today moves to the next day (twice at most), as people would rearrange it
+        if occ is not None and len(self.dates_today):
+            moved = getattr(self, "_moved", {})
+            for j in np.where(occ.date_blocked == 2)[0].tolist():
+                a_, b_, _ = self.dates_today[j]
+                dtype, first, cause = self._dates_meta[j]
+                key = (min(a_, b_), max(a_, b_))
+                if moved.get(key, 0) < 2:
+                    moved[key] = moved.get(key, 0) + 1
+                    self.queue.append((day + 1, a_, b_, dtype, first, cause))
+                    P.internal["date_planned"][[a_, b_]] = day + 1
+            self._moved = {k: v for k, v in moved.items() if v < 3 and len(moved) < 50000}
 
     def evening(self):
         """After the late evening: how today's dates went, then make-outs at parties and dances."""

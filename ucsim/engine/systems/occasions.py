@@ -48,7 +48,9 @@ DATE_TIMES = {"ice_cream": (20 * 60, 90), "restaurant": (18 * 60 + 30, 120), "hi
               "sports_game": (19 * 60, 180), "pickleball": (18 * 60, 90)}
 BYU = (-111.6493, 40.2500)
 UVU = (-111.7129, 40.2773)
-KIND_C = {"shift": 0, "class": 1, "occasion": 2, "host": 3}
+# commitment kinds; a guest at a get-together can come late or leave early for something else ("occasion"), the rest
+# can't be moved around (a shift, a class, hosting, a date)
+KIND_C = {"shift": 0, "class": 1, "occasion": 2, "host": 3, "date": 4}
 
 
 def _rup15(m):
@@ -138,8 +140,28 @@ class Occasions:
                 sim.systems["activity"].assign_shifts(ids)
         self._series(day, wd)
         self._host(day, wd)
+        self._dances(day, wd)
         self._notice(day)
         self.resolve()
+
+    def _dances(self, day: int, wd: int):
+        """Thursday to Saturday nights every dance venue holds a dance (an open occasion: no invitations)."""
+        if wd not in (3, 4, 5):
+            return
+        act = self.sim.systems["activity"]
+        vids = np.where(act.v_type == "dance")[0]
+        if not len(vids):
+            return
+        O = self.book.occ
+        have = O["place"][(O["day"] == day) & (O["kind"] == self.book.kind_id["dance"])] if O.n else np.empty(0)
+        vids = vids[~np.isin(vids, have)]
+        if not len(vids):
+            return
+        c = self.book.kind_id["dance"]
+        for v in vids.tolist():      # bounded: a handful of dance venues
+            self.book.plan("dance", day, int(self.k_start[c]), int(self.k_dur[c]), place=v, lon=float(act.v_lon[v]),
+                           lat=float(act.v_lat[v]), ctx=OCC, origin="engine", open_=True, label=act.v_name[v],
+                           capacity=int(self.book.vocab["dance"].get("capacity", -1)))
 
     def _person_day(self) -> tuple[int, int]:
         return self.sim.w.day, int(self.sim.w.env["weekday"])
@@ -507,30 +529,29 @@ class Occasions:
         clon.append(w.employers["lon"][emp[m]])
         clat.append(w.employers["lat"][emp[m]])
         ck.append(np.full(int(m.sum()), KIND_C["shift"]))
-        # classes (block times), on school days in term
+        # classes at their clock times (activity.class_times), on school days in term
         acad = sim.systems["academics"]
         if len(acad.sec_days):
             if acad.stu_secs.shape[0] < P.n:
                 acad.section_now(0, 0)      # grows the schedule table for new arrivals
             secs = acad.stu_secs[persons]
-            valid = (secs >= 0) & P["enrolled"][persons][:, None] & (wd < 5)[:, None]
-            term = np.array([bool(cal.term("BYU" if sc == 1 else "UVU", int(d))) and not cal.holiday(int(d))
-                             for sc, d in zip(P["school"][persons], days)]) if k <= 64 else \
-                np.where(P["school"][persons] == 1, bool(w.env["term_BYU"]), bool(w.env["term_UVU"])) & (not w.env["holiday"])
-            valid &= term[:, None]
+            udays = np.unique(days)
+            tb = np.array([bool(cal.term("BYU", int(d))) and not cal.holiday(int(d)) for d in udays])
+            tu = np.array([bool(cal.term("UVU", int(d))) and not cal.holiday(int(d)) for d in udays])
+            di = np.searchsorted(udays, days)
+            term = np.where(P["school"][persons] == 1, tb[di], tu[di])
+            valid = (secs >= 0) & (P["enrolled"][persons] & (wd < 5) & term)[:, None]
             ss = np.maximum(secs, 0)
             meets = valid & ((acad.sec_days[ss] >> wd[:, None].astype(np.uint8)) & 1).astype(bool)
-            blk = acad.sec_block[ss]
-            byu = P["school"][persons] == 1
-            for b in range(3):
-                hit = (meets & (blk == b)).any(axis=1)
-                r = np.where(hit)[0]
-                rows.append(r)
-                cs.append(np.full(len(r), clock.START[b]))
-                ce.append(np.full(len(r), clock.END[b]))
-                clon.append(np.where(byu[r], BYU[0], UVU[0]))
-                clat.append(np.where(byu[r], BYU[1], UVU[1]))
-                ck.append(np.full(len(r), KIND_C["class"]))
+            r, j = np.nonzero(meets)
+            st, en = sim.systems["activity"].class_times(ss[r, j])
+            byu = P["school"][persons][r] == 1
+            rows.append(r)
+            cs.append(st)
+            ce.append(en)
+            clon.append(np.where(byu, BYU[0], UVU[0]))
+            clat.append(np.where(byu, BYU[1], UVU[1]))
+            ck.append(np.full(len(r), KIND_C["class"]))
         # occasions they're going to (said yes) or organizing
         I, O = self.book.inv, self.book.occ
         dset = np.unique(days)
@@ -566,16 +587,18 @@ class Occasions:
                     ce.append(st + O.cols["dur"][pj].astype(np.int32))
                     clon.append(O.cols["lon"][pj])
                     clat.append(O.cols["lat"][pj])
-                    ck.append(np.where(c_person[j] == O.cols["organizer"][pj], KIND_C["host"], KIND_C["occasion"]))
+                    ck.append(np.where(c_person[j] == O.cols["organizer"][pj], KIND_C["host"],
+                                       np.where(O.cols["kind"][pj] == self.date_code, KIND_C["date"], KIND_C["occasion"])))
         cat = lambda xs, dt: np.concatenate(xs).astype(dt) if xs else np.empty(0, dt)   # noqa: E731
         return (cat(rows, np.int64), cat(cs, np.int32), cat(ce, np.int32), cat(clon, np.float64), cat(clat, np.float64),
                 cat(ck, np.int8))
 
-    def _feasible(self, persons, day, start, dur, lon, lat, occ=None, ride=None, host: bool = False) -> dict:
+    def _feasible(self, persons, day, start, dur, lon, lat, occ=None, ride=None, host: bool = False, firm=False) -> dict:
         """Could each person get there, and how late? Rows are (person, occasion window). A commitment covering the
         whole window is a conflict; one ending inside it makes them late (they travel from there); one starting inside
-        it makes them leave early. With less than min_stay minutes left it's a conflict (no time) or, if only the
-        trip eats the time, no way to get there."""
+        it makes them leave early. A get-together they're a guest at bends instead: they leave it in time or come to it
+        late; and for something firm (`firm`: hosting, a date) those get-togethers don't count at all. With less than
+        min_stay minutes left it's a conflict (no time) or, if only the trip eats the time, no way to get there."""
         sim, w = self.sim, self.sim.w
         P, p = w.P, sim.p
         persons = np.atleast_1d(np.asarray(persons, np.int64))
@@ -593,7 +616,13 @@ class Occasions:
         blocker_end = np.full(k, -1, np.int32)
         if k:
             r, cs, ce, cl, ct, ck = self._commitments(persons, day, occ if occ is None else np.broadcast_to(np.asarray(occ, np.int64), (k,)), host)
+            flex = ck == KIND_C["occasion"]
+            firm_r = np.broadcast_to(np.asarray(firm, bool) | bool(host), (k,))
+            if flex.any() and firm_r.any():
+                keep = ~(flex & firm_r[r])
+                r, cs, ce, cl, ct, ck, flex = r[keep], cs[keep], ce[keep], cl[keep], ct[keep], ck[keep], flex[keep]
             if len(r):
+                ce = np.where(flex & (cs < start[r]), np.minimum(ce, start[r] - 15), ce)    # they leave that one in time
                 s_r, e_r = start[r], end[r]
                 covers = (cs <= s_r) & (ce >= e_r)
                 conflict[r[covers]] = True
@@ -1020,26 +1049,49 @@ class Occasions:
         if wd >= 5:     # weekends: some dates earlier in the day
             pref = np.where(np.isin([m[0] for m in meta], ["museum", "hike", "picnic", "pickleball"]), pref - 120, pref)
         both = np.r_[a, b]
-        f = self._feasible(both, day, np.r_[pref, pref], np.r_[dur, dur], np.r_[lon, lon], np.r_[lat, lat])
+        two = lambda x: np.r_[x, x]   # noqa: E731
+        f = self._feasible(both, day, two(pref), two(dur), two(lon), two(lat), firm=True)
+        # after both are free (a shift that ends at 8 pm: a 9 pm date) …
         ff = np.maximum(f["free_from"][:k], f["free_from"][k:])
-        start = np.where(ff > pref - 15, _rup15(ff + 30), pref)
-        f2 = self._feasible(both, day, np.r_[start, start], np.r_[dur, dur], np.r_[lon, lon], np.r_[lat, lat])
+        later = np.where(ff > pref - 15, _rup15(ff + 30), pref)
+        fl = self._feasible(both, day, two(later), two(dur), two(lon), two(lat), firm=True)
+        ok_l = ~(fl["conflict"][:k] | fl["conflict"][k:]) & (later <= 21 * 60 + 30)
+        # … or before one of them has to be somewhere (a shift at 6: an afternoon date)
+        lv = np.minimum(f["leave"][:k], f["leave"][k:])
+        early = (lv - dur - 15) // 15 * 15
+        early = np.where(early >= np.maximum(12 * 60 if wd >= 5 else 15 * 60, ff + 30), early, pref)
+        start = np.where(ok_l, later, early).astype(np.int32)
+        f2 = self._feasible(both, day, two(start), two(dur), two(lon), two(lat), firm=True)
         ill = P["ill"][both]
-        blocked = f2["conflict"] | ill | (np.r_[start, start] > 21 * 60 + 30)
+        # a date needs the whole stretch: nobody leaves early for a class or a shift, nobody comes very late
+        blocked = (f2["conflict"] | f2["cant"] | ill | (two(start) > 21 * 60 + 30) | (f2["leave"] < two(start + dur) - 15)
+                   | (f2["late"] > 20))
         bad = blocked[:k] | blocked[k:]
-        oid = self.book.plan("date", day, start, dur, organizer=a, org_kind="none", ctx=CTX_ID["date"], place=vid, lon=lon,
-                             lat=lat, origin="engine", cause=np.array([m[2] for m in meta], np.int64), created_day=day)
-        inv = self.book.invite(oid, b, inviter=a, channel="in_person", day=day)
+        sick = ill[:k] | ill[k:]
+        # why a date can't happen today: 1 someone is sick (booked, then cancelled, with the reason), 2 their days don't
+        # line up — nothing is booked and romance moves it to the next day, as people would rearrange it
+        self.date_blocked = np.where(bad, np.where(sick, 1, 2), 0)
+        book_it = ~bad | sick
+        out = np.full(k, -1, np.int64)
+        if not book_it.any():
+            return out
+        cause = np.array([m[2] for m in meta], np.int64)
+        j = np.where(book_it)[0]
+        oid = self.book.plan("date", day, start[j], dur[j], organizer=a[j], org_kind="none", ctx=CTX_ID["date"], place=vid[j],
+                             lon=lon[j], lat=lat[j], origin="engine", cause=cause[j], created_day=day)
+        inv = self.book.invite(oid, b[j], inviter=a[j], channel="in_person", day=day)
         self.book.inv.cols["seen_day"][self.book.inv.pos(inv)] = day
         self.book.respond(inv, "yes", day)
-        if bad.any():
-            who = np.where(blocked)[0]
-            pers = both[who]
-            occw = np.r_[oid, oid][who]
-            sim.decisions.record("show_up", day, pers, "did_not_come", {}, occasion=occw, other=np.r_[b, a][who],
-                                 constraints={"ill": ill[who], "conflict": ~ill[who]})
-            self.book.mark(oid[bad], "cancelled")
-        return np.where(bad, -1, oid)
+        s_j = sick[j]
+        if s_j.any():
+            who = np.r_[j[s_j], j[s_j] + k]
+            occw = np.r_[oid[s_j], oid[s_j]]
+            sk = ill[who]
+            sim.decisions.record("show_up", day, both[who][sk], "did_not_come", {}, occasion=occw[sk], other=np.r_[b, a][who][sk],
+                                 constraints={"ill": np.ones(int(sk.sum()), bool)})
+            self.book.mark(oid[s_j], "cancelled")
+        out[j] = np.where(s_j, -1, oid)
+        return out
 
     def date_happened(self, oid: np.ndarray) -> np.ndarray:
         """Both came (dates that took place today)."""
@@ -1308,7 +1360,7 @@ class Occasions:
                 "mode": [MODES[m] if m >= 0 else None for m in f["mode"].tolist()], "arrive": f["arrive"].tolist(),
                 "leave": f["leave"].tolist(), "reason": reasons}
 
-    _BLOCKER = {0: "works", 1: "is in class", 2: "is going to something else", 3: "is hosting something"}
+    _BLOCKER = {0: "works", 1: "is in class", 2: "is going to something else", 3: "is hosting something", 4: "has a date"}
 
     def _why(self, f: dict, j: int, ill: bool = False) -> str:
         from ...geo.travel import MODES
@@ -1371,8 +1423,8 @@ class Occasions:
             if sim.cal.term(sch, day) and not sim.cal.holiday(day):
                 for sec in acad.stu_secs[i]:
                     if sec >= 0 and (acad.sec_days[sec] >> wd) & 1:
-                        b = int(acad.sec_block[sec])
-                        com.append({"kind": "class", "what": f"class at {sch}", "start": int(clock.START[b]), "end": int(clock.END[b]),
+                        cs_, ce_ = sim.systems["activity"].class_times([sec])
+                        com.append({"kind": "class", "what": f"class at {sch}", "start": int(cs_[0]), "end": int(ce_[0]),
                                     "firm": True, "section": int(sec)})
         G = w.groups
         for col, kind in (("club_id", "club"), ("team_id", "team"), ("institute_class", "institute")):

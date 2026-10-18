@@ -24,14 +24,6 @@ ACT = ["home", "class", "work", "church", "campus", "gym", "gathering", "date", 
 A = {k: i for i, k in enumerate(ACT)}
 NONE = 255
 OPTIONS = ("home", "campus", "gym", "eating out", "outdoors", "dancing", "visiting friends", "around the complex")
-# shift start times (minutes) and their shares: students fit work around classes (afternoons, evenings, Saturdays);
-# others mostly work weekday days (hypothetical shares; Utah County has few Sunday shifts)
-_STU_START = (np.array([12, 13, 14, 15, 16, 17, 18]) * 60, [0.1, 0.15, 0.2, 0.15, 0.2, 0.12, 0.08])
-_FT_START = (np.array([7, 8, 9, 10]) * 60, [0.15, 0.45, 0.3, 0.1])
-_PT_START = (np.array([8, 9, 11, 13, 16, 17]) * 60, [0.2, 0.25, 0.15, 0.15, 0.15, 0.1])
-_SAT_STU = (np.array([9, 10, 12, 16]) * 60, [0.3, 0.25, 0.2, 0.25])
-_SAT_OTHER = (np.array([8, 9, 10]) * 60, [0.4, 0.4, 0.2])
-_SUN = (np.array([10, 12]) * 60, [0.6, 0.4])
 LATEST_END = 23 * 60
 
 
@@ -116,9 +108,10 @@ class Activity:
     def assign_shifts(self, ids: np.ndarray):
         """A weekly shift pattern from usual work hours: which weekdays, start and end minutes.
 
-        Students take afternoon/evening/Saturday shifts that start after their last class of the day; others work
-        weekday days (full-time five days, part-time 3–7 hour shifts); about 5% of workers have a Sunday shift.
-        The blocks a shift fills (`shift_mask`) are derived from the minutes."""
+        Students fit shifts into the gaps their classes leave (early-morning custodial shifts, between classes,
+        afternoons, evenings until 10 pm, Saturdays); others work weekday days (full-time five days, part-time 3–7 hour
+        shifts); about 5% of workers have a Sunday shift. The blocks a shift fills (`shift_mask`) follow from the
+        minutes. Shares of start times are hypothetical."""
         sim = self.sim
         P = sim.w.P
         ids = np.atleast_1d(np.asarray(ids, np.int64))
@@ -129,10 +122,11 @@ class Activity:
         hours = np.clip(np.nan_to_num(P["work_hours"][ids].astype(np.float64)), 0, 70)
         student = P["enrolled"][ids].astype(bool)
         full = ~student & (hours >= 30)
-        per = np.where(full, hours / 5.0, np.clip(rng.normal(np.where(student, 4.5, 5.0), 0.8), 3.0, 7.0))
+        per = np.where(full, hours / 5.0, np.clip(rng.normal(np.where(student, 4.0, 5.0), 0.8), 2.5, 7.0))
         ndays = np.where(full, 5, np.clip(np.round(hours / per), 1, 6))
         ndays = np.where(hours > 0.5, ndays, 0).astype(int)
         per = np.where(ndays > 0, np.minimum(hours / np.maximum(ndays, 1), 12.0), 0.0)
+        L = (np.round(per * 4) * 15).astype(np.int64)                    # shift length in minutes
         pref = np.zeros((k, 7))
         pref[:, 5] = np.where(student, 0.2, -1.5)
         pref[:, 6] = np.where(rng.random(k) < 0.05, 3.0, -50.0)
@@ -140,25 +134,72 @@ class Activity:
         key = pref + rng.gumbel(size=(k, 7))
         rank = np.argsort(np.argsort(-key, axis=1), axis=1)
         works = rank < ndays[:, None]
-
-        def draw(spec, size):
-            vals, pr = spec
-            return vals[rng.choice(len(vals), size=size, p=pr)]
-        start = np.where(student[:, None], draw(_STU_START, (k, 7)),
-                         np.where(full[:, None], draw(_FT_START, (k, 7)), draw(_PT_START, (k, 7))))
-        start[:, 5] = np.where(student, draw(_SAT_STU, k), draw(_SAT_OTHER, k))
-        start[:, 6] = draw(_SUN, k)
-        start = np.maximum(start, np.where(student[:, None], self._after_classes(ids), 0))
-        start = (start + 14) // 15 * 15
-        end = start + np.round(per[:, None] * 4) * 15
-        end = np.minimum(end, LATEST_END)
+        # candidate starts and how common each is (students / full-time / part-time / Saturday / Sunday)
+        C = np.array([6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]) * 60
+        W = {"stu": [0.05, 0, 0.08, 0.05, 0.05, 0.05, 0.08, 0.1, 0.12, 0.12, 0.13, 0.11, 0.06],
+             "ft": [0, 0.15, 0.45, 0.3, 0.1, 0, 0, 0, 0, 0, 0, 0, 0],
+             "pt": [0, 0, 0.2, 0.25, 0.05, 0.1, 0.05, 0.1, 0.05, 0.05, 0.1, 0.05, 0],
+             "sat_stu": [0, 0, 0.1, 0.25, 0.2, 0, 0.15, 0, 0, 0, 0.2, 0.1, 0], "sat": [0, 0.1, 0.4, 0.3, 0.2, 0, 0, 0, 0, 0, 0, 0, 0],
+             "sun": [0, 0, 0, 0, 0.5, 0, 0.5, 0, 0, 0, 0, 0, 0]}
+        logw = {kk: np.log(np.maximum(np.array(v, float), 1e-12)) for kk, v in W.items()}
+        G = rng.gumbel(size=(k, 7, len(C)))
+        base = np.where(student[:, None], logw["stu"], np.where(full[:, None], logw["ft"], logw["pt"]))      # k × C
+        score = np.repeat(base[:, None, :], 7, axis=1)
+        score[:, 5, :] = np.where(student[:, None], logw["sat_stu"], logw["sat"])
+        score[:, 6, :] = logw["sun"]
+        end_cap = np.where(student, 22 * 60, LATEST_END)
+        cend = C[None, None, :] + L[:, None, None]
+        score = np.where(cend <= end_cap[:, None, None], score, -np.inf)
+        busy = self._class_busy(ids, L)                    # k × 7 × C: the shift would overlap a class
+        score = np.where(busy, -np.inf, score)
+        best = np.argmax(score + G, axis=2)
+        okc = np.take_along_axis(score, best[..., None], axis=2)[..., 0] > -np.inf
+        works &= okc
+        start = C[best]
+        end = np.minimum(start + L[:, None], LATEST_END)
         works &= (end - start) >= 90
         P.internal["shift_start"][ids] = np.where(works, start, -1).astype(np.int16)
         P.internal["shift_end"][ids] = np.where(works, end, -1).astype(np.int16)
         self._shift_mask(ids)
 
+    def _class_busy(self, ids: np.ndarray, L: np.ndarray) -> np.ndarray:
+        """For each person, weekday and candidate start (6 am … 6 pm): would a shift of L minutes overlap one of their
+        classes (with 15 minutes to get between them)?"""
+        P = self.sim.w.P
+        C = np.array([6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]) * 60
+        out = np.zeros((len(ids), 7, len(C)), bool)
+        acad = self.sim.systems.get("academics")
+        if acad is None or not len(acad.sec_days) or acad.stu_secs.shape[0] <= int(ids.max()):
+            return out
+        secs = acad.stu_secs[ids]
+        valid = (secs >= 0) & P["enrolled"][ids][:, None]
+        s = np.maximum(secs, 0)
+        days = acad.sec_days[s]
+        cs, ce = self.class_times(s)
+        for wd in range(5):
+            meets = valid & ((days & np.uint8(1 << wd)) > 0)                        # k × 5
+            st = C[None, :, None]
+            en = st + L[:, None, None]
+            hit = meets[:, None, :] & (cs[:, None, :] < en + 15) & (ce[:, None, :] + 15 > st)
+            out[:, wd, :] = hit.any(axis=2)
+        return out
+
+    def class_times(self, secs) -> tuple[np.ndarray, np.ndarray]:
+        """Clock times of class sections inside their block (for shifts, plans and agendas; who is where is still
+        resolved per block). Morning sections start on the hour 8–11, afternoon ones 1–4 pm, evening ones 5:30 or
+        6:30 pm; MWF classes run 50 minutes, Tuesday/Thursday 75, evening 110 — the usual BYU/UVU pattern, assigned
+        by section number (no random draws)."""
+        acad = self.sim.systems["academics"]
+        secs = np.maximum(np.asarray(secs, np.int64), 0)
+        blk = acad.sec_block[secs].astype(np.int64)
+        start = np.select([blk == 0, blk == 1], [8 * 60 + 60 * (secs % 4), 13 * 60 + 60 * (secs % 4)],
+                          17 * 60 + 30 + 60 * (secs % 2))
+        mwf = acad.sec_days[secs] == 0b10101
+        dur = np.where(blk == 2, 110, np.where(mwf, 50, 75))
+        return start.astype(np.int32), (start + dur).astype(np.int32)
+
     def _after_classes(self, ids: np.ndarray) -> np.ndarray:
-        """Earliest shift start per weekday for students: 15 minutes after the block of their last class that day."""
+        """Earliest shift start per weekday for students: 15 minutes after their last class that day ends."""
         acad = self.sim.systems.get("academics")
         out = np.zeros((len(ids), 7), np.int64)
         if acad is None or not len(acad.sec_days) or acad.stu_secs.shape[0] <= int(ids.max()):
@@ -166,11 +207,12 @@ class Activity:
         secs = acad.stu_secs[ids]
         valid = secs >= 0
         s = np.maximum(secs, 0)
-        days, blk = acad.sec_days[s], acad.sec_block[s].astype(np.int64)
+        days = acad.sec_days[s]
+        _, cend = self.class_times(s)
         for wd in range(5):
             meets = valid & ((days & np.uint8(1 << wd)) > 0)
-            last = np.where(meets, blk, -1).max(axis=1)
-            out[:, wd] = np.where(last >= 0, clock.END[np.maximum(last, 0)] + 15, 0)
+            last = np.where(meets, cend, -1).max(axis=1)
+            out[:, wd] = np.where(last >= 0, last + 15, 0)
         return out
 
     def _shift_mask(self, ids: np.ndarray):
@@ -229,10 +271,21 @@ class Activity:
             act[oth] = A["church"]
             share[oth] = 1.0
             busy |= oth
-        # ---- class
+        # occasions they're expected at in this block (minutes there)
+        occ_min = np.zeros(n, np.int32)
+        if len(plan["person"]):
+            np.maximum.at(occ_min, plan["person"], plan["minutes"])
+        # ---- class (an occasion that fills more of the block than a 50-minute class shows instead; the class still
+        # happened at its own time, so it isn't counted as missed)
         acad = sim.systems["academics"]
         if wd < 5 and not env["holiday"]:
             sec_now = acad.section_now(wd, b)
+            has = sec_now >= 0
+            if has.any() and occ_min.any():
+                cs_, ce_ = self.class_times(sec_now[has])
+                cm = np.zeros(n, np.int32)
+                cm[has] = ce_ - cs_
+                sec_now = np.where(occ_min > cm, -1, sec_now)
             in_class = (sec_now >= 0) & present & ~busy & ~P["ill"]
             p_att = expit(p("activity.class_attendance.base") + p("activity.class_attendance.conscientiousness") * sim.z("conscientiousness")
                           - p("activity.class_attendance.fatigue") * P["fatigue"] + 0.8 * P["academic_pressure"] - 0.6 * P["depressive_episode"]
@@ -245,9 +298,6 @@ class Activity:
             busy |= go
             acad.record_attendance(in_class, go)
         # ---- work shifts and occasions: whichever fills more of this block
-        occ_min = np.zeros(n, np.int32)
-        if len(plan["person"]):
-            np.maximum.at(occ_min, plan["person"], plan["minutes"])
         shift_min = self.shift_minutes(b, wd)
         blen = int(clock.END[b] - clock.START[b])
         on_shift = ((shift_min >= min(120, 0.5 * blen)) & (shift_min >= occ_min) & present & ~busy & P["employed"]

@@ -86,7 +86,7 @@ export default function PersonView({ id, tab: tab0 }: { id: number; tab?: string
             <div className="card">
               <h3>How {first} is doing</h3>
               <p className="hint">0 = not at all, 1 = extremely. Click one to see why.{compare ? ' Orange marks show the What-if world.' : ''}</p>
-              {['mood', 'loneliness', 'stress', 'belonging', 'purpose', 'financial_stress', 'romantic_longing'].map(s => vals[s] && <Meter key={s} label={vals[s].label} value={vals[s].value} alt={compare ? valsA[s]?.value : undefined} polarity={polarity(s)} onClick={() => { setWhy(s); go('feel') }} />)}
+              {['mood', 'loneliness', 'stress', 'belonging', 'purpose', 'financial_stress', 'romantic_longing'].map(s => vals[s] && <Meter key={s} label={vals[s].label} value={vals[s].value} alt={compare ? valsA[s]?.value : undefined} polarity={polarity(s)} onClick={() => { setWhy(s); go('feel') }} shown={<Val v={s} value={vals[s].value} />} />)}
             </div>
             <div className="card">
               <h3>Lately</h3>

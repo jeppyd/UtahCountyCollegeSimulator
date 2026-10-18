@@ -11,7 +11,8 @@ import { PanelOptions } from '../panel'
 import type { PanelProps, ToolDef } from '../registry'
 import { focusItem } from '../sel'
 
-const OPEN_FIRST = ['social_emotion', 'emotion', 'inner_life', 'religion', 'romance']
+const ORDER = ['social_emotion', 'mind', 'religion', 'dating', 'personality', 'academics_work', 'habits_interests', 'preferences_dates', 'values_sexuality', 'demographics']
+const rank = (d: string) => (ORDER.includes(d) ? ORDER.indexOf(d) : 99)
 
 function Row({ s, on, pick }: { s: VarSpec; on: boolean; pick: (e: MouseEvent) => void }) {
   return (
@@ -41,7 +42,7 @@ function ScalesTool({ sel, setSel }: PanelProps) {
       list.push(s)
       m.set(s.domain, list)
     }
-    return [...m.entries()].sort((a, b) => (OPEN_FIRST.indexOf(b[0]) + 1 || -1) - (OPEN_FIRST.indexOf(a[0]) + 1 || -1) || a[0].localeCompare(b[0]))
+    return [...m.entries()].sort((a, b) => rank(a[0]) - rank(b[0]) || a[0].localeCompare(b[0]))
       .map(([d, list]) => [d, list.sort((a, b) => a.label.localeCompare(b.label))] as const)
   }, [reg, q])
   if (!reg) return null

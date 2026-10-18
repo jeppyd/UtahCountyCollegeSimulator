@@ -1609,6 +1609,24 @@ def update_install(request: Request):
     return jresp(updater.start_install(data_home()))
 
 
+# ----------------------------------------------------------------------------- feature routers
+def _include_routers():
+    """Every `ucsim/api/routes_*.py` module that defines `router` (a FastAPI APIRouter) is served. Handlers import what
+    they need from this module lazily (`from .server import WS, jresp`), so feature modules never edit this file."""
+    import importlib
+    import pkgutil
+    import sys
+    # the package's __path__ (not its folder) so the frozen Windows app's importer can list bundled modules too
+    for m in sorted(pkgutil.iter_modules(sys.modules[__package__].__path__), key=lambda m: m.name):
+        if m.name.startswith("routes_"):
+            mod = importlib.import_module(f"{__package__}.{m.name}")
+            if getattr(mod, "router", None) is not None:
+                app.include_router(mod.router)
+
+
+_include_routers()
+
+
 # ----------------------------------------------------------------------------- static
 @app.get("/geo/{name}")
 def geo(name: str):

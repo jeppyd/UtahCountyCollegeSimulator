@@ -22,7 +22,8 @@ def act_check(body: dict = Body(...)):
     be and why not; problems that would stop it (acting as someone: only people they know, when they're free, what
     they can afford). Checked against the What-if world when there is one (that's where it would happen)."""
     from ..engine.systems.social_actions import check
-    from .server import WS, jresp
+    from .routes_trace import _server
+    WS, jresp = _server()   # under `python -m` the serving module is __main__
     if WS.base is None:
         raise HTTPException(400, "no world")
     it = _atom(body)
@@ -40,7 +41,8 @@ def act(body: dict = Body(...)):
     """Do an action in the What-if world now (making the What-if from the Original first if there isn't one)."""
     from ..engine import runner
     from ..engine.systems.social_actions import check
-    from .server import WS, jresp
+    from .routes_trace import _server
+    WS, jresp = _server()   # under `python -m` the serving module is __main__
     if WS.base is None:
         raise HTTPException(400, "no world")
     if WS.job.get("state") == "building":

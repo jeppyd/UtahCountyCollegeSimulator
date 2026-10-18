@@ -27,7 +27,9 @@ type Edge = { source: number; target: number; stage: number; closeness: number; 
 function TiesTool({ sel, setSel, opts, setOpts }: PanelProps) {
   const u = useLens().u
   const dataVersion = useStore(s => s.dataVersion)
-  const egos = selPeople(sel).slice(0, MAX_EGOS)
+  // a focused tie shows its two people; otherwise the selected people
+  const tie = sel.item?.kind === 'tie' ? String(sel.item.id).split('-').map(Number).filter(Number.isFinite) : []
+  const egos = (tie.length === 2 ? tie : selPeople(sel)).slice(0, MAX_EGOS)
   const minStage: number = opts.minStage ?? 2
   const [wrap, w] = useWidth<HTMLDivElement>(400)
 

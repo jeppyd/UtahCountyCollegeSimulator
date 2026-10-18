@@ -1,0 +1,74 @@
+# Occasion kinds: planned things people go to (engine/ledger.py OccasionBook).
+#   label     plain-language name
+#   where     the kind of place it happens: home (a host's apartment/house), venue, campus, stadium, meetinghouse,
+#             park, workplace, group (a club/team location), complex (the complex's common areas), family (away)
+#   start     typical start, "HH:MM" (systems may vary it); dur: typical length in minutes
+#   open      true = announced/public (no individual invitations needed: people hear about it and decide)
+#   social    counts toward a person's social events per month (validation: ProvoStats "social events")
+#   category  social | romance | religion | academics | work | family | civic | sports
+#   rate      encounter rate multiplier relative to a home gathering (how much mingling happens there)
+# Systems may add kinds in their own files (config/occasions/<nn>_<system>.yaml).
+occasions:
+  gathering:
+    label: Hanging out at someone's place
+    where: home
+    start: "19:00"
+    dur: 150
+    open: false
+    social: true
+    category: social
+    rate: 1.0
+  dinner:
+    label: Dinner
+    where: home
+    start: "18:30"
+    dur: 120
+    open: false
+    social: true
+    category: social
+    rate: 1.1
+  game_night:
+    label: Game night
+    where: home
+    start: "20:00"
+    dur: 150
+    open: false
+    social: true
+    category: social
+    rate: 1.1
+  party:
+    label: Party
+    where: home
+    start: "20:30"
+    dur: 180
+    open: false
+    social: true
+    category: social
+    rate: 1.2
+  study_group:
+    label: Study group
+    where: campus
+    start: "19:00"
+    dur: 120
+    open: false
+    social: false
+    category: academics
+    rate: 0.5
+  date:
+    label: Date
+    where: venue
+    start: "19:00"
+    dur: 150
+    open: false
+    social: false
+    category: romance
+    rate: 1.0
+  dance:
+    label: Dance
+    where: venue
+    start: "21:00"
+    dur: 150
+    open: true
+    social: true
+    category: social
+    rate: 0.8

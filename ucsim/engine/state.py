@@ -280,5 +280,5 @@ class Tie:
 # Context types (where interactions happen)
 CTX = ["unit", "complex", "class", "ward", "fhe", "work", "gym", "venue", "gathering", "campus", "app", "date",
        "family", "preexisting", "dance", "outdoors", "hangout", "online", "club", "team", "institute",
-       "congregation"]
+       "congregation", "occasion"]   # append only: codes are stored on edges (origin_ctx)
 CTX_ID = {c: i for i, c in enumerate(CTX)}

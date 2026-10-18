@@ -144,9 +144,13 @@ class Registry:
         self.variables: dict[str, VarSpec] = {}
         self.mechanisms: dict[str, MechSpec] = {}
         self.events: dict[str, EventSpec] = {}
+        self.decisions: dict[str, dict] = {}    # decision kinds: label, outcomes, units, factors (engine/ledger.py)
+        self.occasions: dict[str, dict] = {}    # occasion kinds: label, ctx, start, dur, open, social, category
         self._load_variables()
         self._load_mechanisms()
         self._load_events()
+        self._load_vocab("decisions", self.decisions)
+        self._load_vocab("occasions", self.occasions)
         self._resolve_refs()
         self.event_ids = {k: i for i, k in enumerate(self.events)}
         self.event_names = list(self.events)
@@ -211,15 +215,28 @@ class Registry:
                 setattr(m, attr, keep)
 
     def _load_events(self):
-        path = self.config_dir / "events.yaml"
-        if not path.exists():
-            return
-        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
-        for eid, spec in doc["events"].items():
-            spec = dict(spec)
-            spec.setdefault("effects", [])
-            spec.setdefault("evidence", "calibrated")
-            self.events[eid] = EventSpec(id=eid, **spec)
+        # events.yaml first (its order fixes the original type codes), then config/events/*.yaml in name order
+        paths = [self.config_dir / "events.yaml"] + sorted((self.config_dir / "events").glob("*.yaml"))
+        for path in paths:
+            if not path.exists():
+                continue
+            doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            for eid, spec in (doc.get("events") or {}).items():
+                if eid in self.events:
+                    raise ValueError(f"duplicate event type {eid} in {path.name}")
+                spec = dict(spec)
+                spec.setdefault("effects", [])
+                spec.setdefault("evidence", "calibrated")
+                self.events[eid] = EventSpec(id=eid, **spec)
+
+    def _load_vocab(self, folder: str, into: dict):
+        """Decision and occasion vocabularies: config/<folder>/*.yaml, each a mapping under the folder's name."""
+        for path in sorted((self.config_dir / folder).glob("*.yaml")):
+            doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            for key, spec in (doc.get(folder) or {}).items():
+                if key in into:
+                    raise ValueError(f"duplicate {folder[:-1]} kind {key} in {path.name}")
+                into[key] = {**(spec or {}), "_file": path.name}
 
     # ------------------------------------------------------------------ queries
     def entity_vars(self, entity: str) -> list[VarSpec]:
@@ -251,6 +268,8 @@ class Registry:
             "variables": {k: v.to_dict() for k, v in self.variables.items()},
             "mechanisms": {k: m.to_dict() for k, m in self.mechanisms.items()},
             "events": {k: e.to_dict() for k, e in self.events.items()},
+            "decisions": self.decisions,
+            "occasions": self.occasions,
         }
 
 

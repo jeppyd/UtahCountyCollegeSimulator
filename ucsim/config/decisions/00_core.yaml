@@ -1,0 +1,43 @@
+# Decision kinds (engine/ledger.py DecisionLog): the choices whose reasons are recorded.
+#   label     what was being decided, in words
+#   units     logit (a yes/no choice: factors are log-odds terms) or utility (a choice among options)
+#   outcomes  the possible outcomes, in order (stored as their index)
+#   factors   every term a system may pass, with words for the UI and the narrators:
+#               label   neutral description of the factor
+#               more    phrase when it pushed toward the outcome that happened (positive contribution)
+#               less    phrase when it pushed against it (negative contribution)
+#               kind    utility (default) | constraint (a hard limit: "couldn't", not "didn't want to")
+# Systems add their own kinds in config/decisions/<nn>_<system>.yaml. A factor passed to DecisionLog.record that is
+# not listed here still records (with its id as the label), but tests require every factor to be declared.
+decisions:
+  attend_occasion:
+    label: Whether to go
+    units: logit
+    outcomes: ["yes", "no", "no_reply"]
+    factors:
+      base:            {label: "how much people generally go to this kind of thing", more: "it's the kind of thing they go to", less: "it's not their kind of thing"}
+      close_organizer: {label: "how close they are to the organizer", more: "close to the organizer", less: "barely knows the organizer"}
+      friends_going:   {label: "friends who said they're going", more: "friends are going", less: "no friends going"}
+      want_company:    {label: "how much they want company right now", more: "wants company", less: "wants to be alone"}
+      extraversion:    {label: "how outgoing they are", more: "outgoing", less: "reserved"}
+      tired:           {label: "how tired they are", more: "rested", less: "tired"}
+      exam_soon:       {label: "an exam or deadline coming up", more: "nothing due", less: "exam coming up"}
+      travel:          {label: "how long it takes to get there", more: "close by", less: "a long trip"}
+      late:            {label: "arriving late after other commitments", more: "can be on time", less: "would arrive late"}
+      place_culture:   {label: "how social their complex and apartment are", more: "a social place", less: "a quiet place"}
+      intention:       {label: "an intention to meet people or reconnect", more: "trying to meet people", less: ""}
+      routine:         {label: "habit (they usually go)", more: "they usually go", less: "they usually don't"}
+      hurt:            {label: "unresolved hurt with the organizer", more: "", less: "hurt between them"}
+      money:           {label: "what it costs", more: "free", less: "costs money they don't have"}
+      conflict:        {label: "already committed elsewhere", kind: constraint, less: "already committed elsewhere"}
+      cant_get_there:  {label: "no way to get there in time", kind: constraint, less: "no way to get there"}
+  host_occasion:
+    label: Whether to host
+    units: logit
+    outcomes: [hosted, did_not]
+    factors:
+      base:          {label: "how often people host on this day", more: "", less: ""}
+      extraversion:  {label: "how outgoing they are", more: "outgoing", less: "reserved"}
+      want_company:  {label: "how much they want company right now", more: "wants company", less: "wants to be alone"}
+      place_culture: {label: "how social their apartment is", more: "a social apartment", less: "a quiet apartment"}
+      friends:       {label: "how many friends they have", more: "has friends to invite", less: "few friends to invite"}

@@ -28,3 +28,6 @@ ucsim/_build_version.py
 /surveys/
 /raw/
 *.sav
+
+# parallel builders' isolated checkouts (Claude Code worktrees)
+.claude/worktrees/

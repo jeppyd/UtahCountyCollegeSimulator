@@ -572,6 +572,11 @@ class _Graph:
             cands.append((2.5, lambda d=int(r["decision"]): self.node("decision", d, depth - 1, day), ("decided_by", None, "the decision to host")))
         if r.get("cause", -1) >= 0:
             cands.append((2.4, lambda e=int(r["cause"]): self.node("event", e, depth - 1, day), ("caused", None, "led to it")))
+        # who was there (the scene is made of them); the decisions to go are its consequences
+        org = int(r.get("organizer", -1))
+        for i in B.attendees(oid)[:40]:
+            if int(i) != org:
+                cands.append((1.0, lambda i=int(i): self.node("person", i, depth - 1, day), ("attended", None, "was there")))
         return cands
 
     def _back_tie(self, n, depth):

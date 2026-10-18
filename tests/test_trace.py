@@ -47,6 +47,20 @@ def test_event_trace_back_and_forward(sim):
     assert any(L["target"] == back["root"] for L in back["links"])
     fwd = T.trace(sim, f"event:{e}", "fwd", 3)
     assert all(n["depth"] >= 0 for n in fwd["nodes"])
+    # events and decisions are resolved per block or per day: no clock time is claimed for them
+    assert all(n["minute"] is None for n in g["nodes"] if n["kind"] in ("event", "decision"))
+
+
+def test_words_read_as_plain_language(sim):
+    assert T.lc("Whether to ask them out") == "whether to ask them out"
+    assert T.lc("GPA") == "GPA" and T.lc("When a stay in Provo–Orem ends") == "when a stay in Provo–Orem ends"
+    assert T.positive_outcome({"outcomes": ["yes", "no"]}, "no") == "yes"
+    assert T.positive_outcome({"outcomes": ["coffee", "alcohol"], "positive": "any"}, "alcohol") == "alcohol"
+    # chains: each reason's examples say who chose, about whom, and their own top reason
+    c = T.chains(sim, 0, sim.w.day)
+    ex = [x for r in c["reasons"] for x in r["examples"]]
+    assert ex and all(isinstance(x["who"], str) and x["who"] and "id" in x and "day" in x for x in ex)
+    assert all(sim.decisions.get(x["id"]) for x in ex[:20])
 
 
 def test_depth_grows_the_graph_and_bounds_distance(sim):

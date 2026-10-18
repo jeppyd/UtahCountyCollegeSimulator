@@ -195,3 +195,58 @@ def test_plans_have_beginnings_and_reasons(sim):
         assert np.all(log["type"][log["cause"][ab][log["cause"][ab] >= 0]] == sim.reg.event_ids["intention_formed"])
         roles = {r["note"] for e in ab[:40] for r in C.of(int(e))}
         assert roles & {ROLE_CODE["target_gone"], ROLE_CODE["priorities"], ROLE_CODE["around_then"]}
+
+
+def test_returns_matches_and_new_habits_have_reasons(sim):
+    """Event types that had no reason after the first pass: missionaries coming home at full length (chance, honestly
+    labeled), dating-app matches and taking up a practice (attitude, friends who already do it)."""
+    log = sim.log
+    D = sim.decisions
+    for t in ("mission_return", "early_return", "app_match", "started_coffee", "started_drinking", "adopted_practice"):
+        ids = np.flatnonzero(log["type"] == sim.reg.event_ids[t])
+        if len(ids):
+            assert np.all(log["decision"][ids] >= 0), t
+    ret = np.flatnonzero(log["type"] == sim.reg.event_ids["mission_return"])
+    if len(ret):
+        d = D.get(int(log["decision"][ret[0]]))
+        assert d["kind"] == "mission_length" and d["outcome"] == "full" and d["prob"] > 0.5
+    ad = np.flatnonzero(np.isin(log["type"], [sim.reg.event_ids[t] for t in ("started_coffee", "started_drinking", "adopted_practice")]))
+    if len(ad):
+        d = D.get(int(log["decision"][ad[-1]]))
+        assert d["kind"] == "adopt_practice" and {f["factor"] for f in d["factors"]} & {"attitude", "friends"}
+
+
+def test_occasions_report_their_scene_and_first_meetings():
+    """Conversations at an occasion are counted on it (its scene), first meetings there remember the occasion as where
+    the pair met, the organizer as who brought them together, and the occasion as where their time together went."""
+    from ucsim.engine.runner import new_simulation
+    s = new_simulation(scale=0.02, seed=5)
+    s.run_days(1)
+    P, E = s.w.P, s.w.E
+    present = np.flatnonzero(P["present"])
+    org = int(present[0])
+    occ = int(s.book.plan("dinner", s.w.day, 18 * 60, 120, organizer=org)[0])
+    # strangers among the next people present, in pairs
+    cand = present[1:400]
+    a, b = cand[0::2], cand[1::2]
+    k = min(len(a), len(b))
+    a, b = a[:k], b[:k]
+    new = s.w.E.find(EdgeStore.make_keys(a, b)) < 0
+    a, b = a[new][:25], b[new][:25]
+    assert len(a) >= 10
+    s.book.attend(occ, np.r_[a, b], day=s.w.day)
+    ctx = np.full(len(a), CTX_ID["occasion"], np.uint8)
+    s.systems["encounters"].apply(a, b, ctx, np.full(len(a), occ, np.int64), 2, np.zeros(len(a)), np.zeros(len(a), bool))
+    r = s.book.describe(occ)
+    assert r["n_talks"] == len(a) and r["n_new_ties"] == len(a)
+    ix = E.find(EdgeStore.make_keys(a, b))
+    assert np.all(ix >= 0)
+    assert np.all(E["origin_ctx"][ix] == CTX_ID["occasion"]) and np.all(E["origin_place"][ix] == occ)
+    assert np.all(E["introducer"][ix] == org)
+    timed = E["top_h"][ix] > 0
+    assert np.all(E["top_ctx"][ix][timed] == CTX_ID["occasion"])
+    # the occasion's trace shows who was there and who met whom
+    from ucsim.analysis.trace import trace
+    g = trace(s, f"occasion:{occ}", dir="both", depth=1, max_nodes=200, fanout=60)
+    kinds = {L["kind"] for L in g["links"]}
+    assert "met_at" in kinds and "attended" in kinds

@@ -125,6 +125,9 @@ export const benchApi = {
   },
   async actCheck(action: any): Promise<any> { benchOnly(); return post('/api/act/check', action) },
   async act(action: any): Promise<any> { benchOnly(); return post('/api/act', action) },
+  // the Provo calendar and the observed weather each day replays (routes_calendar.py)
+  async calendarItems(frm: number, to: number, u: Universe = 'base'): Promise<any> { benchOnly(); return j(`/api/calendar/items?u=${u}&frm=${frm}&to=${to}`) },
+  async calendarWeather(frm: number, to: number, u: Universe = 'base'): Promise<any> { benchOnly(); return j(`/api/calendar/weather?u=${u}&frm=${frm}&to=${to}`) },
 }
 
 export function decodePack(buf: ArrayBuffer): Record<string, Column> {

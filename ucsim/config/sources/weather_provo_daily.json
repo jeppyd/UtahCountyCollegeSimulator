@@ -1,0 +1,23 @@
+{
+  "source": "NOAA NCEI Global Historical Climatology Network – Daily (GHCN-Daily), station access file",
+  "url": "https://www.ncei.noaa.gov/data/global-historical-climatology-network-daily/access/USC00427064.csv",
+  "station": "USC00427064",
+  "station_name": "PROVO BYU, UT US",
+  "lat": 40.2458,
+  "lon": -111.6508,
+  "period": [
+    "2015-08-01",
+    "2026-07-31"
+  ],
+  "retrieved": "2026-10-18",
+  "license": "Public domain (U.S. Government work, NOAA NCEI); no restrictions on use.",
+  "units": {
+    "tmax_f": "°F (daily high)",
+    "tmin_f": "°F (daily low)",
+    "precip_in": "inches of rain/melted snow",
+    "snow_in": "inches of new snow",
+    "snow_depth_in": "inches of snow on the ground"
+  },
+  "conversion": "GHCN-Daily stores tenths of °C and tenths of mm (PRCP), mm (SNOW, SNWD); converted to °F and inches and rounded.",
+  "gaps": "Blank cells are missing observations; the model fills them from the monthly normals in world.yaml (labelled)."
+}

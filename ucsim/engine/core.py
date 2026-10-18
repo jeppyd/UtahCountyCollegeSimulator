@@ -65,10 +65,16 @@ def pair_normal(seed: int, a: np.ndarray, b: np.ndarray, salt: int, directed: bo
 
 
 class Calendar:
+    """Dates, terms and holidays for the simulation's days. Terms, finals, holidays and conference weekends come from the
+    real Provo calendar (engine/calendar_real.py: published 2026–27 dates, rules for other years); the method names
+    are the ones every system has always used."""
+
     def __init__(self, cfg: dict, start: dt.date):
+        from .calendar_real import default_calendar
         self.start = start
         self.cfg = cfg
-        self.byu_terms = cfg["calendar"]["byu_terms"]
+        self.real = default_calendar()
+        self.byu_terms = cfg["calendar"]["byu_terms"]     # the old approximate month-day terms (kept for reference)
         self.uvu_terms = cfg["calendar"]["uvu_terms"]
         self.high_f = np.array(cfg["climate"]["high_f"], dtype=float)
         self.lease = cfg["calendar"]["lease_turnover"]
@@ -79,60 +85,50 @@ class Calendar:
     def weekday(self, day: int) -> int:  # Monday = 0
         return self.date(day).weekday()
 
-    def _term(self, terms, d: dt.date):
-        md = f"{d.month:02d}-{d.day:02d}"
-        for t in terms:
-            s, e = t["start"], t["end"]
-            if s <= md <= e:
-                return t["name"]
-        return None
-
     def term(self, school: str, day: int):
-        d = self.date(day)
-        return self._term(self.byu_terms if school == "BYU" else self.uvu_terms, d)
+        """The term (Fall, Winter…) running at the school that day, from the first class through the last exam."""
+        return self.real.term(school, self.date(day))
 
     def term_start(self, school: str, day: int) -> str | None:
-        d = self.date(day)
-        md = f"{d.month:02d}-{d.day:02d}"
-        for t in (self.byu_terms if school == "BYU" else self.uvu_terms):
-            if t["start"] == md:
-                return t["name"]
-        return None
+        t = self.real.term_info(school, self.date(day))
+        return t.name if t and t.start == self.date(day) else None
 
     def term_end(self, school: str, day: int) -> str | None:
-        d = self.date(day)
-        md = f"{d.month:02d}-{d.day:02d}"
-        for t in (self.byu_terms if school == "BYU" else self.uvu_terms):
-            if t["end"] == md:
-                return t["name"]
-        return None
+        t = self.real.term_info(school, self.date(day))
+        return t.name if t and t.finals_end == self.date(day) else None
 
     def term_progress(self, school: str, day: int) -> float:
         """0..1 position within the current term (NaN outside terms)."""
         d = self.date(day)
-        md = f"{d.month:02d}-{d.day:02d}"
-        for t in (self.byu_terms if school == "BYU" else self.uvu_terms):
-            if t["start"] <= md <= t["end"]:
-                s = dt.date(d.year, int(t["start"][:2]), int(t["start"][3:]))
-                e = dt.date(d.year, int(t["end"][:2]), int(t["end"][3:]))
-                return (d - s).days / max(1, (e - s).days)
-        return float("nan")
+        t = self.real.term_info(school, d)
+        if t is None:
+            return float("nan")
+        return (d - t.start).days / max(1, (t.finals_end - t.start).days)
+
+    def in_finals(self, school: str, day: int) -> bool:
+        return self.real.in_finals(school, self.date(day))
+
+    def no_class(self, school: str, day: int) -> bool:
+        return self.real.no_class(school, self.date(day))
+
+    def items_on(self, day: int):
+        return self.real.items_on(self.date(day))
 
     def season(self, day: int) -> str:
-        """Plain-language place in the BYU year: 'Fall semester · week 5 of 17', 'Christmas break', 'Summer break'."""
+        """Plain-language place in the BYU year: 'Fall semester · week 5 of 15', 'Finals week', 'Christmas break'."""
         d = self.date(day)
-        md = f"{d.month:02d}-{d.day:02d}"
-        for t in self.byu_terms:
-            if t["start"] <= md <= t["end"]:
-                s = dt.date(d.year, int(t["start"][:2]), int(t["start"][3:]))
-                e = dt.date(d.year, int(t["end"][:2]), int(t["end"][3:]))
-                week, weeks = (d - s).days // 7 + 1, max(1, ((e - s).days + 6) // 7)
-                kind = "semester" if t["name"] in ("Fall", "Winter") else "term"
-                return f"{t['name']} {kind} · week {week} of {weeks}"
-        if d.month == 12 or (d.month == 1 and d.day < 8):
-            return "Christmas break"
-        if d.month == 8:
-            return "Late-summer break"
+        t = self.real.term_info("BYU", d)
+        if t is not None:
+            kind = "semester" if t.name in ("Fall", "Winter") else "term"
+            if d >= t.finals_start:
+                return f"{t.name} {kind} · finals"
+            week, weeks = (d - t.start).days // 7 + 1, max(1, ((t.classes_end - t.start).days + 7) // 7)
+            return f"{t.name} {kind} · week {week} of {weeks}"
+        for it in self.real.items_on(d):
+            if it.kind == "break":
+                return it.label
+        if d.month == 8 or (d.month == 9 and d.day < 8):
+            return "Before fall semester"
         return "Between terms"
 
     def is_lease_turnover(self, day: int) -> bool:
@@ -140,24 +136,17 @@ class Calendar:
         return f"{d.month:02d}-{d.day:02d}" in self.lease
 
     def holiday(self, day: int) -> bool:
-        d = self.date(day)
-        md = (d.month, d.day)
-        if md in ((12, 24), (12, 25), (1, 1), (7, 4), (7, 24), (11, 27), (11, 28)):
-            return True
-        # Thanksgiving (4th Thursday Nov) and day after
-        if d.month == 11 and d.weekday() in (3, 4) and 22 <= d.day <= 29:
-            return True
-        return False
+        return self.real.holiday(self.date(day))
 
     def temp_f(self, day: int) -> float:
+        """The climate-normal daily high (°F) for the date (gap filler for the observed weather)."""
         d = self.date(day)
         m = d.month - 1
         frac = (d.day - 1) / 30.0
         return float(self.high_f[m] * (1 - frac) + self.high_f[(m + 1) % 12] * frac)
 
     def is_conference_weekend(self, day: int) -> bool:
-        d = self.date(day)
-        return d.month in (4, 10) and d.weekday() in (5, 6) and d.day <= 7
+        return self.real.conference(self.date(day))
 
 
 # ----------------------------------------------------------------------------- events

@@ -62,6 +62,10 @@ calendar:                    # month-day boundaries (approx BYU calendar)
 
 climate:                     # Provo monthly mean daily high °F (approx normals)
   high_f: [38, 44, 54, 61, 71, 82, 91, 89, 79, 65, 50, 39]
+  low_f: [22, 26, 33, 39, 47, 55, 63, 62, 52, 41, 31, 23]   # Provo monthly mean daily low °F (approx normals; fills gaps)
+
+weather:                     # which observed year (Aug–Jul) of Provo weather a world replays (engine/weather.py)
+  year: latest               # or a fall year such as 2022 (the snowy winter of 2022–23); env UCSIM_WEATHER_YEAR overrides
 
 economy:
   unemployment: 0.032

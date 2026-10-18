@@ -1,6 +1,6 @@
 // Small shared pieces for workbench tools: empty, loading and problem states; event-category colors and words; the
 // world's calendar (simulation day → date words).
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useStore } from '../store'
 import { dayLabel } from './traceRefs'
 
@@ -45,17 +45,17 @@ export const dayWords = (start: string | undefined, d: number, long = false) =>
 export const BLOCK_WORDS = ['morning', 'afternoon', 'evening', 'late evening']
 
 // ---------------------------------------------------------------- layout
-/** The width of an element, kept current as its panel is resized. */
-export function useWidth<T extends HTMLElement>(fallback = 600): [RefObject<T>, number] {
-  const ref = useRef<T>(null)
+/** The width of an element, kept current as its panel is resized. A callback ref, so it also works for an element
+ *  that appears later (after loading). */
+export function useWidth<T extends HTMLElement>(fallback = 600): [(el: T | null) => void, number] {
+  const [el, setEl] = useState<T | null>(null)
   const [w, setW] = useState(fallback)
   useEffect(() => {
-    const el = ref.current
     if (!el) return
     const ro = new ResizeObserver(() => setW(el.clientWidth || fallback))
     ro.observe(el)
     setW(el.clientWidth || fallback)
     return () => ro.disconnect()
-  }, [fallback])
-  return [ref, w]
+  }, [el, fallback])
+  return [setEl, w]
 }

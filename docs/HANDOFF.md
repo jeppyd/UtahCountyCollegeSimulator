@@ -12,9 +12,14 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 2. Read this file, then `docs/workstreams/README.md` (rules — privacy rules are non-negotiable), then
    `docs/EVOLUTION.md` and the spec of the workstream you'll take.
 3. **Claim** before coding: put your name/tool, the date and the workstream in *Who is working now* below; commit and
-   push that edit. Don't take a workstream someone else holds unless their claim is older than 12 hours with no new
-   commits (then note that you took it over).
+   push that edit. Don't take a workstream someone else holds unless the relay rule below allows it.
 4. Work in small steps; **commit and push often** (WIP commits are fine), so running out of usage never strands work.
+   Unfinished work goes to a `wip/<workstream>` branch on GitHub (`git push origin HEAD:refs/heads/wip/<workstream>`);
+   finished, tested work is merged into the working branch.
+   **Relay rule:** if the agent holding a workstream has stopped (its `wip/<workstream>` branch hasn't moved for 2 hours,
+   or the owner says it ran out of usage), you may continue it: merge the working branch and `origin/wip/<workstream>`,
+   keep pushing to the same `wip/` branch, and write in *Who is working now* and the session log that you took it over.
+   The first agent resumes from your pushes the same way.
 5. **Before you stop** (or when your usage is getting low): update the *Status board*, append a *Session log* entry
    (what you did, what's half-done and exactly where, what's next, anything surprising), remove your claim, run the
    tests if you can, commit and push. If tests fail, say which and why in the log.
@@ -23,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| Claude Code (cloud session) | 2026-10-18 18:40 | workbench, scales, sexuality-survey, calendar-weather, talk, travel | Six builders running in a cloud container, two at a time in this order. Claim something else (wave 2 needs these) or coordinate with the owner. |
+| Claude Code (cloud session) | 2026-10-18 22:27 | workbench, scales, sexuality-survey, calendar-weather, talk, travel | Six builders, two at a time in this order; each pushes its progress to `wip/<workstream>`. When they stop on usage limits, the relay rule below applies. |
 
 ## The goal in one paragraph
 
@@ -90,8 +95,7 @@ institutions, family-homes) can start now too, but coordinate: they touch the sa
 
 ## Open questions for the owner
 
-1. (asked 2026-10-18) May agents push work-in-progress branches (`wip/<workstream>`) to GitHub? Until the owner says
-   yes, unfinished work stays in the environment where it was made and becomes visible when merged.
+(none open — 2026-10-18: the owner approved pushing work-in-progress branches `wip/<workstream>` to GitHub.)
 
 ## Environment notes
 
@@ -104,6 +108,10 @@ institutions, family-homes) can start now too, but coordinate: they touch the sa
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-18 (night) — Claude Code (cloud session)
+- The six remaining wave-1 builders were stopped by usage limits within minutes (no progress); restarted at 22:27 UTC
+  with work-in-progress pushed to `wip/<workstream>` branches (owner approved). Added the relay rule above.
 
 ### 2026-10-18 (evening) — Claude Code (cloud session)
 - Merged **time-occasions** (four-block day; shifts with clock times; occasions with hosting, invitations, noticing,

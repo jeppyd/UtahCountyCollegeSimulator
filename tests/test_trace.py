@@ -100,6 +100,14 @@ def test_decision_trace_and_detail(sim):
     assert d["agent_name"] and d["other_name"]
     assert all(f["words"] for f in d["factors"])
     assert T.decision_detail(sim, 10**9) == {}
+    # time runs one way: being asked out comes before the answer, and the answer before what it led to
+    back = {L["source"]: L for L in g["links"] if L["target"] == g["root"]}
+    asks = [k for k in back if k.startswith("event:")
+            and sim.reg.event_names[sim.log["type"][int(k.split(":")[1])]] == "asked_out"]
+    assert asks and back[asks[0]]["kind"] == "caused"
+    assert not any(L["source"] == g["root"] and L["target"] == asks[0] for L in g["links"])
+    ga = T.trace(sim, asks[0], "both", 1)
+    assert any(L["source"] == asks[0] and L["target"] == g["root"] for L in ga["links"])
 
 
 def test_other_refs(sim):

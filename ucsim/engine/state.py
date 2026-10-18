@@ -182,16 +182,11 @@ class EdgeStore:
         keys[pos_new] = new_keys
         keys[~is_new] = old
         self._keys_buf[:total] = keys
+        # shift the old rows in place (numpy buffers the overlapping source), then fill the new ones
+        src = np.flatnonzero(~is_new)
         for c, arr in self.cols.items():
-            vals = np.zeros(m, dtype=arr.dtype)
-            if c in self.NEG_ONE:
-                vals[:] = -1
-            if c in init:
-                vals[:] = init[c]
-            merged = np.empty(total, arr.dtype)
-            merged[pos_new] = vals
-            merged[~is_new] = arr[: self.n]
-            arr[:total] = merged
+            arr[src] = arr[: self.n]
+            arr[pos_new] = init[c] if c in init else (-1 if c in self.NEG_ONE else 0)
         self.n = total
 
     def remove(self, mask_remove: np.ndarray):

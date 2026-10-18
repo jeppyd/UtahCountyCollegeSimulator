@@ -165,6 +165,19 @@ def test_chains_flows_and_reasons(sim):
     assert 0 < cc["events"] < c["events"]
 
 
+def test_where_they_met_sits_before_what_it_led_to(sim):
+    rows = np.flatnonzero(sim.log["type"] == sim.reg.event_ids["new_friend"])[-30:]
+    seen = 0
+    for e in rows:
+        g = T.trace(sim, f"event:{int(e)}", "back", 2)
+        day = {n["key"]: n["day"] for n in g["nodes"]}
+        for L in g["links"]:
+            if L["kind"] == "met_at" and L["source"].startswith("place:"):
+                assert day[L["source"]] <= day[L["target"]]
+                seen += 1
+    assert seen
+
+
 def test_chains_show_where_friends_met_and_the_feelings_behind_coping(sim):
     c = T.chains(sim, 0, sim.w.day, root="new_friend", max_links=200)
     met = [L for L in c["links"] if L["source"].startswith("place:") and L["kind"] == "met_at"]

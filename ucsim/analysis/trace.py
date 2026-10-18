@@ -954,16 +954,18 @@ def trace(sim, ref, dir: str = "both", depth: int = 3, max_nodes: int = MAX_NODE
 
 
 def _place_timeless(G: _Graph):
-    """People, places and other timeless nodes sit at the time of the earliest item they link to."""
+    """People, places and other timeless nodes sit at the time of the earliest dated item they link to (not at the day
+    of whichever item happened to reach them first), so a place where two people met sits before their friendship."""
     by = {}
     for (s, t) in G.links:
         for a, b in ((s, t), (t, s)):
-            d = G.nodes[b].get("day") if b in G.nodes else None
+            nb = G.nodes.get(b)
+            d = nb.get("day") if nb is not None and not nb.get("timeless") else None
             if d is not None:
                 by[a] = min(by.get(a, d), d)
     for k, n in G.nodes.items():
-        if n.get("day") is None:
-            n["day"] = by.get(k, G.sim.w.day)
+        if n.get("day") is None or n.get("timeless"):
+            n["day"] = by.get(k, n["day"] if n.get("day") is not None else G.sim.w.day)
             n["timeless"] = True
 
 
@@ -1259,8 +1261,8 @@ def chains(sim, since: int | None = None, until: int | None = None, people: np.n
             "nodes": list(nodes.values()), "links": flow, "reasons": reasons[:40],
             "repeats_hidden": 0 if repeats else n_repeat,
             "notes": ["Flows count recorded links between events (a parent cause or a typed cause), from decisions to "
-                      "the events they produced" + (", and from the feelings, places, occasions and people recorded "
-                                                     "behind events (one event can have several)" if contexts else "")
+                      "the events they produced" + (", and from the feelings, places, occasions, relationships and people "
+                                                     "recorded behind events (one event can have several)" if contexts else "")
                       + "; a two-person moment is counted once. Reasons are each decision's largest recorded term in "
                       "the direction of what happened."]
             + ([f"{n_repeat:,} links between events of the same kind (one date leading to the next) are not shown."]

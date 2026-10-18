@@ -196,6 +196,50 @@ def test_hosting_burden_rises_late_on_school_nights(fresh):
     assert (sim.log["cause"][ev] >= 0).all()           # caused by the hosted_gathering event
 
 
+def test_a_date_right_after_a_shift_happens(fresh):
+    """A shift that ends at 2:45 fills most of the afternoon block, but the 3:15 date after it still happens: everyone
+    expected at an occasion is recorded as there, whatever else fills more of the block."""
+    sim = copy.deepcopy(fresh)
+    sim.run_days(1)
+    P = sim.w.P
+    rom, occ = sim.systems["romance"], sim.systems["occasions"]
+    cand = np.where(P["present"] & ~P["enrolled"] & (P["unit_id"] >= 0) & (P["age"] < 40))[0]
+    a, b = int(cand[0]), int(cand[1])
+    day = sim.w.day                     # the next day to run
+    wd = sim.cal.weekday(day)
+    P.cols["employed"][a] = True
+    P.internal["shift_start"][[a, b]] = -1
+    P.internal["shift_end"][[a, b]] = -1
+    P.internal["shift_start"][a, wd], P.internal["shift_end"][a, wd] = 8 * 60, 14 * 60 + 45
+    P.cols["ill"][[a, b]] = False
+    rom.queue.append((day, a, b, "museum", False, -1))
+    sim.run_days(1)
+    j = [k for k, d in enumerate(rom.dates_today) if {d[0], d[1]} == {a, b}]
+    assert j, "the date was booked"
+    oid = int(rom.date_occ[j[0]])
+    d = sim.book.describe(oid)
+    assert d["start"] >= 15 * 60 and d["status"] == "happened"        # after the shift, and both came
+    assert sorted(sim.book.attendees(oid).tolist()) == sorted([a, b])
+
+
+def test_couples_and_quiet_evenings_show_in_the_choice(ran):
+    """Free-time terms for the two evening blocks: a serious relationship pulls evenings away from friends, and someone
+    who stayed in for the early evening rarely heads out after 8:15."""
+    sim = copy.deepcopy(ran)
+    P = sim.w.P
+    act = sim.systems["activity"]
+    i = int(np.where(P["present"] & (P["n_friends"] > 0))[0][0])
+    P.cols["rel_status"][i] = P.code("rel_status", "engaged")
+    ch = act.explain_choice(i, 2)
+    visit = next(o for o in ch["options"] if o["option"] == 6)
+    assert any(t["term"] == "partner" and t["value"] < 0 for t in visit["terms"])
+    n = P.n
+    act._prev = (np.zeros(n, np.uint8), np.zeros(n, np.uint8), np.full(n, -1, np.int64), np.zeros(n, np.uint8))
+    late = act.explain_choice(i, 3)
+    visit = next(o for o in late["options"] if o["option"] == 6)
+    assert any(t["term"] == "settled" and t["value"] < 0 for t in visit["terms"])
+
+
 def test_scene_agenda_and_choice(ran):
     from ucsim.analysis.scenes import list_occasions, scene
     O = ran.book.occ

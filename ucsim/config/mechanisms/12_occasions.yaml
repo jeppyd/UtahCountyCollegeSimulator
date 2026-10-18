@@ -72,12 +72,13 @@ mechanisms:
     form: "burden = guests/6 + shift·[worked that day] + exams·[exam week] + money·financial stress·[the kind costs food] + fatigue + late·hours past 10 pm on a school night; a 'worn out from hosting' event when burden > threshold; food costs come out of savings."
     params:
       late: {value: 0.5, range: [0.0, 1.5]}
-      threshold: {value: 1.6, range: [1.0, 3.0]}
+      threshold: {value: 2.3, range: [1.0, 3.0]}
       shift: {value: 0.8, range: [0.2, 1.5]}
       exams: {value: 0.6, range: [0.0, 1.5]}
       money: {value: 1.5, range: [0.5, 3.0]}
     timescale: daily
     evidence: hypothetical
+    desc: "The threshold is set so about one hosted get-together in seven leaves the host worn out (the burden's 85th percentile in a test run); the burden itself also weighs on whether a weekly tradition continues."
   occasions.tradition:
     label: Weekly traditions (start, keep, hand on)
     target: social_events_month

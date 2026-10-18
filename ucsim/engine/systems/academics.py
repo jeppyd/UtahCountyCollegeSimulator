@@ -4,6 +4,8 @@ from __future__ import annotations
 import numpy as np
 from scipy.special import expit
 
+from ..provenance import chance, link, pick, state_ref
+
 MWF = 0b10101
 TTH = 0b01010
 
@@ -237,16 +239,30 @@ class Academics:
             P.cols["enrolled"][gi] = False
             P.cols["grad_day"][gi] = w.day
             ev = sim.emit("graduation", gi, mech="academics.term")
+            # undergraduates finish when their credits reach their program's requirement; graduate students' finishing
+            # is a flat chance each term in the model
+            g_st = grad_student[grad]
+            link(sim, ev[~g_st], "state", state_ref(sim, "credits_done", gi[~g_st]), 1.0, "enough_credits")
+            if g_st.any():
+                link(sim, ev[g_st], "decision", chance(sim, "finish_degree", gi[g_st], 0.22, "finished"), 1.0, "chance")
             sim.systems["lifecourse"].after_graduation(gi, ev)
         # dropout hazard
         fin = P["financial_stress"][ids]
-        h = expit(p("academics.dropout.base") + (0.9 if school == "UVU" else 0) + 1.6 * (new_gpa < 2.0) + 1.2 * np.clip(fin - 0.5, 0, None)
-                  + 0.8 * (P["children"][ids] > 0) * P.is_("sex", "F")[ids]
-                  - p("mind.self_efficacy.dropout") * (P["self_eff_academic"][ids] - 0.5))
+        # the log-odds term by term (added in the model's order; the subtracted term is kept positive here)
+        T = {"school": 0.9 if school == "UVU" else 0, "grades": 1.6 * (new_gpa < 2.0), "money": 1.2 * np.clip(fin - 0.5, 0, None),
+             "children": 0.8 * (P["children"][ids] > 0) * P.is_("sex", "F")[ids],
+             "self_efficacy": p("mind.self_efficacy.dropout") * (P["self_eff_academic"][ids] - 0.5)}
+        h = expit(p("academics.dropout.base") + T["school"] + T["grades"] + T["money"] + T["children"] - T["self_efficacy"])
         drop = ~grad & (rng.random(len(ids)) < h)
         if drop.any():
             di = ids[drop]
             P.cols["enrolled"][di] = False
             P.cols["role"][di] = P.code("role", "young_adult")
-            sim.emit("dropout", di, mech="academics.dropout")
+            rec = pick(T, drop)
+            rec["school"] = np.full(len(di), float(T["school"]))
+            rec["self_efficacy"] = -rec["self_efficacy"]
+            did = sim.decisions.record("drop_out", w.day, di, "dropped_out", rec, base=p("academics.dropout.base"), prob=h[drop],
+                                       refs={"money": ("state", state_ref(sim, "financial_stress", di)),
+                                             "grades": ("state", state_ref(sim, "gpa", di))})
+            sim.emit("dropout", di, mech="academics.dropout", decision=did)
             sim.systems["lifecourse"].schedule_stay(di)

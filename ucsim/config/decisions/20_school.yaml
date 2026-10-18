@@ -1,0 +1,19 @@
+# School decisions (engine/systems/academics.py, at the end of each term). Field meanings: config/decisions/00_core.yaml.
+decisions:
+  drop_out:
+    label: Whether to leave school (end of term)
+    units: logit
+    outcomes: [dropped_out]
+    factors:
+      base:          {label: "how rarely students leave in a given term", more: "", less: "most students stay enrolled"}
+      school:        {label: "which school (UVU students, many working and commuting, leave more often)", more: "UVU student", less: ""}
+      grades:        {label: "a GPA under 2.0 this term", more: "grades were failing", less: ""}
+      money:         {label: "money pressure", more: "money was tight", less: ""}
+      children:      {label: "being a mother of young children", more: "caring for children", less: ""}
+      self_efficacy: {label: "confidence in their ability to do the work", more: "doubted they could do it", less: "confident in their schoolwork"}
+  finish_degree:
+    label: Whether a graduate student finishes this term
+    units: probability
+    outcomes: [finished]
+    factors:
+      base: {label: "the share of graduate students who finish in a given term (the model has no reasons for which ones)", more: "chance", less: ""}

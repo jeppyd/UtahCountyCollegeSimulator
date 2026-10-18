@@ -216,6 +216,25 @@ def test_returns_matches_and_new_habits_have_reasons(sim):
         assert d["kind"] == "adopt_practice" and {f["factor"] for f in d["factors"]} & {"attitude", "friends"}
 
 
+def test_term_end_graduations_and_dropouts_have_reasons():
+    """At the end of a term, leaving school is a recorded choice (grades, money, confidence…) and graduating points at
+    the credits that completed the program (or, for graduate students, at the flat chance the model gives)."""
+    from ucsim.engine.runner import new_simulation
+    s = new_simulation(scale=0.02, seed=9)
+    s.run_days(1)
+    n0 = s.log.n
+    for school in ("BYU", "UVU"):
+        s.systems["academics"].end_term(school)
+    new = np.arange(n0, s.log.n)
+    t = s.log["type"][new]
+    drop = new[t == s.reg.event_ids["dropout"]]
+    grad = new[t == s.reg.event_ids["graduation"]]
+    assert len(drop) and len(grad)
+    assert np.all(s.log["decision"][drop] >= 0)
+    assert s.decisions.get(int(s.log["decision"][drop[0]]))["kind"] == "drop_out"
+    assert all(s.causes.of(int(e)) for e in grad)
+
+
 def test_occasions_report_their_scene_and_first_meetings():
     """Conversations at an occasion are counted on it (its scene), first meetings there remember the occasion as where
     the pair met, the organizer as who brought them together, and the occasion as where their time together went."""

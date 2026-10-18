@@ -7,6 +7,11 @@
 #   social    counts toward a person's social events per month (validation: ProvoStats "social events")
 #   category  social | romance | religion | academics | work | family | civic | sports
 #   rate      encounter rate multiplier relative to a home gathering (how much mingling happens there)
+# Open occasions (announced, no individual invitations) also say who might come and how keen they are:
+#   audience  a cohort filter in the query DSL (analysis/query.py), e.g. [{var: school, op: "==", value: BYU}]
+#   base      log-odds of going for someone in the audience with average interest and nothing in the way
+#   interest  {variable: beta} terms on z-scored (or 0–1) person variables, e.g. {extraversion: 0.4, attend_rate: 1.2}
+#   capacity  seats (−1 unlimited); the occasions system turns people away (and records it) past capacity
 # Systems may add kinds in their own files (config/occasions/<nn>_<system>.yaml).
 occasions:
   gathering:

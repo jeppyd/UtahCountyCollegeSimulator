@@ -72,7 +72,7 @@ function TimelineTool({ sel, setSel, opts, setOpts }: PanelProps) {
   return (
     <div className="blane" style={{ height: '100%' }}>
       <PanelOptions>
-        <label className="bt-row" style={{ whiteSpace: "nowrap" }} title="Only events that matter more to a life (first dates, breakups, moves…)">
+        <label className="bt-row" style={{ whiteSpace: "nowrap", flexWrap: "nowrap", gap: 4 }} title="Only events that matter more to a life (first dates, breakups, moves…)">
           <input type="checkbox" checked={big} onChange={e => setOpts({ ...opts, big: e.target.checked })} /> big ones
         </label>
       </PanelOptions>

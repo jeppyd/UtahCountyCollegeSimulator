@@ -84,3 +84,14 @@ def test_venue(client):
     for o in r["occasions"]:
         assert o["kind"] in ("date", "dance") or o["place"]
     assert cl.get("/api/bench/venue/999999").status_code == 404
+
+
+def test_cohort_timeline_for_picked_people(client):
+    """Measure follows hand-picked people: the group is exactly them, and their average is theirs."""
+    cl, sim = client
+    ppl = _busy(sim, 2)
+    r = cl.post("/api/cohort_timeline", json={"vars": ["mood"], "people": ppl}).json()
+    assert r["n"][-1] == 2
+    assert r["cohort"]["mood"][-1] == pytest.approx(float(np.mean(sim.w.P["mood"][ppl])), abs=1e-4)
+    everyone = cl.post("/api/cohort_timeline", json={"vars": ["mood"]}).json()
+    assert everyone["n"][-1] > 2

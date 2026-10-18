@@ -38,7 +38,7 @@ function EventsTool({ sel, setSel, opts, setOpts }: PanelProps) {
           <option value="">All kinds</option>
           {CAT_ORDER.map(c => <option key={c} value={c}>{catLabel(c)}</option>)}
         </select>
-        <label className="bt-row" style={{ whiteSpace: "nowrap" }} title="Only events that matter more to a life (first dates, breakups, moves…)">
+        <label className="bt-row" style={{ whiteSpace: "nowrap", flexWrap: "nowrap", gap: 4 }} title="Only events that matter more to a life (first dates, breakups, moves…)">
           <input type="checkbox" checked={big} onChange={e => set({ big: e.target.checked })} /> big ones
         </label>
       </PanelOptions>

@@ -11,7 +11,7 @@ import { useLens, useStore } from '../../store'
 import type { PanelProps, ToolDef } from '../registry'
 import { focusItem, subjectPerson, worldOf } from '../sel'
 
-const RESP: Record<string, string> = { yes: 'said yes', no: 'said no', maybe: 'maybe', none: 'no answer', unseen: 'never saw it' }
+const RESP: Record<string, string> = { yes: 'said yes', no: 'said no', maybe: 'maybe', none: 'no answer', no_reply: 'no answer', unseen: 'never saw it' }
 
 function OccasionList({ sel, setSel }: Pick<PanelProps, 'sel' | 'setSel'>) {
   const u = useLens().u

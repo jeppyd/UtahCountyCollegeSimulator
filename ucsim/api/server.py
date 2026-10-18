@@ -333,16 +333,18 @@ def calendar():
 
 @app.get("/api/positions/day")
 def positions_day(u: str = "base"):
-    """Where everyone was at 8am, 1pm, 6pm and night on the last full simulated day (map day replay)."""
+    """Where everyone was in each block of the last full simulated day (morning, afternoon, evening, late evening) and
+    at night (map day replay)."""
+    from ..engine import clock
     sim = WS.sim(u)
     with WS.lock:
         fr = getattr(sim.systems["activity"], "day_frames", {}) or {}
-        if len(fr) < 5:
+        if len(fr) < clock.N_BLOCKS + 2:          # the blocks, the night and the day number
             raise HTTPException(404, "run at least one full day first")
         P = sim.w.P
         n = P.n
         cols = {}
-        for b in range(4):
+        for b in range(clock.N_BLOCKS + 1):
             lon, lat, act = fr[b]
             pad = n - len(lon)
             cols[f"lon{b}"] = (np.r_[lon, np.full(pad, np.nan, np.float32)].astype(np.float32), {})

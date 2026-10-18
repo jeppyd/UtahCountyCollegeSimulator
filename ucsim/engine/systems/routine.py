@@ -1,7 +1,7 @@
 """Routines: free time has a shape that repeats week to week.
 
 People do not choose their Tuesday evening from scratch every week. Each person keeps a routine memory for
-the 21 weekly slots (7 days × morning/afternoon/evening): the free-time option they habitually take there
+the 28 weekly slots (7 days × morning/afternoon/evening/late evening): the free-time option they habitually take there
 and how automatic it has become. Doing the same thing in the same slot strengthens the habit (asymptotic
 learning, Lally et al. 2010); doing something else weakens it, and a new routine replaces a faded one.
 Habit strength adds to that option's utility (Wood & Neal 2007: habits cue behavior directly), so routines
@@ -9,20 +9,23 @@ persist through small changes in mood and circumstances but give way to large on
 a coping episode). This is the plan memory of activity-based models (MATSim agents keep and reuse plans
 rather than re-planning every day) at the resolution this model runs.
 
-Storage: two n × 21 arrays (option code and float16 strength) — about 3 bytes per slot per person.
+Storage: two n × 28 arrays (option code and float16 strength) — about 3 bytes per slot per person.
 """
 from __future__ import annotations
 
 import numpy as np
 
+from .. import clock
+
 NONE = 255
+SLOTS = clock.SLOTS_PER_WEEK
 
 
 class Routine:
     def __init__(self, sim):
         self.sim = sim
-        self.act = np.full((0, 21), NONE, np.uint8)
-        self.str = np.zeros((0, 21), np.float16)
+        self.act = np.full((0, SLOTS), NONE, np.uint8)
+        self.str = np.zeros((0, SLOTS), np.float16)
 
     def init(self):
         self._grow()
@@ -30,8 +33,8 @@ class Routine:
     def _grow(self):
         n = self.sim.w.P.cap
         if self.act.shape[0] < n:
-            a = np.full((n, 21), NONE, np.uint8)
-            s = np.zeros((n, 21), np.float16)
+            a = np.full((n, SLOTS), NONE, np.uint8)
+            s = np.zeros((n, SLOTS), np.float16)
             a[: self.act.shape[0]] = self.act
             s[: self.str.shape[0]] = self.str
             self.act, self.str = a, s
@@ -39,7 +42,7 @@ class Routine:
     def bonus(self, idx: np.ndarray, wd: int, b: int) -> np.ndarray:
         """Utility bonus for each free-time option (8 columns): the habitual option in this slot."""
         self._grow()
-        slot = wd * 3 + b
+        slot = int(clock.slot(wd, b))
         a = self.act[idx, slot]
         st = self.str[idx, slot].astype(np.float32)
         B = np.zeros((len(idx), 8))
@@ -53,7 +56,7 @@ class Routine:
         idx = np.where(free & (choice[: len(free)] != NONE))[0]
         if len(idx) == 0:
             return
-        slot = wd * 3 + b
+        slot = int(clock.slot(wd, b))
         alpha = self.sim.p("routine.habit.alpha")
         c = choice[idx]
         a = self.act[idx, slot]
@@ -78,9 +81,9 @@ class Routine:
         out = []
         if i >= self.act.shape[0]:
             return out
-        for s in range(21):
+        for s in range(SLOTS):
             a = int(self.act[i, s])
             if a != NONE:
-                out.append({"day": days[s // 3], "block": ["morning", "afternoon", "evening"][s % 3], "activity": names[a],
+                out.append({"day": days[s // clock.N_BLOCKS], "block": clock.BLOCK_NAMES[s % clock.N_BLOCKS], "activity": names[a],
                             "strength": round(float(self.str[i, s]), 3)})
         return out

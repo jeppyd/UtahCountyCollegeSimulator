@@ -19,6 +19,10 @@ target_type
   place    – change a complex's rent, beds, quality or contracted status
   practice – a new behavior that spreads by social contagion ("beards catch on at BYU"), with feelings for adopters
   venue    – adds a new venue (a new business opening) {"vtype": ..., "lon": ..., "lat": ..., "name": ...}
+  social   – a social action (engine/systems/social_actions.py): {"action": invite | series | reschedule | introduce |
+             ride | reach_out | job_offer, ...}, arranged by the world editor (people still decide) or done "as" a person
+             (only people they know, only when they're free, only what they can afford); lowered once on its start day
+             into occasions, invitations, rides, ties and jobs, with the cause ("action", item index)
 
 Interventions never touch the shared registry; parameter changes live in the run's ParamSet. Every random choice an
 intervention makes uses its own stream or a stable hash, so the Original universe's draws never move.
@@ -104,6 +108,7 @@ class InterventionManager:
         self._base_params = dict(sim.p.values)
         self._bias_day = -1
         self._bias_cache: dict[str, object] = {}
+        self.social_results: dict[int, dict] = {}            # social action -> what happened (or why it was refused)
         for s in specs:
             for atom in expand(s):
                 self.add(atom)
@@ -257,8 +262,27 @@ class InterventionManager:
                 places_changed = True
             elif tt == "practice":
                 self._seed_practice(k, it)
+            elif tt == "social":
+                self._social(k, it)
         if places_changed:
             self._recompute_places()
+
+    def _social(self, k, it):
+        """Lower a social action into the occasions system; a refusal (no longer free, no longer affordable) is kept
+        with its reason for the receipt."""
+        res = self.sim.systems["occasions"].apply_action(k, it)
+        self.social_results[k] = res
+        self.exposed[k] = int(res.get("invitations", 1 if res.get("ok") else 0))
+        return res
+
+    def apply_now(self, k: int) -> dict:
+        """Apply one-shot item k right away (a social action added from the workbench) instead of at the next start
+        of day."""
+        it = self.items[k]
+        if k in self._applied_agent or it.get("target_type") != "social":
+            return self.social_results.get(k, {})
+        self._applied_agent.add(k)
+        return self._social(k, it)
 
     def _agent(self, k, it):
         sim = self.sim
@@ -508,6 +532,8 @@ class InterventionManager:
         for k, it in enumerate(self.items):
             r = {"k": k, "name": it.get("name"), "target_type": it.get("target_type"), "target": it.get("target"),
                  "reached": self.exposed.get(k)}
+            if k in self.social_results:
+                r["social"] = self.social_results[k]
             if k in self.practices:
                 r["practice"] = {"label": it.get("label") or it.get("name"),
                                  "history": [{"day": d, "share": s, "n": m} for d, s, m in self.practices[k]["history"]]}

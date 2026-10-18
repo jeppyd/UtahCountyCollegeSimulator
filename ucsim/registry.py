@@ -234,9 +234,21 @@ class Registry:
         for path in sorted((self.config_dir / folder).glob("*.yaml")):
             doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
             for key, spec in (doc.get(folder) or {}).items():
+                spec = dict(spec or {})
+                if key in into and spec.pop("extend", False):
+                    # a later file adds factors (and outcomes) to a kind declared earlier
+                    base = into[key]
+                    if "factors" in spec:
+                        base["factors"] = {**(base.get("factors") or {}), **(spec.pop("factors") or {})}
+                    if "outcomes" in spec:
+                        have = list(base.get("outcomes") or [])
+                        base["outcomes"] = have + [o for o in spec.pop("outcomes") or [] if o not in have]
+                    for k, v in spec.items():
+                        base.setdefault(k, v)
+                    continue
                 if key in into:
                     raise ValueError(f"duplicate {folder[:-1]} kind {key} in {path.name}")
-                into[key] = {**(spec or {}), "_file": path.name}
+                into[key] = {**spec, "_file": path.name}
 
     # ------------------------------------------------------------------ queries
     def entity_vars(self, entity: str) -> list[VarSpec]:

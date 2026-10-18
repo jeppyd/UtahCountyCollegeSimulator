@@ -1,10 +1,12 @@
 """Daily activity patterns: where each agent is in each block of the day.
 
-Obligations (class, work shifts, Sunday meetings, FHE, ward activities, dates, gatherings)
-take precedence; free time is allocated by a random-utility choice whose utilities depend
-on traits, habits, current emotional state, weather and day of week. Loneliness pushes
-some people toward company (approach) and others toward withdrawal (Cacioppo &
-Hawkley 2009) depending on extraversion, social anxiety and neuroticism.
+The day has four blocks (engine/clock.py: morning, afternoon, evening, late evening). Commitments take precedence:
+Sunday meetings, class, work shifts with clock times, the occasions people said yes to (dinners, parties, dates,
+dances — systems/occasions.py), FHE, ward activities, clubs. A shift and an occasion that share a block are settled by
+minutes: whichever fills more of the block is where the person is. Free time is allocated by a random-utility
+choice whose utilities depend on traits, habits, drives, weather and day of week. Loneliness pushes some people toward
+company (approach) and others toward withdrawal (Cacioppo & Hawkley 2009) depending on extraversion, social anxiety
+and neuroticism. An evening is two blocks, and people mostly stay with what they started (a visit, an outing).
 """
 from __future__ import annotations
 
@@ -12,6 +14,7 @@ import numpy as np
 from scipy.spatial import cKDTree
 from scipy.special import expit
 
+from .. import clock
 from ..state import CTX_ID
 
 BYU = (-111.6493, 40.2500)
@@ -20,6 +23,8 @@ ACT = ["home", "class", "work", "church", "campus", "gym", "gathering", "date", 
        "ward_activity", "away", "club"]
 A = {k: i for i, k in enumerate(ACT)}
 NONE = 255
+OPTIONS = ("home", "campus", "gym", "eating out", "outdoors", "dancing", "visiting friends", "around the complex")
+LATEST_END = 23 * 60
 
 
 class Activity:
@@ -39,7 +44,9 @@ class Activity:
         # campus "buildings" used as class locations
         self.bldg = {1: np.c_[BYU[0] + rng.normal(0, 0.0028, 40), BYU[1] + rng.normal(0, 0.0022, 40)],
                      2: np.c_[UVU[0] + rng.normal(0, 0.0022, 24), UVU[1] + rng.normal(0, 0.0018, 24)]}
-        P.add_internal("shift_mask", np.uint32, 0)
+        P.add_internal("shift_mask", np.uint32, 0)              # blocks a shift fills (bit clock.slot(wd, b))
+        P.add_internal("shift_start", np.int16, -1, shape=(7,))  # per weekday, minutes after midnight (−1: no shift)
+        P.add_internal("shift_end", np.int16, -1, shape=(7,))
         self.assign_shifts(np.arange(P.n))
         # FHE group meeting location: the first women's unit in the group (else first member)
         fhe = P.internal["fhe_group"][: P.n]
@@ -53,9 +60,11 @@ class Activity:
                 self.fhe_loc[g] = (P["home_lon"][j], P["home_lat"][j])
         self.ctype = np.full(P.n, NONE, np.uint8)
         self.cid = np.full(P.n, -1, np.int64)
-        self.gathering_units: set = set()
-        self.host_of_unit: dict = {}
+        self.ctx_share = np.ones(P.n, np.float32)
+        self.gathering_units: set = set()       # apartments where friends dropped by this block
+        self.host_of_unit: dict = {}            # kept for Encounters.apply (hosted occasions set introducers there)
         self.hosts_today = np.empty(0, np.int64)
+        self._prev = None                       # previous block's (choice, ctype, cid, act) for evening continuity
 
     def _build_trees(self):
         self.trees = {}
@@ -95,29 +104,137 @@ class Activity:
         col = np.minimum((pick * nn.shape[1]).astype(int), nn.shape[1] - 1)
         return idx[nn[np.arange(len(pick)), col]]
 
-    def assign_shifts(self, ids: np.ndarray):
+    # ------------------------------------------------------------------ work shifts (clock times)
+    def assign_shifts(self, ids: np.ndarray, stream: str = "shift_assign"):
+        """A weekly shift pattern from usual work hours: which weekdays, start and end minutes.
+
+        Students fit shifts into the gaps their classes leave (early-morning custodial shifts, between classes,
+        afternoons, evenings until 10 pm, Saturdays); others work weekday days (full-time five days, part-time 3–7 hour
+        shifts); about 5% of workers have a Sunday shift. The blocks a shift fills (`shift_mask`) follow from the
+        minutes. Shares of start times are hypothetical. A user action passes a `stream` of its own."""
+        sim = self.sim
+        P = sim.w.P
+        ids = np.atleast_1d(np.asarray(ids, np.int64))
+        if not len(ids):
+            return
+        rng = sim.streams.gen(stream, sim.w.day, int(ids[0]) % 100003)
+        k = len(ids)
+        hours = np.clip(np.nan_to_num(P["work_hours"][ids].astype(np.float64)), 0, 70)
+        student = P["enrolled"][ids].astype(bool)
+        full = ~student & (hours >= 30)
+        per = np.where(full, hours / 5.0, np.clip(rng.normal(np.where(student, 4.0, 5.0), 0.8), 2.5, 7.0))
+        ndays = np.where(full, 5, np.clip(np.round(hours / per), 1, 6))
+        ndays = np.where(hours > 0.5, ndays, 0).astype(int)
+        per = np.where(ndays > 0, np.minimum(hours / np.maximum(ndays, 1), 12.0), 0.0)
+        L = (np.round(per * 4) * 15).astype(np.int64)                    # shift length in minutes
+        pref = np.zeros((k, 7))
+        pref[:, 5] = np.where(student, 0.2, -1.5)
+        pref[:, 6] = np.where(rng.random(k) < 0.05, 3.0, -50.0)
+        pref[full, :5] += 5.0
+        key = pref + rng.gumbel(size=(k, 7))
+        rank = np.argsort(np.argsort(-key, axis=1), axis=1)
+        works = rank < ndays[:, None]
+        # candidate starts and how common each is (students / full-time / part-time / Saturday / Sunday)
+        C = np.array([6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]) * 60
+        W = {"stu": [0.05, 0, 0.08, 0.05, 0.05, 0.05, 0.08, 0.1, 0.12, 0.12, 0.13, 0.11, 0.06],
+             "ft": [0, 0.15, 0.45, 0.3, 0.1, 0, 0, 0, 0, 0, 0, 0, 0],
+             "pt": [0, 0, 0.2, 0.25, 0.05, 0.1, 0.05, 0.1, 0.05, 0.05, 0.1, 0.05, 0],
+             "sat_stu": [0, 0, 0.1, 0.25, 0.2, 0, 0.15, 0, 0, 0, 0.2, 0.1, 0], "sat": [0, 0.1, 0.4, 0.3, 0.2, 0, 0, 0, 0, 0, 0, 0, 0],
+             "sun": [0, 0, 0, 0, 0.5, 0, 0.5, 0, 0, 0, 0, 0, 0]}
+        logw = {kk: np.log(np.maximum(np.array(v, float), 1e-12)) for kk, v in W.items()}
+        G = rng.gumbel(size=(k, 7, len(C)))
+        base = np.where(student[:, None], logw["stu"], np.where(full[:, None], logw["ft"], logw["pt"]))      # k × C
+        score = np.repeat(base[:, None, :], 7, axis=1)
+        score[:, 5, :] = np.where(student[:, None], logw["sat_stu"], logw["sat"])
+        score[:, 6, :] = logw["sun"]
+        end_cap = np.where(student, 22 * 60, LATEST_END)
+        cend = C[None, None, :] + L[:, None, None]
+        score = np.where(cend <= end_cap[:, None, None], score, -np.inf)
+        busy = self._class_busy(ids, L)                    # k × 7 × C: the shift would overlap a class
+        score = np.where(busy, -np.inf, score)
+        best = np.argmax(score + G, axis=2)
+        okc = np.take_along_axis(score, best[..., None], axis=2)[..., 0] > -np.inf
+        works &= okc
+        start = C[best]
+        end = np.minimum(start + L[:, None], LATEST_END)
+        works &= (end - start) >= 90
+        P.internal["shift_start"][ids] = np.where(works, start, -1).astype(np.int16)
+        P.internal["shift_end"][ids] = np.where(works, end, -1).astype(np.int16)
+        self._shift_mask(ids)
+
+    def _class_busy(self, ids: np.ndarray, L: np.ndarray) -> np.ndarray:
+        """For each person, weekday and candidate start (6 am … 6 pm): would a shift of L minutes overlap one of their
+        classes (with 15 minutes to get between them)?"""
         P = self.sim.w.P
-        rng = np.random.default_rng([self.sim.w.seed, 405, len(ids), int(ids[0]) if len(ids) else 0])
-        hours = P["work_hours"][ids]
-        nblocks = np.clip(np.round(hours / 4.5), 0, 15).astype(int)
-        student = P["enrolled"][ids]
-        masks = np.zeros(len(ids), np.uint32)
-        # block slots: bit = weekday*3 + block
-        weekday_day = [d * 3 + b for d in range(5) for b in (0, 1)]
-        student_slots = [d * 3 + b for d in range(5) for b in (1, 2)] + [15, 16, 17]
-        for j in range(len(ids)):
-            k = nblocks[j]
-            if k == 0:
-                continue
-            slots = student_slots if student[j] else weekday_day + [15, 16]
-            pick = rng.choice(slots, size=min(k, len(slots)), replace=False)
-            m = 0
-            for s in pick:
-                m |= 1 << int(s)
-            if rng.random() < 0.05:
-                m |= 1 << (18 + 1)
-            masks[j] = m
-        P.internal["shift_mask"][ids] = masks
+        C = np.array([6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]) * 60
+        out = np.zeros((len(ids), 7, len(C)), bool)
+        acad = self.sim.systems.get("academics")
+        if acad is None or not len(acad.sec_days) or acad.stu_secs.shape[0] <= int(ids.max()):
+            return out
+        secs = acad.stu_secs[ids]
+        valid = (secs >= 0) & P["enrolled"][ids][:, None]
+        s = np.maximum(secs, 0)
+        days = acad.sec_days[s]
+        cs, ce = self.class_times(s)
+        for wd in range(5):
+            meets = valid & ((days & np.uint8(1 << wd)) > 0)                        # k × 5
+            st = C[None, :, None]
+            en = st + L[:, None, None]
+            hit = meets[:, None, :] & (cs[:, None, :] < en + 15) & (ce[:, None, :] + 15 > st)
+            out[:, wd, :] = hit.any(axis=2)
+        return out
+
+    def class_times(self, secs) -> tuple[np.ndarray, np.ndarray]:
+        """Clock times of class sections inside their block (for shifts, plans and agendas; who is where is still
+        resolved per block). Morning sections start on the hour 8–11, afternoon ones 1–4 pm, evening ones 5:30 or
+        6:30 pm; MWF classes run 50 minutes, Tuesday/Thursday 75, evening 110 — the usual BYU/UVU pattern, assigned
+        by section number (no random draws)."""
+        acad = self.sim.systems["academics"]
+        secs = np.maximum(np.asarray(secs, np.int64), 0)
+        blk = acad.sec_block[secs].astype(np.int64)
+        start = np.select([blk == 0, blk == 1], [8 * 60 + 60 * (secs % 4), 13 * 60 + 60 * (secs % 4)],
+                          17 * 60 + 30 + 60 * (secs % 2))
+        mwf = acad.sec_days[secs] == 0b10101
+        dur = np.where(blk == 2, 110, np.where(mwf, 50, 75))
+        return start.astype(np.int32), (start + dur).astype(np.int32)
+
+    def _after_classes(self, ids: np.ndarray) -> np.ndarray:
+        """Earliest shift start per weekday for students: 15 minutes after their last class that day ends."""
+        acad = self.sim.systems.get("academics")
+        out = np.zeros((len(ids), 7), np.int64)
+        if acad is None or not len(acad.sec_days) or acad.stu_secs.shape[0] <= int(ids.max()):
+            return out
+        secs = acad.stu_secs[ids]
+        valid = secs >= 0
+        s = np.maximum(secs, 0)
+        days = acad.sec_days[s]
+        _, cend = self.class_times(s)
+        for wd in range(5):
+            meets = valid & ((days & np.uint8(1 << wd)) > 0)
+            last = np.where(meets, cend, -1).max(axis=1)
+            out[:, wd] = np.where(last >= 0, last + 15, 0)
+        return out
+
+    def _shift_mask(self, ids: np.ndarray):
+        P = self.sim.w.P
+        s = P.internal["shift_start"][ids].astype(np.int32)
+        e = P.internal["shift_end"][ids].astype(np.int32)
+        m = np.zeros(len(ids), np.uint32)
+        for b in range(clock.N_BLOCKS):
+            mins = np.where(s >= 0, np.clip(np.minimum(e, clock.END[b]) - np.maximum(s, clock.START[b]), 0, None), 0)
+            fill = mins >= min(120, 0.5 * (clock.END[b] - clock.START[b]))
+            for wd in range(7):
+                m |= np.where(fill[:, wd], np.uint32(1 << int(clock.slot(wd, b))), np.uint32(0))
+        P.internal["shift_mask"][ids] = m
+
+    def shift_minutes(self, b: int, wd: int) -> np.ndarray:
+        """Minutes of each person's shift inside block b today (0 without a shift or a job)."""
+        P = self.sim.w.P
+        n = P.n
+        s = P.internal["shift_start"][:n, wd].astype(np.int32)
+        e = P.internal["shift_end"][:n, wd].astype(np.int32)
+        mins = np.clip(np.minimum(e, clock.END[b]) - np.maximum(s, clock.START[b]), 0, None)
+        return np.where((s >= 0) & P["employed"], mins, 0)
 
     # ------------------------------------------------------------------ main
     def choose(self, b: int):
@@ -130,6 +247,7 @@ class Activity:
         ctype = np.full(n, NONE, np.uint8)
         cid = np.full(n, -1, np.int64)
         act = np.full(n, A["away"], np.uint8)
+        share = np.full(n, clock.LEGACY_SHARE[b], np.float32)   # how much of the block (in old-block units) they spend there
         unit = P["unit_id"]
         home_ok = present & (unit >= 0)
         ctype[home_ok] = CTX_ID["unit"]
@@ -137,32 +255,37 @@ class Activity:
         act[home_ok] = A["home"]
         busy = ~present.copy()
         u = sim.u(f"activity{b}")
-        # ---- dates (evening): scheduled by romance
-        rom = sim.systems["romance"]
-        if b == 2 and len(rom.dates_today):
-            for k, (a_, b_, vid) in enumerate(rom.dates_today):
-                for x in (a_, b_):
-                    if present[x]:
-                        ctype[x] = CTX_ID["date"]
-                        cid[x] = k
-                        act[x] = A["date"]
-                        busy[x] = True
+        occ = sim.systems["occasions"]
+        plan = occ.block_plan(b)          # who is expected at which occasion in this block (dates, dinners, dances…)
         # ---- church (Sunday morning)
         if wd == 6 and b == 0:
             att = sim.systems["faith"].attending_today & present & ~busy
             ctype[att] = CTX_ID["ward"]
             cid[att] = P["ward_id"][att]
             act[att] = A["church"]
+            share[att] = 1.0
             busy |= att
             oth = sim.systems["faith"].attending_other & present & ~busy
             ctype[oth] = CTX_ID["congregation"]
             cid[oth] = P["congregation_id"][oth]
             act[oth] = A["church"]
+            share[oth] = 1.0
             busy |= oth
-        # ---- class
+        # occasions they're expected at in this block (minutes there)
+        occ_min = np.zeros(n, np.int32)
+        if len(plan["person"]):
+            np.maximum.at(occ_min, plan["person"], plan["minutes"])
+        # ---- class (an occasion that fills more of the block than a 50-minute class shows instead; the class still
+        # happened at its own time, so it isn't counted as missed)
         acad = sim.systems["academics"]
         if wd < 5 and not env["holiday"]:
             sec_now = acad.section_now(wd, b)
+            has = sec_now >= 0
+            if has.any() and occ_min.any():
+                cs_, ce_ = self.class_times(sec_now[has])
+                cm = np.zeros(n, np.int32)
+                cm[has] = ce_ - cs_
+                sec_now = np.where(occ_min > cm, -1, sec_now)
             in_class = (sec_now >= 0) & present & ~busy & ~P["ill"]
             p_att = expit(p("activity.class_attendance.base") + p("activity.class_attendance.conscientiousness") * sim.z("conscientiousness")
                           - p("activity.class_attendance.fatigue") * P["fatigue"] + 0.8 * P["academic_pressure"] - 0.6 * P["depressive_episode"]
@@ -171,23 +294,43 @@ class Activity:
             ctype[go] = CTX_ID["class"]
             cid[go] = sec_now[go]
             act[go] = A["class"]
+            share[go] = 1.0
             busy |= go
             acad.record_attendance(in_class, go)
-        # ---- work shifts
-        bit = np.uint32(1 << min(wd * 3 + b, 31))
-        on_shift = ((P.internal["shift_mask"][:n] & bit) > 0) & present & ~busy & P["employed"] & ~P["ill"] & (not env["holiday"])
+        # ---- work shifts and occasions: whichever fills more of this block
+        shift_min = self.shift_minutes(b, wd)
+        blen = int(clock.END[b] - clock.START[b])
+        on_shift = ((shift_min >= min(120, 0.5 * blen)) & (shift_min >= occ_min) & present & ~busy & P["employed"]
+                    & ~P["ill"] & (not env["holiday"]))
         ctype[on_shift] = CTX_ID["work"]
         cid[on_shift] = P["employer_id"][on_shift]
         act[on_shift] = A["work"]
+        share[on_shift] = clock.LEGACY_SHARE[b] * np.minimum(shift_min[on_shift] / blen, 1.0)
         busy |= on_shift
-        # ---- FHE (Monday evening) and ward activities
-        if b == 2 and (env["term_BYU"] or env["term_UVU"]):
+        if len(plan["person"]):
+            pp = plan["person"]
+            ok = ~busy[pp] & (plan["minutes"] >= occ_min[pp])
+            ok[ok] &= ~np.r_[False, (pp[ok][1:] == pp[ok][:-1])]          # one occasion per person per block
+            pp = pp[ok]
+            ctype[pp] = plan["ctx"][ok]
+            cid[pp] = plan["occ"][ok]
+            act[pp] = plan["act"][ok]
+            share[pp] = plan["share"][ok]
+            busy[pp] = True
+            # everyone expected at an occasion in this block went: it was fitted around their shift, classes and other
+            # plans, so a date right after a shift, or a party after a dinner, counts as attended even when something
+            # else fills more of the block (the block's place is the one that fills most of it)
+            there = present[plan["person"]]
+            occ.mark_present(b, plan["person"][there], plan["occ"][there], plan["arrive"][there])
+        # ---- FHE (Monday evening ~7 pm) and ward activities (weeknights ~7 pm)
+        if b == clock.EVENING[0] and (env["term_BYU"] or env["term_UVU"]):
             fhe = P.internal["fhe_group"][:n]
             if wd == 0:
                 go = (fhe >= 0) & present & ~busy & (u < P["ward_activity_rate"] * p("activity.fhe.attend_mult"))
                 ctype[go] = CTX_ID["fhe"]
                 cid[go] = fhe[go]
                 act[go] = A["ward_activity"]
+                share[go] = 1.0
                 busy |= go
             elif wd in (1, 2, 3):
                 ward = P["ward_id"]
@@ -195,29 +338,35 @@ class Activity:
                 ctype[go] = CTX_ID["ward"]
                 cid[go] = ward[go]
                 act[go] = A["ward_activity"]
+                share[go] = 1.0
                 busy |= go
-        # ---- clubs, intramural teams and institute classes (weekly, in term)
+        # ---- clubs, intramural teams and institute classes (weekly, in term, at their meeting times)
         if b >= 1:
             free_now = present & ~busy
-            met = sim.systems["groups"].meeting(b, wd, free_now, u)
+            met = sim.systems["groups"].meeting(b, wd, free_now, sim.u("group_attend"))
             for (gids, gid), name in zip(met, ("team", "club", "institute")):
                 ctype[gids] = CTX_ID[name]
                 cid[gids] = gid
                 act[gids] = A["class"] if name == "institute" else A["club"]
+                share[gids] = 1.0
                 busy[gids] = True
-        # ---- gatherings (evening)
+        # ---- free time
         self.gathering_units = set()
         self.host_of_unit = {}
-        if b == 2:
-            self._gatherings(ctype, cid, act, busy, present, wd)
-        # ---- discretionary choice for everyone still free (not night)
         free = present & ~busy
         self.last_choice = np.full(n, 255, np.uint8)
         if free.any():
             self._discretionary(free, b, wd, ctype, cid, act)
-        self.ctype, self.cid = ctype, cid
+        # household members at home (and friends who dropped by) join a home occasion held in their unit
+        occ.walk_ins(b, ctype, cid, act, share)
+        # people continuing an evening outing are not starting a new one (outings and workouts counted once)
+        fresh = None
+        if b == clock.EVENING[-1] and self._prev is not None and len(self._prev[1]) == n:
+            fresh = ~((self._prev[1] == ctype) & (self._prev[2] == cid) & (self._prev[3] == act))
+        self._prev = (self.last_choice.copy(), ctype.copy(), cid.copy(), act.copy())
+        self.ctype, self.cid, self.ctx_share = ctype, cid, share
         P["activity_now"] = act
-        sim.systems["mind"].observe_block(act, ctype)
+        sim.systems["mind"].observe_block(act, ctype, fresh=fresh, social=occ.social_now(ctype, cid))
         rt = sim.systems.get("routine")
         if rt is not None:
             rt.observe(b, wd, free, self.last_choice)
@@ -225,7 +374,7 @@ class Activity:
         self._keep_frame(b)
 
     def _keep_frame(self, b: int):
-        """Positions at each block of the day, kept for the map's day replay."""
+        """Positions at each block of the day (and at night), kept for the map's day replay."""
         P = self.sim.w.P
         if not hasattr(self, "frames_today"):
             self.frames_today, self.day_frames = {}, {}
@@ -244,20 +393,40 @@ class Activity:
         ctype[home], cid[home], act[home] = CTX_ID["unit"], unit[home], A["home"]
         P["activity_now"] = act
         self._locate(ctype, cid, act)
-        self._keep_frame(3)
-        if len(self.frames_today) == 4:
+        self._keep_frame(clock.N_BLOCKS)
+        if len(self.frames_today) == clock.N_BLOCKS + 1:
             self.day_frames = {"day": self.sim.w.day, **self.frames_today}
         self.frames_today = {}
+        self._prev = None
 
     def _drives(self):
         """(approach, withdraw, style): the connection drive split into reaching out vs pulling back (mind.social_pull)."""
         return self.sim.systems["mind"].social_pull()
 
-    def _discretionary(self, free, b, wd, ctype, cid, act):
+    # ------------------------------------------------------------------ free time
+    def _utilities(self, idx: np.ndarray, b: int, wd: int, explain: bool = False):
+        """Free-time option utilities (k × 8) for `idx` in block b; with `explain`, also the terms that were summed,
+        as {term: (label, k × 8 contribution)}."""
         sim, w = self.sim, self.sim.w
         P, env, p = w.P, w.env, sim.p
-        idx = np.where(free)[0]
         k = len(idx)
+        terms: dict[str, tuple[str, np.ndarray]] = {}
+        U = np.zeros((k, 8))            # options nobody can take now are set to -9 at the end
+        avail = np.zeros((k, 8), bool)
+
+        def add(name, label, col, val, where=None):
+            v = val if where is None else np.where(where, val, 0.0)
+            U[:, col] += v
+            if explain:
+                if name not in terms:
+                    terms[name] = (label, np.zeros((k, 8)))
+                terms[name][1][:, col] += v
+
+        def open_(col, where=True):
+            m = np.broadcast_to(np.asarray(where, bool), (k,))
+            avail[:, col] |= m
+            return m
+
         appr, withdraw, _ = self._drives()
         appr, withdraw = appr[idx], withdraw[idx]
         E = sim.z("extraversion")[idx]
@@ -265,54 +434,120 @@ class Activity:
         enrolled = P["enrolled"][idx]
         in_term = np.where(P["school"][idx] == 1, bool(env["term_BYU"]), bool(env["term_UVU"]))
         married = P.is_("rel_status", "married")[idx]
-        single = ~married & ~P.isin("rel_status", ["dating", "engaged"])[idx]
-        U = np.full((k, 8), -9.0)
+        couple = np.where(P.is_("rel_status", "engaged")[idx], p("occasions.couple.engaged"),
+                          np.where(P.is_("rel_status", "dating")[idx], p("occasions.couple.dating"), 0.0))
+        late = b == 3
         # habit/trait bases plus the person's current drives (mind.choice): rest pulls home, achievement to campus,
-        # fitness to the gym, fun to venues and the outdoors, partnership to dances, connection to friends
+        # fitness to the gym, fun to venues and the outdoors, connection to friends
         d = {m: P[f"drive_{m}"][idx] for m in ("rest", "achievement", "health", "fun", "partnership")}
         wgt = {m: p(f"mind.choice.{m}") for m in d}
-        U[:, 0] = (p("activity.choice.home") + wgt["rest"] * d["rest"] + p("activity.choice.withdraw") * withdraw
-                   + 0.6 * married + 0.3 * (P["children"][idx] > 0) + (0.6 if b == 0 else 0.0) + 0.8 * P["ill"][idx])
+        open_(0)
+        add("base", "how much people stay in", 0, p("activity.choice.home"))
+        add("rest", "needs rest", 0, wgt["rest"] * d["rest"])
+        add("withdraw", "pulling back from people", 0, p("activity.choice.withdraw") * withdraw)
+        add("married", "married (home life)", 0, 0.6 * married)
+        add("children", "has children", 0, 0.3 * (P["children"][idx] > 0))
+        if b == 0:
+            add("morning", "mornings at home", 0, 0.6)
+        add("ill", "sick", 0, 0.8 * P["ill"][idx])
         if b < 2:
-            U[:, 1] = np.where(enrolled & in_term, 0.5 + wgt["achievement"] * d["achievement"] + 0.3 * sim.z("conscientiousness")[idx]
-                               - 0.25 * (P["dist_campus_km"][idx] > 3), -9)
-        U[:, 2] = -2.3 + np.log(P["workouts_week"][idx] + 0.3) + (0.4 if b != 1 else -0.3) + wgt["health"] * d["health"]
+            m = open_(1, enrolled & in_term)
+            add("base", "studying on campus", 1, 0.5, m)
+            add("achievement", "school & career drive", 1, wgt["achievement"] * d["achievement"], m)
+            add("conscientious", "conscientiousness", 1, 0.3 * sim.z("conscientiousness")[idx], m)
+            add("far", "lives far from campus", 1, -0.25 * (P["dist_campus_km"][idx] > 3), m)
+        open_(2)
+        add("habit", "workout habit", 2, -2.3 + np.log(P["workouts_week"][idx] + 0.3))
+        add("time", "time of day", 2, {0: 0.4, 1: -0.3, 2: 0.4, 3: -0.6}[b])
+        add("health", "fitness drive", 2, wgt["health"] * d["health"])
         if b >= 1:
-            U[:, 3] = (-1.6 + 0.5 * np.log1p(P.internal["eat_out_month"][idx] + 3 * P["soda_shop_week"][idx])
-                       + p("activity.choice.approach") * 0.6 * appr + 0.3 * weekend + wgt["fun"] * 0.6 * d["fun"])
-            U[:, 4] = (-2.6 + 1.0 * P["hikes"][idx] + 0.4 * P["outdoors"][idx] + 1.6 * env["outdoor_appeal"] + 0.6 * weekend
-                       + wgt["fun"] * d["fun"] + 0.5 * wgt["health"] * d["health"])
-        if b == 2 and wd in (3, 4, 5):
-            U[:, 5] = np.where(single, -3.2 + 0.9 * P["dancing"][idx] + wgt["partnership"] * d["partnership"] + 0.5 * appr
-                               + 0.5 * wgt["fun"] * d["fun"], -9)
-        if b >= 1:
+            open_(3)
+            add("base", "eating out", 3, -1.6 + 0.5 * np.log1p(P.internal["eat_out_month"][idx] + 3 * P["soda_shop_week"][idx]))
+            add("approach", "wants company", 3, p("activity.choice.approach") * 0.6 * appr)
+            add("weekend", "weekend", 3, 0.3 * weekend)
+            add("fun", "fun drive", 3, wgt["fun"] * 0.6 * d["fun"])
+            open_(4)
+            add("base", "loves the outdoors", 4, -2.6 + 1.0 * P["hikes"][idx] + 0.4 * P["outdoors"][idx])
+            add("weather", "the weather", 4, 1.6 * env["outdoor_appeal"])
+            add("weekend", "weekend", 4, 0.6 * weekend)
+            add("fun", "fun drive", 4, wgt["fun"] * d["fun"] + 0.5 * wgt["health"] * d["health"])
+            if late:
+                add("dark", "it's dark out", 4, -0.8)
             has_f = P["n_friends"][idx] > 0
-            U[:, 6] = np.where(has_f, -1.2 + p("activity.choice.approach") * appr + 0.35 * E + 0.5 * weekend - 0.5 * married, -9)
-        if b == 2:
-            U[:, 7] = np.where(P["complex_id"][idx] >= 0, -2.0 + 0.4 * E + 0.5 * appr
-                               + p("culture.feedback.reputation") * sim.systems["culture"].complex_social_z(P["complex_id"][idx]), -9)
-        rt = sim.systems.get("routine")
-        if rt is not None:
-            U += rt.bonus(idx, wd, b)
-        cop = sim.systems.get("coping")
-        if cop is not None:
-            U += cop.choice_bias(idx)
-        plans = sim.systems.get("plans")
-        if plans is not None:
-            U += plans.choice_bias(idx)
+            m = open_(6, has_f)
+            add("base", "dropping by a friend's place", 6, -1.2, m)
+            add("approach", "wants company", 6, p("activity.choice.approach") * appr, m)
+            add("extraversion", "outgoing", 6, 0.35 * E, m)
+            add("weekend", "weekend", 6, 0.5 * weekend, m)
+            add("married", "married (home life)", 6, -0.5 * married, m)
+            add("partner", "evenings with their partner", 6, -couple, m)
+        if b >= 2:
+            m = open_(7, P["complex_id"][idx] >= 0)
+            add("base", "hanging out around the complex", 7, -2.0, m)
+            add("extraversion", "outgoing", 7, 0.4 * E, m)
+            add("approach", "wants company", 7, 0.5 * appr, m)
+            add("culture", "a social complex", 7, p("culture.feedback.reputation") * sim.systems["culture"].complex_social_z(P["complex_id"][idx]), m)
+            add("partner", "evenings with their partner", 7, -couple, m)
+        # dances are planned events now (open occasions in systems/occasions.py), not a free-time option
+        for name, label, bias in (("routine", "habit (what they usually do then)", "routine"), ("coping", "coping with a hard stretch", "coping"),
+                                  ("intention", "an intention (meeting people)", "plans")):
+            s = sim.systems.get(bias)
+            if s is None:
+                continue
+            B = s.bonus(idx, wd, b) if bias == "routine" else s.choice_bias(idx)
+            B = np.where(avail, B, 0.0)
+            U += B
+            if explain:
+                terms[name] = (label, B)
         wb = sim.whatif.choice_bias(idx)          # a What-if's nudges on free-time choices, only on options that exist
         if not np.isscalar(wb):
-            U = np.where(U > -8.5, U + wb, U)
-        for col, grp in ((3, "food"), (4, "outdoors"), (5, "dance")):
+            wb = np.where(avail, wb, 0.0)
+            U += wb
+            if explain:
+                terms["whatif"] = ("the What-if's nudge", wb)
+        # an evening is mostly one thing: carry on with what the early evening started; someone who chose to stay in
+        # for the early evening rarely heads out after 8:15 (the old single evening was one choice)
+        if late and self._prev is not None and len(self._prev[0]) >= int(idx.max(initial=-1)) + 1:
+            pc = self._prev[0][idx]
+            cont = (pc != NONE) & (pc < 8)
+            if cont.any():
+                C = np.zeros((k, 8))
+                C[np.where(cont)[0], pc[cont]] = p("occasions.evening.continue")
+                C = np.where(avail, C, 0.0)
+                U += C
+                if explain:
+                    terms["continue"] = ("carrying on with the evening", C)
+            settled = pc == 0
+            if settled.any():
+                S = np.zeros((k, 8))
+                S[np.ix_(np.where(settled)[0], [3, 4, 6, 7])] = -p("occasions.evening.settled")
+                S = np.where(avail, S, 0.0)
+                U += S
+                if explain:
+                    terms["settled"] = ("already in for the night", S)
+        for col, grp in ((3, "food"), (4, "outdoors")):
             if grp in self.empty_groups:
                 U[:, col] = -9
+                avail[:, col] = False
         if "gym" in self.empty_groups:
             U[~enrolled, 2] = -9
+            avail[~enrolled, 2] = False
+        U[~avail] = -9.0
+        return (U, avail, terms) if explain else U
+
+    def _discretionary(self, free, b, wd, ctype, cid, act):
+        sim, w = self.sim, self.sim.w
+        P = w.P
+        idx = np.where(free)[0]
+        U = self._utilities(idx, b, wd)
         g = sim.streams.gen(f"disc{b}", w.day).gumbel(size=(P.n, 8))[idx]
         choice = np.argmax(U + g, axis=1)
         self.last_choice[idx] = choice
         pick = sim.u(f"pick{b}")[idx]
         hl, ht = P["home_lon"][idx], P["home_lat"][idx]
+        # carrying on: same venue, the same friend's place (late evening)
+        prev = self._prev if (b == clock.EVENING[-1] and self._prev is not None and len(self._prev[0]) == P.n) else None
+        same = (prev[0][idx] == choice) & (prev[2][idx] >= 0) if prev is not None else np.zeros(len(idx), bool)
         # campus
         m = choice == 1
         ctype[idx[m]] = CTX_ID["campus"]
@@ -327,13 +562,12 @@ class Activity:
             near = self.nearest("gym", hl[m], ht[m], 3, pick[m])
             cid[gi] = np.where(stud, 100000 + P["school"][gi].astype(np.int64), near)
             act[gi] = A["gym"]
-        for code, group, ctxname, actname in ((3, "food", "venue", "venue"), (4, "outdoors", "outdoors", "outdoors"),
-                                              (5, "dance", "dance", "venue")):
+        for code, group, ctxname, actname in ((3, "food", "venue", "venue"), (4, "outdoors", "outdoors", "outdoors")):
             m = choice == code
             if m.any():
-                vi = self.nearest(group, hl[m], ht[m], 6 if code != 5 else 2, pick[m])
+                vi = self.nearest(group, hl[m], ht[m], 6, pick[m])
                 ctype[idx[m]] = CTX_ID[ctxname]
-                cid[idx[m]] = vi
+                cid[idx[m]] = np.where(same[m] & (prev[1][idx[m]] == CTX_ID[ctxname]), prev[2][idx[m]], vi) if prev is not None else vi
                 act[idx[m]] = A[actname]
         # visit a friend (joins the friend's household context -> meets their roommates)
         m = choice == 6
@@ -343,68 +577,50 @@ class Activity:
             friend = net.random_neighbor(vis, pick[m], min_stage=2)
             ok = friend >= 0
             ok[ok] &= P["present"][friend[ok]] & (P["unit_id"][friend[ok]] >= 0)
-            vis, friend = vis[ok], friend[ok]
+            dest = np.where(ok, P["unit_id"][np.maximum(friend, 0)], -1)
+            stay = same[m] & (prev[1][vis] == CTX_ID["unit"]) & (prev[2][vis] != P["unit_id"][vis]) if prev is not None else np.zeros(len(vis), bool)
+            if prev is not None:
+                dest = np.where(stay, prev[2][vis], dest)
+            ok |= stay
+            vis, dest = vis[ok], dest[ok]
             ctype[vis] = CTX_ID["unit"]
-            cid[vis] = P["unit_id"][friend]
+            cid[vis] = dest
             act[vis] = A["gathering"]
-            self.gathering_units.update(P["unit_id"][friend].tolist())
-            sim.systems["culture"].observe_visits(P["unit_id"][friend])
+            self.gathering_units.update(dest.tolist())
+            new_visit = ~stay[ok]
+            sim.systems["culture"].observe_visits(dest[new_visit])
         m = choice == 7
         ctype[idx[m]] = CTX_ID["complex"]
         cid[idx[m]] = P["complex_id"][idx[m]]
         act[idx[m]] = A["home"]
 
-    def _gatherings(self, ctype, cid, act, busy, present, wd):
+    def explain_choice(self, i: int, b: int | None = None) -> dict:
+        """One person's free-time options now, each utility broken into the terms that were summed. Routine choices
+        are not logged; this is computed on demand from the person's current state (and says so)."""
         sim, w = self.sim, self.sim.w
-        P, p = w.P, sim.p
-        net = sim.systems["network"]
-        appr, _, _ = self._drives()
-        base = [p("activity.gathering.host_weekday")] * 4 + [p("activity.gathering.host_friday"),
-                                                              p("activity.gathering.host_saturday"),
-                                                              p("activity.gathering.host_sunday")]
-        cul = sim.systems["culture"]
-        ph = base[wd] * np.exp(0.6 * sim.z("extraversion") + 0.8 * appr) * (P["n_friends"] >= 2) * cul.host_mult(P["unit_id"])
-        u = sim.u("host")
-        hosts = np.where(present & ~busy & (P["unit_id"] >= 0) & (u < ph))[0]
-        self.hosts_today = hosts
-        if len(hosts) == 0:
-            return
-        indptr, nbr, eidx = net.padded()
-        deg = indptr[hosts + 1] - indptr[hosts]
-        hosts = hosts[deg > 0]
-        deg = deg[deg > 0]
-        if len(hosts) == 0:
-            return
-        rng = sim.streams.gen("invites", w.day)
-        k = np.minimum(rng.poisson(p("activity.gathering.invites"), len(hosts)) + 1, deg)
-        h_rep = np.repeat(hosts, k)
-        off = (rng.random(len(h_rep)) * np.repeat(deg, k)).astype(np.int64)
-        inv = nbr[np.repeat(indptr[hosts], k) + off]
-        close = sim.systems["encounters"]._closeness(h_rep, inv)   # by key (weekly edge indices go stale)
-        pa = expit(p("activity.gathering.accept_base") + 2.0 * close + 0.4 * sim.z("extraversion")[inv]
-                   - 1.5 * P["fatigue"][inv] + 0.8 * appr[inv] + sim.systems["plans"].accept_boost()[inv]
-                   + p("culture.feedback.reputation") * cul.complex_social_z(P["complex_id"][h_rep]))
-        go = present[inv] & ~busy[inv] & (rng.random(len(inv)) < pa)
-        inv, h_rep = inv[go], h_rep[go]
-        inv, first = np.unique(inv, return_index=True)
-        h_rep = h_rep[first]
-        hu = P["unit_id"][h_rep]
-        ctype[inv] = CTX_ID["unit"]
-        cid[inv] = hu
-        act[inv] = A["gathering"]
-        busy[inv] = True
-        ctype[hosts] = CTX_ID["unit"]
-        cid[hosts] = P["unit_id"][hosts]
-        act[hosts] = A["gathering"]
-        busy[hosts] = True
-        self.gathering_units.update(P["unit_id"][hosts].tolist())
-        order = np.argsort(hosts)
-        pos = order[np.searchsorted(hosts[order], h_rep)]
-        sizes = np.bincount(pos, minlength=len(hosts)).astype(float)
-        self.host_of_unit = dict(zip(P["unit_id"][hosts].tolist(), hosts.tolist()))
-        sim.emit("hosted_gathering", hosts, value=sizes, block=2)
-        cul.observe_gathering(P["unit_id"][hosts], sizes)
+        P = w.P
+        b = int(clock.block_of(w.hour * 60)) if b is None else int(b)
+        b = min(max(b, 0), clock.N_BLOCKS - 1)
+        wd = int(w.env["weekday"])
+        idx = np.array([int(i)], np.int64)
+        U, avail, terms = self._utilities(idx, b, wd, explain=True)
+        u = np.where(avail[0], U[0], -np.inf)
+        ex = np.exp(u - u[avail[0]].max()) if avail[0].any() else np.zeros(8)
+        prob = ex / ex.sum() if ex.sum() > 0 else ex
+        opts = []
+        for c, label in enumerate(OPTIONS):
+            tl = [{"term": t, "label": lab, "value": round(float(M[0, c]), 3)} for t, (lab, M) in terms.items() if abs(M[0, c]) > 1e-9]
+            opts.append({"option": c, "label": label, "available": bool(avail[0, c]),
+                         "utility": round(float(U[0, c]), 3) if avail[0, c] else None, "prob": round(float(prob[c]), 3),
+                         "terms": sorted(tl, key=lambda r: -abs(r["value"])),
+                         "note": "dances are planned events (see the day's occasions)" if c == 5 else None})
+        commit = sim.systems["occasions"].committed_at(int(i), b)
+        return {"person": int(i), "day": int(w.day), "block": b, "block_label": clock.BLOCK_LABELS[b], "computed_now": True,
+                "note": "Free-time choices aren't logged one by one; this is what the model computes for this person right now "
+                        "(the actual pick adds a random draw, so the most likely option doesn't always win).",
+                "committed": commit, "options": sorted(opts, key=lambda r: (not r["available"], -(r["utility"] or -99)))}
 
+    # ------------------------------------------------------------------ places
     def _locate(self, ctype, cid, act):
         sim, w = self.sim, self.sim.w
         P = w.P
@@ -455,11 +671,11 @@ class Activity:
             m = ctype == CTX_ID[name]
             if m.any():
                 lon[m], lat[m] = w.groups["lon"][cid[m]], w.groups["lat"][cid[m]]
-        m = ctype == CTX_ID["date"]
+        m = (ctype == CTX_ID["date"]) | (ctype == CTX_ID["occasion"])
         if m.any():
-            rom = sim.systems["romance"]
-            vids = np.array([d[2] for d in rom.dates_today])[cid[m]]
-            lon[m], lat[m] = self.v_lon[vids], self.v_lat[vids]
+            O = sim.book.occ
+            pos = np.maximum(O.pos(cid[m]), 0)
+            lon[m], lat[m] = O.cols["lon"][pos], O.cols["lat"][pos]
         jit = sim.streams.normal("locjit", w.day, n * 2, block=int(act.sum() % 7)).reshape(2, n) * 0.00025
         P["loc_lon"] = np.where(np.isfinite(lon), lon + jit[0], np.nan)
         P["loc_lat"] = np.where(np.isfinite(lat), lat + jit[1], np.nan)

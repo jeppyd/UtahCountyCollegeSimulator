@@ -103,7 +103,8 @@ class Romance:
 
     # ------------------------------------------------------------------ daily
     def plan_day(self):
-        """Pull today's scheduled dates; choose venues."""
+        """Pull today's scheduled dates; choose venues; book each as an occasion at a time that works for both
+        (systems/occasions.py: shifts and classes move it later; illness or an unavoidable clash cancels it)."""
         sim, w = self.sim, self.sim.w
         P = w.P
         day = w.day
@@ -112,28 +113,75 @@ class Romance:
         self.dates_today, self._dates_meta = [], []
         act = sim.systems["activity"]
         busy = set()
-        rng = sim.streams.gen("date_venue", day)
-        for (_, a, b, dtype, first, cause) in todays:
+        keep = []
+        for q in todays:              # bounded: today's scheduled dates (one date per person per day)
+            a, b = q[1], q[2]
             if not (P["present"][a] and P["present"][b]) or a in busy or b in busy:
                 continue
             busy.update((a, b))
-            group = DATE_VENUE_GROUP[dtype]
-            if group == "home":
-                # dinner/board games at one of their apartments: treat as nearest dessert/food venue for location
-                group = "food"
+            keep.append(q)
+        if keep:
+            # venues: near the midpoint of their homes (dinner or board games at home: the nearest food place stands in
+            # for the location); some hikes and stargazing dates go up Y Mountain / Kyhv Peak
+            k = len(keep)
+            a = np.array([q[1] for q in keep], np.int64)
+            b = np.array([q[2] for q in keep], np.int64)
+            dtypes = np.array([q[3] for q in keep], dtype=object)
+            group = np.array(["food" if DATE_VENUE_GROUP[t] == "home" else DATE_VENUE_GROUP[t] for t in dtypes], dtype=object)
             lon = (P["home_lon"][a] + P["home_lon"][b]) / 2
             lat = (P["home_lat"][a] + P["home_lat"][b]) / 2
-            vid = int(act.nearest(group, np.array([lon]), np.array([lat]), 5, rng.random(1))[0])
-            if dtype in ("hike", "stargazing") and rng.random() < 0.18:
-                kyhv = np.where(np.char.find(np.array(act.v_name, dtype=str), "KhPeak") >= 0)[0]
-                if len(kyhv):
-                    vid = int(kyhv[0])
-            self.dates_today.append((a, b, vid))
-            self._dates_meta.append((dtype, first, cause))
+            rng = sim.streams.gen("date_venue", day)
+            pick, peak = rng.random(k), rng.random(k)
+            vid = np.zeros(k, np.int64)
+            for g in np.unique(group).tolist():      # bounded: venue groups
+                m = group == g
+                vid[m] = act.nearest(g, lon[m], lat[m], 5, pick[m])
+            if not hasattr(self, "_kyhv"):
+                hit = [j for j, nm in enumerate(act.v_name) if "KhPeak" in str(nm)]
+                self._kyhv = hit[0] if hit else -1
+            if self._kyhv >= 0:
+                vid = np.where(np.isin(dtypes, ["hike", "stargazing"]) & (peak < 0.18), self._kyhv, vid)
+            self.dates_today = [(int(q[1]), int(q[2]), int(v)) for q, v in zip(keep, vid)]
+            self._dates_meta = [(q[3], q[4], q[5]) for q in keep]
+        occ = sim.systems.get("occasions")
+        self.date_occ = occ.plan_dates(self.dates_today, self._dates_meta) if occ is not None else \
+            np.full(len(self.dates_today), -1, np.int64)
+        # a date their schedules can't fit today (or one of them is sick) moves to the next day, for up to a week, as
+        # people would rearrange it; one that still doesn't fit is dropped
+        if occ is not None and len(self.dates_today):
+            moved = getattr(self, "_moved", {})
+            tries = int(sim.p("occasions.date.reschedule_days"))
+            for j, why in enumerate(occ.date_blocked.tolist()):
+                a_, b_, _ = self.dates_today[j]
+                key = (min(a_, b_), max(a_, b_))
+                if why == 0:
+                    moved.pop(key, None)
+                elif moved.get(key, 0) < tries:
+                    dtype, first, cause = self._dates_meta[j]
+                    moved[key] = moved.get(key, 0) + 1
+                    self.queue.append((day + 1, a_, b_, dtype, first, cause))
+                    P.internal["date_planned"][[a_, b_]] = day + 1
+                else:
+                    moved.pop(key, None)
+            self._moved = moved
 
     def evening(self):
+        """After the late evening: how today's dates went, then make-outs at parties and dances."""
         self._run_dates()
-        self._ncmo()
+        occ = self.sim.systems.get("occasions")
+        act = self.sim.systems["activity"]
+        if occ is None:
+            self._ncmo()
+            return
+        # dancers are at an occasion now; the NCMO step recognizes a dance floor by its context
+        saved = act.ctype
+        view = saved.copy()
+        view[occ.dancers()] = CTX_ID["dance"]
+        act.ctype = view
+        try:
+            self._ncmo()
+        finally:
+            act.ctype = saved
 
     def daily(self):
         sim, w = self.sim, self.sim.w
@@ -337,12 +385,19 @@ class Romance:
         day = w.day
         if not self.dates_today:
             return
-        a = np.array([d[0] for d in self.dates_today])
-        b = np.array([d[1] for d in self.dates_today])
-        venue = np.array([d[2] for d in self.dates_today])
-        dtypes = [m[0] for m in self._dates_meta]
-        first = np.array([m[1] for m in self._dates_meta])
-        cause = np.array([m[2] for m in self._dates_meta])
+        occ_ids = np.asarray(getattr(self, "date_occ", np.full(len(self.dates_today), -1)), np.int64)
+        occs = sim.systems.get("occasions")
+        took_place = occs.date_happened(occ_ids) if occs is not None else np.ones(len(self.dates_today), bool)
+        if not took_place.any():
+            return
+        keep = np.where(took_place)[0]
+        a = np.array([self.dates_today[j][0] for j in keep])
+        b = np.array([self.dates_today[j][1] for j in keep])
+        venue = np.array([self.dates_today[j][2] for j in keep])
+        dtypes = [self._dates_meta[j][0] for j in keep]
+        first = np.array([self._dates_meta[j][1] for j in keep], bool)
+        cause = np.array([self._dates_meta[j][2] for j in keep])
+        occ_ids = occ_ids[keep]
         keys = EdgeStore.make_keys(a, b)
         eix = E.upsert(keys)
         rng = sim.streams.gen("date_outcome", day)
@@ -381,14 +436,14 @@ class Romance:
         if first.any():
             P.cols["first_dates_total"][np.r_[a[first], b[first]]] += 1
             e1 = sim.emit("first_date", a[first], b=b[first], value=q[first], cause=cause[first], place=venue[first],
-                          block=2, mech="romance.date", ev={"quality": q[first]})
+                          block=2, mech="romance.date", ev={"quality": q[first]}, causes=[("occasion", occ_ids[first], 1.0)])
             sim.emit("first_date", b[first], b=a[first], value=q[first], cause=cause[first], place=venue[first],
-                     block=2, mech="romance.date", ev={"quality": q[first]})
+                     block=2, mech="romance.date", ev={"quality": q[first]}, causes=[("occasion", occ_ids[first], 1.0)])
             ev_first[first] = e1
         if (~first).any():
             nf = ~first
             sim.emit("date", a[nf], b=b[nf], value=q[nf], cause=cause[nf], place=venue[nf], block=2,
-                     mech="romance.date", ev={"quality": q[nf]})
+                     mech="romance.date", ev={"quality": q[nf]}, causes=[("occasion", occ_ids[nf], 1.0)])
         date_ev = np.where(ev_first >= 0, ev_first, cause)
         # kissing
         att_ab = E.attraction_from(eix, a)

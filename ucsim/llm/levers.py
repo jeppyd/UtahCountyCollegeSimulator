@@ -217,4 +217,23 @@ def catalog_markdown(reg, sim=None) -> str:
         parts = pr.get("parts") or [pr]
         atoms = "; ".join(f"{q.get('target_type')} {q.get('target', '')} {q.get('op', '')} {q.get('value', '') if not isinstance(q.get('value'), dict) else ''}".strip() for q in parts)
         a(f"- `{pid}` — {pr.get('name')}: {atoms}")
+
+    a("\n## 13. kind `social`: something people do with each other (an invitation, a weekly dinner, an introduction, a ride)\n")
+    a("Put the action in `social`. It happens on the change's start day; people still decide with their usual reasons "
+      "(how close they are to the host, whether they're free, how far it is, how late they'd be, how tired they are). "
+      "Two modes: **world editor** (`as` null: arrange the opportunity for anyone) and **as a person** (`as` = their id: "
+      "they can only invite people they know, only when they're free, only what they can afford; the validator refuses "
+      "otherwise and says why). Prefer `as` when the request is phrased as one person doing something (\"Maya invites…\").\n")
+    a("| action | fields | what happens |\n|---|---|---|")
+    a("| `invite` | `as` or `host`, `people` (ids) or `group` (roommates · neighbors · friends · close_friends), `kind` (dinner · gathering · game_night · party · study_group), `weekday` or `day_offset`, `start` (\"19:30\"), `dur` (minutes), `place` (home · campus · venue · venue:<id>) | a one-off occasion; each guest hears (in person, or by text they may not see in time) and decides |")
+    a("| `series` | as `invite`, plus `weeks` (null = until the host stops) | a weekly occasion; regulars are re-invited each week; the host keeps it going or ends it depending on turnout and how much work it is, and a roommate may take it over if the host moves |")
+    a("| `reschedule` | `occasion` (id) or `series` (id), new `start`, optional `weekday`/`day_offset`, `dur` | everyone invited reconsiders at the new time (only the organizer may, acting as a person) |")
+    a("| `introduce` | `a`, `b`, `by` (or `as`), optional `start`, `day_offset`, `place` | the three meet at a café; if both come they talk and the introducer is recorded on their tie |")
+    a("| `ride` | `occasion`, `rider`, `driver` (or `as`; needs a car) | the rider's trip becomes a car trip, which can make an occasion reachable; they reconsider |")
+    a("| `reach_out` | `from` (or `as`), `to`, `channel` (text · in_person) | as a person it happens; as the editor they decide whether to |")
+    a("| `job_offer` | `to`, optional `employer`, `hours` per week, `wage` | editor only; they decide (money worries, school, a job already); shifts are fitted around classes |")
+    a("\nExample — \"Maya (id 812) invites her roommates to dinner at 7:30 on Sunday\": "
+      "`{\"kind\": \"social\", \"label\": \"Maya's Sunday dinner\", \"why\": \"…\", \"social\": {\"action\": \"invite\", \"as\": 812, "
+      "\"group\": \"roommates\", \"kind\": \"dinner\", \"weekday\": \"sunday\", \"start\": \"19:30\"}}`. "
+      "Occasion and series ids come from the world (ask the tools); people ids from @-mentions.\n")
     return "\n".join(L) + "\n"

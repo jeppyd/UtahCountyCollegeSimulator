@@ -151,13 +151,18 @@ class Mind:
         }
 
     # ------------------------------------------------------------------ observation hooks (called by other systems)
-    def observe_block(self, act: np.ndarray, ctype: np.ndarray):
-        """Activity system: what everyone did this block (outings, workouts, social events)."""
+    def observe_block(self, act: np.ndarray, ctype: np.ndarray, fresh: np.ndarray | None = None,
+                      social: np.ndarray | None = None):
+        """Activity system: what everyone did this block (outings, workouts, social events). `fresh` marks people who
+        started something new this block (an outing that carries on into the late evening counts once); `social`
+        marks people at a social occasion (a dinner, a party, a dance)."""
         P = self.sim.w.P
         n = P.n
-        P.internal["fun_today"][:n] += np.isin(act, _FUN).astype(np.uint8)
-        P.internal["gym_today"][:n] += (act == _GYM).astype(np.uint8)
-        P.internal["social_today"][:n] |= np.isin(act, _SOCIAL) | (ctype == CTX_ID["dance"])
+        new = np.ones(n, bool) if fresh is None else fresh
+        P.internal["fun_today"][:n] += (np.isin(act, _FUN) & new).astype(np.uint8)
+        P.internal["gym_today"][:n] += ((act == _GYM) & new).astype(np.uint8)
+        soc = np.isin(act, _SOCIAL) | (ctype == CTX_ID["dance"])
+        P.internal["social_today"][:n] |= soc if social is None else (soc | social)
 
     def observe_interactions(self, a: np.ndarray, b: np.ndarray, ctx: np.ndarray, v: np.ndarray):
         """Encounters: valence of interactions in social settings, to learn what people are like."""

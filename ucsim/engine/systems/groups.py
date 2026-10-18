@@ -8,12 +8,15 @@ semester with churn; meetings happen only while that school's term is in session
 
 Group locations are approximate: BYU intramurals at the Richards Building fields, UVU
 intramurals at the Student Life & Wellness Center, institute classes at the Orem Institute
-of Religion next to UVU, clubs on each campus.
+of Religion next to UVU, clubs on each campus. Meetings have clock times (clubs mid-afternoon or
+7 pm, intramural games 6:30–10:30 pm, institute at lunchtime or 7 pm) and fill the blocks they overlap.
 """
 from __future__ import annotations
 
 import numpy as np
 from scipy.special import expit
+
+from .. import clock
 
 BYU = (-111.6493, 40.2500)
 UVU = (-111.7129, 40.2773)
@@ -42,6 +45,12 @@ FAITH_CLUBS = {
 }
 SPORTS = ["basketball", "volleyball", "flag football", "soccer", "ultimate frisbee", "pickleball", "softball", "dodgeball"]
 KIND_SIZE = {"club": 22, "team": 9, "institute": 24}
+# meeting start (minutes) and length by kind and block, varied by group index (no random draws: worlds built before
+# meeting times existed get the same times); intramural games run in slots from 6:30 to 10:30 pm
+_TIMES = {("club", 1): ((15 * 60, 16 * 60), 60), ("club", 2): ((19 * 60, 19 * 60 + 30), 90),
+          ("institute", 1): ((12 * 60 + 30, 15 * 60), 50), ("institute", 2): ((19 * 60, 19 * 60), 90),
+          ("team", 1): ((18 * 60 + 30, 19 * 60 + 30), 60),
+          ("team", 2): ((18 * 60 + 30, 19 * 60 + 30, 20 * 60 + 30, 21 * 60 + 30), 60)}
 ATTEND = {"club": 0.62, "team": 0.78, "institute": 0.66}
 
 
@@ -103,6 +112,18 @@ class Groups:
 
     def _index(self):
         G = self.sim.w.groups
+        if "start" not in G:
+            st, du = [], []
+            for g, (kind, blk) in enumerate(zip(G["kind"], G["block"])):
+                starts, dur = _TIMES[(str(kind), int(blk))]
+                st.append(starts[g % len(starts)])
+                du.append(dur)
+            G["start"] = np.array(st, np.int16)
+            G["dur"] = np.array(du, np.int16)
+        # the blocks each meeting fills (≥ 30 minutes of it, or its largest part)
+        self.meets_in = np.zeros((len(G["kind"]), clock.N_BLOCKS), bool)
+        for g in range(len(G["kind"])):
+            self.meets_in[g, clock.main_blocks(int(G["start"][g]), int(G["dur"][g]))] = True
         faith = np.asarray(G.get("faith", np.full(len(G["kind"]), "", dtype=object)), dtype=object)
         self.by = {(k, s): np.where((G["kind"] == k) & (G["school"] == s) & (faith == ""))[0]
                    for k in ("club", "team", "institute") for s in (1, 2)}
@@ -185,7 +206,8 @@ class Groups:
             self._count(gone)
 
     def meeting(self, b: int, wd: int, free: np.ndarray, u: np.ndarray):
-        """Members whose group meets now and who show up: (ids, kind_index, group_id)."""
+        """Members whose group meets now and who show up: (ids, kind_index, group_id). `u` is one draw per person for
+        the day, so someone at a meeting that spans two blocks is there for both."""
         w = self.sim.w
         P, G, env = w.P, w.groups, w.env
         out = []
@@ -198,7 +220,7 @@ class Groups:
             idx = np.where(m)[0]
             gi = g[idx]
             term = np.where(G["school"][gi] == 1, bool(env["term_BYU"]), bool(env["term_UVU"]))
-            now = (G["weekday"][gi] == wd) & (G["block"][gi] == b) & term & (not env["holiday"])
+            now = (G["weekday"][gi] == wd) & self.meets_in[gi, b] & term & (not env["holiday"])
             p = ATTEND[kind] * (1 - 0.5 * P["fatigue"][idx]) * (1 - 0.5 * P["depressive_episode"][idx]) * ~P["ill"][idx]
             go = now & (u[idx] < p)
             out.append((idx[go], gi[go].astype(np.int64)))

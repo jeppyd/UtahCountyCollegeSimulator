@@ -1,0 +1,99 @@
+# Decisions recorded by the occasions system (engine/systems/occasions.py) and social actions.
+# attend_occasion and host_occasion are declared in 00_core.yaml; `extend: true` adds the factors used here.
+decisions:
+  attend_occasion:
+    extend: true
+    factors:
+      interest:  {label: "how much this kind of event appeals to them", more: "the kind of event they love", less: "not their kind of event"}
+      ride:      {label: "a ride there", more: "someone offered a ride", less: ""}
+      introduced: {label: "someone wants them to meet a person", more: "a friend wants them to meet someone", less: ""}
+      partner:   {label: "spending evenings with their partner", more: "", less: "spends evenings with their partner"}
+      ill:       {label: "sick", kind: constraint, less: "sick"}
+      full:      {label: "no room left", kind: constraint, less: "it was already full"}
+  host_occasion:
+    extend: true
+    factors:
+      plan_ahead: {label: "planning a weekend party days ahead", more: "planning ahead for the weekend", less: ""}
+      busy:       {label: "no free evening", kind: constraint, less: "no free evening that day"}
+  occasion_kind:
+    label: What kind of get-together to host
+    units: utility
+    outcomes: [gathering, dinner, game_night, party, study_group]
+    factors:
+      base:     {label: "how common this kind is", more: "the usual thing", less: "a less usual thing"}
+      sunday:   {label: "Sunday (family-style dinners)", more: "it's Sunday", less: ""}
+      weekend:  {label: "a Friday or Saturday night", more: "it's the weekend", less: "a school night"}
+      cooking:  {label: "likes to cook", more: "likes to cook", less: "doesn't cook much"}
+      gaming:   {label: "into games", more: "into games", less: "not into games"}
+      outgoing: {label: "how outgoing they are", more: "outgoing", less: "reserved"}
+      thrill:   {label: "likes excitement", more: "likes excitement", less: "prefers calm"}
+      apartment: {label: "how social their apartment is", more: "a social apartment", less: "a quiet apartment"}
+      married:  {label: "married", more: "married (couples' dinners)", less: "married (fewer parties)"}
+      studies:  {label: "in school this term", more: "has classes to study for", less: "not in school"}
+      exams:    {label: "exams coming up", more: "exams coming up", less: ""}
+  show_up:
+    label: Whether they came after saying yes
+    units: logit
+    outcomes: [came, did_not_come]
+    factors:
+      base:            {label: "people mostly do what they said", more: "followed through", less: "flaked"}
+      days_ahead:      {label: "how long ago they said yes", more: "said yes today", less: "said yes days ago"}
+      tired:           {label: "how tired they are", more: "rested", less: "too tired"}
+      close_organizer: {label: "how close they are to the organizer", more: "close to the organizer", less: "barely knows the organizer"}
+      ill:             {label: "sick", kind: constraint, less: "got sick"}
+      conflict:        {label: "something else came up", kind: constraint, less: "something else came up (a shift, a date)"}
+      cant_get_there:  {label: "no way to get there in time", kind: constraint, less: "no way to get there"}
+  start_tradition:
+    label: Whether to make it a weekly thing
+    units: logit
+    outcomes: [started, did_not]
+    factors:
+      base:       {label: "how rarely a one-off becomes a tradition", more: "", less: "most get-togethers stay one-offs"}
+      turnout:    {label: "how many people came", more: "lots of people came", less: "few people came"}
+      enjoyed:    {label: "how well it went", more: "it went well", less: "it was awkward"}
+      outgoing:   {label: "how outgoing the host is", more: "an outgoing host", less: "a reserved host"}
+      organized:  {label: "how organized the host is", more: "an organized host", less: "not much of a planner"}
+      burden:     {label: "how much work hosting was", more: "", less: "hosting was a lot of work"}
+  continue_tradition:
+    label: Whether to keep the weekly thing going
+    units: logit
+    outcomes: [continued, ended]
+    factors:
+      base:      {label: "traditions tend to keep going", more: "it's what they do on that night", less: ""}
+      turnout:   {label: "how many regulars came", more: "the regulars came", less: "hardly anyone came"}
+      burden:    {label: "how much work hosting is", more: "", less: "hosting has become a burden"}
+      habit:     {label: "how long it has been going", more: "it's been going for weeks", less: "it's new"}
+      outgoing:  {label: "how outgoing the host is", more: "an outgoing host", less: "a reserved host"}
+      stress:    {label: "the host's stress", more: "calm", less: "stressed"}
+      money:     {label: "what it costs the host", more: "", less: "costs money they don't have"}
+      host_left: {label: "the host moved out", kind: constraint, less: "the host moved out and no one took it over"}
+  take_over_tradition:
+    label: Whether to take over the weekly thing
+    units: logit
+    outcomes: [took_over, declined]
+    factors:
+      base:       {label: "taking over is a big ask", more: "", less: "it's a lot to take on"}
+      outgoing:   {label: "how outgoing they are", more: "outgoing", less: "reserved"}
+      regular:    {label: "how often they came", more: "a regular", less: "rarely came"}
+      close_host: {label: "how close they were to the host", more: "close to the host", less: "not close to the host"}
+  reach_out:
+    label: Whether to reach out
+    units: logit
+    outcomes: [reached_out, did_not]
+    factors:
+      base:         {label: "reaching out takes a push", more: "", less: "they didn't get around to it"}
+      close:        {label: "how close they are", more: "close", less: "not close"}
+      extraversion: {label: "how outgoing they are", more: "outgoing", less: "reserved"}
+      want_company: {label: "how much they want company right now", more: "wants company", less: "wants to be alone"}
+      hurt:         {label: "unresolved hurt between them", more: "", less: "hurt between them"}
+  take_job:
+    label: Whether to take the job offered
+    units: logit
+    outcomes: [accepted, declined]
+    factors:
+      base:      {label: "how often people take an offered job", more: "", less: ""}
+      money:     {label: "money worries", more: "needs the money", less: "doesn't need the money"}
+      school:    {label: "schoolwork", more: "", less: "school would suffer"}
+      has_job:   {label: "already working", more: "", less: "already has a job"}
+      hours:     {label: "how many hours it asks", more: "a few hours", less: "too many hours"}
+      schedule:  {label: "the shifts clash with classes", kind: constraint, less: "the shifts clash with classes"}

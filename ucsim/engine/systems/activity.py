@@ -407,13 +407,11 @@ class Activity:
         P, env, p = w.P, w.env, sim.p
         k = len(idx)
         terms: dict[str, tuple[str, np.ndarray]] = {}
-        U = np.full((k, 8), -9.0)
+        U = np.zeros((k, 8))            # options nobody can take now are set to -9 at the end
         avail = np.zeros((k, 8), bool)
 
         def add(name, label, col, val, where=None):
-            v = np.broadcast_to(np.asarray(val, np.float64), (k,))
-            if where is not None:
-                v = np.where(where, v, 0.0)
+            v = val if where is None else np.where(where, val, 0.0)
             U[:, col] += v
             if explain:
                 if name not in terms:
@@ -423,7 +421,6 @@ class Activity:
         def open_(col, where=True):
             m = np.broadcast_to(np.asarray(where, bool), (k,))
             avail[:, col] |= m
-            U[m, col] = np.where(U[m, col] <= -8.5, 0.0, U[m, col])
             return m
 
         appr, withdraw, _ = self._drives()

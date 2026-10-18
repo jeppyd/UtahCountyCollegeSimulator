@@ -196,7 +196,7 @@ class Occasions:
             return
         indptr, nbr, _ = net.padded()
         deg = np.diff(indptr)[:n]
-        appr = sim.systems["mind"].social_pull()[0]
+        appr = self._approach()
         base = [p("activity.gathering.host_weekday")] * 4 + [p("activity.gathering.host_friday"),
                                                              p("activity.gathering.host_saturday"),
                                                              p("activity.gathering.host_sunday")]
@@ -309,9 +309,11 @@ class Occasions:
         move = (f["conflict"] | (f["free_from"] > start - 15)) & (f["free_from"] >= 0)
         start2 = np.where(move, np.maximum(_rup15(f["free_from"] + 30), start), start).astype(np.int32)
         dur = np.minimum(dur, 24 * 60 - start2)          # wrapped up by midnight
-        ok = start2 <= self.k_latest[kind]
-        f2 = self._feasible(h, tday, start2, dur, lon, lat, host=True)
-        ok &= ~f2["conflict"]
+        ok = (start2 <= self.k_latest[kind]) & ~(f["conflict"] & ~move)
+        mv = np.where(move & ok)[0]
+        if len(mv):        # check the new time (only for those who moved it)
+            f2 = self._feasible(h[mv], tday, start2[mv], dur[mv], lon[mv], lat[mv], host=True)
+            ok[mv] &= ~f2["conflict"]
         if not ok.any():
             return np.empty(0, np.int64), ok
         oid = self.book.plan(self.k_names[kind[ok]], tday, start2[ok], dur[ok], organizer=h[ok], org_kind="household", org_id=unit[ok], ctx=OCC,
@@ -456,7 +458,7 @@ class Occasions:
         k = len(pos)
         rides = self._ride_driver(occ, person) != -1
         f = self._feasible(person, oc["day"], oc["start"], oc["dur"], oc["lon"], oc["lat"], occ=occ, ride=rides)
-        appr = sim.systems["mind"].social_pull()[0]
+        appr = self._approach()
         close = np.where(org >= 0, sim.systems["encounters"]._closeness(person, np.maximum(org, 0)), 0.0)
         ek = E.find(EdgeStore.make_keys(person, np.maximum(org, 0)))
         hurt = np.where((org >= 0) & (ek >= 0), E["hurt"][np.maximum(ek, 0)], 0.0)
@@ -524,17 +526,15 @@ class Occasions:
         so = occ[order]
         starts = np.flatnonzero(np.r_[True, so[1:] != so[:-1]])
         sizes = np.diff(np.r_[starts, k])
-        big = sizes >= 2
-        if not big.any():
+        if not (sizes >= 2).any():
             return out
-        rows_i, rows_j = [], []
-        for s, m in zip(starts[big], sizes[big]):    # bounded: invitees per occasion
-            g = order[s: s + m]
-            ii, jj = np.meshgrid(g, g, indexing="ij")
-            msk = ii != jj
-            rows_i.append(ii[msk])
-            rows_j.append(jj[msk])
-        ri, rj = np.concatenate(rows_i), np.concatenate(rows_j)
+        # every ordered pair of invitees within each occasion (vectorized over occasions)
+        grp = np.repeat(np.arange(len(starts)), sizes)          # group of each sorted row
+        rep = sizes[grp]
+        a_s = np.repeat(np.arange(k), rep)
+        b_s = starts[grp][a_s] + (np.arange(int(rep.sum())) - np.repeat(np.cumsum(rep) - rep, rep))
+        keep = a_s != b_s
+        ri, rj = order[a_s[keep]], order[b_s[keep]]
         e = E.find(EdgeStore.make_keys(person[ri], person[rj]))
         fr = (e >= 0) & (E["stage"][np.maximum(e, 0)] >= 3) & (p0[rj] > 0.5)
         np.add.at(out, ri[fr], 1.0)
@@ -577,6 +577,22 @@ class Occasions:
                           late=np.clip(f["late"], 0, 32000).astype(np.int16), origin=f["origin"])
 
     # ------------------------------------------------------------------ commitments and feasibility
+    def _approach(self) -> np.ndarray:
+        """mind.social_pull's approach term, computed once per clock hour (the morning's planning asks many times)."""
+        w = self.sim.w
+        key = (w.day, w.hour, w.P.n)
+        if getattr(self, "_pull_key", None) != key:
+            self._pull_key, self._pull = key, self.sim.systems["mind"].social_pull()[0]
+        return self._pull
+
+    def _weekdays(self, days: np.ndarray) -> np.ndarray:
+        """Weekday of each row's day (computed once per distinct day)."""
+        days = np.asarray(days, np.int64)
+        if not len(days) or days.min() == days.max():
+            return np.full(len(days), self.sim.cal.weekday(int(days[0])) if len(days) else 0, np.int64)
+        ud, inv = np.unique(days, return_inverse=True)
+        return np.array([self.sim.cal.weekday(int(d)) for d in ud], np.int64)[inv]
+
     def _commitments(self, persons: np.ndarray, days: np.ndarray, exclude_occ: np.ndarray | None, host: bool):
         """Firm commitments of each (person, day) row: shifts, classes, occasions they said yes to or organize.
         Returns (row, start, end, lon, lat, kind) arrays."""
@@ -585,7 +601,7 @@ class Occasions:
         cal = sim.cal
         k = len(persons)
         rows, cs, ce, clon, clat, ck = [], [], [], [], [], []
-        wd = np.array([cal.weekday(int(d)) for d in days]) if len(np.unique(days)) > 1 else np.full(k, cal.weekday(int(days[0])))
+        wd = self._weekdays(days)
         # shifts
         s = P.internal["shift_start"][persons, wd].astype(np.int32)
         e = P.internal["shift_end"][persons, wd].astype(np.int32)
@@ -733,7 +749,7 @@ class Occasions:
         here = np.isfinite(lon) & np.isfinite(lat)
         if here.any():
             tm = sim.travel
-            wd = np.array([sim.cal.weekday(int(d)) for d in day]) if len(np.unique(day)) > 1 else np.full(k, sim.cal.weekday(int(day[0])))
+            wd = self._weekdays(day)
             dep_h = np.clip(np.maximum(free_from, start - 30) // 60, 0, 23)
             ride = np.zeros(k, bool) if ride is None else np.broadcast_to(np.asarray(ride, bool), (k,))
             grp = wd * 100 + dep_h

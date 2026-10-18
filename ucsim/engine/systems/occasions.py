@@ -1108,8 +1108,9 @@ class Occasions:
             self.book.attend(R["occ"][rows][has], R["person"][rows][has], arrive=R["arrive"][rows][has],
                              ride_by=R["ride_by"][rows][has], inv_ids=inv[has])
         if (~has).any():     # organizers: a row of their own (not a walk-in)
-            ids = self.book.attend(R["occ"][rows][~has], R["person"][rows][~has], arrive=R["arrive"][rows][~has],
-                                   day=self.sim.w.day)
+            oo, pp = R["occ"][rows][~has], R["person"][rows][~has]
+            ids = self.book.attend(oo, pp, arrive=R["arrive"][rows][~has], day=self.sim.w.day,
+                                   inv_ids=self._inv_lookup(oo, pp))
             R["inv"][rows[~has]] = ids
             self.book.inv.cols["walk_in"][self.book.inv.pos(ids)] = False
 
@@ -1141,7 +1142,25 @@ class Occasions:
         if fresh.any():
             self._walk_keys = np.r_[self._walk_keys, key[fresh]]
             arrive = np.maximum(starts[j][fresh], int(clock.START[b])).astype(np.int32)
-            self.book.attend(occ[fresh], who[fresh], arrive=arrive, day=self.sim.w.day)
+            self.book.attend(occ[fresh], who[fresh], arrive=arrive, day=self.sim.w.day,
+                             inv_ids=self._inv_lookup(occ[fresh], who[fresh]))
+
+    def _inv_lookup(self, occ: np.ndarray, people: np.ndarray) -> np.ndarray:
+        """The invitation row for each (today's occasion, person), −1 if none (the latest wins), like book._find_inv but
+        searching only the invitations sent within the longest lead time (rows are appended in time order)."""
+        I = self.book.inv
+        occ, people = np.asarray(occ, np.int64), np.asarray(people, np.int64)
+        if not I.n or not len(occ):
+            return np.full(len(occ), -1, np.int64)
+        i0 = int(np.searchsorted(I["sent_day"], self.sim.w.day - self.max_lead - 1))
+        key_have = (I["occ"][i0:].astype(np.int64) << 24) ^ I["person"][i0:].astype(np.int64)
+        order = np.argsort(key_have, kind="stable")
+        ks = key_have[order]
+        key = (occ << 24) ^ people
+        p = np.searchsorted(ks, key, side="right") - 1
+        rows = i0 + order[np.maximum(p, 0)]
+        ok = (p >= 0) & (I["occ"][rows] == occ) & (I["person"][rows] == people)
+        return np.where(ok, I["id"][rows], -1)
 
     def social_now(self, ctype: np.ndarray, cid: np.ndarray) -> np.ndarray:
         """People at a social occasion right now (counts toward social events per month)."""

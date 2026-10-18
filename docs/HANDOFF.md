@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| Claude Code (cloud) | 2026-10-18 | calendar-weather | Pushing progress to `wip/calendar-weather`. |
+| — | — | — | Nobody. Calendar-weather merged 2026-10-18; next is sexuality-survey (needs the raw xlsx in `data/raw/`). |
 
 ## The goal in one paragraph
 
@@ -66,7 +66,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [workbench](workstreams/workbench.md) | **done, merged** | working branch | open issues below |
 | [scales](workstreams/scales.md) | **done, merged** | working branch | — |
 | [sexuality-survey](workstreams/sexuality-survey.md) (+ dealbreakers) | not started | — | needs the raw xlsx in `data/raw/` (owner supplies) |
-| [calendar-weather](workstreams/calendar-weather.md) | **in progress** | — | after time-occasions is merged |
+| [calendar-weather](workstreams/calendar-weather.md) | **done, merged** | working branch | open issues below |
 | [talk](workstreams/talk.md) (Ask + interviews) | not started | — | after provenance-trace is merged |
 | [travel](workstreams/travel.md) | not started | — | can start any time (keeps `ucsim/geo/travel.py`'s interface) |
 | [messaging](workstreams/messaging.md) (wave 2) | not started | — | after time-occasions |
@@ -92,6 +92,12 @@ institutions, family-homes) can start now too, but coordinate: they touch the sa
   (employer flexibility). No workbench tool for occasions yet (endpoints exist: /api/occasion/{id}, /api/occasions,
   /api/person/{i}/day, /api/person/{i}/choice, /api/act/check, /api/act).
 - Builders' worktrees may start from `main`: merge the working branch first.
+- Calendar: BYU fall classes really begin Wed Sep 2, 2026 (the world still starts Aug 24, so BYU students are between
+  terms for the first nine days; UVU starts Aug 19). Football kickoff times aren't announced (assumed, labelled);
+  Homecoming week, UVU spring break and Stadium of Fire 2027 are estimates. Conference watching is not an occasion
+  (faith.py already skips ward meetings on conference weekends). Only BYU students attend calendar football games
+  (no community fans). Weather removed the old random "weather" draw, so run outputs differ from before.
+  `travel_home_likely` is in env and on items for the family-homes builder.
 - Workbench: Life/Measure history is every two weeks (coarse). `/api/person/{i}/day` lists some class meetings twice (the Day tool de-duplicates). The
   DecisionCard shows "Person 1005" instead of a name for the agent. Bench panels are placed at the first free spot,
   so the order tools are added decides the layout.
@@ -114,6 +120,24 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-18 (late night, 4) — Claude Code (cloud session)
+- Built and merged **calendar-weather**: `config/calendar/2026_27.yaml` (BYU and UVU 2026–27 terms and finals,
+  holidays, breaks, BYU home football, General Conference, Homecoming, Stadium of Fire…, each with basis real / rule /
+  hypothetical and source URLs), `config/calendar/rules.yaml` (later years; reproduces UVU's published Summer 2028
+  start; weekly devotionals), `engine/calendar_real.py`; core.Calendar now delegates (same method names) and gains
+  in_finals, no_class, items_on. Weather: `config/sources/weather_provo_daily.csv` (+ .json) from NOAA GHCN-Daily
+  station PROVO BYU 2015-08 → 2026-07 (the NCEI data-service API and Open-Meteo were unavailable; the station's
+  static access file worked), `engine/weather.py` (weather year: latest by default, world.yaml `weather.year`,
+  UCSIM_WEATHER_YEAR or env['weather_year']). Environment: tmax_f, tmin_f, precip_in, snow_in, snow_depth_in,
+  weather_label, weather_penalty, calendar_items, no_class(_BYU/_UVU), finals_BYU/UVU; exam_week now uses the real
+  finals. Mechanisms `13_weather.yaml`; occasions' attendance gains a `weather` factor. Calendar occasions
+  (`config/occasions/30_calendar.yaml`: football_game, devotional, stadium_of_fire) are planned by
+  Environment._calendar_occasions; ~24% of BYU students go to a home game. API routes_calendar.py; /api/calendar uses
+  the real terms; Calendar workbench tool (docs/img/calendar-strip.png). Fixed kit/Bits useWidth (it measured nothing
+  when the element appeared after loading). 188 tests pass; web build passes.
+- Next: sexuality-survey (the owner will supply the raw xlsx in `data/raw/`), then talk, travel, messaging,
+  institutions, family-homes, survey-followups, integration.
 
 ### 2026-10-18 (late night, 3) — Claude Code (cloud session)
 - Finished **scales** (continued `wip/scales`, relay rule) and merged it: the backend (anchors, units, how-measured for

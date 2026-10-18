@@ -14,6 +14,7 @@ from __future__ import annotations
 import numpy as np
 
 from ..core import pair_normal
+from ..provenance import link, note_time, place_ref
 from ..state import CTX, CTX_ID, EdgeStore, Tie
 from .activity import NONE
 
@@ -252,32 +253,42 @@ class Encounters:
         keys = EdgeStore.make_keys(a, b)
         new_before = E.find(keys) < 0
         idx = E.upsert(keys)
+        # where each conversation happened, as ties remember it: a hosted get-together counts as a gathering
+        ctx_eff = np.where(gath, CTX_ID["gathering"], ctx).astype(np.int64)
+        occ_code = CTX_ID["occasion"]
+        ni = jj = None
         # ---- initialize brand-new edges
         if new_before.any():
-            ni = np.unique(idx[new_before])
+            # where they met: the first record of each new edge
+            rec_new = np.flatnonzero(new_before)
+            ni, first = np.unique(idx[rec_new], return_index=True)
+            jj = rec_new[first]
             lo, hi = E.split(E.key_array[ni])
             E.cols["first_day"][ni] = day
             E.cols["chemistry"][ni] = pair_normal(w.seed, lo, hi, 11)
-            # where they met (first record of each new edge)
-            first_rec = {}
-            for j in np.where(new_before)[0]:
-                first_rec.setdefault(int(idx[j]), j)
-            jj = np.array([first_rec[int(e)] for e in ni])
-            ctx_names = np.array(CTX)[ctx[jj]]
-            E.cols["origin_ctx"][ni] = np.where(gath[jj], CTX_ID["gathering"], ctx[jj])
+            E.cols["origin_ctx"][ni] = ctx_eff[jj]
             E.cols["origin_place"][ni] = place[jj]
-            if gath.any():
-                act = sim.systems["activity"]
-                hosts = np.array([act.host_of_unit.get(int(u), -1) for u in place[jj]])
-                intro = gath[jj] & (hosts >= 0) & (hosts != lo) & (hosts != hi)
-                E.cols["introducer"][ni[intro]] = hosts[intro]
-                E.cols["flags"][ni[intro]] |= Tie.INTRODUCED
+            # who brought them together: the host of a get-together, the organizer of an occasion
+            intro_by = np.full(len(ni), -1, np.int64)
+            hosts_map = getattr(sim.systems["activity"], "host_of_unit", None)
+            if gath.any() and hosts_map:
+                hu = np.fromiter(hosts_map.keys(), np.int64, len(hosts_map))
+                hv = np.fromiter(hosts_map.values(), np.int64, len(hosts_map))
+                o = np.argsort(hu)
+                hu, hv = hu[o], hv[o]
+                k = np.clip(np.searchsorted(hu, place[jj]), 0, len(hu) - 1)
+                intro_by = np.where(gath[jj] & (hu[k] == place[jj]), hv[k], intro_by)
+            at_occ = ctx[jj] == occ_code
+            if at_occ.any() and len(sim.book.occ):
+                intro_by[at_occ] = sim.book.occ.get("organizer", place[jj][at_occ], default=-1)
+            intro = (intro_by >= 0) & (intro_by != lo) & (intro_by != hi)
+            E.cols["introducer"][ni[intro]] = intro_by[intro]
+            E.cols["flags"][ni[intro]] |= Tie.INTRODUCED
             rom = sim.systems["romance"]
             att_lh, att_hl = rom.initial_attraction(lo, hi), rom.initial_attraction(hi, lo)
             E.cols["att_lh"][ni] = att_lh
             E.cols["att_hl"][ni] = att_hl
             sim.systems["mind"].init_beliefs(ni, lo, hi)
-            del ctx_names
         # ---- interaction valence
         rng = sim.streams.gen("valence", day, block)
         chem = E["chemistry"][idx]
@@ -301,6 +312,12 @@ class Encounters:
         alpha = 1 - (1 - p("network.liking.learning_rate")) ** cnt
         E.cols["liking"][uniq] = np.clip(E["liking"][uniq] + alpha * (np.tanh(vmean) - E["liking"][uniq]), -1, 1)
         E.cols["hours"][uniq] += hrs
+        # where their time together goes (per tie and kind of place; bookkeeping for tracing)
+        slot = idx * 256 + ctx_eff
+        su, sinv = np.unique(slot, return_inverse=True)
+        last_rec = np.zeros(len(su), np.int64)
+        np.maximum.at(last_rec, sinv, np.arange(len(slot)))
+        note_time(E, su // 256, su % 256, place[last_rec], np.bincount(sinv, weights=dur))
         E.cols["hours_leisure"][uniq] += lhrs
         E.cols["n_inter"][uniq] += cnt.astype(np.int32)
         E.cols["last_day"][uniq] = day
@@ -352,5 +369,23 @@ class Encounters:
         # ---- salient conflicts leave a hurt that must be repaired
         bad = (v < -1.9) & (E["stage"][idx] >= 2)
         if bad.any():
-            sim.emit("conflict", a[bad], b=b[bad], value=v[bad], block=block, mech="encounter.valence")
+            ev = sim.emit("conflict", a[bad], b=b[bad], value=v[bad], block=block, mech="encounter.valence")
             E.cols["hurt"][idx[bad]] = np.clip(E["hurt"][idx[bad]] + p("relationship.hurt.conflict"), 0, 1)
+            link(sim, ev, "tie", keys[bad], 1.0, "the_tie")
+            cb, pb = ctx[bad], place[bad]
+            at = cb == occ_code
+            link(sim, ev[at], "occasion", pb[at], 1.0, "scene")
+            link(sim, ev[~at], "place", place_ref(ctx_eff[bad][~at], pb[~at]), 1.0, "scene")
+        # ---- what happened at occasions (the scene): conversations, first meetings, falling-outs
+        at = ctx == occ_code
+        if at.any():
+            oid, n_talk = np.unique(place[at], return_counts=True)
+            n_new = np.zeros(len(oid), np.int64)
+            if ni is not None:
+                met = ctx[jj] == occ_code
+                if met.any():
+                    np.add.at(n_new, np.searchsorted(oid, place[jj][met]), 1)
+            n_bad = np.zeros(len(oid), np.int64)
+            if (bad & at).any():
+                np.add.at(n_bad, np.searchsorted(oid, place[bad & at]), 1)
+            sim.book.note_scene(oid, talks=n_talk, new_ties=n_new, conflicts=n_bad)

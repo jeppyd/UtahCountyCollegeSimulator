@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| Claude Code (cloud) | 2026-10-18 | workbench, then scales | Took over `wip/workbench` (relay rule); one workstream at a time. |
+| Claude Code (cloud) | 2026-10-18 | scales | Workbench merged; now continuing `wip/scales` (relay rule). |
 
 ## The goal in one paragraph
 
@@ -63,7 +63,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | Foundation: ledgers (decisions, causes, occasions), 4-block clock, travel interface, contracts, auto-registered routers and workbench tools, CSV survey loader, privacy guard test | **done** | working branch | — |
 | [time-occasions](workstreams/time-occasions.md) (option B) | **done, merged** | working branch | open issues below |
 | [provenance-trace](workstreams/provenance-trace.md) | **done, merged** | working branch | open issues below |
-| [workbench](workstreams/workbench.md) | **in progress, paused** | `wip/workbench` (shell, shelf, selection bar, RefChip, layout persistence, Map and People tools, new navigation, workbench endpoints) | remaining tools: Life, Timeline, Measure, Ties, Place, Compare, Events, plus Occasion, Day and Act panels; Guide section; screenshots |
+| [workbench](workstreams/workbench.md) | **done, merged** | working branch | open issues below |
 | [scales](workstreams/scales.md) | **in progress, paused** | `wip/scales` (backend: anchors, units, how-measured for every person and tie field; /api/scales and /api/scales/value with live distributions; tests) | frontend: kit/Ruler.tsx, ScaleCard, `<Val>`, use on person/inner-life/Explore pages, Scales glossary tool |
 | [sexuality-survey](workstreams/sexuality-survey.md) (+ dealbreakers) | not started | — | needs the raw xlsx in `data/raw/` (owner supplies) |
 | [calendar-weather](workstreams/calendar-weather.md) | not started | — | after time-occasions is merged |
@@ -92,6 +92,10 @@ institutions, family-homes) can start now too, but coordinate: they touch the sa
   (employer flexibility). No workbench tool for occasions yet (endpoints exist: /api/occasion/{id}, /api/occasions,
   /api/person/{i}/day, /api/person/{i}/choice, /api/act/check, /api/act).
 - Builders' worktrees may start from `main`: merge the working branch first.
+- Workbench: the Measure tool has an empty `.bme-ruler-slot` (data-var) for scales' Ruler; Life/Measure history is
+  every two weeks (coarse). `/api/person/{i}/day` lists some class meetings twice (the Day tool de-duplicates). The
+  DecisionCard shows "Person 1005" instead of a name for the agent. Bench panels are placed at the first free spot,
+  so the order tools are added decides the layout.
 
 ## Open questions for the owner
 
@@ -111,6 +115,16 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-18 (late night, 2) — Claude Code (cloud session)
+- Took over and finished **workbench** (relay rule) and merged it: new tools Events, Life, Timeline, Measure, Ties,
+  Place, Compare, Occasion, Day and Act (web/src/bench/tools/), `useWidth` in kit/Bits.tsx, a "The workbench" section
+  in the guide, screenshots in docs/img/bench-*.png. `/api/cohort_timeline` takes `people` (hand-picked selection).
+  Fixed: routes_occasions/routes_act imported `WS` from `.server`, which under `python -m ucsim.api.server` is a
+  second, empty module (every occasion/day/act call said "universe 'base' not available"); they now use
+  routes_trace._server. Map tool was blank (maplibre's CSS made its container 0 px tall); fixed. 174 tests pass; web
+  build passes.
+- Next: scales (continue `wip/scales`), then calendar-weather and the rest in the order below.
 
 ### 2026-10-18 (late night) — Claude Code (cloud session)
 - Paused at the owner's request to save usage: multi-agent runs were too expensive. Two builders had pushed progress

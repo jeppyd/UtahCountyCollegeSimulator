@@ -183,8 +183,11 @@ export const QUICK: { label: string; conds: Cond[] }[] = [
   { label: 'In a faith crisis', conds: [{ var: 'faith_crisis', op: 'eq', value: true }] },
 ]
 
-function CondEditor({ onDone }: { onDone: () => void }) {
-  const { registry, addCond, cohort, setCohort } = useStore()
+/** Build one filter condition. By default it edits the app's cohort; with `onAdd` the conditions go to the caller
+ *  instead (the workbench's selection uses this). */
+export function CondEditor({ onDone, onAdd }: { onDone: () => void; onAdd?: (cs: Cond[]) => void }) {
+  const { registry, cohort, setCohort } = useStore()
+  const addCond = (c: Cond) => (onAdd ? onAdd([c]) : useStore.getState().addCond(c))
   const [mode, setMode] = useState<'var' | 'event' | 'quick'>('quick')
   const [v, setV] = useState('age')
   const spec = registry?.variables[v]
@@ -219,7 +222,7 @@ function CondEditor({ onDone }: { onDone: () => void }) {
       </div>
       {mode === 'quick' && (
         <div className="row">
-          {QUICK.map(q => <button key={q.label} className="btn small" onClick={() => { setCohort([...cohort, ...q.conds]); onDone() }}>{q.label}</button>)}
+          {QUICK.map(q => <button key={q.label} className="btn small" onClick={() => { if (onAdd) onAdd(q.conds); else setCohort([...cohort, ...q.conds]); onDone() }}>{q.label}</button>)}
         </div>
       )}
       {mode === 'var' && spec && (

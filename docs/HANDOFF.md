@@ -23,7 +23,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| Claude Code (cloud session) | 2026-10-18 17:23 | time-occasions, provenance-trace | Two builders finishing in a cloud container; their in-progress code is on branches `wip/time-occasions` and `wip/provenance` (not yet on GitHub — see *Open questions*). Don't start these two. |
+| Claude Code (cloud session) | 2026-10-18 18:40 | workbench, scales, sexuality-survey, calendar-weather, talk, travel | Six builders running in a cloud container, two at a time in this order. Claim something else (wave 2 needs these) or coordinate with the owner. |
 
 ## The goal in one paragraph
 
@@ -56,28 +56,42 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | Workstream | State | Where the code is | Next step |
 |---|---|---|---|
 | Foundation: ledgers (decisions, causes, occasions), 4-block clock, travel interface, contracts, auto-registered routers and workbench tools, CSV survey loader, privacy guard test | **done** | working branch | — |
-| [time-occasions](workstreams/time-occasions.md) (option B) | **almost done** | `wip/time-occasions` (10 WIP commits) | finishing in the cloud session: traditions, explain_choice, realism table, perf table |
-| [provenance-trace](workstreams/provenance-trace.md) | **almost done** | `wip/provenance` (18 WIP commits) | finishing in the cloud session: coverage goal, polish |
-| [workbench](workstreams/workbench.md) | not started | — | start after the two above are merged |
-| [scales](workstreams/scales.md) | not started | — | can start any time |
-| [sexuality-survey](workstreams/sexuality-survey.md) (+ dealbreakers) | not started | — | needs the raw xlsx in `data/raw/` (owner supplies) |
-| [calendar-weather](workstreams/calendar-weather.md) | not started | — | after time-occasions is merged |
-| [talk](workstreams/talk.md) (Ask + interviews) | not started | — | after provenance-trace is merged |
-| [travel](workstreams/travel.md) | not started | — | can start any time (keeps `ucsim/geo/travel.py`'s interface) |
+| [time-occasions](workstreams/time-occasions.md) (option B) | **done, merged** | working branch | open issues below |
+| [provenance-trace](workstreams/provenance-trace.md) | **done, merged** | working branch | open issues below |
+| [workbench](workstreams/workbench.md) | in progress (cloud session) | — | also add an Occasion/scene tool on /api/occasion |
+| [scales](workstreams/scales.md) | in progress (cloud session) | — | can start any time |
+| [sexuality-survey](workstreams/sexuality-survey.md) (+ dealbreakers) | in progress (cloud session) | — | needs the raw xlsx in `data/raw/` (owner supplies) |
+| [calendar-weather](workstreams/calendar-weather.md) | in progress (cloud session) | — | after time-occasions is merged |
+| [talk](workstreams/talk.md) (Ask + interviews) | in progress (cloud session) | — | after provenance-trace is merged |
+| [travel](workstreams/travel.md) | in progress (cloud session) | — | can start any time (keeps `ucsim/geo/travel.py`'s interface) |
 | [messaging](workstreams/messaging.md) (wave 2) | not started | — | after time-occasions |
 | [institutions](workstreams/institutions.md) (wave 2) | not started | — | after time-occasions + provenance |
 | [family-homes](workstreams/family-homes.md) (wave 2) | not started | — | after calendar-weather |
 | [survey-followups](workstreams/survey-followups.md) | audits designed, interrupted | — | needs the raw survey files in `data/raw/` |
 | [integration](workstreams/integration.md) | ongoing | — | after each merge |
 
-Independent enough to run at the same time as others: **scales**, **travel**, **sexuality-survey**. Everything else
-waits for time-occasions and provenance-trace to be merged (they change the day's structure and how reasons are
-recorded).
+Time-occasions and provenance-trace are merged, so everything in wave 1 can proceed. Wave 2 (messaging,
+institutions, family-homes) can start now too, but coordinate: they touch the same systems as the running builders.
+
+**Known open issues after the merge** (for integration):
+- Full world is **2.28 s per simulated day** (was 1.6): encounters 0.83 s (the fourth block), activity 0.36, recorder
+  0.34, romance 0.24, occasions 0.23. Ledgers at full scale grow ~20k decisions and ~20k invitations a day; with
+  120 days of full detail that is a few hundred MB — reduce `sim.detail_days` or compact before long full-scale runs.
+- Cause coverage on the merged code: 99% of events, 95% of salient ones (`scripts/provenance_coverage.py`); gaps:
+  `ghosted`, `ncmo`, `premarital_sex` (the sexuality builder's romance functions), `illness`, `app_match`.
+- Social events per month now match ProvoStats for singles (≈ 8); engaged students run high (≈ 6.5 vs 4.8); the
+  couple-time strengths were fitted to these rows, so they are no longer an independent check. Student loneliness fell
+  0.30 → 0.26 as social life rose (no loneliness validation row exists).
+- `scripts/validate.py` wasn't re-run end to end (it rewrites docs/VALIDATION.md); do that in integration.
+- Placeholders for wave 2: `occasions.deliver(inv_ids, channel)` (messaging), `occasions.shift_flex(people, day)`
+  (employer flexibility). No workbench tool for occasions yet (endpoints exist: /api/occasion/{id}, /api/occasions,
+  /api/person/{i}/day, /api/person/{i}/choice, /api/act/check, /api/act).
+- Builders' worktrees may start from `main`: merge the working branch first.
 
 ## Open questions for the owner
 
-1. May agents push work-in-progress branches (`wip/<workstream>`) to GitHub? Without that, half-finished work done in
-   one agent's environment can't be picked up by another until it is merged into the working branch.
+1. (asked 2026-10-18) May agents push work-in-progress branches (`wip/<workstream>`) to GitHub? Until the owner says
+   yes, unfinished work stays in the environment where it was made and becomes visible when merged.
 
 ## Environment notes
 
@@ -90,6 +104,16 @@ recorded).
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-18 (evening) — Claude Code (cloud session)
+- Merged **time-occasions** (four-block day; shifts with clock times; occasions with hosting, invitations, noticing,
+  feasibility with travel and lateness, attendance, no-shows, walk-ins; dates and dances as occasions; weekly
+  traditions that pass to housemates or end; social actions as editor and as a person; explain_choice; endpoints) and
+  **provenance-trace** (decisions with factors across romance, friendship, plans, coping, economy, housing, faith,
+  life course, academics; typed causes; tie "where their time together accrued"; scene counts; the trace engine and
+  chains; Trace and Chains tools; DecisionCard). One trivial conflict (faith.py imports). 168 tests pass; web build
+  passes; coverage 99%; full scale 2.28 s/day.
+- Launched the remaining six wave-1 builders.
 
 ### 2026-10-18 — Claude Code (cloud session)
 - Assessed the project and proposed the iteration-6 plan (owner chose the directions above).

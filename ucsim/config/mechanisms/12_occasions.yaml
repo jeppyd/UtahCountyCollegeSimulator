@@ -109,3 +109,20 @@ mechanisms:
     timescale: block
     evidence: hypothetical
     desc: "The day now has two evening blocks; most outings started at 6 pm carry on past 8:15, so the evening's social exposure matches the old single evening."
+  occasions.action:
+    label: How people respond to what a user arranges (social actions)
+    target: social_events_month
+    sources: [financial_stress, academic_pressure, employed, extraversion, loneliness, hurt]
+    form: "Social actions (engine/systems/social_actions.py) are opportunities; people still decide. An introduction adds introduced to logit(go); an offered ride adds ride (and makes the trip a car trip); a nudge to reach out: logit = reach_base + 2·closeness + 0.4·E + 0.8·approach − 2·hurt; a job offer: logit(take) = job_base + job_money·(financial stress − 0.4) − job_school·academic pressure·[enrolled]·hours/20 − job_has_job·[already working] − job_hours·hours over 20 (students) or 40; a student whose classes leave no room for half the hours can't take it."
+    params:
+      introduced: {value: 1.0, range: [0.0, 2.0]}
+      ride: {value: 0.3, range: [0.0, 1.0]}
+      reach_base: {value: -0.5, range: [-2.0, 1.0]}
+      job_base: {value: 0.5, range: [-1.0, 2.0]}
+      job_money: {value: 2.0, range: [0.5, 3.0]}
+      job_school: {value: 1.0, range: [0.0, 2.0]}
+      job_has_job: {value: 1.5, range: [0.5, 3.0]}
+      job_hours: {value: 0.08, range: [0.0, 0.2]}
+    timescale: event
+    evidence: hypothetical
+    desc: "Responses to user-arranged opportunities use the same factors as the engine's own decisions where they exist; the strengths of the new ones are hypothetical."

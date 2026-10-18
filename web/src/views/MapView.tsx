@@ -34,7 +34,7 @@ type Mode = 'people' | 'homes' | 'complexes' | 'wards' | 'day' | 'months'
 const MODE_LABEL: Record<Mode, string> = { people: 'Right now', homes: 'Homes', complexes: 'Complexes', wards: 'Wards', day: '▶ A day', months: '▶ Over months' }
 // measures exported for the read-only snapshot's months replay (keep in sync with scripts/export_static.py)
 const STATIC_FRAME_VARS = ['rel_status', 'activity', 'living', 'affiliation', 'loneliness', 'faith_belief', 'outsider']
-const DAY_LABELS = ['8 am · classes and work', '1 pm · afternoon', '6 pm · evenings out', 'Night · home']
+const DAY_LABELS = ['Morning · 8 am–12:30', 'Afternoon · 12:30–5:30', 'Evening · 5:30–8:15', 'Late evening · 8:15–11:30', 'Night · home']
 const MODE_HINT: Record<Mode, string> = {
   day: 'Replays the last full simulated day: watch everyone glide from home to class and work, out for the evening, and home again. Colors show what each person is doing.',
   months: 'Replays the weeks so far, one snapshot every two weeks: homes colored by the measure you pick. Watch couples move in together, faith shift, loneliness spread or ease.',
@@ -139,7 +139,7 @@ export default function MapView({ initial }: { initial?: string }) {
       if (mode === 'day') {
         const f = await api.dayFrames(universe)
         const { mask } = await cohortMask(cohort, universe)
-        if (alive) { setPb({ kind: 'day', f, K: 4, mask, date: f.day?.meta?.date }); setT(0) }
+        if (alive) { setPb({ kind: 'day', f, K: DAY_LABELS.length, mask, date: f.day?.meta?.date }); setT(0) }
       } else {
         const info = await api.historyInfo(universe)
         if (alive) setTracked({ cat: info.categorical, num: info.numeric })
@@ -369,8 +369,8 @@ export default function MapView({ initial }: { initial?: string }) {
               <>
                 <div className="pb-row">
                   <button className="btn small primary" onClick={() => setPlaying(!playing)} style={{ minWidth: 70 }}>{playing ? '⏸ Pause' : '▶ Play'}</button>
-                  <span className="pb-label">{pb.kind === 'day' ? DAY_LABELS[Math.round(t) % 4] : new Date((pb.dates[Math.min(Math.round(t), pb.K - 1)] ?? pb.dates[0]) + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                  <input type="range" min={0} max={pb.kind === 'day' ? 3.99 : pb.K - 1} step={0.01} value={t} onChange={e => { setPlaying(false); setT(Number(e.target.value)) }} aria-label="Playback position" />
+                  <span className="pb-label">{pb.kind === 'day' ? DAY_LABELS[Math.round(t) % DAY_LABELS.length] : new Date((pb.dates[Math.min(Math.round(t), pb.K - 1)] ?? pb.dates[0]) + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                  <input type="range" min={0} max={pb.kind === 'day' ? DAY_LABELS.length - 0.01 : pb.K - 1} step={0.01} value={t} onChange={e => { setPlaying(false); setT(Number(e.target.value)) }} aria-label="Playback position" />
                   <div className="seg small-seg">{[0.5, 1, 2, 4].map(s => <button key={s} className={speed === s ? 'on' : ''} onClick={() => setSpeed(s)}>{s}×</button>)}</div>
                 </div>
                 <div className="small muted" style={{ marginTop: 4 }}>

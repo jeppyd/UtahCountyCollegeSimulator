@@ -305,7 +305,10 @@ class Occasions:
             lat = np.where(camp, np.where(byu, BYU[1] + 0.0018, UVU[1] - 0.0008), lat)
         # the host has to be free: move it later (up to the kind's latest start) to fit a shift or a class
         f = self._feasible(h, tday, start, dur, lon, lat, host=True)
-        start2 = np.where(f["conflict"] | (f["free_from"] > start - 15), _rup15(f["free_from"] + 30), start).astype(np.int32)
+        # (something starting during it can't be fixed by moving it later: then they don't host that day)
+        move = (f["conflict"] | (f["free_from"] > start - 15)) & (f["free_from"] >= 0)
+        start2 = np.where(move, np.maximum(_rup15(f["free_from"] + 30), start), start).astype(np.int32)
+        dur = np.minimum(dur, 24 * 60 - start2)          # wrapped up by midnight
         ok = start2 <= self.k_latest[kind]
         f2 = self._feasible(h, tday, start2, dur, lon, lat, host=True)
         ok &= ~f2["conflict"]
@@ -684,6 +687,8 @@ class Occasions:
         origin = np.full(k, -1, np.int8)
         blocker = np.full(k, -1, np.int8)
         blocker_end = np.full(k, -1, np.int32)
+        leave_for = np.full(k, -1, np.int8)        # what they'd leave early for (a shift, a class, a date…), and when
+        leave_at = np.full(k, -1, np.int32)
         if k:
             r, cs, ce, cl, ct, ck = self._commitments(persons, day, occ if occ is None else np.broadcast_to(np.asarray(occ, np.int64), (k,)), host)
             flex = ck == KIND_C["occasion"]
@@ -715,7 +720,13 @@ class Occasions:
                     blocker_end[rb[late_block]] = ceb[late_block]
                 during = ~covers & (cs >= s_r) & (cs < e_r)
                 if during.any():
-                    np.minimum.at(leave_by, r[during], cs[during] - 15)
+                    rd, csd, ckd = r[during], cs[during], ck[during]
+                    o = np.lexsort((csd, rd))               # the earliest thing they'd have to leave for
+                    rd, csd, ckd = rd[o], csd[o], ckd[o]
+                    first = np.r_[True, rd[1:] != rd[:-1]]
+                    np.minimum.at(leave_by, rd, csd - 15)
+                    leave_for[rd[first]] = ckd[first]
+                    leave_at[rd[first]] = csd[first]
         # travel
         travel = np.zeros(k, np.float32)
         mode = np.full(k, -1, np.int8)
@@ -741,7 +752,8 @@ class Occasions:
         late = np.clip(arrive - start, 0, None)
         return {"ok": ~conflict & ~cant, "conflict": conflict, "cant": cant, "arrive": arrive.astype(np.int32),
                 "leave": np.minimum(end, leave_by).astype(np.int32), "late": late.astype(np.int32), "travel": travel,
-                "mode": mode, "free_from": free_from, "origin": origin, "blocker": blocker, "blocker_end": blocker_end}
+                "mode": mode, "free_from": free_from, "origin": origin, "blocker": blocker, "blocker_end": blocker_end,
+                "leave_for": leave_for, "leave_at": leave_at}
 
     # ------------------------------------------------------------------ today's attendance
     def resolve(self):
@@ -1157,6 +1169,7 @@ class Occasions:
         early = (lv - dur - 15) // 15 * 15
         early = np.where(early >= np.maximum(12 * 60 if wd >= 5 else 15 * 60, ff + 30), early, pref)
         start = np.where(ok_l, later, early).astype(np.int32)
+        dur = np.minimum(dur, 24 * 60 - start)       # home by midnight
         f2 = self._feasible(both, day, two(start), two(dur), two(lon), two(lat), firm=True)
         ill = P["ill"][both]
         # a date needs the whole stretch: nobody leaves early for a class or a shift, nobody comes very late
@@ -1524,15 +1537,23 @@ class Occasions:
         bk, be = int(f["blocker"][j]), int(f["blocker_end"][j])
         mode = MODES[int(f["mode"][j])] if f["mode"][j] >= 0 else None
         trip = f"a {int(round(f['travel'][j]))}-minute trip" + (f" by {mode}" if mode else "")
+        lf, la = int(f["leave_for"][j]), int(f["leave_at"][j])
         if f["conflict"][j]:
-            return f"{self._BLOCKER.get(bk, 'is busy')} until {clock.hhmm(be)}" if bk >= 0 and be >= 0 else "busy the whole time"
+            if bk >= 0 and be >= 0:
+                return f"{self._BLOCKER.get(bk, 'is busy')} until {clock.hhmm(be)}"
+            if lf >= 0:
+                return f"{self._BLOCKER.get(lf, 'is busy')} from {clock.hhmm(la)}, so there's hardly any time"
+            return "busy the whole time"
         if f["cant"][j]:
             return f"no way to get there in time ({trip})"
         if f["late"][j] > 10:
             what = self._BLOCKER.get(bk, "is busy") if bk >= 0 else "the trip"
             return f"would be {int(f['late'][j])} minutes late ({what} until {clock.hhmm(be)}, then {trip})" if bk >= 0 else \
                 f"would be {int(f['late'][j])} minutes late ({trip})"
-        return f"free ({trip})" if f["travel"][j] > 0 else "free"
+        if lf >= 0:
+            leave = f"has to leave at {clock.hhmm(int(f['leave'][j]))} ({self._BLOCKER.get(lf, 'something else')} at {clock.hhmm(la)})"
+            return f"free, but {leave}" if f["travel"][j] < 1 else f"free ({trip}), but {leave}"
+        return f"free ({trip})" if f["travel"][j] >= 1 else "free"
 
     def free_window(self, i: int, day: int) -> list[dict]:
         """Free stretches of a person's day between 8 am and 11:30 pm (firm commitments only)."""

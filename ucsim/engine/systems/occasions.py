@@ -76,7 +76,9 @@ class Occasions:
         self.book = sim.book
         self.series_members: dict[int, list] = {}    # series id -> attendee arrays of its last instances (regulars)
         self.rides: dict[tuple[int, int], int] = {}  # (occasion, rider) -> driver (offered rides)
-        self.max_lead = 7                             # longest planning lead time seen (days); user actions extend it
+        self.max_lead = 7                             # longest planning lead time seen (days); see _mark_day
+        self._first_ids: dict[int, tuple[int, int]] = {}    # day -> first (occasion, invitation) id made that day
+        self._seen_occ_id, self._seen_day = 0, 0
         self.occ_extra: dict[int, dict] = {}          # occasion id -> extra attend_occasion factors (user actions)
         self.introductions: dict[int, tuple] = {}     # occasion id -> (a, b, introducer, action index)
         self._aud_cache: dict[tuple[int, int], np.ndarray] = {}
@@ -676,13 +678,13 @@ class Occasions:
         if O.n:
             # rows are appended in time order: only occasions created (and invitations sent) within the longest lead
             # time before these days can be on them
-            since = int(dset[0]) - self.max_lead - 1
-            o0 = int(np.searchsorted(O["created_day"], since))
+            since = min(int(dset[0]), self.sim.w.day) - self.max_lead - 1
+            o0 = self._since_pos(0, since)
             live = np.isin(O["day"][o0:], dset) & (O["status"][o0:] == STATUS_ID["planned"])
             if live.any():
                 oids = O["id"][o0:][live]
                 org = O["organizer"][o0:][live].astype(np.int64)
-                i0 = int(np.searchsorted(I["sent_day"], since)) if I.n else 0
+                i0 = self._since_pos(1, since) if I.n else 0
                 yes_i = (I["response"][i0:] == RESPONSE_ID["yes"]) & np.isin(I["occ"][i0:], oids) if I.n else np.zeros(0, bool)
                 c_person = np.r_[org, I["person"][i0:][yes_i].astype(np.int64)] if I.n else org
                 c_occ = np.r_[oids, I["occ"][i0:][yes_i]] if I.n else oids
@@ -898,12 +900,13 @@ class Occasions:
         I = book.inv
         if not I.n:
             return
-        m = np.isin(I["occ"], live) & (I["response"] == RESPONSE_ID["yes"]) & ~I["walk_in"]
+        i0 = self._inv_since()
+        m = np.isin(I["occ"][i0:], live) & (I["response"][i0:] == RESPONSE_ID["yes"]) & ~I["walk_in"][i0:]
         if not m.any():
             return
-        inv = I["id"][m]
-        person = I["person"][m].astype(np.int64)
-        occ = I["occ"][m].astype(np.int64)
+        inv = I["id"][i0:][m]
+        person = I["person"][i0:][m].astype(np.int64)
+        occ = I["occ"][i0:][m].astype(np.int64)
         c = self._occ_cols(occ)
         o_org = c["organizer"].astype(np.int64)
         rides = self._ride_driver(occ, person) != -1
@@ -912,7 +915,7 @@ class Occasions:
                            firm=c["kind"] == self.date_code)
         ill = P["ill"][person] | ~P["present"][person]
         close = np.where(o_org >= 0, sim.systems["encounters"]._closeness(person, np.maximum(o_org, 0)), 0.5)
-        ago = day - I["decided_day"][m]
+        ago = day - I["decided_day"][i0:][m]
         F = {"days_ahead": -p("occasions.show_up.days_ahead") * np.maximum(ago, 0), "tired": -1.0 * P["fatigue"][person],
              "close_organizer": 1.0 * close}
         base = np.full(len(person), p("occasions.show_up.base"))
@@ -1166,6 +1169,37 @@ class Occasions:
             self.book.attend(occ[fresh], who[fresh], arrive=arrive, day=self.sim.w.day,
                              inv_ids=self._inv_lookup(occ[fresh], who[fresh]))
 
+    def _mark_day(self):
+        """Once a day, before anything new is planned: where today's rows begin in the occasion and invitation tables
+        (rows are appended in time order), and how far ahead anything planned since the last mark is (a calendar event
+        may be planned weeks ahead), so lookups can skip what is too old to matter without trusting `created_day` or
+        `sent_day` values other systems wrote."""
+        day = self.sim.w.day
+        if day in self._first_ids:
+            return
+        O, I = self.book.occ, self.book.inv
+        p0 = int(np.searchsorted(O.ids[: O.n], self._seen_occ_id))
+        if p0 < O.n:
+            self.max_lead = max(self.max_lead, int(O.cols["day"][p0: O.n].max()) - self._seen_day + 1)
+        self._seen_occ_id, self._seen_day = O.next_id, day
+        self._first_ids[day] = (O.next_id, I.next_id)
+        for d in [d for d in self._first_ids if d < day - 400]:
+            del self._first_ids[d]
+
+    def _since_pos(self, which: int, since_day: int) -> int:
+        """Row position in the occasion (0) or invitation (1) table of the first row made on `since_day` or later."""
+        self._mark_day()
+        T = self.book.occ if which == 0 else self.book.inv
+        first = [v[which] for d, v in self._first_ids.items() if d >= since_day]
+        if not first or min(self._first_ids) > since_day:
+            return 0
+        return int(np.searchsorted(T.ids[: T.n], min(first)))
+
+    def _inv_since(self) -> int:
+        """First invitation row that can belong to today's occasions (nothing is planned more than max_lead days
+        ahead)."""
+        return self._since_pos(1, self.sim.w.day - self.max_lead - 1) if self.book.inv.n else 0
+
     def _inv_lookup(self, occ: np.ndarray, people: np.ndarray) -> np.ndarray:
         """The invitation row for each (today's occasion, person), −1 if none (the latest wins), like book._find_inv but
         searching only the invitations sent within the longest lead time (rows are appended in time order)."""
@@ -1173,7 +1207,7 @@ class Occasions:
         occ, people = np.asarray(occ, np.int64), np.asarray(people, np.int64)
         if not I.n or not len(occ):
             return np.full(len(occ), -1, np.int64)
-        i0 = int(np.searchsorted(I["sent_day"], self.sim.w.day - self.max_lead - 1))
+        i0 = self._inv_since()
         key_have = (I["occ"][i0:].astype(np.int64) << 24) ^ I["person"][i0:].astype(np.int64)
         order = np.argsort(key_have, kind="stable")
         ks = key_have[order]
@@ -1312,8 +1346,9 @@ class Occasions:
             org = O["organizer"][m].astype(np.int64)
             org_came = np.zeros(len(ids), bool)
             if I.n:
-                att = I["attended"] & np.isin(I["occ"], ids)
-                ao, ap = I["occ"][att], I["person"][att]
+                i0 = self._inv_since()
+                att = I["attended"][i0:] & np.isin(I["occ"][i0:], ids)
+                ao, ap = I["occ"][i0:][att], I["person"][i0:][att]
                 key = (ao.astype(np.int64) << 24) ^ ap.astype(np.int64)
                 org_came = np.isin((ids << 24) ^ np.maximum(org, 0), key)
             happened = np.where(org >= 0, org_came & (came >= 2), came >= 1)
@@ -1483,10 +1518,11 @@ class Occasions:
         I = self.book.inv
         if not len(ids) or not I.n:
             return
-        m = I["attended"] & np.isin(I["occ"], ids)
+        i0 = self._inv_since()
+        m = I["attended"][i0:] & np.isin(I["occ"][i0:], ids)
         if m.any():
-            P.internal["occ_last_kind"][I["person"][m]] = self.kind_of(I["occ"][m])
-            P.internal["occ_last_day"][I["person"][m]] = self.sim.w.day
+            P.internal["occ_last_kind"][I["person"][i0:][m]] = self.kind_of(I["occ"][i0:][m])
+            P.internal["occ_last_day"][I["person"][i0:][m]] = self.sim.w.day
 
     # ------------------------------------------------------------------ weekly series
     def _series(self, day: int, wd: int):

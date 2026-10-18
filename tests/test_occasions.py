@@ -222,6 +222,24 @@ def test_a_date_right_after_a_shift_happens(fresh):
     assert sorted(sim.book.attendees(oid).tolist()) == sorted([a, b])
 
 
+def test_plans_made_weeks_ahead_still_count(fresh):
+    """Something planned three weeks ahead by another system (without a created_day) still fills that evening when
+    the day comes near: lookups skip only rows too old to matter, whatever days other systems wrote on them."""
+    sim = copy.deepcopy(fresh)
+    sim.run_days(1)
+    occ, book, P = sim.systems["occasions"], sim.book, sim.w.P
+    far = sim.w.day + 21
+    i = int(np.where(P["present"] & (P["unit_id"] >= 0) & ~P["employed"] & ~P["enrolled"])[0][0])
+    u = int(P["unit_id"][i])
+    lon, lat = float(sim.w.units.lon[u]), float(sim.w.units.lat[u])
+    book.plan("dinner", far, 19 * 60, 120, organizer=i, org_kind="household", ctx=CTX_ID["occasion"], place=u, lon=lon,
+              lat=lat, origin="engine")
+    sim.run_days(16)
+    c = occ.check_window([i], far, 19 * 60 + 30, 60, lon, lat)
+    assert not c["feasible"][0] and "hosting" in c["reason"][0]
+    assert occ.max_lead >= 21
+
+
 def test_couples_and_quiet_evenings_show_in_the_choice(ran):
     """Free-time terms for the two evening blocks: a serious relationship pulls evenings away from friends, and someone
     who stayed in for the early evening rarely heads out after 8:15."""

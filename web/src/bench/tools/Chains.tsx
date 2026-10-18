@@ -20,6 +20,8 @@ const WINDOWS: { k: string; label: string; days?: number }[] = [
   { k: 'all', label: 'The whole story' }, { k: 'sel', label: 'Selected time' },
 ]
 
+const sharePct = (s: number) => (s > 0 && s < 0.005 ? 'under 1%' : `${Math.round(s * 100)}%`)
+
 /** A flow node's words. A choice leads with what was chosen, so a cut-off label still says it:
  *  "◆ withdrawal: how to cope with a hard stretch". */
 function nodeText(d: { kind: string; text: string }) {
@@ -178,7 +180,7 @@ function Reason({ r, open, onToggle, onDecision, openDec, u, startDate, onTrace 
     <div className="ch-reason" style={{ marginBottom: 6 }}>
       <button className="ch-rs" onClick={onToggle} aria-expanded={open}>{r.sentence}</button>
       <div className="ch-shares" aria-hidden="true">
-        {r.top.map((t: any, k: number) => <span key={k} style={{ width: `${t.share * 100}%`, background: t.factor ? colors[k % colors.length] : 'var(--axis)' }} title={`${t.words}: ${Math.round(t.share * 100)}%`} />)}
+        {r.top.map((t: any, k: number) => <span key={k} style={{ width: `${t.share * 100}%`, background: t.factor ? colors[k % colors.length] : 'var(--axis)' }} title={`${t.words}: ${sharePct(t.share)}`} />)}
       </div>
       {open && (
         <>
@@ -186,7 +188,7 @@ function Reason({ r, open, onToggle, onDecision, openDec, u, startDate, onTrace 
             {r.top.map((t: any, k: number) => (
               <span key={k} style={{ display: 'contents' }}>
                 <span><i style={{ background: t.factor ? colors[k % colors.length] : 'var(--axis)' }} />{t.words}{t.factor && t.label !== t.words ? <span className="muted"> ({t.label})</span> : null}</span>
-                <span className="tabular" style={{ textAlign: 'right' }}>{Math.round(t.share * 100)}%</span>
+                <span className="tabular" style={{ textAlign: 'right' }}>{sharePct(t.share)}</span>
               </span>
             ))}
           </div>

@@ -4,6 +4,7 @@
 // for more of its causes; click a name to select or trace that person.
 import { useEffect, useId, useMemo, useRef, useState, type MouseEvent as RMouseEvent } from 'react'
 import { api, traceApi, type TraceGraph, type TraceLink, type TraceNode, type TraceRef } from '../../api'
+import { Decomposition } from '../../components'
 import { useAsync } from '../../game'
 import { DecisionCard } from '../../kit/DecisionCard'
 import { clockLabel, dayLabel, gapWords, refString, TRACEABLE } from '../../kit/traceRefs'
@@ -636,8 +637,28 @@ function Facts({ n, names }: { n: TraceNode; names: Map<number, string> }) {
       if (d.value !== undefined && d.value !== 0) rows.push(['Recorded value', String(d.value)])
       break
   }
-  if (!rows.length) return null
-  return <dl className="tr-facts">{rows.map(([a, b]) => <div key={a}><dt>{a}</dt><dd>{b}</dd></div>)}</dl>
+  if (d.met_here) rows.push(['Pairs who met here', String(d.met_here)])
+  const parts: { label: string; value: number; evidence?: string }[] = d.decomposition ?? []
+  const why: { label: string; share: number }[] = d.why_came ?? []
+  if (!rows.length && !parts.length && !why.length && !d.note) return null
+  return (
+    <>
+      {rows.length > 0 && <dl className="tr-facts">{rows.map(([a, b]) => <div key={a}><dt>{a}</dt><dd>{b}</dd></div>)}</dl>}
+      {parts.length > 0 && (
+        <div className="tr-links">
+          <div className="tr-links-h">How it breaks down today</div>
+          <Decomposition rows={parts.map(p => ({ label: p.label, value: p.value, evidence: p.evidence }))} />
+        </div>
+      )}
+      {why.length > 0 && (
+        <div className="tr-links">
+          <div className="tr-links-h">Most common reasons in the decisions to go</div>
+          {why.map(w => <div key={w.label} className="small">{w.label} <span className="muted">· in {Math.round(w.share * 100)}%</span></div>)}
+        </div>
+      )}
+      {d.note && <p className="muted small" style={{ margin: 0 }}>{d.note}</p>}
+    </>
+  )
 }
 
 function Empty({ u, onPick }: { u: 'base' | 'alt'; onPick: (id: number, name: string) => void }) {

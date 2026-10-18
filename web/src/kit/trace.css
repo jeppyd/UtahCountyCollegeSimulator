@@ -149,8 +149,8 @@
 .ch-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .ch-h { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin: 2px 0 4px; }
 .ch-ex { display: flex; flex-direction: column; gap: 3px; }
-.ch-ex button { text-align: left; border: 1px solid var(--border); background: var(--surface-1); border-radius: 7px; padding: 5px 8px; cursor: pointer; font-size: 12px; line-height: 1.35; }
-.ch-ex button:hover { border-color: var(--accent); }
+.ch-ex > button, .ch-ex > div > button { text-align: left; border: 1px solid var(--border); background: var(--surface-1); border-radius: 7px; padding: 5px 8px; cursor: pointer; font-size: 12px; line-height: 1.35; }
+.ch-ex > button:hover, .ch-ex > div > button:hover { border-color: var(--accent); }
 .ch-ex .muted { font-size: 11px; }
 .ch-reason { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; background: var(--surface-1); display: flex; flex-direction: column; gap: 6px; }
 .ch-reason > button.ch-rs { border: 0; background: none; text-align: left; padding: 0; cursor: pointer; font-size: 12.5px; line-height: 1.4; color: var(--text-primary); }

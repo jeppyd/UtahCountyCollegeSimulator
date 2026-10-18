@@ -9,7 +9,7 @@ __pycache__/
 .pytest_cache/
 *.egg-info/
 .venv/
-web/node_modules/
+web/node_modules
 web/dist/
 static_export/
 web/dist-static/
@@ -28,3 +28,6 @@ ucsim/_build_version.py
 /surveys/
 /raw/
 *.sav
+
+# parallel builders' isolated checkouts (Claude Code worktrees)
+.claude/worktrees/

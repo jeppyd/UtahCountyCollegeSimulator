@@ -143,7 +143,7 @@ def events_frame(sim: Simulation) -> pl.DataFrame:
     return pl.DataFrame({
         "event_id": np.arange(log.n), "day": log["day"], "block": log["block"], "type": names[log["type"]],
         "a": log["a"], "b": log["b"], "place": log["place"], "value": log["value"], "cause": log["cause"],
-        "mechanism": mech[log["mech"]],
+        "mechanism": mech[log["mech"]], "decision": log["decision"],
     })
 
 

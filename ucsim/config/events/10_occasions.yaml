@@ -1,0 +1,70 @@
+# Events from the occasions system (engine/systems/occasions.py) and social actions.
+# Same fields as events.yaml. Magnitudes are hypothetical (small, short-lived), in line with similar social events.
+events:
+  hosting_strain:
+    label: Worn out from hosting
+    story: "{a} was worn out after hosting"
+    category: social
+    salience: 0.3
+    effects:
+      - {var: fatigue, mag: 0.04, sd: 0.3, half_life: 2}
+      - {var: stress, mag: 0.02, sd: 0.4, half_life: 3}
+    evidence: hypothetical
+    desc: "Hosting takes time and energy (and money for food). Emitted when the host's burden — guests, a shift the same day, exams, money worries, tiredness — passes a threshold."
+  low_turnout:
+    label: Hardly anyone came
+    story: "Hardly anyone came to {a}'s get-together"
+    category: social
+    salience: 0.35
+    effects:
+      - {var: mood, mag: -0.03, sd: 0.4, half_life: 3}
+      - {var: belonging, mag: -0.02, sd: 0.4, half_life: 7}
+    evidence: hypothetical
+    desc: "A host invited three or more people and at most one came."
+  tradition_started:
+    label: Started a weekly tradition
+    story: "{a} made it a weekly thing"
+    category: social
+    salience: 0.45
+    effects:
+      - {var: belonging, mag: 0.02, sd: 0.3, half_life: 14}
+      - {var: purpose, mag: 0.01, sd: 0.4, half_life: 14}
+    evidence: hypothetical
+    desc: "A get-together that went well became a weekly series (Sunday dinner, game night, study group)."
+  tradition_passed_on:
+    label: Took over a weekly tradition
+    story: "{a} took over the weekly get-together from {b}"
+    category: social
+    salience: 0.45
+    effects:
+      - {var: belonging, mag: 0.02, sd: 0.3, half_life: 14}
+    evidence: hypothetical
+    desc: "The host of a weekly series moved out and a resident who came regularly kept it going."
+  tradition_ended:
+    label: A weekly tradition ended
+    story: "{a}'s weekly get-together ended"
+    category: social
+    salience: 0.4
+    effects:
+      - {var: mood, mag: -0.02, sd: 0.4, half_life: 5}
+      - {var: belonging, mag: -0.01, sd: 0.4, half_life: 10}
+    evidence: hypothetical
+    desc: "The host stopped it (turnout, burden) or moved out and no one took it over."
+  introduced:
+    label: Got introduced
+    story: "{a} was introduced to {b}"
+    category: social
+    salience: 0.3
+    effects:
+      - {var: mood, mag: 0.01, sd: 0.4, half_life: 2}
+    evidence: hypothetical
+    desc: "Someone set up a meeting between two people (a social action)."
+  reached_out:
+    label: Reached out
+    story: "{a} reached out to {b}"
+    category: social
+    salience: 0.3
+    effects:
+      - {var: loneliness, mag: -0.01, sd: 0.4, half_life: 5}
+    evidence: hypothetical
+    desc: "A deliberate message or visit to someone they know (a social action)."

@@ -3,8 +3,14 @@ from __future__ import annotations
 
 import numpy as np
 
+from ..provenance import latest_between, latest_event, link, tie_story_causes
 from ..state import Tie
 from .encounters import activation
+
+# changes in a life that can pull friends apart (looked up as the context of a fading friendship)
+LIFE_CHANGES = ("moved", "mission_departure", "mission_call", "left_area", "graduation", "dropout", "wedding", "engaged",
+                "relationship_started", "job_found", "quit_job", "job_lost", "birth", "stopped_attending",
+                "disaffiliated", "depressive_episode_start", "breakup_initiated", "breakup_received")
 
 
 class Network:
@@ -87,18 +93,24 @@ class Network:
             down = (stage == 4) & (new_stage < 4) & ~romantic
             pres = P["present"]
             if up3.any():
-                m = up3 & pres[lo] & pres[hi]
-                sim.emit("new_friend", lo[m], b=hi[m], block=2, mech="network.stage")
-                sim.emit("new_friend", hi[m], b=lo[m], block=2, mech="network.stage")
+                m = np.flatnonzero(up3 & pres[lo] & pres[hi])
+                ev = sim.emit("new_friend", lo[m], b=hi[m], block=2, mech="network.stage")
+                sim.emit("new_friend", hi[m], b=lo[m], cause=ev, block=2, mech="network.stage")
                 P.internal["new_friend_days"][lo[m]] = day
                 P.internal["new_friend_days"][hi[m]] = day
+                self._why_closer(ev, m, lo, hi)
+                tie_story_causes(sim, ev, m)
             if up4.any():
-                m = up4 & pres[lo] & pres[hi]
-                sim.emit("close_friend", lo[m], b=hi[m], block=2, mech="network.stage")
-                sim.emit("close_friend", hi[m], b=lo[m], block=2, mech="network.stage")
+                m = np.flatnonzero(up4 & pres[lo] & pres[hi])
+                before = latest_between(sim, lo[m], hi[m], ("new_friend",), 0)
+                ev = sim.emit("close_friend", lo[m], b=hi[m], cause=before, block=2, mech="network.stage")
+                sim.emit("close_friend", hi[m], b=lo[m], cause=ev, block=2, mech="network.stage")
+                self._why_closer(ev, m, lo, hi)
             if down.any():
-                m = down & pres[lo] & pres[hi]
-                sim.emit("friendship_faded", lo[m], b=hi[m], block=2, mech="network.closeness")
+                m = np.flatnonzero(down & pres[lo] & pres[hi])
+                before = latest_between(sim, lo[m], hi[m], ("close_friend",), 0)
+                ev = sim.emit("friendship_faded", lo[m], b=hi[m], cause=before, block=2, mech="network.closeness")
+                self._why_apart(ev, m, lo, hi)
         # forgetting: drop weak, unflagged ties whose memory activation decayed
         keep_flags = Tie.ROMANTIC | Tie.SPOUSE | Tie.FAMILY | Tie.EX | Tie.DATED | Tie.KISSED | Tie.NCMO | Tie.SEXUAL
         forget = (new_stage <= 1) & (fam < p("network.forget.activation")) & ((flags & keep_flags) == 0)
@@ -132,6 +144,42 @@ class Network:
         mask = (st >= 2)
         self.adj = E.csr(mask, nn)
         self.adj_close = E.csr(st >= 3, nn)
+
+    # ------------------------------------------------------------------ provenance
+    def _why_closer(self, ev, eix, lo, hi):
+        """A friendship's reasons, on the closeness scale the weekly update uses: hours together, liking, confiding,
+        shared experiences and unrepaired hurt (relationship.history), each as a typed cause on the tie."""
+        sim, E, p = self.sim, self.sim.w.E, self.sim.p
+        keys = E.key_array[eix]
+        parts = (("time", 0.12 * np.log1p(E["hours_leisure"][eix] / 10)),
+                 ("liking", 0.35 * np.clip(E["liking"][eix], 0, 1)),
+                 ("confiding", p("relationship.history.disclosure") * E["disclosure"][eix]),
+                 ("shared", p("relationship.history.shared") * np.log1p(E["shared"][eix])),
+                 ("hurt", -p("relationship.history.hurt") * E["hurt"][eix]))
+        for name, w in parts:
+            big = np.abs(w) >= 0.02
+            link(sim, ev[big], "tie", keys[big], w[big], name)
+
+    def _why_apart(self, ev, eix, lo, hi):
+        """A close friendship fading: how long since they saw each other, hurt between them, and a change in either
+        life shortly before they stopped seeing each other (a move, a mission, a new relationship, a new job…)."""
+        sim, E = self.sim, self.sim.w.E
+        day = sim.w.day
+        keys = E.key_array[eix]
+        last = E["last_day"][eix].astype(np.int64)
+        link(sim, ev, "tie", keys, np.clip((day - last) / 60, 0.05, 1), "drifted")
+        hurt = E["hurt"][eix]
+        big = hurt >= 0.05
+        link(sim, ev[big], "tie", keys[big], hurt[big], "hurt")
+        fell_out = latest_between(sim, lo[eix], hi[eix], ("conflict",), day - 120)
+        link(sim, ev, "event", fell_out, 0.6, "hurt")
+        since = int(last.min()) - 14 if len(last) else day
+        el = latest_event(sim, lo[eix], LIFE_CHANGES, since)
+        eh = latest_event(sim, hi[eix], LIFE_CHANGES, since)
+        best = np.maximum(el, eh)
+        ok = best >= 0
+        ok[ok] &= sim.log["day"][best[ok]] >= last[ok] - 14
+        link(sim, ev[ok], "event", best[ok], 0.5, "around_then")
 
     def neighbor_mean(self, values: np.ndarray, weight: str = "closeness", min_stage: int = 3,
                       present_only: bool = True) -> tuple[np.ndarray, np.ndarray]:

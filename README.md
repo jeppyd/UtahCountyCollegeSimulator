@@ -12,6 +12,8 @@ meaningful change is an event with a mechanism and a causal parent, so any outco
 > All people in the model are synthetic. Survey data is used only as aggregate statistics with small cells
 > suppressed; raw responses are never committed or shown.
 
+> **Working on this project (people or AI agents)?** Start with [docs/HANDOFF.md](docs/HANDOFF.md).
+
 ## Quick start
 
 **Windows, no setup:** download `ProvoOremSimulator-Setup.exe` from the

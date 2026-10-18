@@ -62,12 +62,45 @@ def _code_value(vtype: str, opts: dict, raw):
     raise ValueError(vtype)
 
 
+def raw_path(slug: str) -> Path | None:
+    """The survey's raw export: the JSON export named in the spec, else a Qualtrics CSV export `<slug>*.csv`."""
+    p = RAW_DIR / SPEC[slug]["file"]
+    if p.exists():
+        return p
+    csvs = sorted(RAW_DIR.glob(f"{slug}*.csv"))
+    return csvs[-1] if csvs else None
+
+
+def _csv_responses(path: Path) -> list[dict]:
+    """Read a CSV export into the JSON export's shape: answers keyed by column position (`v000`, `v001`, …), which is
+    how the spec's question ids were assigned. Qualtrics' extra header rows (question text, ImportId) and survey
+    previews are skipped; `Finished` (when present) says whether a response was completed."""
+    import csv
+    with path.open(newline="", encoding="utf-8-sig") as f:
+        rows = list(csv.reader(f))
+    header = rows[0]
+    finished = header.index("Finished") if "Finished" in header else None
+    status = header.index("Status") if "Status" in header else None
+    out = []
+    for r in rows[1:]:
+        if any(c.startswith('{"ImportId"') for c in r[:3]) or (finished is not None and r[finished] == "Finished"):
+            continue                                   # Qualtrics header rows 2–3
+        if status is not None and r[status] == "Survey Preview":
+            continue
+        done = True if finished is None else r[finished].strip().lower() == "true"
+        out.append({"completed": done,
+                    "answers": [{"question_id": f"v{j:03d}", "answer_value": v} for j, v in enumerate(r) if v.strip() != ""]})
+    return out
+
+
 def load_survey(slug: str) -> pl.DataFrame:
     spec = SPEC[slug]
-    path = RAW_DIR / spec["file"]
-    data = json.loads(path.read_text(encoding="utf-8"))
+    path = raw_path(slug)
+    if path is None:
+        raise FileNotFoundError(f"no raw export for {slug} in {RAW_DIR}")
+    responses = _csv_responses(path) if path.suffix == ".csv" else json.loads(path.read_text(encoding="utf-8"))["responses"]
     rows = []
-    for resp in data["responses"]:
+    for resp in responses:
         if not resp.get("completed", True):
             continue
         answers = {a["question_id"]: a["answer_value"] for a in resp["answers"]}
@@ -152,7 +185,7 @@ def _derive_bridge(slug: str, df: pl.DataFrame) -> pl.DataFrame:
 def load_all(write: bool = True) -> dict[str, pl.DataFrame]:
     frames = {}
     for slug in SPEC:
-        if not (RAW_DIR / SPEC[slug]["file"]).exists():
+        if raw_path(slug) is None:
             continue
         df = load_survey(slug)
         frames[slug] = df

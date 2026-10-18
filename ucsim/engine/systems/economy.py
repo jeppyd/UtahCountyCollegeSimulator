@@ -4,6 +4,9 @@ from __future__ import annotations
 import numpy as np
 from scipy.special import expit
 
+from ..provenance import latest_event, link, place_ref, state_ref
+from ..state import CTX_ID
+
 
 class Economy:
     def __init__(self, sim):
@@ -80,7 +83,9 @@ class Economy:
             P["debt"] = (P["debt"] - pay).astype(np.float32)
             P["savings"] = (P["savings"] - pay).astype(np.float32)
             if hardship.any():
-                sim.emit("financial_hardship", np.where(hardship)[0], mech="economy.budget")
+                ids = np.where(hardship)[0]
+                ev = sim.emit("financial_hardship", ids, mech="economy.budget")
+                self._why_short(ev, ids, rent, tuition, expenses, pooled)
 
     def monthly(self):
         sim, w = self.sim, self.sim.w
@@ -93,15 +98,22 @@ class Economy:
         # job loss hazard rises non-linearly with unemployment
         h_loss = p("economy.job_loss.base") * (ur / 0.032) ** 1.5
         lose = present & P["employed"] & ~np.isin(P["job_type"], [9, 10]) & (u < h_loss)
+        D = sim.decisions
         if lose.any():
             ids = np.where(lose)[0]
+            employer = place_ref(CTX_ID["work"], P["employer_id"][ids])
             P.cols["employed"][ids] = False
             P.cols["work_hours"][ids] = 0
             P.internal["shift_mask"][ids] = 0
-            sim.emit("job_lost", ids, mech="economy.job_loss")
+            # a flat monthly hazard scaled by local unemployment (log scale: the two parts add up)
+            did = D.record("job_loss", w.day, ids, "lost", {"unemployment": np.full(len(ids), 1.5 * np.log(ur / 0.032))},
+                           base=float(np.log(p("economy.job_loss.base"))), prob=h_loss)
+            ev = sim.emit("job_lost", ids, mech="economy.job_loss", decision=did)
+            link(sim, ev, "place", employer, 1.0, "employer")
         # job search: driven by financial stress; finding rate falls with unemployment
         # people actively coping with money strain, or intending to find work, look too (coping.py, plans.py)
-        trying = sim.systems["coping"].money_coping()
+        coping_money = sim.systems["coping"].money_coping()
+        trying = coping_money
         plans = sim.systems.get("plans")
         if plans is not None:
             trying = trying | plans.wants_work()
@@ -117,16 +129,35 @@ class Economy:
             emp = w.employers
             P.cols["employer_id"][ids] = (sim.u("emp")[ids] * len(emp["type"])).astype(int)
             sim.systems["activity"].assign_shifts(ids)
-            sim.emit("job_found", ids, mech="economy.job_find")
+            # why the search paid off this month: money pressure and actively looking (a plan to find work, or coping
+            # with money strain), with the job market multiplying the chance
+            plan_ev = plans.formed_event(ids, "find_work") if plans is not None else np.full(len(ids), -1, np.int64)
+            cope_ev = np.where(coping_money[ids], P.internal["cope_event"][ids], -1)
+            did = D.record("job_search", w.day, ids, "found",
+                           {"money": 2.0 * (P["financial_stress"][ids] - 0.4), "trying": 0.5 * trying[ids],
+                            "job_market": np.full(len(ids), 0.8 * np.log(0.032 / ur))},
+                           base=p("economy.job_find.base"), prob=h_find[ids],
+                           refs={"trying": ("event", np.where(plan_ev >= 0, plan_ev, cope_ev)),
+                                 "money": ("state", state_ref(sim, "financial_stress", ids))})
+            ev = sim.emit("job_found", ids, mech="economy.job_find", decision=did,
+                          cause=latest_event(sim, ids, ("job_lost", "quit_job", "graduation"), w.day - 120))
+            link(sim, ev, "event", plan_ev, 0.6, "intention")
+            link(sim, ev, "event", cope_ev, 0.6, "coping")
+            link(sim, ev, "place", place_ref(CTX_ID["work"], P["employer_id"][ids]), 1.0, "employer")
         # students with little money pressure and heavy coursework quit to focus on school
         q = p("economy.quit.base") * (1 + 2 * P["academic_pressure"])
         quit_ = present & P["employed"] & P["enrolled"] & (P["financial_stress"] < 0.3) & ~np.isin(P["job_type"], [9, 10]) & (sim.u("quit") < q)
         if quit_.any():
             ids = np.where(quit_)[0]
+            employer = place_ref(CTX_ID["work"], P["employer_id"][ids])
             P.cols["employed"][ids] = False
             P.cols["work_hours"][ids] = 0
             P.internal["shift_mask"][ids] = 0
-            sim.emit("quit_job", ids, mech="economy.quit")
+            did = D.record("quit_job", w.day, ids, "quit", {"school": np.log1p(2 * P["academic_pressure"][ids])},
+                           base=float(np.log(p("economy.quit.base"))), prob=q[ids],
+                           refs={"school": ("state", state_ref(sim, "academic_pressure", ids))})
+            ev = sim.emit("quit_job", ids, mech="economy.quit", decision=did)
+            link(sim, ev, "place", employer, 1.0, "employer")
         # financial stress pushes students to work more (crowding out study)
         thr = p("economy.work_more.threshold")
         more = present & P["employed"] & P["enrolled"] & ((P["financial_stress"] > thr) | (trying & (P["financial_stress"] > thr - 0.15))) & (P["work_hours"] < 32)
@@ -141,5 +172,24 @@ class Economy:
             P.cols["work_hours"][ids] = np.maximum(P["work_hours"][ids] - 2, P.internal["work_pref"][ids])
             sim.systems["activity"].assign_shifts(ids)
         # annual raise in January
+        self._raise()
+
+    def _why_short(self, ev, ids, rent, tuition, expenses, income):
+        """Running out of money: the month's shortfall, as the shares of spending that rent and tuition took and how
+        far income fell short, plus a job lost in the last two months."""
+        sim = self.sim
+        exp_ = np.maximum(expenses[ids], 1.0)
+        link(sim, ev, "state", state_ref(sim, "rent", ids), np.clip(rent[ids] / exp_, 0, 1), "rent")
+        t = np.asarray(tuition)[ids]
+        m = t > 0
+        link(sim, ev[m], "state", state_ref(sim, "credits_term", ids[m]), np.clip(t[m] / exp_[m], 0, 1), "tuition")
+        short = np.clip(1 - income[ids] / exp_, 0, 1)
+        m = short > 0.05
+        link(sim, ev[m], "state", state_ref(sim, "monthly_income", ids[m]), short[m], "income")
+        link(sim, ev, "event", latest_event(sim, ids, ("job_lost",), sim.w.day - 62), 1.0, "after")
+
+    def _raise(self):
+        w = self.sim.w
+        P, env = w.P, w.env
         if w.date.month == 12:
             P["wage"] = (P["wage"] * (1.03 * env.get("wage_index", 1.0) / max(env.get("wage_index", 1.0), 1e-9))).astype(np.float32)

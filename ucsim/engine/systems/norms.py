@@ -9,6 +9,8 @@ from __future__ import annotations
 import numpy as np
 from scipy.special import expit
 
+from ..provenance import best_neighbor, link
+
 PRACTICES = {
     # name: (person column, adoption event, value when adopted)
     "coffee": ("coffee", "started_coffee", 2),
@@ -72,17 +74,28 @@ class Norms:
                 att = np.where(seek, p("norms.app.base") + 1.5 * P["dating_motivation"] + np.log(env["app_appeal"] + 1e-9)
                                + 0.3 * (P["picky"] - 2) / 2, -9)
                 quit_h = np.where(seek, 0.01, 0.15)
-            hz = expit(att + peer + sim.nudge(f"adopt:{name}")) * 0.05
+            nudge = sim.nudge(f"adopt:{name}")
+            hz = expit(att + peer + nudge) * 0.05
             u = sim.u(f"adopt_{name}")
             new = present & ~adopted & (u < hz)
             qq = present & adopted & (sim.u(f"quit_{name}") < np.clip(quit_h, 0, 0.5))
             if new.any():
                 ids = np.where(new)[0]
+                # why: their own attitude and their friends who already do it (the closest one named), on the
+                # log-odds scale, then a weekly pace of at most 5%
+                friend = best_neighbor(sim.systems["network"].padded(), ids, adopted, w.E["closeness"])
+                did = sim.decisions.record("adopt_practice", w.day, ids, list(PRACTICES).index(name),
+                                           {"attitude": np.broadcast_to(att, (n,))[ids], "friends": peer[ids],
+                                            "whatif": np.broadcast_to(np.asarray(nudge, np.float64), (n,))[ids],
+                                            "pace": np.full(len(ids), np.log(0.05))},
+                                           prob=hz[ids], other=friend, refs={"friends": ("person", friend)})
                 P.cols[col][ids] = val
                 if ev == "adopted_practice":
-                    sim.emit(ev, ids, value=float(list(PRACTICES).index(name)), mech=f"norms.{name if name != 'dating_app' else 'app'}")
+                    e = sim.emit(ev, ids, value=float(list(PRACTICES).index(name)), mech=f"norms.{name if name != 'dating_app' else 'app'}",
+                                 decision=did)
                 else:
-                    sim.emit(ev, ids, mech=f"norms.{name}", ev={"norm_permitted": permitted})
+                    e = sim.emit(ev, ids, mech=f"norms.{name}", ev={"norm_permitted": permitted}, decision=did)
+                link(sim, e, "person", friend, 0.5, "picked_up_from")
             if qq.any():
                 P.cols[col][np.where(qq)[0]] = 0 if val is not True else False
             if name == "dating_app" and new.any():

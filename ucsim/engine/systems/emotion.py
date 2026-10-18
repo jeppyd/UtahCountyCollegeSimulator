@@ -10,6 +10,8 @@ from __future__ import annotations
 import numpy as np
 from scipy.special import expit
 
+from ..provenance import hard_memories, latest_event, link, pick, state_causes, state_ref
+
 
 STATE_ORDER = ["fatigue", "financial_stress", "academic_pressure", "romantic_longing", "stress", "loneliness",
                "belonging", "anxiety", "self_esteem", "guilt", "purpose", "mood"]
@@ -43,14 +45,19 @@ class Emotion:
         P.internal["mood_8w"][: P.n] = P["mood"]
         self._equilibrium_episodes()
 
-    def _hazards(self):
-        """Weekly onset and remission probabilities of a depressive episode (mental_health.depression)."""
+    def _hazards(self, terms: bool = False):
+        """Weekly onset and remission probabilities of a depressive episode (mental_health.depression); with
+        `terms`, also the onset log-odds and remission chance term by term (for the decision ledger)."""
         sim, P = self.sim, self.sim.w.P
         n = P.n
         m8 = P.internal["mood_8w"][:n]
-        onset = expit(-7.9 + 14.0 * np.clip(0.42 - m8, 0, None) + 0.9 * P["mh_depression"] + 0.35 * sim.z("neuroticism")
-                      + 2.0 * np.clip(P["loneliness"] - 0.5, 0, None))
-        remit = 0.09 + 0.3 * np.clip(m8 - 0.4, 0, None)
+        T = {"low_mood": 14.0 * np.clip(0.42 - m8, 0, None), "history": 0.9 * P["mh_depression"],
+             "neuroticism": 0.35 * sim.z("neuroticism"), "loneliness": 2.0 * np.clip(P["loneliness"] - 0.5, 0, None)}
+        onset = expit(-7.9 + T["low_mood"] + T["history"] + T["neuroticism"] + T["loneliness"])
+        R = {"mood_recovering": 0.3 * np.clip(m8 - 0.4, 0, None)}
+        remit = 0.09 + R["mood_recovering"]
+        if terms:
+            return onset, remit, T, R
         return onset, remit
 
     def _equilibrium_episodes(self):
@@ -251,15 +258,28 @@ class Emotion:
         P.internal["mood_8w"][:n] = 0.88 * P.internal["mood_8w"][:n] + 0.12 * P["mood"]
         # depressive episodes: onset rises steeply when sustained mood is low (threshold non-linearity)
         u = sim.u("depress")
-        onset, remit = self._hazards()
+        onset, remit, T, R = self._hazards(terms=True)
         start = P["present"] & ~P["depressive_episode"] & (u < onset)
         stop = P["depressive_episode"] & (u < remit)
+        D = sim.decisions
         if start.any():
-            P.cols["depressive_episode"][np.where(start)[0]] = True
-            sim.emit("depressive_episode_start", np.where(start)[0], mech="mental_health.depression")
+            ids = np.where(start)[0]
+            P.cols["depressive_episode"][ids] = True
+            did = D.record("depression_onset", w.day, ids, "started", pick(T, ids), base=-7.9, prob=onset[ids],
+                           refs={"low_mood": ("state", state_ref(sim, "mood", ids)),
+                                 "loneliness": ("state", state_ref(sim, "loneliness", ids))})
+            ev = sim.emit("depressive_episode_start", ids, mech="mental_health.depression", decision=did)
+            # what was weighing on their mood that week, and the hardest things they had lived through lately
+            state_causes(sim, ev, ids, "mood", sign=-1, k=3, k_events=2)
+            hard = hard_memories(sim, ids, 60, per=2)
+            for c in range(hard.shape[1]):
+                link(sim, ev, "event", hard[:, c], 0.5, "trigger")
         if stop.any():
-            P.cols["depressive_episode"][np.where(stop)[0]] = False
-            sim.emit("depressive_episode_end", np.where(stop)[0], mech="mental_health.depression")
+            ids = np.where(stop)[0]
+            P.cols["depressive_episode"][ids] = False
+            did = D.record("depression_remission", w.day, ids, "lifted", pick(R, ids), base=0.09, prob=remit[ids])
+            sim.emit("depressive_episode_end", ids, mech="mental_health.depression", decision=did,
+                     cause=latest_event(sim, ids, ("depressive_episode_start",), 0))
 
     def monthly(self):
         P = self.sim.w.P

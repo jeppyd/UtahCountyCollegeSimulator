@@ -19,6 +19,7 @@ import numpy as np
 from scipy.special import expit
 
 from ..core import pair_normal
+from ..provenance import latest_between, latest_event, link, mirror, pick, state_ref, total
 from ..state import CTX_ID, EdgeStore, Tie
 
 DATE_TYPES = ["ice_cream", "restaurant", "hike", "board_games", "cook_together", "movie_theater", "soda_shop",
@@ -103,7 +104,8 @@ class Romance:
 
     # ------------------------------------------------------------------ daily
     def plan_day(self):
-        """Pull today's scheduled dates; choose venues."""
+        """Pull today's scheduled dates; choose venues; book each as an occasion at a time that works for both
+        (systems/occasions.py: shifts and classes move it later; illness or an unavoidable clash cancels it)."""
         sim, w = self.sim, self.sim.w
         P = w.P
         day = w.day
@@ -112,28 +114,75 @@ class Romance:
         self.dates_today, self._dates_meta = [], []
         act = sim.systems["activity"]
         busy = set()
-        rng = sim.streams.gen("date_venue", day)
-        for (_, a, b, dtype, first, cause) in todays:
+        keep = []
+        for q in todays:              # bounded: today's scheduled dates (one date per person per day)
+            a, b = q[1], q[2]
             if not (P["present"][a] and P["present"][b]) or a in busy or b in busy:
                 continue
             busy.update((a, b))
-            group = DATE_VENUE_GROUP[dtype]
-            if group == "home":
-                # dinner/board games at one of their apartments: treat as nearest dessert/food venue for location
-                group = "food"
+            keep.append(q)
+        if keep:
+            # venues: near the midpoint of their homes (dinner or board games at home: the nearest food place stands in
+            # for the location); some hikes and stargazing dates go up Y Mountain / Kyhv Peak
+            k = len(keep)
+            a = np.array([q[1] for q in keep], np.int64)
+            b = np.array([q[2] for q in keep], np.int64)
+            dtypes = np.array([q[3] for q in keep], dtype=object)
+            group = np.array(["food" if DATE_VENUE_GROUP[t] == "home" else DATE_VENUE_GROUP[t] for t in dtypes], dtype=object)
             lon = (P["home_lon"][a] + P["home_lon"][b]) / 2
             lat = (P["home_lat"][a] + P["home_lat"][b]) / 2
-            vid = int(act.nearest(group, np.array([lon]), np.array([lat]), 5, rng.random(1))[0])
-            if dtype in ("hike", "stargazing") and rng.random() < 0.18:
-                kyhv = np.where(np.char.find(np.array(act.v_name, dtype=str), "KhPeak") >= 0)[0]
-                if len(kyhv):
-                    vid = int(kyhv[0])
-            self.dates_today.append((a, b, vid))
-            self._dates_meta.append((dtype, first, cause))
+            rng = sim.streams.gen("date_venue", day)
+            pick, peak = rng.random(k), rng.random(k)
+            vid = np.zeros(k, np.int64)
+            for g in np.unique(group).tolist():      # bounded: venue groups
+                m = group == g
+                vid[m] = act.nearest(g, lon[m], lat[m], 5, pick[m])
+            if not hasattr(self, "_kyhv"):
+                hit = [j for j, nm in enumerate(act.v_name) if "KhPeak" in str(nm)]
+                self._kyhv = hit[0] if hit else -1
+            if self._kyhv >= 0:
+                vid = np.where(np.isin(dtypes, ["hike", "stargazing"]) & (peak < 0.18), self._kyhv, vid)
+            self.dates_today = [(int(q[1]), int(q[2]), int(v)) for q, v in zip(keep, vid)]
+            self._dates_meta = [(q[3], q[4], q[5]) for q in keep]
+        occ = sim.systems.get("occasions")
+        self.date_occ = occ.plan_dates(self.dates_today, self._dates_meta) if occ is not None else \
+            np.full(len(self.dates_today), -1, np.int64)
+        # a date their schedules can't fit today (or one of them is sick) moves to the next day, for up to a week, as
+        # people would rearrange it; one that still doesn't fit is dropped
+        if occ is not None and len(self.dates_today):
+            moved = getattr(self, "_moved", {})
+            tries = int(sim.p("occasions.date.reschedule_days"))
+            for j, why in enumerate(occ.date_blocked.tolist()):
+                a_, b_, _ = self.dates_today[j]
+                key = (min(a_, b_), max(a_, b_))
+                if why == 0:
+                    moved.pop(key, None)
+                elif moved.get(key, 0) < tries:
+                    dtype, first, cause = self._dates_meta[j]
+                    moved[key] = moved.get(key, 0) + 1
+                    self.queue.append((day + 1, a_, b_, dtype, first, cause))
+                    P.internal["date_planned"][[a_, b_]] = day + 1
+                else:
+                    moved.pop(key, None)
+            self._moved = moved
 
     def evening(self):
+        """After the late evening: how today's dates went, then make-outs at parties and dances."""
         self._run_dates()
-        self._ncmo()
+        occ = self.sim.systems.get("occasions")
+        act = self.sim.systems["activity"]
+        if occ is None:
+            self._ncmo()
+            return
+        # dancers are at an occasion now; the NCMO step recognizes a dance floor by its context
+        saved = act.ctype
+        view = saved.copy()
+        view[occ.dancers()] = CTX_ID["dance"]
+        act.ctype = view
+        try:
+            self._ncmo()
+        finally:
+            act.ctype = saved
 
     def daily(self):
         sim, w = self.sim, self.sim.w
@@ -194,42 +243,62 @@ class Romance:
         ek = E.find(EdgeStore.make_keys(ids, tgt))
         believed = np.where(ek >= 0, E.belief_from(np.maximum(ek, 0), ids), 0.0)
         exp_yes = np.clip(P["expect_accept"][ids], 0.03, 0.97)
-        logit = (p("romance.ask.base") + p("romance.ask.attraction") * catt[ids]
-                 + p("romance.ask.motivation") * (P["dating_motivation"][ids] - 0.5)
-                 + p("romance.ask.confidence") * (P["self_esteem"][ids] - 0.5)
-                 + p("romance.ask.expectation") * (np.log(exp_yes / (1 - exp_yes)) - 0.405)
-                 + p("mind.romantic_perception.ask_weight") * (believed - 0.15)
-                 + np.where(male, p("romance.ask.male") * w.env["men_initiate_norm"], -p("romance.ask.male") * w.env["men_initiate_norm"] * 0.9)
-                 + p("romance.ask.propensity") * np.log(P["dating_propensity"][ids] + 0.5)
-                 + 0.25 * (P["asks_for_numbers"][ids] - 2) / 2)
+        # the log-odds of asking, term by term (summed in this order; the ledger keeps the same terms)
+        terms = {"attraction": p("romance.ask.attraction") * catt[ids],
+                 "motivation": p("romance.ask.motivation") * (P["dating_motivation"][ids] - 0.5),
+                 "confidence": p("romance.ask.confidence") * (P["self_esteem"][ids] - 0.5),
+                 "expectation": p("romance.ask.expectation") * (np.log(exp_yes / (1 - exp_yes)) - 0.405),
+                 "believed_interest": p("mind.romantic_perception.ask_weight") * (believed - 0.15),
+                 "gender_norm": np.where(male, p("romance.ask.male") * w.env["men_initiate_norm"], -p("romance.ask.male") * w.env["men_initiate_norm"] * 0.9),
+                 "propensity": p("romance.ask.propensity") * np.log(P["dating_propensity"][ids] + 0.5),
+                 "asks_numbers": 0.25 * (P["asks_for_numbers"][ids] - 2) / 2}
+        logit = total(p("romance.ask.base"), terms)
         plans = sim.systems.get("plans")
         if plans is not None:
-            logit = logit + plans.ask_boost(ids, tgt)
+            terms["intention"] = plans.ask_boost(ids, tgt)
+            logit = logit + terms["intention"]
         u = sim.u("ask")[ids]
-        go = u < expit(logit) * dow_mult
+        pr = expit(logit) * dow_mult
+        go = u < pr
+        sel = np.flatnonzero(go)
         ids, tgt = ids[go], tgt[go]
         if len(ids) == 0:
             return
         # resolve duplicates: one ask per target per day
         tgt_u, first = np.unique(tgt, return_index=True)
-        ids, tgt = ids[first], tgt[first]
+        ids, tgt, sel = ids[first], tgt[first], sel[first]
         keys = EdgeStore.make_keys(ids, tgt)
         eix = E.find(keys)
         has = eix >= 0
-        ids, tgt, eix = ids[has], tgt[has], eix[has]
+        ids, tgt, eix, sel = ids[has], tgt[has], eix[has], sel[has]
         a_ji = E.attraction_from(eix, tgt)
         a_ij = E.attraction_from(eix, ids)
         first_date = E["dates"][eix] == 0
         taken = P.isin("rel_status", ["dating", "engaged", "married"])[tgt] | (P.is_("rel_status", "talking")[tgt] & (P["partner_id"][tgt] != ids))
         planned_t = P.internal["date_planned"][: P.n][tgt] >= day
-        acc = expit(p("romance.accept.base") + p("romance.accept.attraction") * a_ji
-                    + np.where(first_date, p("romance.accept.politeness") * (P["accepts_first_dates"][tgt] - 2) / 2, 0)
-                    + p("romance.accept.motivation") * (P["dating_motivation"][tgt] - 0.4)
-                    - p("romance.accept.picky") * (P["picky"][tgt] - 2) / 2
-                    - 3.0 * taken - 1.5 * planned_t)
+        acc_terms = {"attraction": p("romance.accept.attraction") * a_ji,
+                     "politeness": np.where(first_date, p("romance.accept.politeness") * (P["accepts_first_dates"][tgt] - 2) / 2, 0),
+                     "motivation": p("romance.accept.motivation") * (P["dating_motivation"][tgt] - 0.4)}
+        acc_logit = total(p("romance.accept.base"), acc_terms)
+        acc_terms["picky"] = -(p("romance.accept.picky") * (P["picky"][tgt] - 2) / 2)
+        acc_terms["taken"] = -(3.0 * taken)
+        acc_terms["busy"] = -(1.5 * planned_t)
+        acc = expit(acc_logit - p("romance.accept.picky") * (P["picky"][tgt] - 2) / 2 - 3.0 * taken - 1.5 * planned_t)
         ua = sim.u("accept")[tgt]
         yes = ua < acc
-        ask_ev = sim.emit("asked_out", ids, b=tgt, value=a_ij, mech="romance.ask")
+        # why each asked (the terms that were added) and why the other said yes or no
+        D = sim.decisions
+        rec = pick(terms, sel)
+        rec["weekday"] = np.full(len(sel), np.log(dow_mult))
+        plan_ev = plans.formed_event(ids, "ask_out", tgt) if plans is not None else np.full(len(ids), -1, np.int64)
+        ask_did = D.record("ask_out", day, ids, "asked", rec, base=p("romance.ask.base"), prob=pr[sel], other=tgt,
+                           refs={"attraction": ("person", tgt), "believed_interest": ("person", tgt),
+                                 "intention": ("event", plan_ev)})
+        acc_did = D.record("accept_date", day, tgt, np.where(yes, 0, 1), acc_terms, base=p("romance.accept.base"),
+                           prob=np.where(yes, acc, 1 - acc), other=ids, refs={"attraction": ("person", ids)})
+        ask_ev = sim.emit("asked_out", ids, b=tgt, value=a_ij, mech="romance.ask", decision=ask_did)
+        link(sim, ask_ev, "decision", acc_did, 1.0, "answer")
+        link(sim, ask_ev, "event", plan_ev, 0.5, "intention")
         mind = sim.systems["mind"]
         mind.learn_ask(ids, yes)
         mind.reveal(eix, ids, tgt, np.where(yes, 0.4, 1.0))
@@ -241,7 +310,7 @@ class Romance:
             ri, rt = ids[no], tgt[no]
             P.cols["rejections_recent"][ri] += 1
             sim.emit("rejected", ri, b=rt, cause=ask_ev[no], mech="romance.accept",
-                     ev={"recent_rejections": np.log1p(P["rejections_recent"][ri])})
+                     ev={"recent_rejections": np.log1p(P["rejections_recent"][ri])}, decision=acc_did[no])
             E.set_attraction_from(eix[no], ri, np.clip(a_ij[no] - 0.2, -1, 1))
             P.internal["crush_id"][ri] = -1
         if yes.any():
@@ -319,7 +388,14 @@ class Romance:
             E.cols["origin_ctx"][ni] = CTX_ID["app"]
             sim.systems["mind"].init_beliefs(ni, lo, hi)
         E.cols["flags"][eix] |= Tie.APP_MATCH
-        ev = sim.emit("app_match", ids, b=tgt, mech="romance.app")
+        # why a session happened today: the rate is a product (base × the apps' appeal × hours on them), so its log
+        # splits into one term per part; the match itself needs both to like the other's profile
+        did = sim.decisions.record("app_match", day, ids, "matched",
+                                   {"app_hours": np.log(np.maximum(P["app_hours"][ids], 1e-3) / 7.0),
+                                    "app_appeal": np.full(len(ids), np.log(max(float(w.env["app_appeal"]), 1e-6)))},
+                                   base=float(np.log(p("romance.app.rate"))), prob=np.clip(rate[ids], 0, 1), other=tgt,
+                                   refs={"app_hours": ("state", state_ref(sim, "app_hours", ids))})
+        ev = sim.emit("app_match", ids, b=tgt, mech="romance.app", decision=did)
         # the match turns into a date with probability ~ conversation success
         go = sim.u("app_date")[ids] < p("romance.app.date_conversion")
         ids, tgt, ev = ids[go], tgt[go], ev[go]
@@ -337,12 +413,19 @@ class Romance:
         day = w.day
         if not self.dates_today:
             return
-        a = np.array([d[0] for d in self.dates_today])
-        b = np.array([d[1] for d in self.dates_today])
-        venue = np.array([d[2] for d in self.dates_today])
-        dtypes = [m[0] for m in self._dates_meta]
-        first = np.array([m[1] for m in self._dates_meta])
-        cause = np.array([m[2] for m in self._dates_meta])
+        occ_ids = np.asarray(getattr(self, "date_occ", np.full(len(self.dates_today), -1)), np.int64)
+        occs = sim.systems.get("occasions")
+        took_place = occs.date_happened(occ_ids) if occs is not None else np.ones(len(self.dates_today), bool)
+        if not took_place.any():
+            return
+        keep = np.where(took_place)[0]
+        a = np.array([self.dates_today[j][0] for j in keep])
+        b = np.array([self.dates_today[j][1] for j in keep])
+        venue = np.array([self.dates_today[j][2] for j in keep])
+        dtypes = [self._dates_meta[j][0] for j in keep]
+        first = np.array([self._dates_meta[j][1] for j in keep], bool)
+        cause = np.array([self._dates_meta[j][2] for j in keep])
+        occ_ids = occ_ids[keep]
         keys = EdgeStore.make_keys(a, b)
         eix = E.upsert(keys)
         rng = sim.streams.gen("date_outcome", day)
@@ -381,14 +464,14 @@ class Romance:
         if first.any():
             P.cols["first_dates_total"][np.r_[a[first], b[first]]] += 1
             e1 = sim.emit("first_date", a[first], b=b[first], value=q[first], cause=cause[first], place=venue[first],
-                          block=2, mech="romance.date", ev={"quality": q[first]})
+                          block=2, mech="romance.date", ev={"quality": q[first]}, causes=[("occasion", occ_ids[first], 1.0)])
             sim.emit("first_date", b[first], b=a[first], value=q[first], cause=cause[first], place=venue[first],
-                     block=2, mech="romance.date", ev={"quality": q[first]})
+                     block=2, mech="romance.date", ev={"quality": q[first]}, causes=[("occasion", occ_ids[first], 1.0)])
             ev_first[first] = e1
         if (~first).any():
             nf = ~first
             sim.emit("date", a[nf], b=b[nf], value=q[nf], cause=cause[nf], place=venue[nf], block=2,
-                     mech="romance.date", ev={"quality": q[nf]})
+                     mech="romance.date", ev={"quality": q[nf]}, causes=[("occasion", occ_ids[nf], 1.0)])
         date_ev = np.where(ev_first >= 0, ev_first, cause)
         # kissing
         att_ab = E.attraction_from(eix, a)
@@ -542,12 +625,18 @@ class Romance:
         if has.any():
             xa, xb, kd = ids[has], j[has], k_dates[has]
             first = self._next_date_day(6, sim.streams.uniform("cdate0", day, len(xa))) - day  # 1..7
+            # a couple's dates come from their relationship's latest milestone; couples together since before the
+            # story began have none, so their dates follow from the last one (dating is habitual)
+            why = P.internal["rel_event"][xa].astype(np.int64)
+            none = why < 0
+            if none.any():
+                why[none] = latest_between(sim, xa[none], xb[none], ("date", "first_date"), day - 60)
             for kk in range(int(kd.max())):
                 sel = kd > kk
                 dd = day + 1 + ((first[sel] - 1 + 3 * kk) % 7)
                 dtypes = self._date_type(xa[sel], xb[sel])
-                for a_, b_, d_, t_ in zip(xa[sel].tolist(), xb[sel].tolist(), dd.tolist(), dtypes):
-                    self.queue.append((d_, a_, b_, t_, False, int(P.internal["rel_event"][a_])))
+                for a_, b_, d_, t_, c_ in zip(xa[sel].tolist(), xb[sel].tolist(), dd.tolist(), dtypes, why[sel].tolist()):
+                    self.queue.append((d_, a_, b_, t_, False, c_))
         if exclusive.any():
             E.cols["hours_leisure"][eix[exclusive]] += 6.0
             E.cols["hours"][eix[exclusive]] += 8.0
@@ -570,14 +659,23 @@ class Romance:
                 P.cols["rel_start_day"][x] = day
                 P.cols["n_relationships"][x] += 1
             ev = sim.emit("relationship_started", a_, b=b_, cause=P.internal["rel_event"][a_], mech="romance.progress")
-            sim.emit("relationship_started", b_, b=a_, cause=P.internal["rel_event"][a_], mech="romance.progress")
+            ev2 = sim.emit("relationship_started", b_, b=a_, cause=P.internal["rel_event"][a_], mech="romance.progress")
+            # becoming exclusive is a gate (enough dates, two weeks of talking, mutual interest) and then a weekly
+            # 12% chance: the reasons are the readiness of the tie and their latest date
+            mirror(sim, ev2, ev)
+            link(sim, ev, "tie", keys[dtr], mutual[dtr], "ready")
+            link(sim, ev, "event", latest_between(sim, a_, b_, ("date", "first_date"), day - 30), 0.5, "last_date")
             P.internal["rel_event"][a_] = ev
             P.internal["rel_event"][b_] = ev
         # talking fizzles
-        fizzle = talking & ~dtr & (((day - tstart) > 42) | (mutual < 0.3))
+        long_ = (day - tstart) > 42
+        fizzle = talking & ~dtr & (long_ | (mutual < 0.3))
         fizzle &= rng.random(len(ids)) < 0.6
         if fizzle.any():
-            self._end(ids[fizzle], j[fizzle], att_a[fizzle], att_b[fizzle], kind="talking")
+            f = np.flatnonzero(fizzle)
+            why = [("tie", np.where(long_[f], keys[f], -1), np.clip((day - tstart[f]) / 42 - 1, 0.05, 1), "went_nowhere"),
+                   ("tie", np.where(mutual[f] < 0.3, keys[f], -1), np.clip(0.3 - mutual[f], 0.05, 1), "low_interest")]
+            self._end(ids[f], j[f], att_a[f], att_b[f], kind="talking", why=why)
         # engagement hazard (dating couples)
         both_active = P.is_("activity", "active")[ids] & P.is_("activity", "active")[j]
         ideal = (P["ideal_months_engaged"][ids] + P["ideal_months_engaged"][j]) / 2
@@ -590,11 +688,15 @@ class Romance:
         # active-member marriage-norm boost
         same_sex = P["sex"][ids] == P["sex"][j]
         any_active = P.is_("activity", "active")[ids] | P.is_("activity", "active")[j]
-        h_eng = expit(young_man + p("romance.engage.base") + p("romance.engage.commitment") * commit
-                      + p("romance.engage.timing") * np.clip((months - ideal) / 4, -2, 2)
-                      + p("romance.engage.active_lds") * (both_active & ~same_sex) * w.env["marriage_norm"]
-                      - 3.0 * (same_sex & any_active)
-                      + 0.35 * np.clip((mean_age - 20.5) / 2, -1, 1.5) - 0.8 * fin - 1.2 * rel_mis)
+        # the engagement log-odds term by term (the expression adds them in the model's order; subtracted terms are
+        # recorded with their sign)
+        T = {"young_man": young_man, "commitment": p("romance.engage.commitment") * commit,
+             "timing": p("romance.engage.timing") * np.clip((months - ideal) / 4, -2, 2),
+             "active_lds": p("romance.engage.active_lds") * (both_active & ~same_sex) * w.env["marriage_norm"],
+             "same_sex": 3.0 * (same_sex & any_active), "age": 0.35 * np.clip((mean_age - 20.5) / 2, -1, 1.5),
+             "money": 0.8 * fin, "mismatch": 1.2 * rel_mis}
+        h_eng = expit(T["young_man"] + p("romance.engage.base") + T["commitment"] + T["timing"] + T["active_lds"]
+                      - T["same_sex"] + T["age"] - T["money"] - T["mismatch"])
         eng = dating & (months >= 2.0) & (rng.random(len(ids)) < h_eng)
         if eng.any():
             a_, b_ = ids[eng], j[eng]
@@ -607,25 +709,47 @@ class Romance:
             wed = self._break_date(day + lead, students, rng.random(eng.sum()))
             P.internal["wedding_planned"][a_] = wed
             P.internal["wedding_planned"][b_] = wed
-            ev = sim.emit("engaged", a_, b=b_, cause=P.internal["rel_event"][a_], mech="romance.engage")
-            sim.emit("engaged", b_, b=a_, cause=P.internal["rel_event"][a_], mech="romance.engage")
+            rec = pick(T, eng)
+            for k_ in ("same_sex", "money", "mismatch"):
+                rec[k_] = -rec[k_]
+            did = sim.decisions.record("get_engaged", day, a_, "engaged", rec, base=p("romance.engage.base"),
+                                       prob=h_eng[eng], other=b_)
+            ev = sim.emit("engaged", a_, b=b_, cause=P.internal["rel_event"][a_], mech="romance.engage", decision=did)
+            ev2 = sim.emit("engaged", b_, b=a_, cause=P.internal["rel_event"][a_], mech="romance.engage")
+            mirror(sim, ev2, ev)
             P.internal["rel_event"][a_] = ev
             P.internal["rel_event"][b_] = ev
         # breakups
-        h_brk = expit(p("romance.breakup.base") - p("romance.breakup.commitment") * commit
-                      + p("romance.breakup.religious_mismatch") * rel_mis + 1.5 * conflict + 1.5 * E["hurt"][eix])
+        hurt = E["hurt"][eix]
+        TB = {"commitment": p("romance.breakup.commitment") * commit, "mismatch": p("romance.breakup.religious_mismatch") * rel_mis,
+              "conflict": 1.5 * conflict, "hurt": 1.5 * hurt}
+        h_brk = expit(p("romance.breakup.base") - TB["commitment"] + TB["mismatch"] + TB["conflict"] + TB["hurt"])
         h_brk = np.where(engaged, h_brk * 0.25, np.where(married, h_brk * p("romance.breakup.married_mult"), h_brk))
         brk = (dating | engaged | married) & ~eng & (rng.random(len(ids)) < h_brk)
         if brk.any():
-            self._end(ids[brk], j[brk], att_a[brk], att_b[brk], married=married[brk])
+            f = np.flatnonzero(brk)
+            rec = pick(TB, f)
+            rec["commitment"] = -rec["commitment"]
+            rec["stage"] = np.where(engaged[f], np.log(0.25), np.where(married[f], np.log(p("romance.breakup.married_mult")), 0.0))
+            a_, b_ = ids[f], j[f]
+            why = [("event", latest_between(sim, a_, b_, ("conflict",), day - 120), 0.6, "hurt"),
+                   ("event", latest_between(sim, a_, b_, ("cheating",), day - 365), 1.0, "betrayal")]
+            self._end(a_, b_, att_a[f], att_b[f], married=married[f], why=why,
+                      decide=("break_up", rec, p("romance.breakup.base"), h_brk[f]))
         # infidelity (rare): low commitment, high NCMO interest; often discovered → breakup risk
         excl = (dating | engaged | married) & ~brk
-        h_ch = expit(-8.5 - 4.0 * (commit - 0.5) + 0.5 * (P["ncmo_interest"][ids] - 2) + 0.4 * sim.z("sensation_seeking")[ids])
+        TC = {"commitment": 4.0 * (commit - 0.5), "ncmo": 0.5 * (P["ncmo_interest"][ids] - 2),
+              "sensation": 0.4 * sim.z("sensation_seeking")[ids]}
+        h_ch = expit(-8.5 - TC["commitment"] + TC["ncmo"] + TC["sensation"])
         cheat = excl & (rng.random(len(ids)) < h_ch)
         if cheat.any():
             ci, cj = ids[cheat], j[cheat]
             P.cols["ever_cheated"][ci] = True
-            ev = sim.emit("cheating", ci, b=cj, mech="romance.breakup")
+            rec = pick(TC, cheat)
+            rec["commitment"] = -rec["commitment"]
+            did = sim.decisions.record("cheat", day, ci, "cheated", rec, base=-8.5, prob=h_ch[cheat], other=cj)
+            ev = sim.emit("cheating", ci, b=cj, mech="romance.breakup", decision=did)
+            link(sim, ev, "tie", keys[cheat], 1.0, "the_tie")
             found = rng.random(len(ci)) < 0.5
             P.cols["ever_cheated_on"][cj[found]] = True
             E.cols["conflict"][eix[cheat][found]] = 1.0
@@ -695,8 +819,12 @@ class Romance:
         P.cols["chastity_commitment"][due] = np.clip(P["chastity_commitment"][due] + 0.08, 0, 1)
         P.cols["institutional_trust"][due] = np.clip(P["institutional_trust"][due] + 0.04 * np.sign(exp_pos), 0, 1)
 
-    def _end(self, a, b, att_a, att_b, kind="breakup", married=None):
-        """End a relationship; the less-attracted partner initiates."""
+    def _end(self, a, b, att_a, att_b, kind="breakup", married=None, why=None, decide=None):
+        """End a relationship; the less-attracted partner initiates.
+
+        Provenance: `decide` = (decision kind, terms, base, prob) aligned with `a` is recorded as the initiator's
+        decision; `why` lists extra typed causes (kind, refs, weight, role) aligned with `a`. The receiver's event
+        names the person who ended it."""
         sim, w = self.sim, self.sim.w
         P, E, p = w.P, w.E, sim.p
         day = w.day
@@ -713,19 +841,30 @@ class Romance:
         E.cols["att_lh"][eix[ok]] *= 0.4
         E.cols["att_hl"][eix[ok]] *= 0.4
         cause = P.internal["rel_event"][a]
+        did = None
+        if decide is not None:
+            dk, terms, base, prob = decide
+            did = sim.decisions.record(dk, day, initiator, 0, terms, base=base, prob=prob, other=receiver)
         if kind == "talking":
-            sim.emit("rejected", receiver, b=initiator, cause=cause, mech="romance.progress",
-                     ev={"recent_rejections": np.log1p(P["rejections_recent"][receiver])})
+            first = sim.emit("rejected", receiver, b=initiator, cause=cause, mech="romance.progress",
+                             ev={"recent_rejections": np.log1p(P["rejections_recent"][receiver])}, decision=did)
+            link(sim, first, "person", initiator, 1.0, "ended_by")
         else:
             ev = {"rel_months_log": np.log1p(months)}
-            sim.emit("breakup_initiated", initiator, b=receiver, cause=cause, mech="romance.breakup", ev=ev)
-            sim.emit("breakup_received", receiver, b=initiator, cause=cause, mech="romance.breakup", ev=ev)
+            first = sim.emit("breakup_initiated", initiator, b=receiver, cause=cause, mech="romance.breakup", ev=ev,
+                             decision=did)
+            got = sim.emit("breakup_received", receiver, b=initiator, cause=cause, mech="romance.breakup", ev=ev)
+            mirror(sim, got, first)
+            link(sim, got, "person", initiator, 1.0, "ended_by")
             P.cols["n_breakups"][np.r_[a, b]] += 1
             # rebound vs withdrawal: cooldown length varies with attachment avoidance and distress
             for x in (initiator, receiver):
                 cd = (14 + 60 * expit(sim.z("attachment_avoidance")[x] + 0.5 * sim.z("neuroticism")[x])
                       * (1.5 if x is receiver else 0.7)).astype(int)
                 P.internal["cooldown_until"][x] = day + cd
+        link(sim, first, "tie", keys, 1.0, "the_tie")
+        for kind_, refs, wgt, role_ in why or ():
+            link(sim, first, kind_, refs, wgt, role_)
         is_married = married if married is not None else np.zeros(len(a), bool)
         for x in (a, b):
             P.cols["rel_status"][x] = np.where(is_married, P.code("rel_status", "divorced"), P.code("rel_status", "single"))
@@ -734,6 +873,7 @@ class Romance:
             P.cols["relationship_satisfaction"][x] = np.nan
             P.internal["wedding_planned"][x] = -1
             P.cols["waiting_for_missionary"][x] = False
+        return first
 
     def _weddings(self):
         sim, w = self.sim, self.sim.w
@@ -758,7 +898,9 @@ class Romance:
         if gone.any():
             ga, gb = a[gone], b[gone]
             ge = E.upsert(EdgeStore.make_keys(ga, gb))
-            self._end(ga, gb, E.attraction_from(ge, ga), E.attraction_from(ge, gb))
+            left = np.maximum(latest_event(sim, ga, ("left_area", "mission_departure"), day - 400),
+                              latest_event(sim, gb, ("left_area", "mission_departure"), day - 400))
+            self._end(ga, gb, E.attraction_from(ge, ga), E.attraction_from(ge, gb), why=[("event", left, 1.0, "left")])
         a, b = a[ok], b[ok]
         for x in (a, b):
             P.cols["rel_status"][x] = P.code("rel_status", "married")
@@ -769,7 +911,11 @@ class Romance:
         E.cols["flags"][eix] |= Tie.SPOUSE
         cause = P.internal["rel_event"][a]
         ev = sim.emit("wedding", a, b=b, cause=cause, mech="romance.engage")
-        sim.emit("wedding", b, b=a, cause=cause, mech="romance.engage")
+        ev2 = sim.emit("wedding", b, b=a, cause=cause, mech="romance.engage")
+        mirror(sim, ev2, ev)
+        # the date was set when they got engaged; couples engaged before the story began point at their tie
+        keys = EdgeStore.make_keys(a, b)
+        link(sim, ev, "tie", np.where(cause < 0, keys, -1), 1.0, "engaged_before")
         P.internal["rel_event"][a] = ev
         P.internal["rel_event"][b] = ev
         sim.systems["housing"].couple_move(a, b, ev)
@@ -809,12 +955,14 @@ class Romance:
 
     # ------------------------------------------------------------------ hooks used by other systems
     def handle_departure(self, ids: np.ndarray):
-        """A partner leaves on a mission or moves away: wait, or break up."""
+        """A partner leaves on a mission or moves away: wait, or break up. Returns (leavers, breakup events) so the
+        caller can point each breakup at the departure it logs afterwards."""
         sim, w = self.sim, self.sim.w
         P = w.P
+        none = (np.empty(0, np.int64), np.empty(0, np.int64))
         ids = ids[P["partner_id"][ids] >= 0]
         if len(ids) == 0:
-            return
+            return none
         part = P["partner_id"][ids].astype(np.int64)
         st = P["rel_status"][ids]
         u = sim.u("depart_rel")[ids]
@@ -825,4 +973,6 @@ class Romance:
         if brk.any():
             keys = EdgeStore.make_keys(ids[brk], part[brk])
             eix = w.E.upsert(keys)
-            self._end(ids[brk], part[brk], w.E.attraction_from(eix, ids[brk]) - 0.5, w.E.attraction_from(eix, part[brk]))
+            ev = self._end(ids[brk], part[brk], w.E.attraction_from(eix, ids[brk]) - 0.5, w.E.attraction_from(eix, part[brk]))
+            return ids[brk], ev
+        return none

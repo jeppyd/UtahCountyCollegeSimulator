@@ -17,7 +17,35 @@ import numpy as np
 from ..engine.interventions import INJECTABLE, MOTIVES, OFFSET_CHANNELS, STATES, VISITED_VTYPES
 from .levers import BETTER_CHANNEL, TRAIT_OK, WORLD_LEVERS, Z_RELATIVE, persistence
 
-KINDS = ("world", "nudge", "event", "shock", "trait", "param", "close", "place", "practice", "venue")
+KINDS = ("world", "nudge", "event", "shock", "trait", "param", "close", "place", "practice", "venue", "social")
+_I = {"type": ["integer", "null"]}
+SOCIAL_SCHEMA = {
+    "type": ["object", "null"],
+    "description": "kind `social` only: a social action (catalog §13)",
+    "properties": {
+        "action": {"type": "string", "enum": ["invite", "series", "reschedule", "introduce", "ride", "reach_out", "job_offer"]},
+        "as": {**_I, "description": "act as this person (id): only people they know, when they're free, what they can afford; null = world editor"},
+        "host": {**_I, "description": "invite/series in editor mode: who hosts"},
+        "people": {"type": ["array", "null"], "items": {"type": "integer"}, "description": "guests by id"},
+        "group": {"type": ["string", "null"], "enum": ["roommates", "neighbors", "friends", "close_friends", None],
+                  "description": "guests as a group around the host, instead of ids"},
+        "kind": {"type": ["string", "null"], "enum": ["dinner", "gathering", "game_night", "party", "study_group", None]},
+        "weekday": {"type": ["string", "null"], "enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", None]},
+        "day_offset": {**_I, "description": "days after the change starts (instead of weekday)"},
+        "start": {"type": ["string", "null"], "description": "clock time, e.g. \"19:30\""},
+        "dur": {**_I, "description": "minutes"},
+        "place": {"type": ["string", "null"], "description": "home | campus | venue (a café near them) | venue:<id>"},
+        "weeks": {**_I, "description": "series: how many weeks (null = until the host stops)"},
+        "occasion": {**_I, "description": "reschedule / ride: the occasion id"},
+        "series": {**_I, "description": "reschedule: a weekly series id"},
+        "a": _I, "b": _I, "by": {**_I, "description": "introduce: the introducer (editor mode; as-person: the actor)"},
+        "rider": _I, "driver": _I, "from": _I, "to": _I,
+        "channel": {"type": ["string", "null"], "enum": ["text", "in_person", "group_chat", None]},
+        "employer": _I, "hours": {"type": ["number", "null"]}, "wage": {"type": ["number", "null"]},
+        "occasion_name": {"type": ["string", "null"], "description": "a name for the occasion, e.g. \"Maya's Sunday dinner\""},
+    },
+    "required": ["action"],
+}
 
 _EFFECT = {"type": "object", "properties": {"var": {"type": "string", "enum": list(STATES)}, "mag": {"type": "number"},
                                             "half_life_days": {"type": "number"}, "delay_days": {"type": "number"}},
@@ -56,6 +84,7 @@ CHANGE_SCHEMA = {
                                                      "required": ["var", "value"], "additionalProperties": False}},
         "venue": {"type": ["object", "null"], "properties": {"name": {"type": "string"}, "vtype": {"type": "string"},
                                                              "lon": {"type": "number"}, "lat": {"type": "number"}}},
+        "social": SOCIAL_SCHEMA,
     },
     "required": ["kind", "label", "why"],
 }
@@ -717,6 +746,31 @@ def _check_change(ch, j, sim, prob: Problems, index):
                  peer=_clip("peer", _num(ch.get("peer"), 1.0), 0, 3, prob), quit=_clip("quit", _num(ch.get("quit"), 0.005), 0, 0.1, prob),
                  effects_while=ew)
         row["summary"] = f"“{lab}” can spread ({round(100 * c['seed_share'])}% start)" + ("; adopters feel " + ", ".join(f"{e['var'].replace('_', ' ')} {e['value']:+g}" for e in ew) if ew else "")
+    elif kind == "social":
+        from ..engine.systems.social_actions import ACTIONS
+        from ..engine.systems.social_actions import check as social_check
+        soc = ch.get("social")
+        if not isinstance(soc, dict) or soc.get("action") not in ACTIONS:
+            prob.errors.append(f"social.action must be one of {', '.join(ACTIONS)}")
+            return None, row
+        atom = {k_: v_ for k_, v_ in soc.items() if v_ is not None and k_ != "target_type"}
+        c["duration_days"] = None
+        c["ramp_days"] = 0
+        # previewed in today's world; `day_offset` counts from the day the change starts
+        probe = {**atom, "target_type": "social"}
+        if start:
+            probe["day_offset"] = start + int(_num(atom.get("day_offset"), 0) or 0)
+        res = social_check(sim, probe)
+        prob.errors += res["problems"]
+        prob.warnings += res["warnings"]
+        if res["problems"]:
+            return None, row
+        c["social"] = atom
+        row["summary"] = res.get("summary") or atom["action"]
+        names = [r["name"] for r in res["people"]]
+        row["who"] = ", ".join(names[:6]) + (f" and {len(names) - 6} more" if len(names) > 6 else "") if names else "—"
+        row["n"] = len(names)
+        row["people"] = res["people"]
     elif kind == "venue":
         v = ch.get("venue") or {}
         if not isinstance(v, dict) or v.get("vtype") not in VISITED_VTYPES:
@@ -793,6 +847,8 @@ def lower(plan: dict, today: int, pid: str) -> list[dict]:
                      population=c.get("who"))
         elif kind == "venue":
             a.update(target_type="venue", value=c["venue"])
+        elif kind == "social":
+            a.update(target_type="social", **c["social"])
         if "share" in c:
             a["share"] = c["share"]
         atoms.append(a)

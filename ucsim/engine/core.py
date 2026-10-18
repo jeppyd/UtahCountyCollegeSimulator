@@ -167,7 +167,7 @@ class EventLog:
     """Append-only columnar log of salient events with causal parent links."""
 
     COLS = {"day": np.int32, "block": np.int8, "type": np.int16, "a": np.int32, "b": np.int32, "place": np.int32,
-            "value": np.float32, "cause": np.int64, "mech": np.int16}
+            "value": np.float32, "cause": np.int64, "mech": np.int16, "decision": np.int64}
 
     def __init__(self, registry: Registry, capacity: int = 1 << 16):
         self.reg = registry
@@ -178,12 +178,13 @@ class EventLog:
         self.cols["place"][:] = -1
         self.cols["cause"][:] = -1
         self.cols["mech"][:] = -1
+        self.cols["decision"][:] = -1
         self.type_id = registry.event_ids
         self.mech_ids = {m: i for i, m in enumerate(registry.mechanisms)}
         self.mech_names = list(registry.mechanisms)
 
     def emit(self, etype: str, day: int, a, b=None, value=None, cause=None, place=None, block: int = 0,
-             mech: str | None = None) -> np.ndarray:
+             mech: str | None = None, decision=None) -> np.ndarray:
         a = np.atleast_1d(np.asarray(a, dtype=np.int64))
         k = len(a)
         if k == 0:
@@ -192,7 +193,7 @@ class EventLog:
             new_cap = max(self.cap * 2, self.n + k + 1024)
             for c, arr in self.cols.items():
                 g = np.zeros(new_cap, dtype=arr.dtype)
-                if c in ("b", "place", "cause", "mech"):
+                if c in ("b", "place", "cause", "mech", "decision"):
                     g[:] = -1
                 g[: self.cap] = arr
                 self.cols[c] = g
@@ -212,6 +213,8 @@ class EventLog:
             self.cols["place"][s] = np.broadcast_to(np.asarray(place), (k,))
         if mech is not None:
             self.cols["mech"][s] = self.mech_ids[mech]
+        if decision is not None:
+            self.cols["decision"][s] = np.broadcast_to(np.asarray(decision, dtype=np.int64), (k,))
         ids = np.arange(self.n, self.n + k, dtype=np.int64)
         self.n += k
         return ids

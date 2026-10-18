@@ -2,8 +2,8 @@
 
 Timescales
 ----------
-blocks (morning/afternoon/evening): activity choice → co-presence → encounters
-daily   : romance decisions & dates, emotional states, sleep, illness, effects decay
+blocks (morning/afternoon/evening/late evening, engine/clock.py): activity choice → co-presence → encounters
+daily   : occasions (hosting, invitations, attendance), romance decisions & dates, emotional states, sleep, illness
 weekly  : tie stages & closeness, faith & practice, norms diffusion, relationships, study
 monthly : finances, jobs, housing market, fertility, missions, life-event hazards
 term    : enrollment, sections, grades, graduation, lease turnover, cohort arrivals
@@ -14,20 +14,23 @@ import time
 
 import numpy as np
 
+from . import clock
 from .core import Calendar, Effects, EventLog, Streams
+from .ledger import CauseLinks, DecisionLog, OccasionBook
 from .memory import MemoryStore
 from .world import World
 
 EMOTION_STATES = ["mood", "stress", "loneliness", "anxiety", "belonging", "self_esteem", "guilt", "fatigue",
                   "purpose", "financial_stress", "academic_pressure", "romantic_longing"]
-BLOCKS = ["morning", "afternoon", "evening"]
+BLOCKS = list(clock.BLOCK_NAMES)
 
 
 class Simulation:
     def __init__(self, world: World, interventions: list | None = None, name: str = "baseline",
                  record: bool = True):
         from .systems import (academics, activity, economy, emotion, encounters, environment, faith, groups, housing,
-                              history, lifecourse, mind, coping, culture, network, norms, plans, recorder, romance, routine)
+                              history, lifecourse, mind, coping, culture, network, norms, occasions, plans, recorder,
+                              romance, routine)
         self.w = world
         self.name = name
         self.reg = world.reg
@@ -37,6 +40,13 @@ class Simulation:
         self.log = EventLog(world.reg)
         self.effects = Effects(EMOTION_STATES)
         self.memory = MemoryStore(world.reg)
+        # ledgers (engine/ledger.py): why choices went the way they did, extra causes of events, occasions and scenes
+        self.decisions = DecisionLog(world.reg.decisions)
+        self.causes = CauseLinks()
+        self.book = OccasionBook(world.reg.occasions)
+        self.detail_days = 120     # full decision/invitation detail is kept this long; older rows thin to what matters
+        from ..geo.travel import TravelModel
+        self.travel = TravelModel(world)   # door-to-door minutes by walking, bike, car, UTA transit or a ride
         self.interventions = list(interventions or [])
         self.timing: dict[str, float] = {}
         self.record = record
@@ -58,6 +68,7 @@ class Simulation:
             "routine": routine.Routine(self),
             "culture": culture.Culture(self),
             "economy": economy.Economy(self),
+            "occasions": occasions.Occasions(self),
             "housing": housing.Housing(self),
             "recorder": recorder.Recorder(self),
             "history": history.History(self),
@@ -65,7 +76,8 @@ class Simulation:
         self._zcache_day = -999
         self._zcache: dict[str, tuple[float, float]] = {}
         for name in ("environment", "housing", "activity", "groups", "network", "academics", "encounters", "economy",
-                     "romance", "faith", "norms", "mind", "coping", "plans", "routine", "emotion", "culture", "lifecourse", "recorder"):
+                     "romance", "faith", "norms", "mind", "coping", "plans", "routine", "emotion", "culture", "occasions",
+                     "lifecourse", "recorder"):
             sysobj = self.systems[name]
             if hasattr(sysobj, "init"):
                 sysobj.init()
@@ -119,16 +131,26 @@ class Simulation:
     def emit(self, etype: str, a, b=None, value=None, cause=None, place=None, block: int = 0,
              mech: str | None = None, ev: dict | None = None, effects_for: str = "a", effects: list | None = None,
              motive: str | None = None, valence: float | None = None, salience: float | None = None,
-             scale: float = 1.0, salt: int = 991) -> np.ndarray:
+             scale: float = 1.0, salt: int = 991, decision=None, causes: list | None = None) -> np.ndarray:
         """Log events, appraise them, apply their registered emotional effects and lay down memories.
 
         What-if injections can override the template: `effects` (instance effects instead of the registered ones),
         `motive` (which concern appraisal reads), `valence`/`salience` (how the memory feels and how memorable it is),
-        `scale` (a severity multiplier on every effect, 0.25–4) and `salt` (independent effect noise per injection)."""
+        `scale` (a severity multiplier on every effect, 0.25–4) and `salt` (independent effect noise per injection).
+
+        Provenance: `decision` (decision id(s) from `self.decisions.record`) says which choice produced the event;
+        `causes` adds typed causes beyond the single `cause` parent: a list of (kind, refs, weight) with kind from
+        ledger.CAUSE_KINDS ("occasion", "person", "tie", "calendar", "action", ...) and refs aligned with `a`."""
         a = np.atleast_1d(np.asarray(a, dtype=np.int64))
-        ids = self.log.emit(etype, self.w.day, a, b=b, value=value, cause=cause, place=place, block=block, mech=mech)
+        ids = self.log.emit(etype, self.w.day, a, b=b, value=value, cause=cause, place=place, block=block, mech=mech,
+                            decision=decision)
         if not len(a):
             return ids
+        if decision is not None:
+            self.decisions.link_event(decision, ids)
+        for item in causes or ():
+            kind, refs = item[0], item[1]
+            self.causes.add(ids, kind, refs, item[2] if len(item) > 2 else 1.0)
         spec = self.reg.events[etype]
         targets = a if effects_for == "a" else np.atleast_1d(np.asarray(b, dtype=np.int64))
         relevance, coping = self.appraise(etype, targets, motive)
@@ -186,7 +208,7 @@ class Simulation:
 
     # ------------------------------------------------------------------ stepping
     # Phases of a day, keyed by the clock hour at which they run.
-    PHASES = (("start", 6), ("block0", 8), ("block1", 13), ("block2", 18), ("end", 23))
+    PHASES = (("start", 6), *((f"block{b}", h) for b, h in enumerate(clock.BLOCK_HOUR)), ("end", 23))
 
     def _run(self, name, fn, *args):
         t0 = time.perf_counter()
@@ -203,12 +225,13 @@ class Simulation:
             self._run("groups", S["groups"].daily)
             self._run("faith", S["faith"].daily)
             self._run("romance", S["romance"].plan_day)
+            self._run("occasions", S["occasions"].plan_day)
         elif phase.startswith("block"):
-            b = int(phase[-1])
-            w.hour = (8, 13, 18)[b]
+            b = int(phase[5:])
+            w.hour = clock.BLOCK_HOUR[b]
             self._run("activity", S["activity"].choose, b)
             self._run("encounters", S["encounters"].run, b)
-            if b == 2:
+            if b == clock.EVENING[-1]:      # the evening is over: dates and what happened at parties and dances
                 self._run("romance", S["romance"].evening)
         else:
             self._end_of_day()
@@ -219,6 +242,7 @@ class Simulation:
         d = w.day
         wd = self.cal.weekday(d)
         self._run("encounters", S["encounters"].friend_contact)
+        self._run("occasions", S["occasions"].end_of_day)
         self._run("romance", S["romance"].daily)
         self._run("mind", S["mind"].daily)
         self._run("coping", S["coping"].daily)
@@ -249,6 +273,26 @@ class Simulation:
         self._run("history", S["history"].daily)
         if d % 14 == 13:
             self.effects.prune(d)
+        if wd == 6:
+            self.thin_ledgers()
+
+    def thin_ledgers(self):
+        """Keep full detail for `detail_days`; older decisions and invitations survive only if they led to a salient
+        event (salience ≥ 0.5), belong to an occasion where something happened, or were attended. Recording draws no
+        random numbers, so thinning never changes the world."""
+        cut = self.w.day - self.detail_days
+        if cut <= 0:
+            return
+        from .ledger import thin_decisions
+        sal = np.array([e.salience for e in self.reg.events.values()], np.float32)
+        types = self.log["type"]
+        keep_ev = lambda ev: sal[types[np.clip(ev, 0, self.log.n - 1)]] >= 0.5   # noqa: E731
+        O = self.book.occ
+        notable = O["id"][(O["day"] < cut) & ((O["n_new_ties"] > 0) | (O["n_conflicts"] > 0))]
+        self.book.thin(cut, keep_occ=notable)
+        self.systems["occasions"].thin()
+        keep_dec = self.book.inv["decision"]
+        thin_decisions(self.decisions, cut, keep_ev, keep_ids=keep_dec[keep_dec >= 0])
 
     def step_day(self):
         """Run the remaining phases of the current day, then advance to the next morning."""

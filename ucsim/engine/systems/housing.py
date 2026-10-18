@@ -14,6 +14,8 @@ import numpy as np
 from scipy.special import expit
 
 from ...population.structure import BYU, UVU, km
+from ..provenance import link, pick, place_ref, state_ref
+from ..state import CTX_ID
 
 
 class Housing:
@@ -70,8 +72,12 @@ class Housing:
         U = self.sim.w.units
         return np.where(mask & (self.occ < U.capacity))[0]
 
-    def place(self, ids: np.ndarray, married: bool = False, reason: str = "moved", cause=None):
-        """Move people (singles bed-by-bed, or one couple per call when married=True)."""
+    def place(self, ids: np.ndarray, married: bool = False, reason: str = "moved", cause=None, why=None):
+        """Move people (singles bed-by-bed, or one couple per call when married=True).
+
+        Provenance: each mover's choice of place is recorded (the chosen place's utility terms measured against the
+        average of the places they looked at, and its logit probability among them); `why` = the decisions to move
+        (aligned with ids), linked to the moved events."""
         sim, w = self.sim, self.sim.w
         P, U, p = w.P, w.units, sim.p
         if len(ids) == 0:
@@ -81,6 +87,10 @@ class Housing:
         for o in old[old >= 0]:
             self.occ[o] -= 1
         anchor = np.where((P["school"][ids] == 2)[:, None], np.array(UVU)[None, :], np.array(BYU)[None, :])
+        names = ("rent", "distance", "friends", "quality", "culture")
+        F = {f: np.zeros(len(ids)) for f in names}
+        base = np.zeros(len(ids))
+        prob = np.full(len(ids), np.nan)
         if married:
             elig = (U.unit_type == 3) | ((U.unit_type == 2) & (U.capacity <= 4)) | ((U.unit_type == 1) & ~U.contracted)
             cand = self._vacant(elig & (self.occ == 0))
@@ -89,7 +99,10 @@ class Housing:
             take = rng.choice(cand, size=min(20, len(cand)), replace=False)
             d = km(U.lon[take], U.lat[take], anchor[0, 0], anchor[0, 1])
             util = -0.6 * d + 1.0 * U.quality[take] + rng.gumbel(size=len(take))
-            u = int(take[np.argmax(util)])
+            j = int(np.argmax(util))
+            u = int(take[j])
+            det = {"distance": -0.6 * d, "quality": 1.0 * U.quality[take]}
+            self._note_choice(F, base, prob, slice(None), det, j)
             for i in ids:
                 self._set_home(i, u)
             self.occ[u] += len(ids)
@@ -116,11 +129,16 @@ class Housing:
                 per_bed = U.rent_total[take] / np.maximum(U.capacity[take], 1) * w.env.get("rent_index", 1.0) * w.env.get("rent_shock", 1.0)
                 d = km(U.lon[take], U.lat[take], anchor[k, 0], anchor[k, 1])
                 fr = np.array([friends_cx.get(int(i), {}).get(int(c), 0) for c in U.complex_id[take]])
-                util = (-p("housing.choice.rent") * per_bed / budget[k] - p("housing.choice.distance") * d
-                        + p("housing.choice.friends") * np.log1p(fr) + 0.8 * U.quality[take] + rng.gumbel(size=len(take)))
+                det = {"rent": -p("housing.choice.rent") * per_bed / budget[k], "distance": p("housing.choice.distance") * d,
+                       "friends": p("housing.choice.friends") * np.log1p(fr), "quality": 0.8 * U.quality[take]}
+                util = det["rent"] - det["distance"] + det["friends"] + det["quality"] + rng.gumbel(size=len(take))
                 if "culture" in w.meta:   # people sort toward complexes whose culture fits them (attraction–selection)
-                    util = util + p("culture.feedback.sorting") * sim.systems["culture"].housing_fit(int(i), U.complex_id[take])
-                u = int(take[np.argmax(util)])
+                    det["culture"] = p("culture.feedback.sorting") * sim.systems["culture"].housing_fit(int(i), U.complex_id[take])
+                    util = util + det["culture"]
+                det["distance"] = -det["distance"]
+                jj = int(np.argmax(util))
+                u = int(take[jj])
+                self._note_choice(F, base, prob, k, det, jj)
                 if U.sex_restriction[u] == 0 and U.unit_type[u] != 4:
                     U.sex_restriction[u] = sexc
                 self._set_home(i, u)
@@ -131,9 +149,28 @@ class Housing:
                 U.sex_restriction[o] = 0
         self._update_rent(ids)
         self._assign_ward(ids)
-        moved = ids[(P["unit_id"][ids] != old)]
+        mm = P["unit_id"][ids] != old
+        moved = ids[mm]
         if len(moved) and reason:
-            sim.emit(reason, moved, cause=cause, mech="housing.choice")
+            did = sim.decisions.record("choose_home", w.day, moved, "chosen", {f: v[mm] for f, v in F.items()},
+                                       base=base[mm], prob=prob[mm])
+            ev = sim.emit(reason, moved, cause=cause, mech="housing.choice", decision=did)
+            if why is not None:
+                link(sim, ev, "decision", np.asarray(why, np.int64)[mm], 1.0, "why_move")
+            cx = P["complex_id"][moved]
+            link(sim, ev, "place", np.where(cx >= 0, place_ref(CTX_ID["complex"], cx), -1), 1.0, "new_home")
+
+    @staticmethod
+    def _note_choice(F: dict, base: np.ndarray, prob: np.ndarray, k, det: dict, j: int):
+        """Store the chosen place's terms against the average of the places looked at (they add up to its
+        deterministic utility minus that average), and its logit probability among them."""
+        tot = sum(det.values())
+        for f, v in det.items():
+            v = np.asarray(v, np.float64)
+            F[f][k] = v[j] - v.mean()
+        base[k] = float(np.mean(tot))
+        e = np.exp(tot - np.max(tot))
+        prob[k] = float(e[j] / e.sum())
 
     def _friend_complexes(self, ids):
         w = self.sim.w
@@ -196,11 +233,17 @@ class Housing:
         P, p = w.P, sim.p
         renters = P["present"] & (P["unit_id"] >= 0) & ~P.isin("living", ["with_parents", "family_home"]) & \
             ~P.is_("rel_status", "married") & (P["age"] < 32)
-        h = expit(p("housing.move.base") - 2.0 * (P["roommate_cohesion"] - 0.5) + 1.2 * np.clip(P["rent_burden"] - 0.5, 0, 2)
-                  + 0.8 * P.is_("living", "dorm") + 0.3 * sim.z("openness"))
+        T = {"roommates": 2.0 * (P["roommate_cohesion"] - 0.5), "rent": 1.2 * np.clip(P["rent_burden"] - 0.5, 0, 2),
+             "dorm": 0.8 * P.is_("living", "dorm"), "openness": 0.3 * sim.z("openness")}
+        h = expit(p("housing.move.base") - T["roommates"] + T["rent"] + T["dorm"] + T["openness"])
         movers = np.where(renters & (sim.u("move") < h))[0]
         if len(movers):
-            self.place(movers)
+            rec = pick(T, movers)
+            rec["roommates"] = -rec["roommates"]
+            why = sim.decisions.record("move_out", w.day, movers, "moved", rec, base=p("housing.move.base"), prob=h[movers],
+                                       refs={"rent": ("state", state_ref(sim, "rent_burden", movers)),
+                                             "roommates": ("state", state_ref(sim, "roommate_cohesion", movers))})
+            self.place(movers, why=why)
 
     def monthly(self):
         sim, w = self.sim, self.sim.w

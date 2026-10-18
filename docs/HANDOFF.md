@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| Claude Code (cloud session) | 2026-10-18 22:27 | workbench, scales, sexuality-survey, calendar-weather, talk, travel | Six builders, two at a time in this order; each pushes its progress to `wip/<workstream>`. When they stop on usage limits, the relay rule below applies. |
+| Claude Code (cloud) | 2026-10-18 | workbench, then scales | Took over `wip/workbench` (relay rule); one workstream at a time. |
 
 ## The goal in one paragraph
 
@@ -63,12 +63,12 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | Foundation: ledgers (decisions, causes, occasions), 4-block clock, travel interface, contracts, auto-registered routers and workbench tools, CSV survey loader, privacy guard test | **done** | working branch | — |
 | [time-occasions](workstreams/time-occasions.md) (option B) | **done, merged** | working branch | open issues below |
 | [provenance-trace](workstreams/provenance-trace.md) | **done, merged** | working branch | open issues below |
-| [workbench](workstreams/workbench.md) | in progress (cloud session) | — | also add an Occasion/scene tool on /api/occasion |
-| [scales](workstreams/scales.md) | in progress (cloud session) | — | can start any time |
-| [sexuality-survey](workstreams/sexuality-survey.md) (+ dealbreakers) | in progress (cloud session) | — | needs the raw xlsx in `data/raw/` (owner supplies) |
-| [calendar-weather](workstreams/calendar-weather.md) | in progress (cloud session) | — | after time-occasions is merged |
-| [talk](workstreams/talk.md) (Ask + interviews) | in progress (cloud session) | — | after provenance-trace is merged |
-| [travel](workstreams/travel.md) | in progress (cloud session) | — | can start any time (keeps `ucsim/geo/travel.py`'s interface) |
+| [workbench](workstreams/workbench.md) | **in progress, paused** | `wip/workbench` (shell, shelf, selection bar, RefChip, layout persistence, Map and People tools, new navigation, workbench endpoints) | remaining tools: Life, Timeline, Measure, Ties, Place, Compare, Events, plus Occasion, Day and Act panels; Guide section; screenshots |
+| [scales](workstreams/scales.md) | **in progress, paused** | `wip/scales` (backend: anchors, units, how-measured for every person and tie field; /api/scales and /api/scales/value with live distributions; tests) | frontend: kit/Ruler.tsx, ScaleCard, `<Val>`, use on person/inner-life/Explore pages, Scales glossary tool |
+| [sexuality-survey](workstreams/sexuality-survey.md) (+ dealbreakers) | not started | — | needs the raw xlsx in `data/raw/` (owner supplies) |
+| [calendar-weather](workstreams/calendar-weather.md) | not started | — | after time-occasions is merged |
+| [talk](workstreams/talk.md) (Ask + interviews) | not started | — | after provenance-trace is merged |
+| [travel](workstreams/travel.md) | not started | — | can start any time (keeps `ucsim/geo/travel.py`'s interface) |
 | [messaging](workstreams/messaging.md) (wave 2) | not started | — | after time-occasions |
 | [institutions](workstreams/institutions.md) (wave 2) | not started | — | after time-occasions + provenance |
 | [family-homes](workstreams/family-homes.md) (wave 2) | not started | — | after calendar-weather |
@@ -97,6 +97,9 @@ institutions, family-homes) can start now too, but coordinate: they touch the sa
 
 (none open — 2026-10-18: the owner approved pushing work-in-progress branches `wip/<workstream>` to GitHub.)
 
+**Note:** the owner merged pull request #9 into `main` on 2026-10-18 (everything up to commit 7853b67: the foundation,
+time-occasions and provenance-trace). Agents still never push to or merge into `main`; the owner does that.
+
 ## Environment notes
 
 - Raw survey exports (`data/raw/*.csv`, `*.xlsx`) are gitignored; if a workstream needs them and they're missing,
@@ -108,6 +111,15 @@ institutions, family-homes) can start now too, but coordinate: they touch the sa
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-18 (late night) — Claude Code (cloud session)
+- Paused at the owner's request to save usage: multi-agent runs were too expensive. Two builders had pushed progress
+  before the stop: `wip/workbench` and `wip/scales` (contents in the status board). Nothing else is in flight.
+- **How to continue (cheaply):** one agent, one workstream at a time, in this order: workbench (continue
+  `wip/workbench`) → scales (continue `wip/scales`) → calendar-weather → sexuality-survey (needs the raw xlsx in
+  `data/raw/`) → talk → travel → messaging → institutions → family-homes → survey-followups (needs the raw CSVs) →
+  integration. When a workstream is done: full tests + web build, merge it into the working branch, push, update this
+  file.
 
 ### 2026-10-18 (night) — Claude Code (cloud session)
 - The six remaining wave-1 builders were stopped by usage limits within minutes (no progress); restarted at 22:27 UTC

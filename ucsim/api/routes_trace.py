@@ -30,10 +30,11 @@ def trace(ref: str, u: str = "base", dir: str = "both", depth: int = 3, max_node
 
 @router.get("/api/trace/chains")
 def chains(u: str = "base", since: int | None = None, until: int | None = None, filter: str | None = None,
-           root: str | None = None, repeats: bool = False, max_links: int = 60):
+           people: str | None = None, root: str | None = None, repeats: bool = False, max_links: int = 60):
     """Population chain reactions in a window: which kinds of events (and which decisions) led to which, with example
-    instances, and the top reasons behind each decision outcome. `filter` is a cohort filter (JSON, query DSL); `root`
-    an event type to center on."""
+    instances, and the top reasons behind each decision outcome. `filter` is a cohort filter (JSON, query DSL) and
+    `people` a comma-separated list of person ids (either narrows the events to those people's); `root` an event type
+    to center on."""
     import numpy as np
 
     from ..analysis import trace as T
@@ -41,17 +42,24 @@ def chains(u: str = "base", since: int | None = None, until: int | None = None, 
     from .server import WS, jresp
     sim = WS.sim(u)
     with WS.lock:
-        people = None
+        who = None
         if filter:
             try:
                 filt = json.loads(filter)
             except json.JSONDecodeError as e:
                 raise HTTPException(400, f"filter is not valid JSON: {e}") from e
             if filt:
-                people = np.flatnonzero(evaluate_filter(sim.w, filt, sim, include_absent=True))
+                who = np.flatnonzero(evaluate_filter(sim.w, filt, sim, include_absent=True))
+        if people:
+            try:
+                ids = np.array([int(x) for x in people.split(",") if x.strip()], np.int64)
+            except ValueError as e:
+                raise HTTPException(400, "people must be a comma-separated list of ids") from e
+            ids = ids[(ids >= 0) & (ids < sim.w.P.n)]
+            who = ids if who is None else np.intersect1d(who, ids)
         if root and root not in sim.reg.events:
             raise HTTPException(404, f"no event type {root!r}")
-        return jresp(T.chains(sim, since, until, people=people, root=root or None, repeats=repeats,
+        return jresp(T.chains(sim, since, until, people=who, root=root or None, repeats=repeats,
                               max_links=int(np.clip(max_links, 5, 200))))
 
 

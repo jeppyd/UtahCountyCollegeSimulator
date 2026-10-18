@@ -902,6 +902,7 @@ def trace(sim, ref, dir: str = "both", depth: int = 3, max_nodes: int = MAX_NODE
                      f"({'the node limit' if G.cut else 'the per-item limit'}); click an item to follow those.")
     return {"root": root, "nodes": nodes, "links": list(G.links.values()), "lanes": lanes,
             "range": [min(days), max(days)] if days else [sim.w.day, sim.w.day], "today": sim.w.day,
+            "start_date": str(sim.cal.date(0)),
             "cut": {"back": int(cut_back), "fwd": int(cut_fwd), "cap_hits": int(G.cut), "max_nodes": G.max_nodes,
                     "fanout": G.fanout},
             "notes": notes}
@@ -1190,6 +1191,7 @@ def chains(sim, since: int | None = None, until: int | None = None, people: np.n
         nd["n"] = max(nd.pop("in"), nd.pop("out"))
     n_events = int(len(rows))
     return {"window": [since, until], "events": n_events, "cohort": None if people is None else int(len(people)),
+            "today": day, "start_date": str(sim.cal.date(0)),
             "root": root, "root_label": reg.events[root].label if root in reg.events else None,
             "nodes": list(nodes.values()), "links": flow, "reasons": reasons[:40],
             "repeats_hidden": 0 if repeats else n_repeat,

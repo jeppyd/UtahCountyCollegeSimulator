@@ -13,16 +13,18 @@ from __future__ import annotations
 
 import numpy as np
 
+from .. import clock
 from ..core import pair_normal
 from ..state import CTX, CTX_ID, EdgeStore, Tie
 from .activity import NONE
 
+# hours a conversation lasts by context; at an occasion it is 1 x the kind's talk_h (occasions.talk_hours)
 DURATION = {"unit": 0.9, "complex": 0.25, "class": 0.15, "ward": 0.3, "fhe": 0.8, "work": 0.4, "gym": 0.15,
             "venue": 0.35, "gathering": 1.4, "campus": 0.2, "dance": 0.4, "outdoors": 0.5, "hangout": 1.6, "online": 0.3,
-            "club": 0.5, "team": 0.6, "institute": 0.35, "congregation": 0.35}
+            "club": 0.5, "team": 0.6, "institute": 0.35, "congregation": 0.35, "occasion": 1.0}
 LEISURE_W = {"unit": 1.0, "complex": 0.8, "class": 0.3, "ward": 0.6, "fhe": 0.9, "work": 0.35, "gym": 0.5,
              "venue": 1.0, "gathering": 1.0, "campus": 0.45, "dance": 1.0, "outdoors": 1.0, "hangout": 1.0, "online": 0.5,
-             "club": 0.85, "team": 0.95, "institute": 0.6, "congregation": 0.6}
+             "club": 0.85, "team": 0.95, "institute": 0.6, "congregation": 0.6, "occasion": 1.0}
 RATE_KEYS = ("unit", "complex", "class", "ward", "fhe", "work", "gym", "venue", "campus", "dance", "outdoors",
              "club", "team", "institute", "congregation")
 TIE_OF = {"class": Tie.CLASSMATE, "work": Tie.COWORKER, "ward": Tie.WARD, "fhe": Tie.FHE, "complex": Tie.NEIGHBOR,
@@ -40,7 +42,7 @@ def activation(n, first, last, day, d=0.5):
     return np.log(tn ** (-d) + np.maximum(rest, 0))
 
 
-SHARED = ("gathering", "hangout", "team", "club", "outdoors", "dance", "fhe", "date", "institute")
+SHARED = ("gathering", "hangout", "team", "club", "outdoors", "dance", "fhe", "date", "institute", "occasion")
 
 
 class Encounters:
@@ -73,9 +75,13 @@ class Encounters:
         return r
 
     def run(self, b: int):
+        """Interactions among co-present people in block b. Attempt rates are per old (five-hour) block: ambient time
+        is scaled by its share of the block (activity.ctx_share: a whole evening at home adds up to one old evening);
+        at an occasion the rate is the get-together rate x the kind's rate x the share of the occasion in this block."""
         sim, w = self.sim, self.sim.w
         P, E, p = w.P, w.E, sim.p
         act = sim.systems["activity"]
+        occs = sim.systems["occasions"]
         ctype, cid = act.ctype, act.cid
         day = w.day
         valid = (ctype != NONE) & (cid >= 0) & (ctype != CTX_ID["date"])
@@ -97,6 +103,11 @@ class Encounters:
             is_gath = (ct == CTX_ID["unit"]) & np.isin(cid[idx], gu)
         rate = self.rates()[ct]
         rate = np.where(is_gath, p("encounter.rate.gathering"), rate)
+        at_occ = ct == CTX_ID["occasion"]
+        if at_occ.any():
+            rate[at_occ] = p("encounter.rate.gathering") * occs.rate_mult(cid[idx[at_occ]])
+        share = act.ctx_share[idx] if len(act.ctx_share) == len(ctype) else clock.LEGACY_SHARE[b]
+        rate = rate * share
         appr, _, _ = act._drives()
         soc = np.exp(p("encounter.sociability.extraversion") * sim.z("extraversion")[idx]
                      - p("encounter.sociability.social_anxiety") * np.clip(sim.z("social_anxiety")[idx], 0, None)
@@ -137,10 +148,26 @@ class Encounters:
         ctx = ct[src_pos][ok]
         cplace = cid[a]
         gflag = is_gath[src_pos][ok]
+        occ_pair = ctx == CTX_ID["occasion"]
+        new_at_occ = occ_pair & (E.find(EdgeStore.make_keys(a, bb)) < 0) if occ_pair.any() else occ_pair
         self.apply(a, bb, ctx, cplace, b, sim_[rows, best][ok], gflag)
-        if b == 2:
+        if new_at_occ.any():
+            # met at someone's occasion: the organizer introduced them (first meetings only)
+            lo_, hi_, place_ = a[new_at_occ], bb[new_at_occ], cplace[new_at_occ]
+            org = occs.organizer_of(place_)
+            intro = (org >= 0) & (org != lo_) & (org != hi_)
+            if intro.any():
+                eix = E.find(EdgeStore.make_keys(lo_[intro], hi_[intro]))
+                fresh = (eix >= 0) & (E["introducer"][np.maximum(eix, 0)] < 0)
+                E.cols["introducer"][eix[fresh]] = org[intro][fresh]
+                E.cols["flags"][eix[fresh]] |= Tie.INTRODUCED
+        if b in clock.EVENING:
             social = gflag | (ctx == CTX_ID["dance"])
-            self.evening_social_pairs = (a[social], bb[social])
+            if occ_pair.any():
+                social = social | (occ_pair & occs.ncmo_ok(np.where(occ_pair, cplace, 0)))
+            pairs = (a[social], bb[social])
+            prev = self.evening_social_pairs if b != clock.EVENING[0] else None
+            self.evening_social_pairs = pairs if prev is None else (np.r_[prev[0], pairs[0]], np.r_[prev[1], pairs[1]])
         elif b == 0:
             self.evening_social_pairs = None
 
@@ -290,6 +317,9 @@ class Encounters:
              + p("encounter.valence.liking") * E["liking"][idx]
              + p("encounter.valence.noise") * rng.standard_normal(len(a)))
         dur = self.dur[ctx] * np.where(gath, 1.6, 1.0) * rng.lognormal(0, 0.5, len(a))
+        at_occ = ctx == CTX_ID["occasion"]
+        if at_occ.any():    # how long people talk at an occasion depends on the kind (a dinner vs a dance floor)
+            dur[at_occ] *= sim.systems["occasions"].talk_hours(place[at_occ])
         lw = np.where(gath, 1.0, self.leisure[ctx])
         # ---- aggregate duplicates per edge then update once
         uniq, inv = np.unique(idx, return_inverse=True)

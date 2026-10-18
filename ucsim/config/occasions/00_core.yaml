@@ -76,4 +76,4 @@ occasions:
     open: true
     social: true
     category: social
-    rate: 0.8
+    rate: 0.5          # 1.2 / 2.5: the calibrated dance-floor rate relative to a get-together (encounter.rate)

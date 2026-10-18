@@ -19,6 +19,8 @@ from __future__ import annotations
 import numpy as np
 from scipy.special import expit
 
+from .. import clock
+
 
 class Faith:
     def __init__(self, sim):
@@ -34,7 +36,7 @@ class Faith:
         P.add_internal("works_sunday", np.bool_, False)
         P.internal["attend_prob"][: P.n] = P["attend_rate"]
         mask = P.internal["shift_mask"][: P.n] if "shift_mask" in P.internal else np.zeros(P.n, np.uint32)
-        P.internal["works_sunday"][: P.n] = (mask & np.uint32(1 << 18)) > 0
+        P.internal["works_sunday"][: P.n] = (mask & np.uint32(1 << int(clock.slot(6, 0)))) > 0   # a Sunday-morning shift
         self.attending_today = np.zeros(P.n, bool)
         self.attending_other = np.zeros(P.n, bool)
         w = self.sim.w

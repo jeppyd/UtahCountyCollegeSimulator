@@ -34,6 +34,37 @@ SLOTS_PER_WEEK = 7 * N_BLOCKS
 # the old three-block day (8, 13, 18) had a five-hour evening; per-block encounter rates and durations calibrated on it
 # are scaled by this block's share of that evening (see encounters.py)
 LEGACY_LEN_H = (5.0, 5.0, 5.0)
+# Ambient time (home, the complex, a venue, a shift) in each block as a share of the old block it replaces: the
+# morning and afternoon by length, the two evening blocks by their share of the evening they split, so a whole
+# evening at home (0.46 + 0.54) adds up to exactly one old evening and calibrated encounter rates carry over.
+LEGACY_SHARE = np.array([LENGTH_H[0] / LEGACY_LEN_H[0], LENGTH_H[1] / LEGACY_LEN_H[1],
+                         *(LENGTH_H[b] / LENGTH_H[list(EVENING)].sum() for b in EVENING)], np.float32)
+DAY_START, DAY_END = int(START[0]), int(END[-1])
+
+
+def parse_hhmm(text) -> int:
+    """'19:30' or '7:30 pm' or 1170 -> minutes after midnight."""
+    if isinstance(text, (int, float, np.integer, np.floating)):
+        return int(text)
+    s = str(text).strip().lower().replace(".", "")
+    pm, am = s.endswith("pm"), s.endswith("am")
+    s = s[:-2].strip() if pm or am else s
+    h, _, m = s.partition(":")
+    h, m = int(h), int(m or 0)
+    if pm and h < 12:
+        h += 12
+    if am and h == 12:
+        h = 0
+    if not (0 <= h <= 24 and 0 <= m < 60):
+        raise ValueError(f"not a clock time: {text!r}")
+    return h * 60 + m
+
+
+def main_blocks(start, dur, min_minutes: int = 30) -> list[int]:
+    """Blocks a planned thing occupies: those holding at least `min_minutes` of it (or its largest share)."""
+    ov = [int(overlap(start, dur, b)) for b in range(N_BLOCKS)]
+    out = [b for b, m in enumerate(ov) if m >= min_minutes]
+    return out or ([int(np.argmax(ov))] if max(ov) > 0 else [])
 
 
 def slot(weekday, block):

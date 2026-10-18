@@ -1,0 +1,110 @@
+system: occasions
+# Planned occasions: hosting, invitations, feasibility, attendance, hosting's costs and weekly traditions
+# (engine/systems/occasions.py). Host rates, the number invited and the acceptance base stay in activity.gathering
+# (01_social.yaml), which they were calibrated as. Most strengths here are hypothetical: plausible directions and
+# magnitudes with wide ranges, not measured effects.
+mechanisms:
+  occasions.plan:
+    label: Hosting plans (kind, start time, planning ahead)
+    target: social_events_month
+    sources: [extraversion, sensation_seeking, cooking, gaming, home_social_culture, enrolled]
+    form: "Hosts are drawn with activity.gathering's weekday rates × exp(0.6·E + 0.8·approach) × apartment culture; the kind is a Gumbel-max choice over utilities (weekday, cooking, gaming, outgoing, thrill, apartment culture, marriage, studies, exams); the start is the kind's usual time ± 30 min, moved later (up to the kind's latest start) to fit the host's own shift or classes; a share of Friday/Saturday parties is planned 2–5 days ahead."
+    params:
+      plan_ahead_share: {value: 0.35, range: [0.1, 0.6]}
+      party_weekend: {value: 1.2, range: [0.5, 2.0]}
+      dinner_sunday: {value: 0.8, range: [0.2, 1.5]}
+      study_exams: {value: 0.8, range: [0.2, 1.5]}
+    timescale: daily
+    evidence: hypothetical
+    desc: "Turns the old evening 'gathering' draw into planned occasions with a kind, a start time and an organizer, so a dinner at 7:30 can be traced to who planned it and why then."
+  occasions.invite:
+    label: Who gets invited and how they hear
+    target: social_events_month
+    sources: [extraversion, social_media_hours]
+    form: "Invitees: closeness-weighted Gumbel top-k among the host's casual friends and friends (weight log(0.15 + closeness) + roommate_boost·[same apartment or complex]); housemates and complex neighbors are asked in person (seen at once), others by text, seen in time with p = logistic(seen_base + seen_phone·z(social media hours) − seen_busy·[at work or in class when it arrives]). Weekly series invite their regulars by group chat."
+    params:
+      roommate_boost: {value: 1.0, range: [0.0, 2.0]}
+      seen_base: {value: 1.8, range: [0.5, 3.0]}
+      seen_phone: {value: 0.4, range: [0.0, 1.0]}
+      seen_busy: {value: 0.8, range: [0.0, 2.0]}
+    timescale: daily
+    evidence: hypothetical
+    desc: "Messaging (wave 2) will replace the 'seen' draw with threads and attention; occasions.deliver is the hook."
+  occasions.attend:
+    label: Deciding to go (with commitments and travel)
+    target: social_events_month
+    sources: [fatigue, extraversion, loneliness, hurt, travel minutes, minutes late]
+    form: "logit(go) = activity.gathering.accept_base + 2·closeness + 0.4·E − 1.5·fatigue + 0.8·approach + intention + culture + friends_going·log1p(friends invited who'd likely go) − travel·max(0, minutes − 10)/15 − late·minutes late/30 − hurt·hurt − exam·[exam week] + routine·[came last week]; hard limits: committed elsewhere the whole time (a shift, a class, another plan) or no way to arrive with min_stay minutes left."
+    params:
+      friends_going: {value: 0.4, range: [0.0, 1.0]}
+      travel: {value: 0.25, range: [0.05, 0.6]}
+      late: {value: 0.5, range: [0.1, 1.0]}
+      hurt: {value: 2.0, range: [0.5, 3.0]}
+      exam: {value: 0.4, range: [0.0, 1.0]}
+      routine: {value: 0.8, range: [0.0, 1.5]}
+      min_stay: {value: 45, range: [20, 90]}
+    timescale: daily
+    evidence: hypothetical
+    refs: ["Direction of the travel effect: distance decay in social activity participation (Axhausen 2008; van den Berg et al. 2013); magnitudes hypothetical"]
+  occasions.show_up:
+    label: Following through on a yes
+    target: social_events_month
+    sources: [fatigue]
+    form: "logit(come) = base − days_ahead·days since the yes − 1.0·fatigue + 1.0·closeness to the organizer; illness, a new commitment or no way to get there stop them (recorded as the reason)."
+    params:
+      base: {value: 3.2, range: [2.0, 4.5]}
+      days_ahead: {value: 0.25, range: [0.0, 0.6]}
+    timescale: daily
+    evidence: hypothetical
+  occasions.lateness:
+    label: Arriving late
+    target: social_events_month
+    sources: [conscientiousness]
+    form: "arrival = max(start, end of the commitment before it + travel) + Exponential(mean = base_minutes·exp(−0.3·z(conscientiousness)))"
+    params:
+      base_minutes: {value: 8, range: [2, 20]}
+    timescale: daily
+    evidence: hypothetical
+  occasions.burden:
+    label: What hosting costs the host
+    target: fatigue
+    sources: [fatigue, financial_stress, academic_pressure]
+    form: "burden = guests/6 + shift·[worked that day] + exams·[exam week] + money·financial stress·[the kind costs food] + fatigue; a 'worn out from hosting' event when burden > threshold; food costs come out of savings."
+    params:
+      threshold: {value: 1.6, range: [1.0, 3.0]}
+      shift: {value: 0.8, range: [0.2, 1.5]}
+      exams: {value: 0.6, range: [0.0, 1.5]}
+      money: {value: 1.5, range: [0.5, 3.0]}
+    timescale: daily
+    evidence: hypothetical
+  occasions.tradition:
+    label: Weekly traditions (start, keep, hand on)
+    target: social_events_month
+    sources: [extraversion, conscientiousness, stress, financial_stress]
+    form: "start: logit = start_base + 0.8·log(guests/3) + 0.5·enjoyment + 0.3·E + 0.3·C − 0.5·burden; keep: logit = continue_base + 1.5·log((came + 0.5)/(regulars + 0.5)) − 0.6·burden + 0.15·weeks running + 0.2·E − 1.0·(stress − 0.4) − 0.8·money stress·[food costs]; hand on (host moved out): a regular living in the same apartment takes over with logit = takeover_base + 0.5·E + 0.8·share of weeks attended + 1.0·closeness to the host."
+    params:
+      start_base: {value: -4.0, range: [-6.0, -2.5]}
+      continue_base: {value: 3.0, range: [1.5, 4.5]}
+      takeover_base: {value: -1.0, range: [-2.5, 0.5]}
+    timescale: weekly
+    evidence: hypothetical
+  occasions.open:
+    label: Going to open events (dances, games, devotionals)
+    target: social_events_month
+    sources: [dancing, drive_partnership, drive_fun, extraversion]
+    form: "For each person in an event's audience: utility = the kind's base + Σ interest β·value (z-score, or the 0–1 value) − travel·max(0, minutes − 10)/15 − late·minutes late/30 + intention·(free-time pull toward that kind of outing); one multinomial choice among the evening's overlapping events and not going; past capacity the least keen are turned away."
+    params:
+      intention: {value: 0.8, range: [0.0, 1.5]}
+      routine: {value: 0.6, range: [0.0, 1.2]}
+    timescale: daily
+    evidence: hypothetical
+  occasions.evening:
+    label: Evenings hang together
+    target: activity_now
+    sources: [activity_now]
+    form: "Late-evening free-time utility += continue for the option chosen in the early evening (same friend's place, same venue)."
+    params:
+      continue: {value: 2.0, range: [0.5, 3.5]}
+    timescale: block
+    evidence: hypothetical
+    desc: "The day now has two evening blocks; most outings started at 6 pm carry on past 8:15, so the evening's social exposure matches the old single evening."

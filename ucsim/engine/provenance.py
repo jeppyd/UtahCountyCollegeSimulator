@@ -91,6 +91,7 @@ ROLES: dict[str, tuple[str, str]] = {
     "tuition": ("contributed", "tuition"),
     "income": ("contributed", "too little income"),
     "found_out": ("caused", "found out about the cheating"),
+    "picked_up_from": ("contributed", "the closest friend who already did it"),
 }
 ROLE_CODE = {k: ROLE_BASE + i for i, k in enumerate(ROLES)}
 ROLE_NAME = {v: k for k, v in ROLE_CODE.items()}
@@ -368,6 +369,33 @@ def latest_between(sim, a, b, types, since: int) -> np.ndarray:
     k = np.clip(np.searchsorted(kk, want), 0, len(kk) - 1)
     hit = kk[k] == want
     out[hit] = rows[k[hit]]
+    return out
+
+
+def best_neighbor(adj, ids, ok, weight) -> np.ndarray:
+    """For each person in `ids`, the neighbor in CSR adjacency `adj` = (indptr, nbr, eidx) with the largest edge
+    `weight` among those where `ok[neighbor]` holds (−1 if none): e.g. the closest friend who already drinks coffee."""
+    indptr, nbr, eidx = adj
+    ids = np.atleast_1d(np.asarray(ids, np.int64))
+    out = np.full(len(ids), -1, np.int64)
+    if not len(ids) or not len(nbr):
+        return out
+    ids_c = np.minimum(ids, len(indptr) - 2)
+    start, stop = indptr[ids_c], indptr[ids_c + 1]
+    cnt = np.where(ids < len(indptr) - 1, stop - start, 0)
+    if not cnt.sum():
+        return out
+    owner = np.repeat(np.arange(len(ids)), cnt)
+    flat = np.repeat(start - np.r_[0, np.cumsum(cnt)[:-1]], cnt) + np.arange(int(cnt.sum()))
+    nb = nbr[flat].astype(np.int64)
+    good = ok[nb]
+    owner, nb, wt = owner[good], nb[good], np.asarray(weight)[eidx[flat[good]]]
+    if not len(owner):
+        return out
+    order = np.lexsort((-wt, owner))
+    owner, nb = owner[order], nb[order]
+    first = np.r_[True, owner[1:] != owner[:-1]]
+    out[owner[first]] = nb[first]
     return out
 
 

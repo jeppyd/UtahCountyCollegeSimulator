@@ -66,3 +66,11 @@ decisions:
       commitment: {label: "how committed they are", more: "low commitment", less: "committed"}
       ncmo:       {label: "interest in no-strings making out", more: "open to casual hookups", less: "not into casual hookups"}
       sensation:  {label: "sensation seeking", more: "seeks thrills", less: "cautious"}
+  app_match:
+    label: Whether a dating-app session turns up a match (today)
+    units: log_rate
+    outcomes: [matched]
+    factors:
+      base:       {label: "how often app users get a match on a given day", more: "", less: "most days on the apps bring no match"}
+      app_hours:  {label: "time spent on the apps", kind: multiplier, more: "on the apps a lot", less: "rarely opens the apps"}
+      app_appeal: {label: "how popular the apps are right now", kind: multiplier, more: "the apps are popular right now", less: "the apps are out of favor"}

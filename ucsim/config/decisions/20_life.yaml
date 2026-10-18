@@ -28,7 +28,8 @@ decisions:
   mission_length:
     label: Whether a mission ends early
     units: probability
-    outcomes: [early]
+    outcomes: [early, full]
+    positive: early
     factors:
       base: {label: "the share of missionaries who come home early (the model has no reasons for which ones)", more: "chance", less: ""}
   conceive:

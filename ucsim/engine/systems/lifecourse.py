@@ -294,9 +294,11 @@ class LifeCourse:
             P.internal["last_date_day"][ret] = day - 400
             for idx, ev in ((ret[~early], "mission_return"), (ret[early], "early_return")):
                 if len(idx):
-                    # coming home early is a flat share of missionaries in the model: the honest reason is chance
-                    did = chance(sim, "mission_length", idx, w.cfg["mission"]["early_return_rate"], "early") \
-                        if ev == "early_return" else None
+                    # coming home early (or not) is a flat share of missionaries in the model: the honest reason is
+                    # chance; the mission's own start is the parent when it happened within the story
+                    rate = w.cfg["mission"]["early_return_rate"]
+                    did = chance(sim, "mission_length", idx, rate if ev == "early_return" else 1 - rate,
+                                 "early" if ev == "early_return" else "full")
                     self._arrive(idx, event=ev, decision=did)
             wait = np.where(P["waiting_for_missionary"])[0]
             for x in wait:

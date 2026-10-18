@@ -1,0 +1,14 @@
+# Practice adoption (engine/systems/norms.py). Field meanings: config/decisions/00_core.yaml.
+# One row per person who took up a practice that week; the outcome says which. Every outcome is a "yes", so a
+# positive factor pushed toward taking it up (positive: any).
+decisions:
+  adopt_practice:
+    label: Whether to take up a practice (this week)
+    units: logit
+    outcomes: [coffee, alcohol, pickleball, dating_app]
+    positive: any
+    factors:
+      attitude: {label: "their own attitude (beliefs, standards, temperament)", more: "their own outlook allowed it", less: "it went against their standards"}
+      friends:  {label: "friends who already do it (several matter more than one)", more: "friends already do it", less: ""}
+      whatif:   {label: "a What-if nudge on this practice", more: "the What-if made it more appealing", less: "the What-if made it less appealing"}
+      pace:     {label: "how slowly habits spread (at most about one in twenty a week)", kind: multiplier, more: "", less: "habits change slowly"}

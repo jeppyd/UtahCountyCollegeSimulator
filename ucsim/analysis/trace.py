@@ -49,6 +49,23 @@ UNITS_WORDS = {"logit": "log-odds", "utility": "utility", "log_rate": "log of th
                "probability": "chance"}
 
 
+def lc(s: str) -> str:
+    """Lower-case a label for use mid-sentence, leaving names and acronyms alone ("Provo–Orem", "GPA", "BYU")."""
+    words = str(s).split(" ")
+    if words and words[0][:1].isupper() and not words[0][1:2].isupper():
+        words[0] = words[0][:1].lower() + words[0][1:]
+    return " ".join(words)
+
+
+def positive_outcome(spec: dict, outcome=None):
+    """The outcome a decision's log-odds favor (a factor > 0 pushed toward it): the kind's `positive`, else its first
+    outcome; `positive: any` means every outcome is a "yes" (which practice someone took up), so it is the outcome."""
+    pos = spec.get("positive")
+    if pos == "any":
+        return outcome
+    return pos or (spec.get("outcomes") or [None])[0]
+
+
 # ----------------------------------------------------------------------------- indexes (cached per world)
 class _Index:
     """Sorted lookups over the ledgers, rebuilt when they grow (one trace touches each many times)."""
@@ -195,7 +212,7 @@ class _Words:
         log = sim.log
         spec = sim.reg.events[sim.reg.event_names[log["type"][eid]]]
         a, b = int(log["a"][eid]), int(log["b"][eid])
-        tpl = spec.story or ("{a}: " + spec.label.lower())
+        tpl = spec.story or ("{a}: " + lc(spec.label))
         if spec.id in ("intention_formed", "plan_abandoned"):
             k = int(round(float(log["value"][eid])))
             w = INTENTION_WORDS.get(k)
@@ -204,7 +221,7 @@ class _Words:
         elif spec.id in ("whatif_shock", "whatif_practice", "intervention_exposure"):
             from .explain import event_record
             r = event_record(sim, eid)
-            tpl = r.get("story") or ("{a}: " + str(r.get("label", spec.label)).lower())
+            tpl = r.get("story") or ("{a}: " + lc(str(r.get("label", spec.label))))
         return tpl.replace("{a}", self.name(a)).replace("{b}", self.name(b) if b >= 0 else "someone")
 
     def var_label(self, var: str) -> str:
@@ -322,11 +339,11 @@ class _Graph:
         factors = _factor_refs(self.sim, self.W, d["factors"])
         people = [int(d["agent"])] + ([int(d["other"])] if d.get("other") is not None else [])
         return {"day": int(d["day"]), "block": int(d["block"]), "minute": int(clock.START[min(int(d["block"]), clock.N_BLOCKS - 1)]),
-                "people": people, "lane": int(d["agent"]), "label": f"{who}: {d['label'].lower()} → {outcome}{other}",
+                "people": people, "lane": int(d["agent"]), "label": f"{who}: {lc(d['label'])} → {outcome}{other}",
                 "type": d["kind"], "category": "decision", "weight": float(prob) if prob is not None else 0.5,
                 "detail": {"title": d["label"], "outcome": outcome, "prob": prob, "units": units,
                            "units_words": UNITS_WORDS.get(units, units), "base": d["base"], "total": d["total"],
-                           "factors": factors, "positive": spec.get("positive") or (spec.get("outcomes") or [None])[0]}}
+                           "factors": factors, "positive": positive_outcome(spec, d["outcome"])}}
 
     def _make_occasion(self, oid, hint_day):
         B = self.sim.book
@@ -401,7 +418,7 @@ class _Graph:
         val = float(v) if np.ndim(v) == 0 and np.issubdtype(np.asarray(v).dtype, np.number) else None
         now = self.sim.w.day
         return {"day": hint_day if hint_day is not None else now, "block": None, "minute": None, "people": [int(i)],
-                "lane": int(i), "label": f"{self.W.name(i)}'s {self.W.var_label(var).lower()}", "type": var,
+                "lane": int(i), "label": f"{self.W.name(i)}'s {lc(self.W.var_label(var))}", "type": var,
                 "category": "state", "weight": 0.5,
                 "detail": {"var": var, "now": None if val is None or not np.isfinite(val) else round(val, 3), "today": now}}
 
@@ -607,7 +624,7 @@ class _Graph:
             if not ev:
                 continue
             cands.append((2.0 + min(abs(eff["value"]) * 5, 1.0), lambda e=int(ev["id"]): self.node("event", e, depth - 1),
-                          ("contributed", eff["value"], f"still affecting their {self.W.var_label(var).lower()}")))
+                          ("contributed", eff["value"], f"still affecting their {lc(self.W.var_label(var))}")))
         if var == "mood" and any(t["term"] == "rumination" and abs(t["value"]) >= 0.005 for t in x["terms"]):
             for e in self._ruminated(i)[:3]:
                 cands.append((1.8, lambda e=e: self.node("event", e, depth - 1), ("contributed", None, "a memory they keep going back to")))
@@ -664,7 +681,7 @@ class _Graph:
                     who = int(eff.agent[j])
                     mag = float(eff.mag[j])
                     cands.append((1.0 + min(abs(mag) * 5, 1.0), lambda v=var, w=who: self.node("state", (v, w), depth + 1, n["day"]),
-                                  ("contributed", mag, f"changed their {self.W.var_label(var).lower()} (now {c:+.3f})")))
+                                  ("contributed", mag, f"changed their {lc(self.W.var_label(var))} (now {c:+.3f})")))
         return cands
 
     def _fwd_decision(self, n, depth):
@@ -792,7 +809,7 @@ def _factor_refs(sim, W: _Words, factors: list[dict]) -> list[dict]:
             elif ref["kind"] == "state":
                 var, i = split_state(sim, ref["id"])
                 f["ref"] = {"kind": "var", "id": f"{var}@{i}"}
-                f["ref_label"] = f"{W.name(i)}'s {W.var_label(var).lower()}"
+                f["ref_label"] = f"{W.name(i)}'s {lc(W.var_label(var))}"
             elif ref["kind"] == "place":
                 c, p = split_place(ref["id"])
                 f["ref"] = {"kind": "place", "id": f"{c}:{p}"}
@@ -969,7 +986,7 @@ def decision_detail(sim, did: int) -> dict:
     if d.get("other") is not None:
         d["other_name"] = W.name(d["other"])
     d["units_words"] = UNITS_WORDS.get(d["units"], d["units"])
-    d["positive"] = spec.get("positive") or (spec.get("outcomes") or [None])[0]
+    d["positive"] = positive_outcome(spec, d["outcome"])
     d["outcomes"] = spec.get("outcomes") or []
     d["factors"] = _factor_refs(sim, W, d["factors"])
     produced = [int(e) for e in index(sim).by_decision(int(did))]

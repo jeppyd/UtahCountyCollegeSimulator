@@ -19,7 +19,7 @@ import numpy as np
 from scipy.special import expit
 
 from ..core import pair_normal
-from ..provenance import latest_between, latest_event, link, mirror, pick, total
+from ..provenance import latest_between, latest_event, link, mirror, pick, state_ref, total
 from ..state import CTX_ID, EdgeStore, Tie
 
 DATE_TYPES = ["ice_cream", "restaurant", "hike", "board_games", "cook_together", "movie_theater", "soda_shop",
@@ -340,7 +340,14 @@ class Romance:
             E.cols["origin_ctx"][ni] = CTX_ID["app"]
             sim.systems["mind"].init_beliefs(ni, lo, hi)
         E.cols["flags"][eix] |= Tie.APP_MATCH
-        ev = sim.emit("app_match", ids, b=tgt, mech="romance.app")
+        # why a session happened today: the rate is a product (base × the apps' appeal × hours on them), so its log
+        # splits into one term per part; the match itself needs both to like the other's profile
+        did = sim.decisions.record("app_match", day, ids, "matched",
+                                   {"app_hours": np.log(np.maximum(P["app_hours"][ids], 1e-3) / 7.0),
+                                    "app_appeal": np.full(len(ids), np.log(max(float(w.env["app_appeal"]), 1e-6)))},
+                                   base=float(np.log(p("romance.app.rate"))), prob=np.clip(rate[ids], 0, 1), other=tgt,
+                                   refs={"app_hours": ("state", state_ref(sim, "app_hours", ids))})
+        ev = sim.emit("app_match", ids, b=tgt, mech="romance.app", decision=did)
         # the match turns into a date with probability ~ conversation success
         go = sim.u("app_date")[ids] < p("romance.app.date_conversion")
         ids, tgt, ev = ids[go], tgt[go], ev[go]

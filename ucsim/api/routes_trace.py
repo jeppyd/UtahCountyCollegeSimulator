@@ -18,8 +18,8 @@ def trace(ref: str, u: str = "base", dir: str = "both", depth: int = 3, max_node
     from .server import WS, jresp
     if dir not in ("back", "fwd", "both"):
         raise HTTPException(400, "dir must be back, fwd or both")
-    sim = WS.sim(u)
     with WS.lock:
+        sim = WS.sim(u)
         try:
             return jresp(T.trace(sim, ref, dir=dir, depth=depth, max_nodes=max_nodes, fanout=fanout, since=since))
         except ValueError as e:
@@ -40,8 +40,8 @@ def chains(u: str = "base", since: int | None = None, until: int | None = None, 
     from ..analysis import trace as T
     from ..analysis.query import evaluate_filter
     from .server import WS, jresp
-    sim = WS.sim(u)
     with WS.lock:
+        sim = WS.sim(u)
         who = None
         if filter:
             try:
@@ -69,8 +69,8 @@ def decision(did: int, u: str = "base"):
     events it produced."""
     from ..analysis import trace as T
     from .server import WS, jresp
-    sim = WS.sim(u)
     with WS.lock:
+        sim = WS.sim(u)
         d = T.decision_detail(sim, did)
         if not d:
             raise HTTPException(404, "no such decision (it may be older than the detailed history that is kept)")
@@ -82,8 +82,8 @@ def person_decisions(i: int, u: str = "base", since: int | None = None, limit: i
     """A person's recorded decisions, newest first, each with its top reason."""
     from ..analysis import trace as T
     from .server import WS, jresp
-    sim = WS.sim(u)
     with WS.lock:
+        sim = WS.sim(u)
         if i < 0 or i >= sim.w.P.n:
             raise HTTPException(404, "no such person")
         return jresp({"person": i, "decisions": T.person_decisions(sim, i, since, limit=max(1, min(limit, 1000)))})

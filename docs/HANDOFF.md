@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| — | — | — | Nobody. Paused 2026-10-18 22:40 UTC to save usage; the next agent works one workstream at a time (see the session log). |
+| Claude Code (cloud) | 2026-10-18 | workbench, then scales | Took over `wip/workbench` (relay rule); one workstream at a time. |
 
 ## The goal in one paragraph
 

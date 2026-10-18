@@ -11,6 +11,8 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
+import numpy as np
+
 # ------------------------------------------------------------------------------------------------ anchor words
 # (value, short words[, longer words]) — short words fit under a ruler tick; longer words show on hover and in cards.
 A = tuple[float, str] | tuple[float, str, str]
@@ -812,5 +814,70 @@ def anchor_words(sc: dict, x: float) -> str:
     """The anchor words nearest to x (for captions)."""
     if not sc or not sc.get("anchors") or x is None:
         return ""
-    best = min(sc["anchors"], key=lambda a: abs(a["at"] - x))
+    t = float(axis_fwd(x, sc))
+    best = min(sc["anchors"], key=lambda a: abs(float(axis_fwd(a["at"], sc)) - t))
     return best["label"]
+
+
+# ------------------------------------------------------------------------------------------------ live distributions
+def axis_fwd(x, sc: dict):
+    """Position on the ruler's axis: identity, or a log-like (symmetric log) axis for long-tailed amounts."""
+    x = np.asarray(x, dtype=np.float64)
+    if sc.get("axis") != "log":
+        return x
+    c = float(sc.get("log_c") or 1.0)
+    return np.sign(x) * np.log10(1.0 + np.abs(x) / c)
+
+
+def axis_inv(t, sc: dict):
+    t = np.asarray(t, dtype=np.float64)
+    if sc.get("axis") != "log":
+        return t
+    c = float(sc.get("log_c") or 1.0)
+    return np.sign(t) * (10.0 ** np.abs(t) - 1.0) * c
+
+
+def _sig(x: float, k: int = 4) -> float:
+    return float(f"{x:.{k}g}")
+
+
+def distribution(x, sc: dict | None, bins: int = 20) -> dict | None:
+    """Where people sit on a scale: n, mean, quantiles (p10…p90, and every percent so any value's percentile can be read
+    off), a histogram over the ruler's view (bins equal on its axis; values outside the view are counted in the end bins
+    and reported as below/above), and, for whole-number fields with few values, the share at each value."""
+    x = np.asarray(x, dtype=np.float64)
+    x = x[np.isfinite(x)]
+    if not len(x):
+        return None
+    sc = sc or {}
+    q = np.percentile(x, np.arange(101))
+    lo, hi = (sc.get("view") or [sc.get("min"), sc.get("max")])[:2]
+    lo = float(q[0]) if lo is None else float(lo)
+    hi = float(q[100]) if hi is None else float(hi)
+    if hi <= lo:
+        hi = lo + 1.0
+    t0, t1 = float(axis_fwd(lo, sc)), float(axis_fwd(hi, sc))
+    edges_t = np.linspace(t0, t1, bins + 1)
+    counts = np.histogram(np.clip(axis_fwd(x, sc), t0, t1), bins=edges_t)[0]
+    out = {"n": int(len(x)), "mean": _sig(x.mean()), "min": _sig(q[0]), "max": _sig(q[100]),
+           "p10": _sig(q[10]), "p25": _sig(q[25]), "p50": _sig(q[50]), "p75": _sig(q[75]), "p90": _sig(q[90]),
+           "q": [_sig(v) for v in q],
+           "hist": {"edges": [_sig(v, 5) for v in axis_inv(edges_t, sc)], "counts": counts.astype(int).tolist(),
+                    "below": int((x < lo).sum()), "above": int((x > hi).sum())}}
+    u, c = np.unique(x, return_counts=True)
+    if len(u) <= 40 and np.all(u == np.round(u)):
+        out["values"] = [[float(a), round(float(b) / len(x), 5)] for a, b in zip(u, c)]
+    return out
+
+
+def percentile_of(x, value: float) -> dict | None:
+    """Where one value sits among x: the share strictly below, the share equal, the share above and the mid-rank."""
+    x = np.asarray(x, dtype=np.float64)
+    x = x[np.isfinite(x)]
+    if not len(x) or value is None or not np.isfinite(value):
+        return None
+    tol = 1e-6 * max(1.0, abs(value))
+    below = float(np.mean(x < value - tol))
+    equal = float(np.mean(np.abs(x - value) <= tol))
+    return {"n": int(len(x)), "below": round(below, 4), "equal": round(equal, 4), "above": round(1.0 - below - equal, 4),
+            "pct": round(below + equal / 2, 4)}

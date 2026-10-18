@@ -811,6 +811,7 @@ class Romance:
             P.cols["relationship_satisfaction"][x] = np.nan
             P.internal["wedding_planned"][x] = -1
             P.cols["waiting_for_missionary"][x] = False
+        return first
 
     def _weddings(self):
         sim, w = self.sim, self.sim.w
@@ -891,15 +892,15 @@ class Romance:
         P.internal["crush_att"][src[first]] = att[first]
 
     # ------------------------------------------------------------------ hooks used by other systems
-    def handle_departure(self, ids: np.ndarray, cause=None):
-        """A partner leaves on a mission or moves away: wait, or break up. `cause`: the departure events (aligned)."""
+    def handle_departure(self, ids: np.ndarray):
+        """A partner leaves on a mission or moves away: wait, or break up. Returns (leavers, breakup events) so the
+        caller can point each breakup at the departure it logs afterwards."""
         sim, w = self.sim, self.sim.w
         P = w.P
-        cause = np.full(len(ids), -1, np.int64) if cause is None else np.broadcast_to(np.asarray(cause, np.int64), (len(ids),))
-        has = P["partner_id"][ids] >= 0
-        ids, cause = ids[has], cause[has]
+        none = (np.empty(0, np.int64), np.empty(0, np.int64))
+        ids = ids[P["partner_id"][ids] >= 0]
         if len(ids) == 0:
-            return
+            return none
         part = P["partner_id"][ids].astype(np.int64)
         st = P["rel_status"][ids]
         u = sim.u("depart_rel")[ids]
@@ -910,5 +911,6 @@ class Romance:
         if brk.any():
             keys = EdgeStore.make_keys(ids[brk], part[brk])
             eix = w.E.upsert(keys)
-            self._end(ids[brk], part[brk], w.E.attraction_from(eix, ids[brk]) - 0.5, w.E.attraction_from(eix, part[brk]),
-                      why=[("event", cause[brk], 1.0, "left")])
+            ev = self._end(ids[brk], part[brk], w.E.attraction_from(eix, ids[brk]) - 0.5, w.E.attraction_from(eix, part[brk]))
+            return ids[brk], ev
+        return none

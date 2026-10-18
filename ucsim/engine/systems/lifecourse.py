@@ -4,6 +4,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.special import expit
 
+from ..provenance import chance, latest_event, link, place_ref, state_ref
 from ..state import CTX_ID, Tie
 
 from ...population.synth import Synthesizer
@@ -19,7 +20,10 @@ class LifeCourse:
         for c, dt, f in (("arrive_day", np.int32, -1), ("depart_day_planned", np.int32, -1),
                          ("mission_return_day", np.int32, -1), ("mission_early", np.bool_, False),
                          ("summer_return", np.int32, -1), ("leave_day", np.int32, -1), ("newborn_until", np.int32, -1),
-                         ("prev_role", np.uint8, 0)):
+                         ("prev_role", np.uint8, 0),
+                         # provenance: the events and decisions behind what is scheduled (bookkeeping only)
+                         ("mission_call_ev", np.int64, -1), ("mission_dep_ev", np.int64, -1), ("leave_cause", np.int64, -1),
+                         ("pregnancy_ev", np.int64, -1)):
             P.add_internal(c, dt, f)
         P["birth_day"] = (-(P["age"] * 365.25)).astype(np.int32)
         self._serving_pool()
@@ -218,7 +222,7 @@ class LifeCourse:
         want = base + gain * (target - continuing - base)
         return int(round(np.clip(want, 0.5 * base, 2.0 * base)))
 
-    def _arrive(self, ids, event="arrival", cause=None):
+    def _arrive(self, ids, event="arrival", cause=None, decision=None):
         sim, w = self.sim, self.sim.w
         P = w.P
         if len(ids) == 0:
@@ -239,7 +243,15 @@ class LifeCourse:
             fresh = ids[~P.internal["mind_ready"][ids]]
             if len(fresh):
                 mind.setup(fresh)
-        sim.emit(event, ids, cause=cause, mech="lifecourse.arrival")
+        if cause is None and event != "arrival":
+            cause = P.internal["mission_dep_ev"][ids]
+        ev = sim.emit(event, ids, cause=cause, mech="lifecourse.arrival", decision=decision)
+        if event == "arrival":
+            # why they came: to study (this fall's intake at BYU or UVU), or with a spouse who did
+            student = P.isin("role", ["byu_student", "uvu_student"])[ids]
+            link(sim, ev[student], "place", place_ref(CTX_ID["campus"], P["school"][ids][student]), 1.0, "came_to_study")
+            spouse = P.is_("role", "spouse")[ids]
+            link(sim, ev[spouse], "person", P["partner_id"][ids][spouse], 1.0, "moved_with")
 
     def _fhe_for(self, ids):
         """Newcomers join the FHE group of someone in their unit/complex if one exists."""
@@ -282,7 +294,10 @@ class LifeCourse:
             P.internal["last_date_day"][ret] = day - 400
             for idx, ev in ((ret[~early], "mission_return"), (ret[early], "early_return")):
                 if len(idx):
-                    self._arrive(idx, event=ev)
+                    # coming home early is a flat share of missionaries in the model: the honest reason is chance
+                    did = chance(sim, "mission_length", idx, w.cfg["mission"]["early_return_rate"], "early") \
+                        if ev == "early_return" else None
+                    self._arrive(idx, event=ev, decision=did)
             wait = np.where(P["waiting_for_missionary"])[0]
             for x in wait:
                 if P["partner_id"][x] >= 0 and P["partner_id"][x] in set(ret.tolist()):
@@ -310,7 +325,8 @@ class LifeCourse:
             ids = np.where(sick)[0]
             P.cols["ill"][ids] = True
             P.cols["ill_until"][ids] = day + 2 + (sim.u("ill_len")[ids] * 5).astype(int)
-            sim.emit("illness", ids, mech="lifecourse.illness")
+            sim.emit("illness", ids, mech="lifecourse.illness",
+                     decision=chance(sim, "life_risk", ids, sim.p("lifecourse.illness.rate")))
         well = P["ill"] & (P["ill_until"] <= day)
         P.cols["ill"][np.where(well)[0]] = False
         # births
@@ -320,11 +336,12 @@ class LifeCourse:
             P.cols["children"][due] = np.minimum(P["children"][due] + 1, 12)
             P.internal["newborn_until"][due] = day + 120
             mothers = due[P.is_("sex", "F")[due]]
-            sim.emit("birth", due, mech="lifecourse.fertility")
-            drop = mothers[P["enrolled"][mothers] & (sim.u("birth_drop")[mothers] < 0.3)]
+            bev = sim.emit("birth", due, mech="lifecourse.fertility", cause=P.internal["pregnancy_ev"][due])
+            dm = P["enrolled"][mothers] & (sim.u("birth_drop")[mothers] < 0.3)
+            drop = mothers[dm]
             if len(drop):
                 P.cols["enrolled"][drop] = False
-                sim.emit("dropout", drop, mech="lifecourse.fertility")
+                sim.emit("dropout", drop, mech="lifecourse.fertility", cause=bev[np.isin(due, mothers)][dm])
 
     def _summer_exodus(self):
         sim, w = self.sim, self.sim.w
@@ -350,16 +367,23 @@ class LifeCourse:
         sim, w = self.sim, self.sim.w
         P, E = w.P, w.E
         day = w.day
-        sim.systems["romance"].handle_departure(ids)
+        leavers, brk = sim.systems["romance"].handle_departure(ids)
         # close friends feel the absence
         lo, hi = E.endpoints()
         m = (E["stage"] >= 3)
+        missed = []
         for x, y in ((lo, hi), (hi, lo)):
             sel = m & np.isin(x, ids) & P["present"][y]
             if sel.any():
-                sim.emit("friend_left_on_mission", y[sel], b=x[sel], mech="lifecourse.mission",
-                         ev={"closeness": E["closeness"][sel]})
-        ev = sim.emit("mission_departure", ids, mech="lifecourse.mission")
+                fe = sim.emit("friend_left_on_mission", y[sel], b=x[sel], mech="lifecourse.mission",
+                              ev={"closeness": E["closeness"][sel]})
+                missed.append((fe, x[sel]))
+        ev = sim.emit("mission_departure", ids, mech="lifecourse.mission", cause=P.internal["mission_call_ev"][ids])
+        P.internal["mission_dep_ev"][ids] = ev
+        # the friends' loss and any breakup point at this departure (logged just before it, on the same day)
+        self._link_to(brk, leavers, ids, ev, "left")
+        for fe, who in missed:
+            self._link_to(fe, who, ids, ev, "friend_left")
         P.cols["present"][ids] = False
         P.cols["enrolled"][ids] = False
         P.cols["mission_status"][ids] = P.code("mission_status", "serving")
@@ -375,7 +399,16 @@ class LifeCourse:
             if u >= 0:
                 housing.occ[u] -= 1
             P.cols["unit_id"][i] = -1
-        del ev
+
+    def _link_to(self, events, people, ids, dep_ev, role_name: str):
+        """Typed causes: each event (about `people`) points at the departure event of that person (ids ↔ dep_ev)."""
+        events = np.asarray(events, np.int64)
+        if not len(events):
+            return
+        o = np.argsort(ids)
+        k = np.clip(np.searchsorted(ids[o], people), 0, len(ids) - 1)
+        hit = ids[o][k] == people
+        link(self.sim, events[hit], "event", dep_ev[o][k[hit]], 1.0, role_name)
 
     def _leave(self, ids):
         sim, w = self.sim, self.sim.w
@@ -391,12 +424,13 @@ class LifeCourse:
             married, sp = married[~wait], sp[~wait]
         along = sp[married & P["present"][sp]]
         along = along[~np.isin(along, ids)]
+        n_own = len(ids)
         if len(along):
             P.internal["leave_day"][along] = -1
             ids = np.r_[ids, along]
         if len(ids) == 0:
             return
-        sim.systems["romance"].handle_departure(ids)
+        leavers, brk = sim.systems["romance"].handle_departure(ids)
         housing = sim.systems["housing"]
         for i in ids:
             u = P["unit_id"][i]
@@ -405,7 +439,32 @@ class LifeCourse:
             P.cols["unit_id"][i] = -1
         P.cols["present"][ids] = False
         P.cols["departure_day"][ids] = w.day
-        sim.emit("left_area", ids, mech="lifecourse.departure")
+        # why now: graduates decided at graduation (the share who move on), spouses go along, and everyone else's
+        # stay simply ran its course (an exponential stay of a few years: the day itself is chance)
+        own = ids[:n_own]
+        grad = P.internal["leave_cause"][own]
+        g = grad >= 0
+        # a spouse leaving with a graduate carries the graduate's graduation as the cause
+        g[g] &= sim.log["a"][grad[g]] == own[g]
+        followers = (grad >= 0) & ~g
+        did = np.full(len(ids), -1, np.int64)
+        if g.any():
+            gi = own[g]
+            base = np.where(P["school"][gi] == 1, 0.62, 0.42)
+            fam = -0.25 * P["family_local"][gi]
+            did[np.flatnonzero(g)] = sim.decisions.record("leave_after_graduating", w.day, gi, "leaves",
+                                                          {"family_local": fam}, base=base, prob=base + fam)
+        stay = ~g & ~followers
+        if stay.any():
+            did[np.flatnonzero(stay)] = chance(sim, "end_of_stay", own[stay],
+                                               1.0 / (365.25 * sim.p("lifecourse.stay.young_adult_years")), "left")
+        cause = np.r_[grad, np.full(len(ids) - n_own, -1, np.int64)]
+        ev = sim.emit("left_area", ids, mech="lifecourse.departure", cause=np.where(cause >= 0, cause, -1),
+                      decision=np.where(did >= 0, did, -1))
+        if len(ids) > n_own:
+            link(sim, ev[n_own:], "person", P["partner_id"][ids[n_own:]], 1.0, "moved_with")
+        link(sim, ev[:n_own][followers], "person", P["partner_id"][own[followers]], 1.0, "moved_with")
+        self._link_to(brk, leavers, ids, ev, "left")
 
     def after_graduation(self, ids, events):
         sim, w = self.sim, self.sim.w
@@ -415,14 +474,16 @@ class LifeCourse:
         leave = sim.u("grad_leave")[ids] < p_leave
         lv = ids[leave]
         P.internal["leave_day"][lv] = w.day + 20 + (sim.u("grad_leave_d")[lv] * 70).astype(int)
+        P.internal["leave_cause"][lv] = np.broadcast_to(np.asarray(events, np.int64), (len(ids),))[leave]
         # spouses leave with them
         sp = P["partner_id"][lv]
-        sp = sp[(sp >= 0)]
+        has = sp >= 0
+        sp = sp[has]
         P.internal["leave_day"][sp] = np.maximum(P.internal["leave_day"][sp], w.day + 25)
+        P.internal["leave_cause"][sp] = P.internal["leave_cause"][lv[has]]
         stay = ids[~leave]
         P.cols["role"][stay] = P.code("role", "young_adult")
         self.schedule_stay(stay)
-        del events
 
     # ------------------------------------------------------------------ monthly
     def monthly(self):
@@ -437,23 +498,31 @@ class LifeCourse:
         elig = (P["present"] & P["lds_member"] & P.is_("mission_status", "none") & ~planned &
                 P.isin("rel_status", ["single", "talking", "dating"]) & (age >= np.where(male, 18.0, 19.0)) & (age < 25.5))
         age_peak = np.where(male, np.exp(-((age - 18.9) / 1.0) ** 2), np.exp(-((age - 20.0) / 1.5) ** 2))
-        h = expit(p("lifecourse.mission.base") + np.where(male, p("lifecourse.mission.male"), 0)
-                  + p("lifecourse.mission.belief") * (P["faith_belief"] - 0.7) + 1.2 * (P["activity"] == 3)
-                  + p("lifecourse.mission.family") * P["family_expectation"] + 0.8 * P["religious_identity"]
-                  + 2.0 * age_peak + np.log(env["mission_norm"] + 1e-9) - 0.6 * P.is_("rel_status", "dating")
-                  - 1.5 * np.maximum(age - np.where(male, 19.8, 21.5), 0))  # those who haven't gone by then mostly won't
+        T = {"male": np.where(male, p("lifecourse.mission.male"), 0), "belief": p("lifecourse.mission.belief") * (P["faith_belief"] - 0.7),
+             "active": 1.2 * (P["activity"] == 3), "family": p("lifecourse.mission.family") * P["family_expectation"],
+             "identity": 0.8 * P["religious_identity"], "age": 2.0 * age_peak, "norm": np.log(env["mission_norm"] + 1e-9),
+             "dating": 0.6 * P.is_("rel_status", "dating"),
+             "too_old": 1.5 * np.maximum(age - np.where(male, 19.8, 21.5), 0)}  # those who haven't gone by then mostly won't
+        h = expit(p("lifecourse.mission.base") + T["male"] + T["belief"] + T["active"] + T["family"] + T["identity"]
+                  + T["age"] + T["norm"] - T["dating"] - T["too_old"])
         call = elig & (P["activity"] == 3) & (sim.u("mission_call") < h)
         if call.any():
             ids = np.where(call)[0]
             P.internal["depart_day_planned"][ids] = day + 75 + (sim.u("mtc")[ids] * 40).astype(int)
-            sim.emit("mission_call", ids, mech="lifecourse.mission")
+            rec = {k_: (v[ids] if np.ndim(v) else np.full(len(ids), v)) for k_, v in T.items()}
+            rec["dating"], rec["too_old"] = -rec["dating"], -rec["too_old"]
+            did = sim.decisions.record("mission_call", day, ids, "called", rec, base=p("lifecourse.mission.base"), prob=h[ids],
+                                       refs={"belief": ("state", state_ref(sim, "faith_belief", ids))})
+            P.internal["mission_call_ev"][ids] = sim.emit("mission_call", ids, mech="lifecourse.mission", decision=did)
         # ---- fertility
         fem = P.is_("sex", "F") & P.is_("rel_status", "married") & ~P["pregnant"] & (age < 43) & P["present"]
         mm = np.maximum((day - P["married_day"]) / 30.4, 0)
         recent_birth = P.internal["newborn_until"][:n] > day - 150
-        hf = expit(p("lifecourse.fertility.base") + 0.25 * (P["kids_wanted"] - 3) - 0.55 * P["children"]
-                   + 0.06 * np.minimum(mm, 24) - p("lifecourse.fertility.student") * P["enrolled"]
-                   - 0.8 * P["financial_stress"] + 0.5 * (P["activity"] == 3) - 0.08 * np.clip(age - 30, 0, None))
+        TF = {"kids_wanted": 0.25 * (P["kids_wanted"] - 3), "children": 0.55 * P["children"], "marriage_length": 0.06 * np.minimum(mm, 24),
+              "student": p("lifecourse.fertility.student") * P["enrolled"], "money": 0.8 * P["financial_stress"],
+              "active": 0.5 * (P["activity"] == 3), "age": 0.08 * np.clip(age - 30, 0, None)}
+        hf = expit(p("lifecourse.fertility.base") + TF["kids_wanted"] - TF["children"] + TF["marriage_length"] - TF["student"]
+                   - TF["money"] + TF["active"] - TF["age"])
         conceive = fem & ~recent_birth & (sim.u("conceive") < hf)
         if conceive.any():
             ids = np.where(conceive)[0]
@@ -464,9 +533,16 @@ class LifeCourse:
             has = sp >= 0
             P.cols["pregnant"][sp[has]] = True
             P.cols["due_day"][sp[has]] = due
-            sim.emit("pregnancy", ids, mech="lifecourse.fertility")
+            rec = {k_: v[ids].astype(np.float64) for k_, v in TF.items()}
+            for k_ in ("children", "student", "money", "age"):
+                rec[k_] = -rec[k_]
+            did = sim.decisions.record("conceive", day, ids, "pregnant", rec, base=p("lifecourse.fertility.base"), prob=hf[ids],
+                                       other=np.where(has, sp, -1))
+            ev = sim.emit("pregnancy", ids, mech="lifecourse.fertility", decision=did)
+            P.internal["pregnancy_ev"][ids] = ev
             if has.any():
-                sim.emit("pregnancy", sp[has], mech="lifecourse.fertility")
+                ev2 = sim.emit("pregnancy", sp[has], mech="lifecourse.fertility", cause=ev[has])
+                P.internal["pregnancy_ev"][sp[has]] = ev2
         # ---- other life events
         pres = P["present"]
         for etype, rate, mask in (("family_crisis", p("lifecourse.events.family_crisis"), pres),
@@ -474,4 +550,5 @@ class LifeCourse:
                                   ("car_accident", p("lifecourse.events.car_accident"), pres & P["owns_car"])):
             hit = mask & (sim.u(etype) < rate)
             if hit.any():
-                sim.emit(etype, np.where(hit)[0], mech="lifecourse.events")
+                ids = np.where(hit)[0]
+                sim.emit(etype, ids, mech="lifecourse.events", decision=chance(sim, "life_risk", ids, rate))

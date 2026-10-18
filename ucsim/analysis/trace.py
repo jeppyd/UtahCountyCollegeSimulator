@@ -1182,13 +1182,20 @@ def chains(sim, since: int | None = None, until: int | None = None, people: np.n
                             "n": int(cm.sum()), "share": round(float(cm.mean()), 3), "constraint": cons,
                             "median": None if cons else round(v, 3)})
             top.sort(key=lambda r: -r["n"])
-            ex = T["id"][drows[gm]][-examples:]
+            # the latest few, each with who chose, about whom, and its own top reason
+            ex = []
+            for x in np.flatnonzero(gm)[-examples:]:
+                r_ = drows[x]
+                oth = int(T["other"][r_])
+                ex.append({"id": int(T["id"][r_]), "day": int(T["day"][r_]), "who": W.name(int(T["agent"][r_])),
+                           "about": W.name(oth) if oth >= 0 else None,
+                           "top": _factor_words(D, int(code[x]), float(val[x])) or None})
             lead = next((t for t in top if t["factor"]), None)
             what = f"Of {n:,} times the choice “{spec.get('label', kind)}” came out “{oname.replace('_', ' ')}”, "
             sentence = (what + f"{lead['share']:.0%} had “{lead['words']}” as the top reason." if lead
                         else what + "the model gave no reason beyond chance.")
             reasons.append({"decision": kind, "label": spec.get("label", kind), "outcome": oname, "n": n,
-                            "top": top[:6], "sentence": sentence, "examples": [int(x) for x in ex]})
+                            "top": top[:6], "sentence": sentence, "examples": ex})
         reasons.sort(key=lambda r: -r["n"])
     # ---- nodes for a left→right flow: causes on the left, results on the right (a type can appear on both sides)
     nodes: dict[str, dict] = {}

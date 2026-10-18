@@ -26,6 +26,52 @@ async function j<T = any>(url: string, init?: RequestInit, timeoutMs = 120000): 
 }
 const post = (url: string, body: any) => j(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
+// ---------------------------------------------------------------- trace: causes, consequences, decisions (routes_trace.py)
+export type TraceRef = { kind: string; id: string | number }
+export type TraceNode = {
+  key: string; kind: string; ref: TraceRef; day: number; block: number | null; minute: number | null
+  people: number[]; lane: number | null; label: string; type: string; category: string; weight: number
+  depth: number; more_back: number; more_fwd: number; timeless?: boolean; root?: boolean; detail: any
+}
+export type TraceLink = { source: string; target: string; kind: string; weight: number | null; words: string }
+export type TraceGraph = {
+  root: string; nodes: TraceNode[]; links: TraceLink[]; lanes: { id: number; name: string; n: number; root: boolean }[]
+  range: [number, number]; today: number; start_date: string; notes: string[]
+  cut: { back: number; fwd: number; cap_hits: number; max_nodes: number; fanout: number }
+}
+export type DecisionFactor = {
+  factor: string; label: string; words: string; value: number; constraint: boolean; kind: string
+  ref?: TraceRef; ref_label?: string
+}
+export type DecisionDetail = {
+  id: number; kind: string; label: string; units: string; units_words?: string; day: number; date?: string; block: number
+  agent: number; agent_name?: string; other: number | null; other_name?: string; outcome: string | number
+  outcomes?: string[]; positive?: string | null; prob: number | null; base: number; total: number
+  occasion: number | null; factors: DecisionFactor[]; events?: { id: number; label: string; day: number }[]
+}
+const liveOnly = () => { if (STATIC) throw new Error('Tracing needs the live simulator (it is not part of the static demo).') }
+export const traceApi = {
+  async trace(ref: string, u: Universe = 'base', dir: 'back' | 'fwd' | 'both' = 'both', depth = 3, maxNodes = 80, fanout = 8): Promise<TraceGraph> {
+    liveOnly()
+    return j(`/api/trace?ref=${encodeURIComponent(ref)}&u=${u}&dir=${dir}&depth=${depth}&max_nodes=${maxNodes}&fanout=${fanout}`)
+  },
+  async chains(o: { u?: Universe; since?: number; until?: number; filter?: any[]; people?: number[]; root?: string; maxLinks?: number }): Promise<any> {
+    liveOnly()
+    const q = new URLSearchParams({ u: o.u ?? 'base', max_links: String(o.maxLinks ?? 40) })
+    if (o.since !== undefined) q.set('since', String(o.since))
+    if (o.until !== undefined) q.set('until', String(o.until))
+    if (o.filter?.length) q.set('filter', JSON.stringify(o.filter.length === 1 ? o.filter[0] : { and: o.filter }))
+    if (o.people?.length) q.set('people', o.people.join(','))
+    if (o.root) q.set('root', o.root)
+    return j(`/api/trace/chains?${q}`)
+  },
+  async decision(id: number, u: Universe = 'base'): Promise<DecisionDetail> { liveOnly(); return j(`/api/decision/${id}?u=${u}`) },
+  async personDecisions(i: number, u: Universe = 'base', since?: number): Promise<any> {
+    liveOnly()
+    return j(`/api/person/${i}/decisions?u=${u}${since !== undefined ? `&since=${since}` : ''}`)
+  },
+}
+
 export function decodePack(buf: ArrayBuffer): Record<string, Column> {
   const dv = new DataView(buf)
   const hlen = dv.getUint32(0, true)

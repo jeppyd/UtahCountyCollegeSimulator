@@ -48,6 +48,8 @@ def chains(u: str = "base", since: int | None = None, until: int | None = None, 
                 filt = json.loads(filter)
             except json.JSONDecodeError as e:
                 raise HTTPException(400, f"filter is not valid JSON: {e}") from e
+            if isinstance(filt, list):          # the workbench's list of conditions: all of them must hold
+                filt = {"and": filt} if len(filt) > 1 else (filt[0] if filt else None)
             if filt:
                 who = np.flatnonzero(evaluate_filter(sim.w, filt, sim, include_absent=True))
         if people:

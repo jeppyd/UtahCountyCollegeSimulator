@@ -778,6 +778,11 @@ def cohort_timeline(body: dict = Body(...)):
         H, P = sim.systems["history"], sim.w.P
         vars_ = [v for v in body.get("vars", []) if H.tracked(v)]
         mask = _flow_mask(sim, body.get("filter"))
+        if body.get("people"):   # a hand-picked selection (the workbench) narrows the group further
+            ids = np.asarray([int(i) for i in body["people"] if 0 <= int(i) < P.n], np.int64)
+            sel = np.zeros(P.n, bool)
+            sel[ids] = True
+            mask = mask & sel
         if body.get("filter_world") == "base" and sim is not WS.base and WS.base is not None:
             # the same people as in the Original: pick the group there, follow them in this world
             mb = _flow_mask(WS.base, body.get("filter"))

@@ -12,9 +12,14 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 2. Read this file, then `docs/workstreams/README.md` (rules — privacy rules are non-negotiable), then
    `docs/EVOLUTION.md` and the spec of the workstream you'll take.
 3. **Claim** before coding: put your name/tool, the date and the workstream in *Who is working now* below; commit and
-   push that edit. Don't take a workstream someone else holds unless their claim is older than 12 hours with no new
-   commits (then note that you took it over).
+   push that edit. Don't take a workstream someone else holds unless the relay rule below allows it.
 4. Work in small steps; **commit and push often** (WIP commits are fine), so running out of usage never strands work.
+   Unfinished work goes to a `wip/<workstream>` branch on GitHub (`git push origin HEAD:refs/heads/wip/<workstream>`);
+   finished, tested work is merged into the working branch.
+   **Relay rule:** if the agent holding a workstream has stopped (its `wip/<workstream>` branch hasn't moved for 2 hours,
+   or the owner says it ran out of usage), you may continue it: merge the working branch and `origin/wip/<workstream>`,
+   keep pushing to the same `wip/` branch, and write in *Who is working now* and the session log that you took it over.
+   The first agent resumes from your pushes the same way.
 5. **Before you stop** (or when your usage is getting low): update the *Status board*, append a *Session log* entry
    (what you did, what's half-done and exactly where, what's next, anything surprising), remove your claim, run the
    tests if you can, commit and push. If tests fail, say which and why in the log.
@@ -23,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| Claude Code (cloud session) | 2026-10-18 18:40 | workbench, scales, sexuality-survey, calendar-weather, talk, travel | Six builders running in a cloud container, two at a time in this order. Claim something else (wave 2 needs these) or coordinate with the owner. |
+| Claude Code (cloud) | 2026-10-18 | scales | Workbench merged; now continuing `wip/scales` (relay rule). |
 
 ## The goal in one paragraph
 
@@ -58,12 +63,12 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | Foundation: ledgers (decisions, causes, occasions), 4-block clock, travel interface, contracts, auto-registered routers and workbench tools, CSV survey loader, privacy guard test | **done** | working branch | — |
 | [time-occasions](workstreams/time-occasions.md) (option B) | **done, merged** | working branch | open issues below |
 | [provenance-trace](workstreams/provenance-trace.md) | **done, merged** | working branch | open issues below |
-| [workbench](workstreams/workbench.md) | in progress (cloud session) | — | also add an Occasion/scene tool on /api/occasion |
-| [scales](workstreams/scales.md) | in progress (cloud session) | — | can start any time |
-| [sexuality-survey](workstreams/sexuality-survey.md) (+ dealbreakers) | in progress (cloud session) | — | needs the raw xlsx in `data/raw/` (owner supplies) |
-| [calendar-weather](workstreams/calendar-weather.md) | in progress (cloud session) | — | after time-occasions is merged |
-| [talk](workstreams/talk.md) (Ask + interviews) | in progress (cloud session) | — | after provenance-trace is merged |
-| [travel](workstreams/travel.md) | in progress (cloud session) | — | can start any time (keeps `ucsim/geo/travel.py`'s interface) |
+| [workbench](workstreams/workbench.md) | **done, merged** | working branch | open issues below |
+| [scales](workstreams/scales.md) | **in progress, paused** | `wip/scales` (backend: anchors, units, how-measured for every person and tie field; /api/scales and /api/scales/value with live distributions; tests) | frontend: kit/Ruler.tsx, ScaleCard, `<Val>`, use on person/inner-life/Explore pages, Scales glossary tool |
+| [sexuality-survey](workstreams/sexuality-survey.md) (+ dealbreakers) | not started | — | needs the raw xlsx in `data/raw/` (owner supplies) |
+| [calendar-weather](workstreams/calendar-weather.md) | not started | — | after time-occasions is merged |
+| [talk](workstreams/talk.md) (Ask + interviews) | not started | — | after provenance-trace is merged |
+| [travel](workstreams/travel.md) | not started | — | can start any time (keeps `ucsim/geo/travel.py`'s interface) |
 | [messaging](workstreams/messaging.md) (wave 2) | not started | — | after time-occasions |
 | [institutions](workstreams/institutions.md) (wave 2) | not started | — | after time-occasions + provenance |
 | [family-homes](workstreams/family-homes.md) (wave 2) | not started | — | after calendar-weather |
@@ -87,11 +92,17 @@ institutions, family-homes) can start now too, but coordinate: they touch the sa
   (employer flexibility). No workbench tool for occasions yet (endpoints exist: /api/occasion/{id}, /api/occasions,
   /api/person/{i}/day, /api/person/{i}/choice, /api/act/check, /api/act).
 - Builders' worktrees may start from `main`: merge the working branch first.
+- Workbench: the Measure tool has an empty `.bme-ruler-slot` (data-var) for scales' Ruler; Life/Measure history is
+  every two weeks (coarse). `/api/person/{i}/day` lists some class meetings twice (the Day tool de-duplicates). The
+  DecisionCard shows "Person 1005" instead of a name for the agent. Bench panels are placed at the first free spot,
+  so the order tools are added decides the layout.
 
 ## Open questions for the owner
 
-1. (asked 2026-10-18) May agents push work-in-progress branches (`wip/<workstream>`) to GitHub? Until the owner says
-   yes, unfinished work stays in the environment where it was made and becomes visible when merged.
+(none open — 2026-10-18: the owner approved pushing work-in-progress branches `wip/<workstream>` to GitHub.)
+
+**Note:** the owner merged pull request #9 into `main` on 2026-10-18 (everything up to commit 7853b67: the foundation,
+time-occasions and provenance-trace). Agents still never push to or merge into `main`; the owner does that.
 
 ## Environment notes
 
@@ -104,6 +115,29 @@ institutions, family-homes) can start now too, but coordinate: they touch the sa
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-18 (late night, 2) — Claude Code (cloud session)
+- Took over and finished **workbench** (relay rule) and merged it: new tools Events, Life, Timeline, Measure, Ties,
+  Place, Compare, Occasion, Day and Act (web/src/bench/tools/), `useWidth` in kit/Bits.tsx, a "The workbench" section
+  in the guide, screenshots in docs/img/bench-*.png. `/api/cohort_timeline` takes `people` (hand-picked selection).
+  Fixed: routes_occasions/routes_act imported `WS` from `.server`, which under `python -m ucsim.api.server` is a
+  second, empty module (every occasion/day/act call said "universe 'base' not available"); they now use
+  routes_trace._server. Map tool was blank (maplibre's CSS made its container 0 px tall); fixed. 173 tests pass; web
+  build passes.
+- Next: scales (continue `wip/scales`), then calendar-weather and the rest in the order below.
+
+### 2026-10-18 (late night) — Claude Code (cloud session)
+- Paused at the owner's request to save usage: multi-agent runs were too expensive. Two builders had pushed progress
+  before the stop: `wip/workbench` and `wip/scales` (contents in the status board). Nothing else is in flight.
+- **How to continue (cheaply):** one agent, one workstream at a time, in this order: workbench (continue
+  `wip/workbench`) → scales (continue `wip/scales`) → calendar-weather → sexuality-survey (needs the raw xlsx in
+  `data/raw/`) → talk → travel → messaging → institutions → family-homes → survey-followups (needs the raw CSVs) →
+  integration. When a workstream is done: full tests + web build, merge it into the working branch, push, update this
+  file.
+
+### 2026-10-18 (night) — Claude Code (cloud session)
+- The six remaining wave-1 builders were stopped by usage limits within minutes (no progress); restarted at 22:27 UTC
+  with work-in-progress pushed to `wip/<workstream>` branches (owner approved). Added the relay rule above.
 
 ### 2026-10-18 (evening) — Claude Code (cloud session)
 - Merged **time-occasions** (four-block day; shifts with clock times; occasions with hosting, invitations, noticing,

@@ -177,10 +177,16 @@ function stepsFromRoot(nodes: TraceNode[], links: TraceLink[]) {
   return seen
 }
 
-function linkPath(a: Pos, b: Pos) {
+/** A link's curve. Links run under the labels (which sit on an opaque patch); one that runs along a row past other
+ *  items arches over them, so it never seems to pass through a shape it has nothing to do with. */
+function linkPath(a: Pos, b: Pos, arch = false) {
   const x1 = a.x + 9, x2 = b.x - 9
   if (x2 - x1 > 14) {
     const dx = (x2 - x1) * 0.5
+    if (arch) {
+      const h = Math.min(24, 14 + (x2 - x1) / 80)
+      return `M${x1},${a.y - 3} C${x1 + dx * 0.4},${a.y - h} ${x2 - dx * 0.4},${b.y - h} ${x2},${b.y - 3}`
+    }
     return `M${x1},${a.y} C${x1 + dx},${a.y} ${x2 - dx},${b.y} ${x2},${b.y}`
   }
   // the same column, or backwards in time (a relationship's first day, a place): a loop over the top
@@ -229,6 +235,49 @@ function shortLabel(n: TraceNode, laneName?: string) {
   return cap(s)
 }
 const clip = (s: string, k: number) => (s.length > k ? s.slice(0, Math.max(1, k - 1)) + '…' : s)
+
+// labels are measured (not guessed from their length), so two lines fill the column and the patch behind fits them
+let measurer: CanvasRenderingContext2D | null | undefined
+let family = 'sans-serif'
+const wraps = new Map<string, { lines: string[]; w: number }>()
+function textWidth(s: string, bold: boolean) {
+  if (measurer === undefined) {
+    measurer = document.createElement('canvas').getContext('2d')
+    family = getComputedStyle(document.body).fontFamily || family
+  }
+  if (!measurer) return s.length * 6.4
+  measurer.font = `${bold ? 650 : 400} 11.5px ${family}`
+  return measurer.measureText(s).width
+}
+/** A label in at most two lines no wider than `maxW` px: whole words where they fit, an ellipsis where it is cut. */
+function wrapLabel(s: string, maxW: number, bold: boolean): { lines: string[]; w: number } {
+  const key = `${maxW}|${bold ? 1 : 0}|${s}`
+  const hit = wraps.get(key)
+  if (hit) return hit
+  const fits = (t: string) => textWidth(t, bold) <= maxW
+  const cut = (t: string) => {
+    if (fits(t)) return t
+    let lo = 1, hi = t.length
+    while (lo < hi) { const m = (lo + hi + 1) >> 1; if (fits(t.slice(0, m) + '…')) lo = m; else hi = m - 1 }
+    return t.slice(0, lo).trimEnd() + '…'
+  }
+  let lines: string[]
+  if (fits(s)) lines = [s]
+  else {
+    const words = s.split(' ')
+    let first = '', i = 0
+    for (; i < words.length; i++) {
+      const t = first ? `${first} ${words[i]}` : words[i]
+      if (!fits(t)) break
+      first = t
+    }
+    lines = first ? [first, cut(words.slice(i).join(' '))] : [cut(s)]
+  }
+  const out = { lines, w: Math.max(...lines.map(l => textWidth(l, bold))) }
+  if (wraps.size > 4000) wraps.clear()
+  wraps.set(key, out)
+  return out
+}
 const when = (n: TraceNode, start: string) =>
   (n.timeless ? '' : dayLabel(start, n.day, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) + (n.minute !== null && n.kind !== 'tie' ? `, ${clockLabel(n.minute)}` : ''))
 
@@ -349,7 +398,6 @@ function TraceTool({ sel, setSel, opts, setOpts }: PanelProps) {
   const hk = hover?.key ?? picked
   if (hk) view.links.forEach((Lk, i) => { if (Lk.source === hk || Lk.target === hk) hl.add(i) })
   if (hover?.link !== undefined) hl.add(hover.link)
-  const budget = Math.floor((colW - 30) / 6.4)
 
   return (
     <div className="tr" ref={rootRef} onClick={() => setMenu(null)}>
@@ -385,7 +433,7 @@ function TraceTool({ sel, setSel, opts, setOpts }: PanelProps) {
         {got.error && !got.loading && <span className="tr-loading" style={{ color: 'var(--critical)' }}>Couldn't follow that: {got.error}</span>}
       </div>
       <div className="tr-body">
-        <Canvas L={L} view={view} g={g} colW={colW} compact={compact} budget={budget} hl={hl} hk={hk} picked={picked} busy={busy}
+        <Canvas L={L} view={view} g={g} colW={colW} compact={compact} hl={hl} hk={hk} picked={picked} busy={busy}
           onPick={k => setPicked(k === picked ? null : k)} onHover={setHover} onExpand={expand}
           onLane={(id, name, x, y) => setMenu({ id, name, x, y })} />
         {pk && (
@@ -438,8 +486,8 @@ function TraceTool({ sel, setSel, opts, setOpts }: PanelProps) {
 }
 
 // ---------------------------------------------------------------- the drawing
-function Canvas({ L, view, g, colW, compact, budget, hl, hk, picked, busy, onPick, onHover, onExpand, onLane }: {
-  L: Layout; view: { nodes: TraceNode[]; links: TraceLink[] }; g: TraceGraph; colW: number; compact: boolean; budget: number
+function Canvas({ L, view, g, colW, compact, hl, hk, picked, busy, onPick, onHover, onExpand, onLane }: {
+  L: Layout; view: { nodes: TraceNode[]; links: TraceLink[] }; g: TraceGraph; colW: number; compact: boolean
   hl: Set<number>; hk: string | null; picked: string | null; busy: string
   onPick: (k: string) => void; onHover: (h: { key?: string; link?: number; x: number; y: number } | null) => void
   onExpand: (n: TraceNode, d: 'back' | 'fwd') => void; onLane: (id: number, name: string, x: number, y: number) => void
@@ -454,6 +502,24 @@ function Canvas({ L, view, g, colW, compact, budget, hl, hk, picked, busy, onPic
     // causes sit to the left, so keep more of the left in view
     if (p && el) el.scrollLeft = Math.max(0, p.x - el.clientWidth * 0.62)
   }, [rootKey])
+  // keep the item being read in view when the reading pane opens beside the drawing
+  useEffect(() => {
+    const p = picked ? L.pos.get(picked) : undefined, el = scroller.current
+    if (!p || !el) return
+    if (p.x < el.scrollLeft + 30 || p.x > el.scrollLeft + el.clientWidth - 60) el.scrollLeft = Math.max(0, p.x - el.clientWidth * 0.45)
+  }, [picked])
+  // which links run along a row past other items (they arch over them)
+  const arches = useMemo(() => {
+    const row = new Map<number, number[]>()
+    L.pos.forEach(p => { (row.get(p.y) ?? row.set(p.y, []).get(p.y)!).push(p.x) })
+    return view.links.map(Lk => {
+      const a = L.pos.get(Lk.source), b = L.pos.get(Lk.target)
+      if (!a || !b || a.y !== b.y || b.x - a.x < 30) return false
+      return (row.get(a.y) ?? []).some(x => x > a.x + 4 && x < b.x - 4)
+    })
+  }, [L, view.links])
+  const laneCls = new Map(L.lanes.map((l, i) => [l.id, `${i % 2 ? ' odd' : ''}${l.root ? ' root' : ''}`]))
+  const maxW = colW - 34
   const at = (e: RMouseEvent) => {
     const box = (e.currentTarget as Element).closest('.tr')!.getBoundingClientRect()
     return { x: e.clientX - box.left, y: e.clientY - box.top }
@@ -507,7 +573,7 @@ function Canvas({ L, view, g, colW, compact, budget, hl, hk, picked, busy, onPic
             if (!a || !b) return null
             const s = LINK[Lk.kind] ?? LINK.contributed
             const w = Lk.weight === null ? 1.4 : 1 + 2.2 * Math.min(1, Math.abs(Lk.weight))
-            const d = linkPath(a, b)
+            const d = linkPath(a, b, arches[i])
             return (
               <g key={i} className={`tl-g${dim && !hl.has(i) ? ' dim' : ''}${hl.has(i) ? ' hot' : ''}`}>
                 <path d={d} className={`tl tl-${s.cls}`} strokeWidth={w} markerEnd={`url(#a-${uid}-${s.cls})`} />
@@ -522,12 +588,22 @@ function Canvas({ L, view, g, colW, compact, budget, hl, hk, picked, busy, onPic
             const ln = p.lane === OTHER ? undefined : laneName(p.lane)
             const on = n.key === picked
             const near = hk === n.key || view.links.some((Lk, i) => hl.has(i) && (Lk.source === n.key || Lk.target === n.key))
+            const lx = kindOf(n) === 'occasion' ? 16 : 14
+            const text = compact ? '' : shortLabel(n, ln)
+            const lab = text ? wrapLabel(text, maxW - (n.more_fwd > 0 ? 24 : 0), !!n.root) : null
             return (
               <g key={n.key} transform={`translate(${p.x},${p.y})`} className={`tn c-${n.category}${n.root ? ' root' : ''}${on ? ' on' : ''}${dim && !near ? ' dim' : ''}`}
                 onClick={e => { e.stopPropagation(); onPick(n.key) }} onMouseMove={e => onHover({ key: n.key, ...at(e) })} onMouseLeave={() => onHover(null)}>
                 {(n.root || on) && <circle r={13} className="tn-halo" />}
                 <Shape n={n} laneName={ln} />
-                {!compact && <text x={kindOf(n) === 'occasion' ? 16 : 14} y={4} className="tn-label">{clip(shortLabel(n, ln), budget)}</text>}
+                {lab && (
+                  <g className="tn-lab">
+                    <rect x={lx - 2} y={lab.lines.length > 1 ? -13 : -8} width={lab.w + 4} height={lab.lines.length > 1 ? 28 : 16} rx={3} className={`tn-lbg${laneCls.get(p.lane) ?? ''}`} />
+                    <text x={lx} y={lab.lines.length > 1 ? -2.5 : 4} className="tn-label">
+                      {lab.lines.map((t, k) => <tspan key={k} x={lx} dy={k ? 13 : 0}>{t}</tspan>)}
+                    </text>
+                  </g>
+                )}
                 {n.more_back > 0 && (
                   <g className="tn-more" transform="translate(-22,-11)" onClick={e => { e.stopPropagation(); onExpand(n, 'back') }}>
                     <title>{`Show ${n.more_back} more causes`}</title>
@@ -535,7 +611,7 @@ function Canvas({ L, view, g, colW, compact, budget, hl, hk, picked, busy, onPic
                   </g>
                 )}
                 {n.more_fwd > 0 && (
-                  <g className="tn-more" transform={compact ? 'translate(20,-11)' : 'translate(24,-14)'} onClick={e => { e.stopPropagation(); onExpand(n, 'fwd') }}>
+                  <g className="tn-more" transform={lab ? `translate(${lx + lab.w + 13},0)` : 'translate(20,-11)'} onClick={e => { e.stopPropagation(); onExpand(n, 'fwd') }}>
                     <title>{`Show ${n.more_fwd} more consequences`}</title>
                     <rect x={-9} y={-7} width={18} height={13} rx={6} /><text y={3} textAnchor="middle">+{n.more_fwd}</text>
                   </g>
@@ -570,7 +646,7 @@ function Inspector({ n, g, view, names, u, onClose, onFocus, onExpand, onPick, o
         <button className="btn ghost small" onClick={onClose} aria-label="Close">✕</button>
       </div>
       {k !== 'decision' && <div className="tr-insp-t">{n.label}</div>}
-      {when(n, g.start_date) && <div className="muted small">{when(n, g.start_date)}</div>}
+      {k !== 'decision' && when(n, g.start_date) && <div className="muted small">{when(n, g.start_date)}</div>}
       {k === 'decision' ? (
         <DecisionCard id={Number(n.ref.id)} u={u} startDate={g.start_date} compact onRef={(r, label) => onFocus(r, label)} />
       ) : (

@@ -78,7 +78,11 @@
 .ts-person text { font-size: 7.5px; font-weight: 700; fill: var(--text-primary); stroke: none; }
 .ts-place { fill: var(--surface-3); stroke: var(--text-muted) !important; stroke-width: 1.3 !important; }
 .ts-other { fill: none; stroke: var(--text-muted) !important; stroke-dasharray: 2 2; }
-.tn-label { font-size: 11.5px; fill: var(--text-primary); paint-order: stroke; stroke: var(--surface-1); stroke-width: 3px; stroke-linejoin: round; }
+.tn-label { font-size: 11.5px; fill: var(--text-primary); }
+/* the opaque patch behind a label takes its lane's color, so links pass under words instead of through them */
+.tn-lbg { fill: var(--surface-1); }
+.tn-lbg.odd { fill: color-mix(in srgb, var(--surface-2) 55%, var(--surface-1)); }
+.tn-lbg.root { fill: color-mix(in srgb, var(--accent) 6%, var(--surface-1)); }
 .tn.root .tn-label { font-weight: 650; }
 .tn-halo { fill: color-mix(in srgb, var(--accent) 16%, transparent); stroke: var(--accent); stroke-width: 1.4; }
 .tn.on .tn-halo { stroke-width: 2; }

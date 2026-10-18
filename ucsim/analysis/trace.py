@@ -685,8 +685,12 @@ class _Graph:
                     var = eff.var_names[int(eff.var[j])]
                     who = int(eff.agent[j])
                     mag = float(eff.mag[j])
+                    left = float(c) / mag if mag else 0.0
+                    still = ("still felt in full today" if left > 0.9 else "since faded" if left < 0.05
+                             else f"about {max(5, int(round(left * 20)) * 5)}% of it still felt today")
                     cands.append((1.0 + min(abs(mag) * 5, 1.0), lambda v=var, w=who: self.node("state", (v, w), depth + 1, n["day"]),
-                                  ("contributed", mag, f"changed their {lc(self.W.var_label(var))} (now {c:+.3f})")))
+                                  ("contributed", mag, f"{'raised' if mag > 0 else 'lowered'} their "
+                                                       f"{lc(self.W.var_label(var))}; {still}")))
         return cands
 
     def _fwd_decision(self, n, depth):

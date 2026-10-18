@@ -9,7 +9,7 @@ __pycache__/
 .pytest_cache/
 *.egg-info/
 .venv/
-web/node_modules/
+web/node_modules
 web/dist/
 static_export/
 web/dist-static/

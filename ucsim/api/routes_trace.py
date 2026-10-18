@@ -41,9 +41,11 @@ def trace(ref: str, u: str = "base", dir: str = "both", depth: int = 3, max_node
 
 @router.get("/api/trace/chains")
 def chains(u: str = "base", since: int | None = None, until: int | None = None, filter: str | None = None,
-           people: str | None = None, root: str | None = None, repeats: bool = False, max_links: int = 60):
+           people: str | None = None, root: str | None = None, repeats: bool = False, max_links: int = 60,
+           contexts: bool = True):
     """Population chain reactions in a window: which kinds of events (and which decisions) led to which, with example
-    instances, and the top reasons behind each decision outcome. `filter` is a cohort filter (JSON, query DSL) and
+    instances, the feelings, places, occasions and people behind events (`contexts`), and the top reasons behind each
+    decision outcome. `filter` is a cohort filter (JSON, query DSL) and
     `people` a comma-separated list of person ids (either narrows the events to those people's); `root` an event type
     to center on."""
     import numpy as np
@@ -73,7 +75,7 @@ def chains(u: str = "base", since: int | None = None, until: int | None = None, 
         if root and root not in sim.reg.events:
             raise HTTPException(404, f"no event type {root!r}")
         return jresp(T.chains(sim, since, until, people=who, root=root or None, repeats=repeats,
-                              max_links=int(np.clip(max_links, 5, 200))))
+                              max_links=int(np.clip(max_links, 5, 200)), contexts=contexts))
 
 
 @router.get("/api/decision/{did}")

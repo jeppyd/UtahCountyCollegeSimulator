@@ -20,6 +20,12 @@ const WINDOWS: { k: string; label: string; days?: number }[] = [
   { k: 'all', label: 'The whole story' }, { k: 'sel', label: 'Selected time' },
 ]
 
+// what surrounded events (their typed causes that are not events), colored like their shapes in Trace
+const CTX_KIND: Record<string, { v: string; label: string }> = {
+  state: { v: '--s7', label: 'feelings' }, place: { v: '--s3', label: 'places' }, occasion: { v: '--s4', label: 'occasions' },
+  person: { v: '--text-secondary', label: 'people' },
+}
+
 const sharePct = (s: number) => (s > 0 && s < 0.005 ? 'under 1%' : `${Math.round(s * 100)}%`)
 
 /** A flow node's words. A choice leads with what was chosen, so a cut-off label still says it:
@@ -47,14 +53,15 @@ function ChainsTool({ sel, setSel, opts, setOpts }: PanelProps) {
   const root: string = opts.root ?? ''
   const maxLinks: number = opts.max ?? 30
   const cohortOn: boolean = opts.cohort ?? true
+  const ctxOn: boolean = opts.contexts ?? true
   const u: Universe = lens.u
   const people = cohortOn ? sel.people : undefined
   const filter = cohortOn && !sel.people?.length ? sel.filter : undefined
   const w = WINDOWS.find(x => x.k === win) ?? WINDOWS[1]
   const [since, until] = win === 'sel' && sel.time ? sel.time
     : win === 'all' ? [0, today] : [today !== undefined && w.days ? Math.max(0, today - w.days) : undefined, today]
-  const got = useAsync(() => traceApi.chains({ u, since, until, people, filter, root: root || undefined, maxLinks }),
-    [u, since, until, (people ?? []).join(','), JSON.stringify(filter ?? []), root, maxLinks, dataVersion], true)
+  const got = useAsync(() => traceApi.chains({ u, since, until, people, filter, root: root || undefined, maxLinks, contexts: ctxOn }),
+    [u, since, until, (people ?? []).join(','), JSON.stringify(filter ?? []), root, maxLinks, ctxOn, dataVersion], true)
   const [flow, setFlow] = useState<number | null>(null)
   const [reason, setReason] = useState<number | null>(null)
   const [openDec, setOpenDec] = useState<number | null>(null)
@@ -65,6 +72,7 @@ function ChainsTool({ sel, setSel, opts, setOpts }: PanelProps) {
     const typeOf = (id: string) => id.split(':')[1]?.split('|')[0] ?? ''
     const color = (id: string, kind: string) => {
       if (kind === 'decision') return cssVar('--text-muted')
+      if (CTX_KIND[kind]) return cssVar(CTX_KIND[kind].v)
       const cat = reg?.events?.[typeOf(id)]?.category
       return cssVar(CAT_VAR[cat] ?? '--accent')
     }
@@ -127,8 +135,12 @@ function ChainsTool({ sel, setSel, opts, setOpts }: PanelProps) {
           <label className="ch-sum"><input type="checkbox" checked={cohortOn} onChange={e => set({ cohort: e.target.checked })} /> only the selected people</label>
         ) : null}
         <select value={maxLinks} onChange={e => set({ max: Number(e.target.value) })} aria-label="How many flows">
-          {[15, 30, 60, 120].map(k => <option key={k} value={k}>{k} largest flows</option>)}
+          {[15, 30, 60, 120].map(k => <option key={k} value={k}>{k} largest of each kind</option>)}
         </select>
+        <button className={`btn small${ctxOn ? ' on' : ''}`} onClick={() => { set({ contexts: !ctxOn }); setFlow(null) }}
+          title="Also show the feelings, places, occasions and people recorded behind events">
+          {ctxOn ? 'Hide feelings & places' : 'Show feelings & places'}
+        </button>
         {got.loading && <span className="muted ch-sum">updating…</span>}
       </div>
       <div className="ch-sum">
@@ -140,6 +152,11 @@ function ChainsTool({ sel, setSel, opts, setOpts }: PanelProps) {
         <div className="ch-flow">
           {c.links.length ? (option && <EChart option={option} height={height} onClick={onChart} />)
             : <div className="tr-empty">No recorded links between events in this window{c.root_label ? ` around “${c.root_label}”` : ''}.</div>}
+          <div className="ch-key" aria-label="Colors">
+            <span><i style={{ background: 'var(--s5)' }} /><i style={{ background: 'var(--s2)' }} /><i style={{ background: 'var(--s4)' }} />kinds of events (by area of life)</span>
+            <span><i style={{ background: 'var(--text-muted)' }} />◆ choices</span>
+            {ctxOn && Object.entries(CTX_KIND).map(([k, x]) => <span key={k}><i style={{ background: `var(${x.v})` }} />{x.label}</span>)}
+          </div>
           <div className="ch-cut">{c.notes.join(' ')}</div>
         </div>
         <div className="ch-side">

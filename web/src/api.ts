@@ -55,7 +55,7 @@ export const traceApi = {
     liveOnly()
     return j(`/api/trace?ref=${encodeURIComponent(ref)}&u=${u}&dir=${dir}&depth=${depth}&max_nodes=${maxNodes}&fanout=${fanout}`)
   },
-  async chains(o: { u?: Universe; since?: number; until?: number; filter?: any[]; people?: number[]; root?: string; maxLinks?: number }): Promise<any> {
+  async chains(o: { u?: Universe; since?: number; until?: number; filter?: any[]; people?: number[]; root?: string; maxLinks?: number; contexts?: boolean }): Promise<any> {
     liveOnly()
     const q = new URLSearchParams({ u: o.u ?? 'base', max_links: String(o.maxLinks ?? 40) })
     if (o.since !== undefined) q.set('since', String(o.since))
@@ -63,6 +63,7 @@ export const traceApi = {
     if (o.filter?.length) q.set('filter', JSON.stringify(o.filter.length === 1 ? o.filter[0] : { and: o.filter }))
     if (o.people?.length) q.set('people', o.people.join(','))
     if (o.root) q.set('root', o.root)
+    if (o.contexts === false) q.set('contexts', 'false')
     return j(`/api/trace/chains?${q}`)
   },
   async decision(id: number, u: Universe = 'base'): Promise<DecisionDetail> { liveOnly(); return j(`/api/decision/${id}?u=${u}`) },

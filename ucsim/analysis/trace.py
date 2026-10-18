@@ -1056,10 +1056,13 @@ def _top_reason(D, rows: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 
 def chains(sim, since: int | None = None, until: int | None = None, people: np.ndarray | None = None,
-           root: str | None = None, max_links: int = 60, examples: int = 5, repeats: bool = False) -> dict:
+           root: str | None = None, max_links: int = 60, examples: int = 5, repeats: bool = False,
+           contexts: bool = True) -> dict:
     """Population chain reactions in a window (and cohort): flows between event types through recorded causes, flows
-    from decisions to the events they produced, and the top reasons behind each decision outcome. `repeats`: also
-    count links between events of the same kind (one date leading to the next), hidden by default."""
+    from decisions to the events they produced, flows from what surrounded events (`contexts`: the feelings, kinds of
+    place, occasions and people recorded as their causes) and the top reasons behind each decision outcome. Each
+    family keeps its `max_links` largest flows. `repeats`: also count links between events of the same kind (one date
+    leading to the next), hidden by default."""
     log, reg = sim.log, sim.reg
     names = reg.event_names
     day = sim.w.day
@@ -1148,6 +1151,9 @@ def chains(sim, since: int | None = None, until: int | None = None, people: np.n
                                "to_label": reg.events[names[e]].label,
                                "examples": [{"event": int(ev_rows[x]), "decision": int(D.t.ids[drow[x]]), "day": int(log["day"][ev_rows[x]]),
                                              "label": W.event_line(int(ev_rows[x]))} for x in which]})
+    # ---- context → event: the feelings, kinds of place, occasions and people recorded behind events
+    clinks = _context_flows(sim, W, rows, s0, s1, pm if people is not None else None, root_code, max_links,
+                            examples) if contexts else []
     # ---- reasons: decision factors → outcomes (all recorded decisions in the window and cohort)
     T = D.t
     dm = (T["day"] >= since) & (T["day"] <= until)
@@ -1210,7 +1216,7 @@ def chains(sim, since: int | None = None, until: int | None = None, people: np.n
     nodes: dict[str, dict] = {}
     flow = []
     rk = f"event:{root}" if root else None
-    for L in links + dlinks:
+    for L in links + dlinks + clinks:
         s_root, t_root = L["source"] == rk, L["target"] == rk
         s = L["source"] + ("|root" if s_root else "|from")
         t = L["target"] + ("|root" if t_root and not s_root else "|to")
@@ -1228,11 +1234,117 @@ def chains(sim, since: int | None = None, until: int | None = None, people: np.n
             "root": root, "root_label": reg.events[root].label if root in reg.events else None,
             "nodes": list(nodes.values()), "links": flow, "reasons": reasons[:40],
             "repeats_hidden": 0 if repeats else n_repeat,
-            "notes": ["Flows count recorded links between events (a parent cause or a typed cause) and from decisions to "
-                      "the events they produced; a two-person moment is counted once. Reasons are each decision's "
-                      "largest recorded term in the direction of what happened."]
+            "notes": ["Flows count recorded links between events (a parent cause or a typed cause), from decisions to "
+                      "the events they produced" + (", and from the feelings, places, occasions and people recorded "
+                                                     "behind events (one event can have several)" if contexts else "")
+                      + "; a two-person moment is counted once. Reasons are each decision's largest recorded term in "
+                      "the direction of what happened."]
             + ([f"{n_repeat:,} links between events of the same kind (one date leading to the next) are not shown."]
                if n_repeat and not repeats else [])}
+
+
+# where a kind of place is, as a flow label reads it ("Met in class", "Mostly together at church")
+CTX_WHERE = {"unit": "at home", "complex": "around their complex", "class": "in class", "ward": "at church",
+             "fhe": "in an FHE group", "work": "at work", "gym": "at the gym", "venue": "out somewhere",
+             "gathering": "at a get-together", "campus": "on campus", "app": "on a dating app", "date": "on a date",
+             "family": "through family", "preexisting": "before the story began", "dance": "at a dance",
+             "outdoors": "outdoors", "hangout": "hanging out", "online": "online", "club": "in a club",
+             "team": "on a team", "institute": "at institute", "congregation": "at a congregation",
+             "occasion": "at an occasion"}
+_PLACE_ROLE = {"met_at": "Met {w}", "time_together": "Mostly together {w}", "employer": "The workplace",
+               "new_home": "The new home", "scene": "{W}"}
+_PERSON_ROLE = {"introduced": "Introduced by someone", "ended_by": "The partner who ended it",
+                "invited_by": "Invited by someone", "picked_up_from": "Picked up from someone close"}
+
+
+def _context_flows(sim, W: _Words, rows, s0: int, s1: int, pm, root_code, max_links: int, examples: int) -> list[dict]:
+    """Flows into event types from their typed causes that are not events: a feeling (by variable), a kind of place (by
+    the role it played: where they met, where their time together went, the workplace…), an occasion (by kind) or a
+    person (by role). One event with two such causes counts in both flows."""
+    log, reg = sim.log, sim.reg
+    C = sim.causes.t
+    if not C.n:
+        return []
+    names = reg.event_names
+    types = log["type"]
+    ce = C["event"]
+    kinds = [CAUSE_ID[k] for k in ("state", "place", "occasion", "person")]
+    sel = (ce >= s0) & (ce < s1) & np.isin(C["kind"], kinds)
+    if pm is not None:
+        sel &= pm[log["a"][np.clip(ce, 0, log.n - 1)]]
+    r = np.flatnonzero(sel)
+    if root_code is not None:
+        r = r[types[ce[r]] == root_code]
+    if not len(r):
+        return []
+    ev, kind, ref, note = ce[r], C["kind"][r].astype(np.int64), C["ref"][r].astype(np.int64), C["note"][r].astype(np.int64)
+    # a group code per cause: (cause kind, what it is) → one source node
+    sub = np.full(len(r), -1, np.int64)
+    st = kind == CAUSE_ID["state"]
+    sub[st] = ref[st] >> 32                                       # the variable
+    pl = kind == CAUSE_ID["place"]
+    roles = list(_roles())
+    keep_role = [ROLE_BASE + roles.index(n) for n in _PLACE_ROLE if n in roles]
+    pl &= np.isin(note, keep_role)
+    sub[pl] = (ref[pl] >> 32) * 1024 + (note[pl] - ROLE_BASE)    # kind of place × role
+    oc = kind == CAUSE_ID["occasion"]
+    if oc.any() and len(sim.book.occ):
+        sub[oc] = sim.book.occ.get("kind", ref[oc], default=-1)
+    pe = kind == CAUSE_ID["person"]
+    sub[pe] = np.maximum(note[pe] - ROLE_BASE, -1)
+    ok = sub >= 0
+    ev, kind, ref, note, sub = ev[ok], kind[ok], ref[ok], note[ok], sub[ok]
+    if not len(ev):
+        return []
+    et = types[ev].astype(np.int64)
+    key = (kind * (1 << 24) + sub) * 4096 + et
+    u, inv, cnt = np.unique(key, return_inverse=True, return_counts=True)
+    var_codes(sim.reg)
+    var_names = sim.reg._prov_var_names
+    out = []
+    for t in np.argsort(-cnt)[:max_links]:
+        ks, e = divmod(int(u[t]), 4096)
+        k, s = divmod(ks, 1 << 24)
+        which = np.flatnonzero(inv == t)
+        if k == CAUSE_ID["state"]:
+            var = var_names[s] if s < len(var_names) else "?"
+            src, label, lk = f"state:{var}", W.var_label(var), "contributed"
+        elif k == CAUSE_ID["place"]:
+            c, rl = divmod(s, 1024)
+            ctx = CTX[c] if c < len(CTX) else "?"
+            where = CTX_WHERE.get(ctx, ctx.replace("_", " "))
+            rname = roles[rl] if rl < len(roles) else ""
+            label = _PLACE_ROLE.get(rname, "{W}").format(w=where, W=where[:1].upper() + where[1:])
+            src, lk = f"place:{ctx}:{rname}", "met_at" if rname == "met_at" else "contributed"
+        elif k == CAUSE_ID["occasion"]:
+            ok_ = 0 <= s < len(sim.book.kinds)
+            kname = sim.book.kinds[s] if ok_ else "?"
+            src, label, lk = f"occasion:{kname}", "At " + lc(str(sim.book.vocab.get(kname, {}).get("label", kname))), "attended"
+        else:
+            rname = roles[s] if s < len(roles) else ""
+            words = _roles().get(rname, ("", rname.replace("_", " ")))[1]
+            src, label, lk = f"person:{rname}", _PERSON_ROLE.get(rname, "Someone: " + words), "contributed"
+        ex = which[np.argsort(-ev[which])][:examples]
+        out.append({"source": src, "target": f"event:{names[e]}", "value": int(cnt[t]), "kind": lk,
+                    "from_label": label, "to_label": reg.events[names[e]].label,
+                    "examples": [{"event": int(ev[x]), "day": int(log["day"][ev[x]]), "label": W.event_line(int(ev[x])),
+                                  "from_label": _context_words(sim, W, int(kind[x]), int(ref[x]))} for x in ex]})
+    return out
+
+
+def _context_words(sim, W: _Words, kind: int, ref: int) -> str:
+    """One cause in words: "Anna Ashby's financial stress", "Joe's Coffee", "game night", "Ben Carter"."""
+    if kind == CAUSE_ID["state"]:
+        var, who = split_state(sim, ref)
+        return f"{W.name(who)}'s {lc(W.var_label(var))}"
+    if kind == CAUSE_ID["place"]:
+        ctx, pid = split_place(ref)
+        return W.place(ctx, pid)
+    if kind == CAUSE_ID["occasion"]:
+        k = int(sim.book.occ.get("kind", np.array([ref]), default=-1)[0]) if len(sim.book.occ) else -1
+        kname = sim.book.kinds[k] if 0 <= k < len(sim.book.kinds) else None
+        return str(sim.book.vocab.get(kname, {}).get("label", "an occasion")) if kname else "an occasion"
+    return W.name(ref)
 
 
 # ----------------------------------------------------------------------------- coverage

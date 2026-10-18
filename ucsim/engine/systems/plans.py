@@ -358,7 +358,9 @@ class Plans:
         sm = kind == K["study_more"]
         parts["grades"][sm] = 1 + 0.8 * (gpa[ids[sm]] < 3.0)
         base = np.zeros(k)
-        factors = {f: np.zeros(k) for f in self._REF}
+        # the drive is named by its motive ("really wanted a relationship"), so a reason reads as what it was about
+        motives = sorted(set(MOTIVE_OF.values()))
+        factors = {f: np.zeros(k) for f in self._REF if f != "drive"} | {f"drive_{m}": np.zeros(k) for m in motives}
         for kn, names in self._PARTS.items():
             sel = kind == K[kn]
             if not sel.any():
@@ -366,12 +368,12 @@ class Plans:
             ref = float(np.prod([self._REF[f] for f in names]))
             base[sel] = np.log(self._CONST[kn] * ref / thr)
             for f in names:
-                factors[f][sel] = np.log(np.maximum(parts[f][sel], 1e-6) / self._REF[f])
+                factors[f"drive_{MOTIVE_OF[kn]}" if f == "drive" else f][sel] = np.log(np.maximum(parts[f][sel], 1e-6) / self._REF[f])
         # which plan, among those in reach: a Gumbel-max choice over the scores (noise scale 0.15)
         prob = softmax_prob(S[1:, ids].T / 0.15, kind - 1)
         did = sim.decisions.record("form_intention", w.day, ids, kind - 1, factors, base=base, prob=prob,
                                    other=np.where(t >= 0, t, -1),
-                                   refs={"drive": ("state", self._drive_codes()[MOTIVE_IDX[kind]] + ids),
+                                   refs={**{f"drive_{m}": ("state", state_ref(sim, f"drive_{m}", ids)) for m in motives},
                                          "crush": ("person", t), "closeness": ("person", t)})
         return sim.emit("intention_formed", ids, b=np.where(t >= 0, t, -1), value=kind.astype(np.float32),
                         mech="plans.formation", decision=did)

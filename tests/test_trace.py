@@ -157,6 +157,24 @@ def test_chains_flows_and_reasons(sim):
     assert 0 < cc["events"] < c["events"]
 
 
+def test_chains_show_where_friends_met_and_the_feelings_behind_coping(sim):
+    c = T.chains(sim, 0, sim.w.day, root="new_friend", max_links=200)
+    met = [L for L in c["links"] if L["source"].startswith("place:") and L["kind"] == "met_at"]
+    assert met and all(L["from_label"].startswith("Met ") and L["target"] == "event:new_friend|root" for L in met)
+    # each example names the very place and opens a real friendship
+    ex = met[0]["examples"][0]
+    assert ex["from_label"] and sim.reg.event_names[sim.log["type"][ex["event"]]] == "new_friend"
+    # the counts are the typed causes: no flow claims more friendships than were recorded with that kind of place
+    n_new = int((sim.log["type"] == sim.reg.event_ids["new_friend"]).sum())
+    assert sum(L["value"] for L in met) <= n_new
+    cop = T.chains(sim, 0, sim.w.day, root="coping_started")
+    feel = [L for L in cop["links"] if L["source"].startswith("state:")]
+    assert feel and all(L["examples"][0]["from_label"].endswith(L["from_label"].lower()) for L in feel)
+    # without contexts only events and decisions remain
+    plain = T.chains(sim, 0, sim.w.day, root="coping_started", contexts=False)
+    assert all(L["source"].split(":")[0] in ("event", "decision") for L in plain["links"])
+
+
 def test_api(sim):
     from fastapi.testclient import TestClient
     from ucsim.api import server

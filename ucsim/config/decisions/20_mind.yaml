@@ -31,7 +31,11 @@ decisions:
     outcomes: [ask_out, reconnect, meet_people, study_more, find_work, return_to_church]
     factors:
       base:       {label: "where a typical person in a typical situation stands against the bar for making a plan", more: "", less: ""}
-      drive:      {label: "how strongly they felt the need", more: "felt it strongly", less: "felt it only mildly"}
+      drive_partnership: {label: "how much they wanted a relationship", more: "really wanted a relationship", less: "only mildly wanted a relationship"}
+      drive_connection:  {label: "how much they wanted friendship and belonging", more: "longed for closer friends", less: "only mildly wanted more friends"}
+      drive_achievement: {label: "how much they wanted to do well in school", more: "really wanted to do well in school", less: "school wasn't pressing"}
+      drive_security:    {label: "how much they wanted money and security", more: "worried about money", less: "money wasn't pressing"}
+      drive_faith:       {label: "how much they wanted to live their faith", more: "wanted their faith back", less: "faith wasn't pressing"}
       crush:      {label: "how attracted they are to the person", more: "a strong crush", less: "a mild crush"}
       expect:     {label: "what they've learned to expect when asking", more: "usually hears yes", less: "expects a no"}
       closeness:  {label: "how close the friend is", more: "a close friend", less: "not that close"}

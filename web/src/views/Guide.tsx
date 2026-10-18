@@ -5,7 +5,7 @@ import { useStore } from '../store'
 import { GLOSSARY, PageHeader } from '../ui'
 
 const SECTIONS: [string, string][] = [
-  ['play', 'How to play'], ['idea', 'The big idea'], ['layers', 'Layers of the world'], ['person', 'What a person is made of'],
+  ['bench', 'The workbench'], ['play', 'How to play'], ['idea', 'The big idea'], ['layers', 'Layers of the world'], ['person', 'What a person is made of'],
   ['relationships', 'How relationships form'], ['feelings', 'How feelings work'], ['mind', 'Inner lives'], ['places', 'Places with a culture'],
   ['faith', 'Faith & religious diversity'], ['time', 'How time works'],
   ['whatif', 'What-if experiments'], ['evidence', 'How sure are we?'], ['where', 'Where to go for what'], ['glossary', 'Glossary'],
@@ -42,6 +42,28 @@ export default function Guide({ section }: { section?: string }) {
           {SECTIONS.map(([id, t]) => <a key={id} href={`#/guide/${id}`} onClick={e => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }) }}>{t}</a>)}
         </nav>
         <div>
+          <Sec id="bench" title="The workbench" lede="The app opens on an empty bench and a shelf of tools. Nothing is laid out for you: you pick the tools, place them, and they all look at the same thing.">
+            <div className="grid g2">
+              <div className="card">
+                <h3>Setting it up</h3>
+                <dl className="dl">
+                  <dt>Add a tool</dt><dd>Click a tool on the shelf (or drag it onto the bench). Each one says in a sentence what it shows.</dd>
+                  <dt>Arrange</dt><dd>Drag a panel by its header to move it, drag its corner to resize it, or duplicate and close it from the header. The bench remembers your layout for this world.</dd>
+                  <dt>Pin</dt><dd>Panels follow the selection. The pin freezes a panel on what it shows now (say, one person) while the others move on, so you can compare.</dd>
+                </dl>
+              </div>
+              <div className="card">
+                <h3>Following a story</h3>
+                <dl className="dl">
+                  <dt>The selection</dt><dd>The bar at the top holds who is selected, the time window and the thing in focus. Select someone on the Map or in People; every tool follows. <b>Back</b> undoes a step.</dd>
+                  <dt>Chips</dt><dd>Every name, event, place and occasion is a chip. Click it to select it, add it to the selection, trace it, or open it in its own tool.</dd>
+                  <dt>Time</dt><dd>Drag across Life or Timeline to set the time window that Events and the others use; double-click to clear it.</dd>
+                  <dt>Why</dt><dd>Focus an event and open Trace or Chains to see what led to it and what it led to; Occasion shows who was asked, who came and why.</dd>
+                </dl>
+              </div>
+            </div>
+            <p className="muted">Every earlier page is still there under <b>Classic views ▾</b> in the top menu.</p>
+          </Sec>
           <Sec id="play" title="How to play" lede="A serious social simulation underneath; a simulation game in your hands. The whole game is one loop:">
             <div className="loop" style={{ marginBottom: 14 }}>
               {['Wonder “what if…?”', 'Change something', 'Let time run', 'Watch the world react', 'Notice something', 'Click it', 'Follow the chain', 'Compare the other world', 'Change something else'].map((s, k, a) => [

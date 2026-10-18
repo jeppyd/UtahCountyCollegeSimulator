@@ -54,7 +54,7 @@ export function SelectionBar() {
           <button className="selbar-x" title="Any time" onClick={() => setSel({ time: undefined })}>{G.close}</button>
         </span>
       )}
-      {sel.item && sel.item.kind !== 'person' && (
+      {sel.item && (sel.item.kind !== 'person' || !people.includes(Number(sel.item.id))) && (
         <span className="selbar-set">
           <span className="selbar-sub">focus</span>
           <RefChip r={sel.item} />

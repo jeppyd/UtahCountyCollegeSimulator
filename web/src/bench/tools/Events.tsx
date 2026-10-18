@@ -33,12 +33,12 @@ function EventsTool({ sel, setSel, opts, setOpts }: PanelProps) {
   return (
     <div className="bk">
       <PanelOptions>
-        <input type="search" placeholder="Search events" value={q} onChange={e => { setQ(e.target.value); setLimit(PAGE) }} style={{ width: 130 }} />
+        <input type="search" placeholder="Search events" value={q} onChange={e => { setQ(e.target.value); setLimit(PAGE) }} style={{ width: 110 }} />
         <select value={cat} onChange={e => set({ cat: e.target.value })} title="Only one kind of event">
           <option value="">All kinds</option>
           {CAT_ORDER.map(c => <option key={c} value={c}>{catLabel(c)}</option>)}
         </select>
-        <label className="bt-row" title="Only events that matter more to a life (first dates, breakups, moves…)">
+        <label className="bt-row" style={{ whiteSpace: "nowrap" }} title="Only events that matter more to a life (first dates, breakups, moves…)">
           <input type="checkbox" checked={big} onChange={e => set({ big: e.target.checked })} /> big ones
         </label>
       </PanelOptions>

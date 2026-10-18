@@ -10,7 +10,7 @@ import { Busy, dayWords, Problem, useWidth, useWorldDays } from '../../kit/Bits'
 import { loadColumns, useLens, useStore } from '../../store'
 import { PanelOptions } from '../panel'
 import type { PanelProps, ToolDef } from '../registry'
-import { hasGroup, selGroup } from '../sel'
+import { selPeople } from '../sel'
 
 const BINS = 24
 const SEL_C = 'var(--accent)', ALL_C = 'var(--text-muted)'
@@ -23,8 +23,10 @@ function MeasureTool({ sel, opts, setOpts }: PanelProps) {
   const v: string = reg.variables[opts.var] ? opts.var : 'loneliness'
   const spec = reg.variables[v]
   const cat = spec?.dtype === 'cat' || spec?.dtype === 'bool'
-  const g = selGroup(sel)
-  const own = hasGroup(sel)
+  // the selected people (or the focused person) and/or the selected group
+  const ppl = selPeople(sel)
+  const g = { people: ppl.length ? ppl : undefined, filter: sel.filter?.length ? sel.filter : undefined }
+  const own = !!(g.people || g.filter)
   const [wrap, w] = useWidth<HTMLDivElement>()
 
   const over = useAsync(() => api.cohortTimeline({ vars: [v], u, filter: g.filter ?? null, people: g.people ?? null }),
@@ -43,7 +45,7 @@ function MeasureTool({ sel, opts, setOpts }: PanelProps) {
     if (!col || !pres) return null
     const n = pres.length
     const inSel = new Uint8Array(n)
-    if (sel.people?.length) sel.people.forEach(i => { if (i < n && (!d.mask || d.mask[i])) inSel[i] = 1 })
+    if (ppl.length) ppl.forEach(i => { if (i < n && (!d.mask || d.mask[i])) inSel[i] = 1 })
     else if (d.mask) for (let i = 0; i < n; i++) inSel[i] = d.mask[i] ? 1 : 0
     const x = col.data
     if (cat) {
@@ -67,7 +69,7 @@ function MeasureTool({ sel, opts, setOpts }: PanelProps) {
       if (inSel[i]) { s[b]++; ns++; ss += x[i] }
     }
     return { cat: false as const, lo, hi, a: a.map(k => k / (na || 1)), s: s.map(k => k / (ns || 1)), na, ns, ma: sa / (na || 1), ms: ns ? ss / ns : null }
-  }, [now.data, sel.people, v])
+  }, [now.data, ppl.join(','), v])
 
   const t = over.data
   const ser = (k: 'cohort' | 'everyone') => (t?.[k]?.[v] ?? []) as any[]
@@ -93,7 +95,7 @@ function MeasureTool({ sel, opts, setOpts }: PanelProps) {
       <div className="bme-scale">
         <b style={{ color: 'var(--text-primary)' }}>{spec?.label ?? v}</b>
         {spec?.desc && <span>{spec.desc}</span>}
-        {(spec?.scale?.low || spec?.scale?.high) && (
+        {(spec?.scale?.low || spec?.scale?.high) && !spec?.scale?.note && (
           <div className="ends"><span>{spec.scale.min ?? ''} {spec.scale.low ? `= ${spec.scale.low}` : ''}</span><span>{spec.scale.max ?? ''} {spec.scale.high ? `= ${spec.scale.high}` : ''}</span></div>
         )}
         {spec?.scale?.note && <span>{spec.scale.note}</span>}
@@ -119,7 +121,7 @@ function MeasureTool({ sel, opts, setOpts }: PanelProps) {
           {own && <path d={path(lineVals(ser('cohort')))} fill="none" stroke={SEL_C} strokeWidth={2.2} />}
         </svg>
       )}
-      {t && own && t.n?.length > 0 && <div className="bx-note">The selection is the {t.n[t.n.length - 1].toLocaleString()} people who match it now, followed back in time (recorded every two weeks).</div>}
+      {t && own && t.n?.length > 0 && <div className="bx-note">The selection as it is now ({t.n[t.n.length - 1] === 1 ? 'one person' : `${t.n[t.n.length - 1].toLocaleString()} people`}), followed back in time (recorded every two weeks).</div>}
       <div className="bx-h">Now</div>
       {now.error && !dist && <Problem error={now.error} />}
       {!dist && !now.error && <Busy what="Reading everyone" />}
@@ -132,13 +134,16 @@ function MeasureTool({ sel, opts, setOpts }: PanelProps) {
           <svg width={W} height={90} style={{ display: 'block' }}>
             {dist.a.map((p, b) => {
               const bw = (W - L - 8) / BINS
-              const mx = Math.max(...dist.a, ...(own ? dist.s : [0]), 1e-9)
+              const few = dist.ns < 20   // a handful of people: mark where they are instead of comparing shapes
+              const mx = Math.max(...dist.a, ...(own && !few ? dist.s : [0]), 1e-9)
               return (
                 <g key={b}>
                   <rect x={L + b * bw} y={74 - (p / mx) * 66} width={bw - 1} height={(p / mx) * 66} fill={ALL_C} opacity={0.35}>
                     <title>{`${fmt(dist.lo + (b / BINS) * (dist.hi - dist.lo))} – ${fmt(dist.lo + ((b + 1) / BINS) * (dist.hi - dist.lo))}: ${Math.round(p * 100)}% of everyone${own ? `, ${Math.round(dist.s[b] * 100)}% of the selection` : ''}`}</title>
                   </rect>
-                  {own && dist.s[b] > 0 && <rect x={L + b * bw + bw * 0.25} y={74 - (dist.s[b] / mx) * 66} width={Math.max(1, bw * 0.5 - 1)} height={(dist.s[b] / mx) * 66} fill={SEL_C} pointerEvents="none" />}
+                  {own && dist.s[b] > 0 && (few
+                    ? <rect x={L + b * bw + bw / 2 - 1.5} y={8} width={3} height={66} rx={1.5} fill={SEL_C} pointerEvents="none" />
+                    : <rect x={L + b * bw + bw * 0.25} y={74 - (dist.s[b] / mx) * 66} width={Math.max(1, bw * 0.5 - 1)} height={(dist.s[b] / mx) * 66} fill={SEL_C} pointerEvents="none" />)}
                 </g>
               )
             })}
@@ -173,5 +178,5 @@ export const tool: ToolDef = {
   group: 'see',
   order: 30,
   component: MeasureTool,
-  size: { w: 5, h: 7 },
+  size: { w: 5, h: 8 },
 }

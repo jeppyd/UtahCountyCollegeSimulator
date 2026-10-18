@@ -67,7 +67,7 @@ function TiesTool({ sel, setSel, opts, setOpts }: PanelProps) {
   if (data.error && !g) return <Problem error={data.error} />
   if (!g) return <Busy what="Reading their ties" />
 
-  const W = Math.max(240, w), H = Math.max(240, Math.min(W * 0.75, 420))
+  const W = Math.max(240, w), H = Math.max(220, Math.min(W * 0.62, 360))
   const cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - 26
   const pos = new Map<number, [number, number]>()
   egos.forEach((i, k) => {
@@ -96,7 +96,7 @@ function TiesTool({ sel, setSel, opts, setOpts }: PanelProps) {
         </select>
       </PanelOptions>
       <div className="bx-legend">{kinds.map(k => <span key={k}><i className="bx-catdot" style={{ background: kindVar(k) }} />{KIND[k]?.[1] ?? k}</span>)}</div>
-      <div className="bti-canvas">
+      <div className="bti-canvas" style={{ height: H, flex: "none" }}>
         <svg width={W} height={H} style={{ display: 'block' }}>
           {g.edges.map(e => {
             const a = pos.get(e.source), b = pos.get(e.target)

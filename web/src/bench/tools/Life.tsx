@@ -64,7 +64,7 @@ function LifeTool({ sel, setSel, opts, setOpts }: PanelProps) {
   if (!d) return <Busy what="Reading their life" />
 
   const d0 = Math.min(0, ...(d.h?.days ?? [0])), d1 = Math.max(today, 1)
-  const plotW = Math.max(120, w - LEFT - 8)
+  const plotW = Math.max(120, w - LEFT - 34)   // room on the right for today's date
   const X = (day: number) => LEFT + ((day - d0) / Math.max(1, d1 - d0)) * plotW
   const dayAt = (x: number) => Math.round(d0 + ((x - LEFT) / plotW) * (d1 - d0))
   const yBands = 18, yLanes = yBands + bands.length * (BAND_H + 2) + GAP, yFeel = yLanes + lanes.length * LANE_H + GAP

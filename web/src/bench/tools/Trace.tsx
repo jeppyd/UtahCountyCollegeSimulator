@@ -594,7 +594,7 @@ function Canvas({ L, view, g, colW, compact, hl, hk, picked, busy, onPick, onHov
             return (
               <g key={n.key} transform={`translate(${p.x},${p.y})`} className={`tn c-${n.category}${n.root ? ' root' : ''}${on ? ' on' : ''}${dim && !near ? ' dim' : ''}`}
                 onClick={e => { e.stopPropagation(); onPick(n.key) }} onMouseMove={e => onHover({ key: n.key, ...at(e) })} onMouseLeave={() => onHover(null)}>
-                {(n.root || on) && <circle r={13} className="tn-halo" />}
+                {(n.root || on || n.seed) && <circle r={13} className={`tn-halo${n.seed && !n.root && !on ? ' seed' : ''}`} />}
                 <Shape n={n} laneName={ln} />
                 {lab && (
                   <g className="tn-lab">

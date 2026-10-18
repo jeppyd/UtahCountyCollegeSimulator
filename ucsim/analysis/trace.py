@@ -531,6 +531,8 @@ class _Graph:
             ref = int(C.cols["ref"][r])
             w = float(C.cols["weight"][r])
             note = int(C.cols["note"][r])
+            if note == _ANSWER:
+                continue                     # the other person's answer came after: drawn as a consequence
             lk, words = self._cause_words(note, w)
             if lk == "caused" and note == ROLE_BASE + list(_roles()).index("mirror"):
                 words = "the same moment, for the other person"
@@ -558,6 +560,13 @@ class _Graph:
         if row and row.get("occasion", -1) >= 0:
             oid = int(row["occasion"])
             cands.append((3.0, lambda o=oid: self.node("occasion", o, depth - 1, day), ("attended", None, "what they were deciding about")))
+        # what put the choice in front of them: an event that records this choice as the answer it got (being asked
+        # out → saying yes or no), and the parent of what the choice produced
+        C = sim.causes.t
+        asked = [int(C.cols["event"][r]) for r in self.ix.cited_by("decision", did) if int(C.cols["note"][r]) == _ANSWER]
+        par = [int(x) for x in sim.log["cause"][self.ix.by_decision(did)] if x >= 0]
+        for e in dict.fromkeys(asked + par):
+            cands.append((2.8, lambda e=e: self.node("event", e, depth - 1), ("caused", None, "what put the choice in front of them")))
         return cands
 
     def _back_occasion(self, n, depth):
@@ -667,6 +676,10 @@ class _Graph:
             ch = int(ch)
             words = "the same moment, for the other person" if ch in mirrored or _is_mirror(log, eid, ch) else "led to this"
             cands.append((2.0 + sal[log["type"][ch]], lambda e=ch: self.node("event", e, depth + 1), ("caused", 1.0, words)))
+        for r in ix.causes_of(eid):          # the answer it got (recorded on the asking, drawn after it)
+            if int(C.cols["note"][r]) == _ANSWER and C.cols["kind"][r] == CAUSE_ID["decision"]:
+                d = int(C.cols["ref"][r])
+                cands.append((2.6, lambda d=d: self.node("decision", d, depth + 1), ("caused", None, "the answer it got")))
         rows, cols = ix.factor_refs("event", eid)
         D = sim.decisions
         for r, c in zip(rows[:40], cols[:40]):
@@ -700,6 +713,8 @@ class _Graph:
             cands.append((3.0, lambda e=int(e): self.node("event", e, depth + 1), ("decided_by", None, "the choice behind it")))
         C = self.sim.causes.t
         for r in self.ix.cited_by("decision", did):
+            if int(C.cols["note"][r]) == _ANSWER:
+                continue                     # the question this choice answered: drawn as its cause
             e = int(C.cols["event"][r])
             lk, words = self._cause_words(int(C.cols["note"][r]), float(C.cols["weight"][r]))
             cands.append((2.5, lambda e=e: self.node("event", e, depth + 1), (lk, float(C.cols["weight"][r]), words)))
@@ -842,6 +857,9 @@ def _roles():
     return ROLES
 
 
+_ANSWER = ROLE_BASE + list(_roles()).index("answer")     # a cause row: the answer an asking got (recorded on the asking)
+
+
 def _salience(sim) -> np.ndarray:
     s = getattr(sim.reg, "_trace_salience", None)
     if s is None or len(s) != len(sim.reg.event_names):
@@ -892,6 +910,7 @@ def trace(sim, ref, dir: str = "both", depth: int = 3, max_nodes: int = MAX_NODE
         for e in person_seeds(sim, int(ident), since):
             k = G.node("event", e, 0)
             if k:
+                G.nodes[k]["seed"] = True        # a starting point: drawn with a light halo
                 seeds.append(k)
         if seeds:
             G.nodes[root]["day"] = min(G.nodes[k]["day"] for k in seeds)
@@ -1060,9 +1079,9 @@ def chains(sim, since: int | None = None, until: int | None = None, people: np.n
            contexts: bool = True) -> dict:
     """Population chain reactions in a window (and cohort): flows between event types through recorded causes, flows
     from decisions to the events they produced, flows from what surrounded events (`contexts`: the feelings, kinds of
-    place, occasions and people recorded as their causes) and the top reasons behind each decision outcome. Each
-    family keeps its `max_links` largest flows. `repeats`: also count links between events of the same kind (one date
-    leading to the next), hidden by default."""
+    place, occasions and people recorded as their causes) and the top reasons behind each decision outcome. The
+    `max_links` largest flows are kept, at least a few of each family so one never crowds out the others. `repeats`:
+    also count links between events of the same kind (one date leading to the next), hidden by default."""
     log, reg = sim.log, sim.reg
     names = reg.event_names
     day = sim.w.day
@@ -1099,13 +1118,13 @@ def chains(sim, since: int | None = None, until: int | None = None, people: np.n
     keep = ~(same & (log["a"][src_e] == log["b"][dst_e]))
     src_e, dst_e, kinds = src_e[keep], dst_e[keep], kinds[keep]
     st, dt = types[src_e].astype(np.int64), types[dst_e].astype(np.int64)
+    if root_code is not None:
+        touch = (st == root_code) | (dt == root_code)
+        src_e, dst_e, st, dt, kinds = src_e[touch], dst_e[touch], st[touch], dt[touch], kinds[touch]
     n_repeat = int((st == dt).sum())
     if not repeats:
         diff = st != dt
         src_e, dst_e, st, dt, kinds = src_e[diff], dst_e[diff], st[diff], dt[diff], kinds[diff]
-    if root_code is not None:
-        touch = (st == root_code) | (dt == root_code)
-        src_e, dst_e, st, dt, kinds = src_e[touch], dst_e[touch], st[touch], dt[touch], kinds[touch]
     pair = st * 4096 + dt
     links = []
     if len(pair):
@@ -1216,7 +1235,12 @@ def chains(sim, since: int | None = None, until: int | None = None, people: np.n
     nodes: dict[str, dict] = {}
     flow = []
     rk = f"event:{root}" if root else None
-    for L in links + dlinks + clinks:
+    fams = [links, dlinks, clinks]                      # each already largest first
+    first = [L for f in fams for L in f[:5]]
+    rest = sorted((L for f in fams for L in f[5:]), key=lambda L: -L["value"])
+    shown = first + rest[:max(0, max_links - len(first))]
+    n_flows = sum(len(f) for f in fams)
+    for L in shown:
         s_root, t_root = L["source"] == rk, L["target"] == rk
         s = L["source"] + ("|root" if s_root else "|from")
         t = L["target"] + ("|root" if t_root and not s_root else "|to")
@@ -1240,7 +1264,9 @@ def chains(sim, since: int | None = None, until: int | None = None, people: np.n
                       + "; a two-person moment is counted once. Reasons are each decision's largest recorded term in "
                       "the direction of what happened."]
             + ([f"{n_repeat:,} links between events of the same kind (one date leading to the next) are not shown."]
-               if n_repeat and not repeats else [])}
+               if n_repeat and not repeats else [])
+            + ([f"Showing the {len(shown)} largest of {n_flows}{'+' if any(len(f) >= max_links for f in fams) else ''} "
+                "flows."] if len(shown) < n_flows else [])}
 
 
 # where a kind of place is, as a flow label reads it ("Met in class", "Mostly together at church")

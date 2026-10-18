@@ -31,7 +31,7 @@ export type TraceRef = { kind: string; id: string | number }
 export type TraceNode = {
   key: string; kind: string; ref: TraceRef; day: number; block: number | null; minute: number | null
   people: number[]; lane: number | null; label: string; type: string; category: string; weight: number
-  depth: number; more_back: number; more_fwd: number; timeless?: boolean; root?: boolean; detail: any
+  depth: number; more_back: number; more_fwd: number; timeless?: boolean; root?: boolean; seed?: boolean; detail: any
 }
 export type TraceLink = { source: string; target: string; kind: string; weight: number | null; words: string }
 export type TraceGraph = {

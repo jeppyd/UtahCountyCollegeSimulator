@@ -86,6 +86,7 @@
 .tn.root .tn-label { font-weight: 650; }
 .tn-halo { fill: color-mix(in srgb, var(--accent) 16%, transparent); stroke: var(--accent); stroke-width: 1.4; }
 .tn.on .tn-halo { stroke-width: 2; }
+.tn-halo.seed { fill: color-mix(in srgb, var(--accent) 8%, transparent); stroke-dasharray: 2 2; stroke-width: 1; }
 .tn:hover .ts { filter: brightness(1.1); }
 .tn.dim { opacity: .28; }
 .tn-more rect { fill: var(--surface-2); stroke: var(--border-strong); }

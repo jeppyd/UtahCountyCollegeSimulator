@@ -22,7 +22,7 @@ const WINDOWS: { k: string; label: string; days?: number }[] = [
 
 // what surrounded events (their typed causes that are not events), colored like their shapes in Trace
 const CTX_KIND: Record<string, { v: string; label: string }> = {
-  state: { v: '--s7', label: 'feelings' }, place: { v: '--s3', label: 'places' }, occasion: { v: '--s4', label: 'occasions' },
+  state: { v: '--s7', label: 'feelings' }, place: { v: '--s1', label: 'places' }, occasion: { v: '--s4', label: 'occasions' },
   person: { v: '--text-secondary', label: 'people' },
 }
 
@@ -135,7 +135,7 @@ function ChainsTool({ sel, setSel, opts, setOpts }: PanelProps) {
           <label className="ch-sum"><input type="checkbox" checked={cohortOn} onChange={e => set({ cohort: e.target.checked })} /> only the selected people</label>
         ) : null}
         <select value={maxLinks} onChange={e => set({ max: Number(e.target.value) })} aria-label="How many flows">
-          {[15, 30, 60, 120].map(k => <option key={k} value={k}>{k} largest of each kind</option>)}
+          {[15, 30, 60, 120].map(k => <option key={k} value={k}>{k} largest flows</option>)}
         </select>
         <button className={`btn small${ctxOn ? ' on' : ''}`} onClick={() => { set({ contexts: !ctxOn }); setFlow(null) }}
           title="Also show the feelings, places, occasions and people recorded behind events">
@@ -176,6 +176,7 @@ function ChainsTool({ sel, setSel, opts, setOpts }: PanelProps) {
           ) : <p className="ch-cut">Click a flow to see real instances of it, or a kind of event to center on it.</p>}
           <div>
             <div className="ch-h">Why people chose what they chose</div>
+            {!c.reasons.length && <p className="ch-cut">{c.root_label ? `No recorded choice produces “${c.root_label}” directly; what led to it is in the flows.` : 'No choices were recorded in this window.'}</p>}
             {c.reasons.slice(0, 12).map((r: any, i: number) => (
               <Reason key={`${r.decision}:${r.outcome}`} r={r} open={reason === i} onToggle={() => setReason(reason === i ? null : i)}
                 onDecision={id => setOpenDec(openDec === id ? null : id)} openDec={openDec} u={u} startDate={c.start_date}

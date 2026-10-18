@@ -221,28 +221,42 @@ class Occasions:
             h2 = np.where(elig & (sim.u("occ_host_ahead", lead) < ph2))[0]
             h2 = h2[~np.isin(h2, hosts)]
             plans.append((h2, day + lead, np.full(len(h2), np.log(base[twd])), np.full(len(h2), np.log(ahead / 4)), ph2[h2]))
-        all_hosts = []
+        # every planning horizon at once: a kind per target day, then one pass fitting times into the hosts' days and
+        # one round of invitations (the horizons are different days, so nothing one decides changes another)
         taken = np.zeros(n, bool)
-        for h, tday, b0, t_ahead, prob in plans:
+        G = []
+        for h, tday, b0, t_ahead, prob in plans:      # bounded: today and the weekend days ahead
             sel = ~taken[h]
             h, b0, t_ahead, prob = h[sel], b0[sel], t_ahead[sel], prob[sel]
             if not len(h):
                 continue
             taken[h] = True
-            kind = self._choose_kind(h, tday, day)
-            oid, ok = self._plan_hosted(h, kind, tday)
-            if ok.any():
-                F = {"base": b0[ok], "extraversion": t_e[h[ok]], "want_company": t_c[h[ok]], "place_culture": t_cul[h[ok]]}
-                if tday != day:
-                    F["plan_ahead"] = t_ahead[ok]
-                did = sim.decisions.record("host_occasion", day, h[ok], "hosted", F, prob=np.clip(prob[ok], 0, 1), occasion=oid)
-                self.book.occ.set("decision", oid, did)
-                self.host_decision.update(zip(oid.tolist(), did.tolist()))
-                self._invite(oid, h[ok], kind[ok], tday)
-                all_hosts.append(h[ok])
-            if (~ok).any():     # wanted to host, but their own day had no room for it
-                sim.decisions.record("host_occasion", day, h[~ok], "did_not", {"base": b0[~ok]},
-                                     constraints={"busy": np.ones(int((~ok).sum()), bool)})
+            G.append((h, tday, b0, t_ahead, prob, self._choose_kind(h, tday, day)))
+        all_hosts, inv_o, inv_h, inv_k = [], [], [], []
+        if G:
+            oid_all, ok_all = self._plan_hosted(np.concatenate([g[0] for g in G]), np.concatenate([g[5] for g in G]),
+                                                np.concatenate([np.full(len(g[0]), g[1], np.int64) for g in G]))
+            r0 = o0 = 0
+            for h, tday, b0, t_ahead, prob, kind in G:
+                ok = ok_all[r0: r0 + len(h)]
+                oid = oid_all[o0: o0 + int(ok.sum())]
+                r0, o0 = r0 + len(h), o0 + int(ok.sum())
+                if ok.any():
+                    F = {"base": b0[ok], "extraversion": t_e[h[ok]], "want_company": t_c[h[ok]], "place_culture": t_cul[h[ok]]}
+                    if tday != day:
+                        F["plan_ahead"] = t_ahead[ok]
+                    did = sim.decisions.record("host_occasion", day, h[ok], "hosted", F, prob=np.clip(prob[ok], 0, 1), occasion=oid)
+                    self.book.occ.set("decision", oid, did)
+                    self.host_decision.update(zip(oid.tolist(), did.tolist()))
+                    inv_o.append(oid)
+                    inv_h.append(h[ok])
+                    inv_k.append(kind[ok])
+                    all_hosts.append(h[ok])
+                if (~ok).any():     # wanted to host, but their own day had no room for it
+                    sim.decisions.record("host_occasion", day, h[~ok], "did_not", {"base": b0[~ok]},
+                                         constraints={"busy": np.ones(int((~ok).sum()), bool)})
+        if inv_o:
+            self._invite(np.concatenate(inv_o), np.concatenate(inv_h), np.concatenate(inv_k), day)
         self.hosts_today = np.concatenate(all_hosts) if all_hosts else np.empty(0, np.int64)
         sim.systems["activity"].hosts_today = self.hosts_today
 
@@ -285,15 +299,22 @@ class Occasions:
         sim.decisions.record("occasion_kind", day, h, ch, {nm: M[np.arange(k), ch] for nm, M in T.items()}, prob=prob)
         return self.hosted_codes[ch]
 
-    def _plan_hosted(self, h: np.ndarray, kind: np.ndarray, tday: int):
-        """Start time (fitted to the host's own day) and place; returns (occasion ids, which hosts could)."""
+    def _plan_hosted(self, h: np.ndarray, kind: np.ndarray, tday):
+        """Start time (fitted to the host's own day) and place for each host's target day (`tday`, per row); returns
+        (occasion ids, which hosts could)."""
         sim, w = self.sim, self.sim.w
         P = w.P
         day = w.day
-        rng = sim.streams.gen("occ_start", day, tday - day)
-        jit = np.array([-30, 0, 0, 30])[rng.integers(0, 4, P.n)][h]
-        start = self.k_start[kind] + jit + np.where((sim.cal.weekday(tday) == 5) & (kind == self.book.kind_id["party"]), 30, 0)
-        dur = self.k_dur[kind] + np.array([-30, 0, 0, 30])[rng.integers(0, 4, P.n)][h]
+        tday = np.broadcast_to(np.asarray(tday, np.int64), (len(h),))
+        steps = np.array([-30, 0, 0, 30])
+        jit, djit = np.zeros(len(h), np.int64), np.zeros(len(h), np.int64)
+        for lead in np.unique(tday - day).tolist():       # bounded: planning leads (today, 2–5 days ahead)
+            m = (tday - day) == lead
+            rng = sim.streams.gen("occ_start", day, lead)
+            jit[m] = steps[rng.integers(0, 4, P.n)][h[m]]
+            djit[m] = steps[rng.integers(0, 4, P.n)][h[m]]
+        start = self.k_start[kind] + jit + np.where((self._weekdays(tday) == 5) & (kind == self.book.kind_id["party"]), 30, 0)
+        dur = self.k_dur[kind] + djit
         unit = P["unit_id"][h]
         home = np.array([self.k_where[c] == "home" for c in kind], bool)
         lon = np.where(home, w.units.lon[np.maximum(unit, 0)], np.nan)
@@ -313,7 +334,7 @@ class Occasions:
         leave = f["leave"].astype(np.int64)
         mv = np.where(move & ok)[0]
         if len(mv):        # check the new time (only for those who moved it)
-            f2 = self._feasible(h[mv], tday, start2[mv], dur[mv], lon[mv], lat[mv], host=True)
+            f2 = self._feasible(h[mv], tday[mv], start2[mv], dur[mv], lon[mv], lat[mv], host=True)
             ok[mv] &= ~f2["conflict"]
             leave[mv] = f2["leave"]
         # a host stays to the end: something later that day (a shift, a date) makes it shorter, or they don't host
@@ -321,7 +342,7 @@ class Occasions:
         ok &= dur >= 60
         if not ok.any():
             return np.empty(0, np.int64), ok
-        oid = self.book.plan(self.k_names[kind[ok]], tday, start2[ok], dur[ok], organizer=h[ok], org_kind="household", org_id=unit[ok], ctx=OCC,
+        oid = self.book.plan(self.k_names[kind[ok]], tday[ok], start2[ok], dur[ok], organizer=h[ok], org_kind="household", org_id=unit[ok], ctx=OCC,
                              place=np.where(home[ok], unit[ok], -1), lon=lon[ok], lat=lat[ok], origin="engine", created_day=day)
         return oid, ok
 

@@ -628,7 +628,7 @@ def _do_job(occ, k, it, plan, cx) -> dict:
             P.internal["shift_end"][i, wd] = clock.parse_hhmm(s["end"])
         act._shift_mask(np.array([i]))
     else:
-        act.assign_shifts(np.array([i]))
+        act.assign_shifts(np.array([i]), stream=f"social_action{k}_shifts")
     s, e = P.internal["shift_start"][i].astype(np.int32), P.internal["shift_end"][i].astype(np.int32)
     fitted = float(np.where(s >= 0, e - s, 0).sum()) / 60.0
     clash = bool(P["enrolled"][i]) and fitted < 0.5 * hours

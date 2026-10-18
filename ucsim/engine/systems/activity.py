@@ -105,19 +105,19 @@ class Activity:
         return idx[nn[np.arange(len(pick)), col]]
 
     # ------------------------------------------------------------------ work shifts (clock times)
-    def assign_shifts(self, ids: np.ndarray):
+    def assign_shifts(self, ids: np.ndarray, stream: str = "shift_assign"):
         """A weekly shift pattern from usual work hours: which weekdays, start and end minutes.
 
         Students fit shifts into the gaps their classes leave (early-morning custodial shifts, between classes,
         afternoons, evenings until 10 pm, Saturdays); others work weekday days (full-time five days, part-time 3–7 hour
         shifts); about 5% of workers have a Sunday shift. The blocks a shift fills (`shift_mask`) follow from the
-        minutes. Shares of start times are hypothetical."""
+        minutes. Shares of start times are hypothetical. A user action passes a `stream` of its own."""
         sim = self.sim
         P = sim.w.P
         ids = np.atleast_1d(np.asarray(ids, np.int64))
         if not len(ids):
             return
-        rng = sim.streams.gen("shift_assign", sim.w.day, int(ids[0]) % 100003)
+        rng = sim.streams.gen(stream, sim.w.day, int(ids[0]) % 100003)
         k = len(ids)
         hours = np.clip(np.nan_to_num(P["work_hours"][ids].astype(np.float64)), 0, 70)
         student = P["enrolled"][ids].astype(bool)

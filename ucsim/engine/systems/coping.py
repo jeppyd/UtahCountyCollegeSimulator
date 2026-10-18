@@ -26,6 +26,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from ..provenance import link, softmax_prob, state_ref
+
 STRATEGIES = ["none", "support", "active", "religious", "distraction", "withdrawal"]
 S = {k: i for i, k in enumerate(STRATEGIES)}
 STRESSORS = ["academic", "financial", "romantic", "social", "faith", "general"]
@@ -106,17 +108,35 @@ class Coping:
         V = {s: P.internal[f"cope_v_{s}"][ids] for s in STRATEGIES[1:]}
         lv = p("coping.choice.learned")
         U = np.full((len(ids), len(STRATEGIES)), -9.0)
-        U[:, S["support"]] = (0.5 * z("extraversion") + 0.3 * z("agreeableness") - 0.4 * z("attachment_avoidance")
-                              + 1.2 * (P["perceived_support"][ids] - 0.5) + lv * V["support"] + p("coping.choice.support_base")
-                              + np.where(P["n_close_friends"][ids] + (P["partner_id"][ids] >= 0) > 0, 0.0, -3.0))
-        U[:, S["active"]] = (0.6 * z("conscientiousness") + 0.8 * controllable - 0.3 + lv * V["active"]
-                             + 0.6 * (P["self_eff_academic"][ids] - 0.5) * (stressor == 0))
+        # each strategy's utility, term by term (the first entry is that option's constant, recorded as its base)
+        no_one = np.where(P["n_close_friends"][ids] + (P["partner_id"][ids] >= 0) > 0, 0.0, -3.0)
         relig = np.where(P["lds_member"][ids], P["faith_belief"][ids] * P["religious_identity"][ids], P["own_religiosity"][ids])
-        U[:, S["religious"]] = np.where(P["cares_faith"][ids] > 0.4, -0.4 + 2.0 * (relig - 0.4) + lv * V["religious"], -9)
-        U[:, S["distraction"]] = (0.4 * z("sensation_seeking") + 0.8 * P["cares_health"][ids] + 0.5 * P["cares_fun"][ids]
-                                  - 0.5 + lv * V["distraction"])
-        U[:, S["withdrawal"]] = (0.5 * z("neuroticism") + 0.5 * z("social_anxiety") + 0.4 * z("attachment_avoidance")
-                                 - 1.0 * (P["expect_social"][ids] - 0.6) + p("coping.choice.withdrawal_base") + lv * V["withdrawal"])
+        cares_faith = P["cares_faith"][ids] > 0.4
+        T = {
+            "support": {"extraversion": 0.5 * z("extraversion"), "agreeableness": 0.3 * z("agreeableness"),
+                        "avoidance": -(0.4 * z("attachment_avoidance")), "perceived_support": 1.2 * (P["perceived_support"][ids] - 0.5),
+                        "learned": lv * V["support"], "_base": p("coping.choice.support_base"), "no_one_close": no_one},
+            "active": {"conscientiousness": 0.6 * z("conscientiousness"), "controllable": 0.8 * controllable, "_base": -0.3,
+                       "learned": lv * V["active"], "self_efficacy": 0.6 * (P["self_eff_academic"][ids] - 0.5) * (stressor == 0)},
+            "religious": {"_base": -0.4, "faith": 2.0 * (relig - 0.4), "learned": lv * V["religious"]},
+            "distraction": {"sensation": 0.4 * z("sensation_seeking"), "cares_health": 0.8 * P["cares_health"][ids],
+                            "cares_fun": 0.5 * P["cares_fun"][ids], "_base": -0.5, "learned": lv * V["distraction"]},
+            "withdrawal": {"neuroticism": 0.5 * z("neuroticism"), "social_anxiety": 0.5 * z("social_anxiety"),
+                           "avoidance": 0.4 * z("attachment_avoidance"), "expect_social": -(1.0 * (P["expect_social"][ids] - 0.6)),
+                           "_base": p("coping.choice.withdrawal_base"), "learned": lv * V["withdrawal"]},
+        }
+        t = T["support"]
+        U[:, S["support"]] = (t["extraversion"] + t["agreeableness"] - 0.4 * z("attachment_avoidance") + t["perceived_support"]
+                              + t["learned"] + t["_base"] + t["no_one_close"])
+        t = T["active"]
+        U[:, S["active"]] = t["conscientiousness"] + t["controllable"] + t["_base"] + t["learned"] + t["self_efficacy"]
+        t = T["religious"]
+        U[:, S["religious"]] = np.where(cares_faith, t["_base"] + t["faith"] + t["learned"], -9)
+        t = T["distraction"]
+        U[:, S["distraction"]] = t["sensation"] + t["cares_health"] + t["cares_fun"] + t["_base"] + t["learned"]
+        t = T["withdrawal"]
+        U[:, S["withdrawal"]] = (t["neuroticism"] + t["social_anxiety"] + t["avoidance"] - 1.0 * (P["expect_social"][ids] - 0.6)
+                                 + t["_base"] + t["learned"])
         g = sim.streams.gen("coping_choice", w.day).gumbel(size=(P.n, len(STRATEGIES)))[ids]
         choice = np.argmax(U + g, axis=1).astype(np.uint8)
         P.cols["coping_strategy"][ids] = choice
@@ -124,8 +144,10 @@ class Coping:
         P.internal["cope_need0"][ids] = need[ids]
         P.internal["cope_stressor"][ids] = stressor
         P.internal["cope_low_days"][ids] = 0
+        did = self._record_choice(ids, choice, T, U, cares_faith)
         cause = self._recent_cause(ids)
-        ev = sim.emit("coping_started", ids, value=choice.astype(float), cause=cause, mech="coping.choice")
+        ev = sim.emit("coping_started", ids, value=choice.astype(float), cause=cause, mech="coping.choice", decision=did)
+        self._why_strained(ev, ids, stressor)
         P.internal["cope_event"][ids] = ev
 
     def _end(self, ids: np.ndarray, need: np.ndarray):
@@ -141,10 +163,15 @@ class Coping:
             if m.any():
                 col = P.internal[f"cope_v_{s}"]
                 col[ids[m]] = col[ids[m]] + a * (outcome[m] - col[ids[m]])
+        eased = P.internal["cope_low_days"][ids] >= 3
         P.cols["coping_strategy"][ids] = 0
         P.internal["cope_start"][ids] = -1
         cause = P.internal["cope_event"][ids]
-        sim.emit("coping_ended", ids, value=outcome, cause=cause, mech="coping.learning", ev={"quality": 2 * outcome - 1})
+        ev = sim.emit("coping_ended", ids, value=outcome, cause=cause, mech="coping.learning", ev={"quality": 2 * outcome - 1})
+        # how it ended: the strain eased for a few days, or a month went by without it easing (or they left)
+        relief = state_ref(sim, "coping_relief", ids)
+        link(sim, ev[eased], "state", relief[eased], P["coping_relief"][ids][eased], "resolved")
+        link(sim, ev[~eased], "state", relief[~eased], P["coping_relief"][ids][~eased], "timed_out")
 
     def _relief(self, strat: np.ndarray, need: np.ndarray) -> np.ndarray:
         """Relief each strategy brought today (0-1), from what actually happened."""
@@ -234,6 +261,44 @@ class Coping:
             E.cols["disclosure"][e] = np.clip(E["disclosure"][e] + 0.08 * resp * (1 - E["disclosure"][e]), 0, 1)
 
     # ------------------------------------------------------------------ provenance helpers
+    def _record_choice(self, ids, choice, T, U, cares_faith) -> np.ndarray:
+        """The chosen strategy's utility terms (what pulled toward it) and its choice probability (Gumbel-max ⇒
+        softmax over the five strategies)."""
+        sim = self.sim
+        k = len(ids)
+        names = sorted({f for t in T.values() for f in t if f != "_base"} | {"not_religious"})
+        F = {f: np.zeros(k) for f in names}
+        base = np.zeros(k)
+        for s, terms in T.items():
+            sel = choice == S[s]
+            if not sel.any():
+                continue
+            for f, v in terms.items():
+                vv = np.broadcast_to(np.asarray(v, np.float64), (k,))[sel]
+                if f == "_base":
+                    base[sel] = vv
+                else:
+                    F[f][sel] = vv
+        return sim.decisions.record("coping_strategy", sim.w.day, ids, choice.astype(np.int64) - 1, F, base=base,
+                                    prob=softmax_prob(U[:, 1:], choice.astype(np.int64) - 1))
+
+    def _why_strained(self, ev: np.ndarray, ids: np.ndarray, stressor: np.ndarray):
+        """What the strain was: the coping need is a sum of four parts (stress, low mood, loneliness, anxiety past
+        their thresholds), linked as `state` causes with their share; plus the concern it was mostly about."""
+        sim, P, p = self.sim, self.sim.w.P, self.sim.p
+        parts = (("stress", 0.6 * np.clip(P["stress"][ids] - p("coping.need.stress"), 0, None)),
+                 ("mood", 0.8 * np.clip(p("coping.need.mood") - P["mood"][ids], 0, None)),
+                 ("loneliness", 0.5 * np.clip(P["loneliness"][ids] - p("coping.need.loneliness"), 0, None)),
+                 ("anxiety", 0.4 * np.clip(P["anxiety"][ids] - 0.55, 0, None)))
+        tot = np.maximum(sum(v for _, v in parts), 1e-9)
+        for var, v in parts:
+            m = v > 0
+            link(sim, ev[m], "state", state_ref(sim, var, ids[m]), v[m] / tot[m], "strain")
+        svar = np.array(["academic_pressure", "financial_stress", "romantic_longing", "loneliness", "guilt", "stress"])
+        for k, var in enumerate(svar[:5]):
+            m = stressor == k
+            link(sim, ev[m], "state", state_ref(sim, str(var), ids[m]), 1.0, "stressor")
+
     def _recent_cause(self, ids: np.ndarray) -> np.ndarray:
         """The most salient negative event each person had in the last three weeks (the likely trigger)."""
         sim = self.sim

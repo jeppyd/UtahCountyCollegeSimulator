@@ -1,0 +1,103 @@
+# Life-course, economy and housing decisions (engine/systems/lifecourse.py, economy.py, housing.py).
+# Field meanings: config/decisions/00_core.yaml and 20_romance.yaml. Extra units:
+#   probability  the factors add up to the chance itself (a fixed rate the model applies to everyone it concerns)
+#   log_rate     the factors add up to the log of a rate: a value v makes it e^v times as likely
+# Outcomes left to chance say so: "the everyday chance" means nothing about the person made it more likely.
+decisions:
+  life_risk:
+    label: The everyday chance of it happening
+    units: probability
+    outcomes: [happened]
+    factors:
+      base: {label: "the same small chance the model gives everyone (nothing about them made it more likely)", more: "chance", less: ""}
+  mission_call:
+    label: Whether to put in mission papers (this month)
+    units: logit
+    outcomes: [called]
+    factors:
+      base:     {label: "how rare it is in any one month", more: "", less: "a big step in any one month"}
+      male:     {label: "young men are expected to serve", more: "young men are expected to serve", less: ""}
+      belief:   {label: "how strongly they believe", more: "believes strongly", less: "believes less strongly"}
+      active:   {label: "active in church", more: "active in church", less: ""}
+      family:   {label: "family expectations", more: "family expects it", less: "family doesn't expect it"}
+      identity: {label: "how central faith is to who they are", more: "faith is central to who they are", less: ""}
+      age:      {label: "the usual age for missions", more: "at the usual age to go", less: "not the usual age"}
+      norm:     {label: "the local mission norm", more: "most people around them go", less: "fewer people around them go"}
+      dating:   {label: "dating someone", more: "", less: "dating someone"}
+      too_old:  {label: "older than most who go", more: "", less: "older than most who go"}
+  mission_length:
+    label: Whether a mission ends early
+    units: probability
+    outcomes: [early]
+    factors:
+      base: {label: "the share of missionaries who come home early (the model has no reasons for which ones)", more: "chance", less: ""}
+  conceive:
+    label: Whether a baby is on the way (this month)
+    units: logit
+    outcomes: [pregnant]
+    factors:
+      base:             {label: "how often it happens in any one month", more: "", less: ""}
+      kids_wanted:      {label: "how many children they want", more: "wants a big family", less: "wants few children"}
+      children:         {label: "children they already have", more: "", less: "already has children"}
+      marriage_length:  {label: "time since the wedding", more: "married a while", less: ""}
+      student:          {label: "still in school", more: "", less: "still a student"}
+      money:            {label: "money worries", more: "", less: "money worries"}
+      active:           {label: "active Latter-day Saint", more: "active Latter-day Saint", less: ""}
+      age:              {label: "age", more: "", less: "older"}
+  leave_after_graduating:
+    label: Whether to leave Provo–Orem after graduating
+    units: probability
+    outcomes: [leaves]
+    factors:
+      base:         {label: "the share of graduates who leave", more: "most graduates move on", less: ""}
+      family_local: {label: "family nearby", more: "", less: "family nearby"}
+  end_of_stay:
+    label: When a stay in Provo–Orem ends
+    units: probability
+    outcomes: [left]
+    factors:
+      base: {label: "young adults who aren't students leave after a few years on average; the exact day is chance", more: "chance", less: ""}
+  job_loss:
+    label: Whether they lose their job (this month)
+    units: log_rate
+    outcomes: [lost]
+    factors:
+      base:         {label: "the usual chance of losing a job in a month", more: "", less: "most months nobody loses a job"}
+      unemployment: {label: "local unemployment", more: "jobs are scarce", less: "jobs are plentiful"}
+  job_search:
+    label: Whether a job search pays off (this month)
+    units: logit
+    outcomes: [found]
+    factors:
+      base:       {label: "how often a search finds a job in a month", more: "", less: ""}
+      money:      {label: "financial stress", more: "needs the money", less: "little money pressure"}
+      trying:     {label: "actively looking (a plan, or coping with money strain)", more: "actively looking", less: ""}
+      job_market: {label: "the job market", kind: multiplier, more: "plenty of openings", less: "few openings"}
+  quit_job:
+    label: Whether to quit to focus on school (this month)
+    units: log_rate
+    outcomes: [quit]
+    factors:
+      base:   {label: "how often students quit in a month", more: "", less: ""}
+      school: {label: "school pressure", more: "school is demanding", less: ""}
+  move_out:
+    label: Whether to move at the end of the lease
+    units: logit
+    outcomes: [moved]
+    factors:
+      base:      {label: "how often renters move at lease turnover", more: "", less: ""}
+      roommates: {label: "how well they get along with roommates", more: "doesn't get along with roommates", less: "gets along with roommates"}
+      rent:      {label: "how much of their income rent takes", more: "rent takes too much of their income", less: ""}
+      dorm:      {label: "living in a dorm", more: "leaving the dorms", less: ""}
+      openness:  {label: "openness to change", more: "likes a change", less: "likes things as they are"}
+  choose_home:
+    label: Which place to move to
+    units: utility
+    outcomes: [chosen]
+    factors:
+      base:     {label: "how good the places they looked at were on average", more: "", less: ""}
+      rent:     {label: "rent compared with their budget", more: "cheaper than the other places they looked at", less: "pricier than the others"}
+      distance: {label: "distance to campus", more: "closer to campus than the others", less: "farther from campus than the others"}
+      friends:  {label: "friends living in the complex", more: "friends live there", less: "fewer friends there than elsewhere"}
+      quality:  {label: "how nice the place is", more: "nicer than the others", less: "less nice than the others"}
+      culture:  {label: "how well the complex's culture fits them", more: "a better fit with its culture", less: "a worse fit with its culture"}

@@ -117,7 +117,7 @@ mechanisms:
     form: "Dating and engaged people: free-time utility of a friend's place and of hanging out around the complex −= dating / engaged, and logit(go) to a get-together −= the same (married people have their own home-life terms)."
     params:
       dating: {value: 0.35, range: [0.0, 1.0]}
-      engaged: {value: 0.9, range: [0.3, 1.5]}
+      engaged: {value: 1.2, range: [0.3, 1.8]}
     timescale: block
     evidence: calibrated
     refs: ["Johnson & Leslie (1982) Social Psychology Quarterly 45:34-43: couple involvement and network structure (dyadic withdrawal)",

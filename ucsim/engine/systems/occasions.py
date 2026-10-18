@@ -310,10 +310,15 @@ class Occasions:
         start2 = np.where(move, np.maximum(_rup15(f["free_from"] + 30), start), start).astype(np.int32)
         dur = np.minimum(dur, 24 * 60 - start2)          # wrapped up by midnight
         ok = (start2 <= self.k_latest[kind]) & ~(f["conflict"] & ~move)
+        leave = f["leave"].astype(np.int64)
         mv = np.where(move & ok)[0]
         if len(mv):        # check the new time (only for those who moved it)
             f2 = self._feasible(h[mv], tday, start2[mv], dur[mv], lon[mv], lat[mv], host=True)
             ok[mv] &= ~f2["conflict"]
+            leave[mv] = f2["leave"]
+        # a host stays to the end: something later that day (a shift, a date) makes it shorter, or they don't host
+        dur = np.minimum(dur, leave - start2).astype(np.int32)
+        ok &= dur >= 60
         if not ok.any():
             return np.empty(0, np.int64), ok
         oid = self.book.plan(self.k_names[kind[ok]], tday, start2[ok], dur[ok], organizer=h[ok], org_kind="household", org_id=unit[ok], ctx=OCC,
@@ -904,6 +909,7 @@ class Occasions:
             return
         lat_mean = p("occasions.lateness.base_minutes") * np.exp(-0.3 * sim.z("conscientiousness")[person[go]])
         extra = (sim.streams.gen("occ_late", day).exponential(1.0, P.n)[person[go]] * lat_mean).astype(np.int32)
+        extra = np.where(c["kind"][go] == self.date_code, np.minimum(extra, 10), extra)    # nobody is very late to a date
         arrive = np.minimum(f["arrive"][go] + extra, f["leave"][go] - 15)
         drivers = self._ride_driver(occ[go], person[go]) if self.rides else None
         self._add_rows(person[go], occ[go], arrive, f["leave"][go], inv[go], ride_by=drivers, travel=f["travel"][go], mode=f["mode"][go])

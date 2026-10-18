@@ -317,7 +317,11 @@ class Activity:
             act[pp] = plan["act"][ok]
             share[pp] = plan["share"][ok]
             busy[pp] = True
-            occ.mark_present(b, pp, plan["occ"][ok], plan["arrive"][ok])
+            # everyone expected at an occasion in this block went: it was fitted around their shift, classes and other
+            # plans, so a date right after a shift, or a party after a dinner, counts as attended even when something
+            # else fills more of the block (the block's place is the one that fills most of it)
+            there = present[plan["person"]]
+            occ.mark_present(b, plan["person"][there], plan["occ"][there], plan["arrive"][there])
         # ---- FHE (Monday evening ~7 pm) and ward activities (weeknights ~7 pm)
         if b == clock.EVENING[0] and (env["term_BYU"] or env["term_UVU"]):
             fhe = P.internal["fhe_group"][:n]

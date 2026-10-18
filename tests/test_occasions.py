@@ -222,6 +222,31 @@ def test_a_date_right_after_a_shift_happens(fresh):
     assert sorted(sim.book.attendees(oid).tolist()) == sorted([a, b])
 
 
+def test_a_date_that_does_not_fit_moves_to_a_free_evening(fresh):
+    """One of them works every evening but one this week: the date moves day by day until it fits."""
+    sim = copy.deepcopy(fresh)
+    sim.run_days(1)
+    P = sim.w.P
+    rom = sim.systems["romance"]
+    cand = np.where(P["present"] & ~P["enrolled"] & (P["unit_id"] >= 0) & (P["age"] < 40)
+                    & P.is_("rel_status", "single"))[0]
+    a, b = int(cand[2]), int(cand[3])
+    day0, wd0 = sim.w.day, sim.cal.weekday(sim.w.day)
+    P.cols["employed"][a] = True
+    P.internal["shift_start"][[a, b]] = -1
+    P.internal["shift_end"][[a, b]] = -1
+    for d in range(7):
+        if d != 3:
+            P.internal["shift_start"][a, (wd0 + d) % 7], P.internal["shift_end"][a, (wd0 + d) % 7] = 12 * 60, 22 * 60
+    P.cols["ill"][[a, b]] = False
+    rom.queue.append((day0, a, b, "restaurant", False, -1))
+    sim.run_days(5)
+    O = sim.book.occ
+    mine = (O["kind"] == _kind(sim, "date")) & (O["organizer"] == a)
+    assert mine.any(), "booked once it fit"
+    assert int(O["day"][mine][0]) == day0 + 3 and O["status"][mine][0] == STATUS_ID["happened"]
+
+
 def test_plans_made_weeks_ahead_still_count(fresh):
     """Something planned three weeks ahead by another system (without a created_day) still fills that evening when
     the day comes near: lookups skip only rows too old to matter, whatever days other systems wrote on them."""

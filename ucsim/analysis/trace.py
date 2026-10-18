@@ -1198,3 +1198,51 @@ def chains(sim, since: int | None = None, until: int | None = None, people: np.n
                       "largest recorded term in the direction of what happened."]
             + ([f"{n_repeat:,} links between events of the same kind (one date leading to the next) are not shown."]
                if n_repeat and not repeats else [])}
+
+
+# ----------------------------------------------------------------------------- coverage
+BOOKKEEPING = ("intention_formed",)     # event types added so other records have a beginning (no effects, no memory)
+
+
+def coverage(sim) -> dict:
+    """How traceable the record is: per event type, the share of events with a parent event, a recorded decision,
+    typed causes, any of these, and at least two distinct reasons (scripts/provenance_coverage.py)."""
+    log, reg = sim.log, sim.reg
+    n = log.n
+    types = log["type"]
+    has_parent = log["cause"] >= 0
+    has_dec = log["decision"] >= 0
+    T = sim.causes.t
+    typed_n = np.bincount(T["event"][(T["event"] >= 0) & (T["event"] < n)], minlength=n) if T.n else np.zeros(n, np.int64)
+    # decisions linked from the decision side too (a decision may name its event without the event naming it)
+    D = sim.decisions.t
+    if D.n:
+        dev = D["event"]
+        dev = dev[(dev >= 0) & (dev < n)]
+        has_dec = has_dec.copy()
+        has_dec[dev] = True
+    has_typed = typed_n > 0
+    n_reasons = has_parent.astype(int) + has_dec.astype(int) + typed_n
+    anyr = has_parent | has_dec | has_typed
+    rows = []
+    for code in np.unique(types):
+        m = types == code
+        k = int(m.sum())
+        spec = reg.events[reg.event_names[code]]
+        rows.append({"type": spec.id, "salience": spec.salience, "n": k,
+                     "parent": float(has_parent[m].mean()), "decision": float(has_dec[m].mean()),
+                     "typed": float(has_typed[m].mean()), "any": float(anyr[m].mean()),
+                     "several": float((n_reasons[m] >= 2).mean())})
+    sal = np.array([e.salience for e in reg.events.values()], np.float32)[types]
+    hi = sal >= 0.5
+    extra = np.isin(types, [reg.event_ids[t] for t in BOOKKEEPING if t in reg.event_ids])
+    lo_ex = ~hi & ~extra
+    head = {"events": int(n),
+            "other_any_excl": float(anyr[lo_ex].mean()) if lo_ex.any() else None,
+            "all_any_excl": float(anyr[~extra].mean()) if (~extra).any() else None,
+            "salient_any": float(anyr[hi].mean()) if hi.any() else None,
+            "other_any": float(anyr[~hi].mean()) if (~hi).any() else None,
+            "all_any": float(anyr.mean()) if n else None,
+            "salient_several": float((n_reasons[hi] >= 2).mean()) if hi.any() else None,
+            "decisions": int(D.n), "typed_causes": int(T.n)}
+    return {"headline": head, "types": sorted(rows, key=lambda r: (-r["salience"], -r["n"]))}

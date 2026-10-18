@@ -476,7 +476,7 @@ class Faith:
             for kind in ("fast", "slow"):
                 P.add_internal(f"att_{kind}_{f}", np.float32, 0.0)
         P.add_internal("att_ready", np.bool_, False)
-        ready = P.internal["att_ready"][:n] & ~fresh
+        ready = P.internal["att_ready"][:n] & (not fresh)
         for f in self.ATT_TERMS:
             v = (T["world"] + T["nudge"]) if f == "whatif" else self._ATT_SIGN.get(f, 1.0) * T[f]
             v = np.broadcast_to(np.asarray(v, np.float32), (n,))

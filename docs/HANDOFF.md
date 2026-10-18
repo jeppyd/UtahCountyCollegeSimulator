@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| Claude Code (cloud) | 2026-10-18 | scales | Workbench merged; now continuing `wip/scales` (relay rule). |
+| — | — | — | Nobody. Workbench and scales merged 2026-10-18; next is calendar-weather (see the session log). |
 
 ## The goal in one paragraph
 
@@ -64,7 +64,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [time-occasions](workstreams/time-occasions.md) (option B) | **done, merged** | working branch | open issues below |
 | [provenance-trace](workstreams/provenance-trace.md) | **done, merged** | working branch | open issues below |
 | [workbench](workstreams/workbench.md) | **done, merged** | working branch | open issues below |
-| [scales](workstreams/scales.md) | **in progress, paused** | `wip/scales` (backend: anchors, units, how-measured for every person and tie field; /api/scales and /api/scales/value with live distributions; tests) | frontend: kit/Ruler.tsx, ScaleCard, `<Val>`, use on person/inner-life/Explore pages, Scales glossary tool |
+| [scales](workstreams/scales.md) | **done, merged** | working branch | — |
 | [sexuality-survey](workstreams/sexuality-survey.md) (+ dealbreakers) | not started | — | needs the raw xlsx in `data/raw/` (owner supplies) |
 | [calendar-weather](workstreams/calendar-weather.md) | not started | — | after time-occasions is merged |
 | [talk](workstreams/talk.md) (Ask + interviews) | not started | — | after provenance-trace is merged |
@@ -92,8 +92,7 @@ institutions, family-homes) can start now too, but coordinate: they touch the sa
   (employer flexibility). No workbench tool for occasions yet (endpoints exist: /api/occasion/{id}, /api/occasions,
   /api/person/{i}/day, /api/person/{i}/choice, /api/act/check, /api/act).
 - Builders' worktrees may start from `main`: merge the working branch first.
-- Workbench: the Measure tool has an empty `.bme-ruler-slot` (data-var) for scales' Ruler; Life/Measure history is
-  every two weeks (coarse). `/api/person/{i}/day` lists some class meetings twice (the Day tool de-duplicates). The
+- Workbench: Life/Measure history is every two weeks (coarse). `/api/person/{i}/day` lists some class meetings twice (the Day tool de-duplicates). The
   DecisionCard shows "Person 1005" instead of a name for the agent. Bench panels are placed at the first free spot,
   so the order tools are added decides the layout.
 
@@ -115,6 +114,17 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-18 (late night, 3) — Claude Code (cloud session)
+- Finished **scales** (continued `wip/scales`, relay rule) and merged it: the backend (anchors, units, how-measured for
+  every numeric person and tie field; /api/scales, /api/scales/value) was already done; added web/src/kit/scales.ts
+  (scale types, axis, percentiles, batched cached distributions), kit/Ruler.tsx (full and inline rulers), kit/Val.tsx
+  (`<Val v value>` and the ScaleCard popover), rulers on the person page (meters, at-a-glance, every field table),
+  inner life (drives, rumination, routine), Explore's field pane (the group's ruler) and the Measure tool, and the
+  Scales glossary workbench tool. VarSpec.scale's type now lists anchors/unit/how. Screenshots docs/img/scales-*.png.
+  180 tests pass; web build passes.
+- Next: calendar-weather, then sexuality-survey (needs the raw xlsx in `data/raw/`), talk, travel, messaging,
+  institutions, family-homes, survey-followups, integration.
 
 ### 2026-10-18 (late night, 2) — Claude Code (cloud session)
 - Took over and finished **workbench** (relay rule) and merged it: new tools Events, Life, Timeline, Measure, Ties,

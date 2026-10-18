@@ -3,14 +3,21 @@
 Systems record choices in `sim.decisions` and extra causes in `sim.causes` (engine/ledger.py). This module adds what
 those ledgers need to be read back in words:
 
-* **Roles.** A typed cause can carry a `note`; here it names the cause's role — where two people met, who introduced
-  them, the hurt between them, the life change around the same time — with a plain phrase and the kind of link the
-  trace draws (`met_at`, `introduced`, `contributed`, `led_to`, `caused`, `decided_by`). Role codes start at
-  ROLE_BASE so they never collide with decision-factor or variable codes.
+* **Notes.** A typed cause carries a `note` saying what kind of reason it is. One int16, in four ranges:
+    [0, 10000)       a decision factor (DecisionLog.factor_id)
+    [10000, 20000)   a person variable: the event moved this feeling/variable (VAR_BASE + variable code)
+    [20000, 30000)   a mechanism term: the cause is that term of a composed state (MECH_BASE + mechanism code)
+    [30000, …)       a role: where two people met, who introduced them, the hurt between them… (ROLES)
+* **Roles** name the cause's part in the story with a plain phrase and the kind of link the trace draws (`met_at`,
+  `introduced`, `contributed`, `led_to`, `caused`, `decided_by`). Append only: codes are stored on cause rows.
 * **Packed refs.** A cause or factor ref is one int64:
     place  (context code << 32) | place id      the kind of place (state.CTX) and its id (unit, ward, venue, class…)
     state  (variable code << 32) | person       a feeling or other person variable of one person
     tie    EdgeStore key (lo << 32) | hi
+* **Decisions.** `total` sums a decision's terms in the order the model sums them (bit-identical to the original
+  expression), so systems keep their formulas and the ledger records the very terms that were added.
+* **Snapshots.** `state_causes` links an event to the terms and recent events behind a feeling *at that moment*
+  (decompositions are composed daily and not stored, so a later trace could otherwise only see today's).
 * **Lookups** for the cause of an event that happened earlier (a person's latest event of some kinds, the latest
   event between two people, the hard memories behind a low stretch), vectorized over people.
 * **Time together.** Each tie keeps the context where most of the pair's time together accrued and a runner-up
@@ -24,6 +31,8 @@ import numpy as np
 
 from .state import CTX
 
+VAR_BASE = 10000
+MECH_BASE = 20000
 ROLE_BASE = 30000
 # name: (link kind drawn by the trace, plain words). Append only: codes are stored on cause rows.
 ROLES: dict[str, tuple[str, str]] = {
@@ -45,7 +54,7 @@ ROLES: dict[str, tuple[str, str]] = {
     "low_interest": ("contributed", "not enough interest on both sides"),
     "betrayal": ("contributed", "a betrayal"),
     "left": ("caused", "a partner left the area"),
-    "ended_by": ("caused", "the person who ended it"),
+    "ended_by": ("caused", "the person who ended it (the one less attracted to the other)"),
     "engaged_before": ("contributed", "already engaged when the story began"),
     "trigger": ("contributed", "a hard time shortly before"),
     "strain": ("contributed", "what was weighing on them"),
@@ -70,6 +79,18 @@ ROLES: dict[str, tuple[str, str]] = {
     "home_ward": ("contributed", "the ward that came with their new home"),
     "scene": ("contributed", "where it happened"),
     "chance": ("contributed", "chance (nothing in their life made it more likely)"),
+    "stressor": ("contributed", "what the strain was mostly about"),
+    "resolved": ("contributed", "the strain eased"),
+    "timed_out": ("contributed", "a month passed without the strain easing"),
+    "faded": ("contributed", "the reason for the plan had faded"),
+    "came_to_study": ("caused", "came to study"),
+    "friends_differ": ("contributed", "friends who believed differently"),
+    "dissonance": ("contributed", "guilt over living against their standards"),
+    "invited_by": ("introduced", "the believing friend or partner who invited them"),
+    "rent": ("contributed", "rent"),
+    "tuition": ("contributed", "tuition"),
+    "income": ("contributed", "too little income"),
+    "found_out": ("caused", "found out about the cheating"),
 }
 ROLE_CODE = {k: ROLE_BASE + i for i, k in enumerate(ROLES)}
 ROLE_NAME = {v: k for k, v in ROLE_CODE.items()}
@@ -85,8 +106,52 @@ def role_info(note: int) -> tuple[str, str, str] | None:
     name = ROLE_NAME.get(int(note))
     if name is None:
         return None
-    link, words = ROLES[name]
-    return name, link, words
+    link_kind, words = ROLES[name]
+    return name, link_kind, words
+
+
+def mech_note(sim, mid: str) -> int:
+    """Note code for a mechanism term (−1 when the term has no registered mechanism)."""
+    k = sim.log.mech_ids.get(mid)
+    return -1 if k is None else MECH_BASE + int(k)
+
+
+def var_note(sim, var: str) -> int:
+    return VAR_BASE + var_codes(sim.reg)[var]
+
+
+def note_info(sim, note: int) -> dict | None:
+    """What a cause note means: {"type": role|mechanism|variable|factor, ...} or None."""
+    note = int(note)
+    if note < 0:
+        return None
+    if note >= ROLE_BASE:
+        r = role_info(note)
+        return None if r is None else {"type": "role", "role": r[0], "link": r[1], "words": r[2]}
+    if note >= MECH_BASE:
+        names = sim.log.mech_names
+        k = note - MECH_BASE
+        if k >= len(names):
+            return None
+        mid = names[k]
+        m = sim.reg.mechanisms.get(mid)
+        return {"type": "mechanism", "mechanism": mid, "words": m.label if m else mid,
+                "evidence": m.evidence if m else None}
+    if note >= VAR_BASE:
+        var_codes(sim.reg)
+        k = note - VAR_BASE
+        names = sim.reg._prov_var_names
+        if k >= len(names):
+            return None
+        v = names[k]
+        spec = sim.reg.variables.get(v)
+        return {"type": "variable", "var": v, "words": f"changed their {spec.label.lower() if spec else v}"}
+    fn = sim.decisions.factor_names
+    if note < len(fn):
+        kind, fid = fn[note].split(".", 1)
+        fs = (sim.decisions.vocab.get(kind, {}).get("factors") or {}).get(fid, {})
+        return {"type": "factor", "kind": kind, "factor": fid, "words": fs.get("label", fid)}
+    return None
 
 
 # ----------------------------------------------------------------------------- packed refs
@@ -132,17 +197,118 @@ def tie_key(a, b) -> np.ndarray:
 
 
 # ----------------------------------------------------------------------------- linking
-def link(sim, events, kind: str, refs, weight=1.0, role_name: str | None = None):
+def link(sim, events, kind: str, refs, weight=1.0, role_name: str | None = None, note: int | None = None):
     """Typed causes for events (refs aligned with events; refs < 0 are skipped)."""
     events = np.atleast_1d(np.asarray(events, np.int64))
     if not len(events):
         return
-    sim.causes.add(events, kind, refs, weight, -1 if role_name is None else ROLE_CODE[role_name])
+    code = note if note is not None else (-1 if role_name is None else ROLE_CODE[role_name])
+    sim.causes.add(events, kind, refs, weight, code)
 
 
 def mirror(sim, events, firsts):
     """The other person's copy of a two-person event points at the first copy."""
     link(sim, events, "event", firsts, 1.0, "mirror")
+
+
+# ----------------------------------------------------------------------------- decisions
+def total(base, terms: dict):
+    """base + Σ terms, added in the dict's order — the same order (and so the same floating-point result) as the
+    model's own `base + t1 + t2 + …` expression."""
+    acc = base
+    for v in terms.values():
+        acc = acc + v
+    return acc
+
+
+def pick(terms: dict, sel) -> dict:
+    """The terms of a subset of the people a formula was computed for (scalars stay scalars)."""
+    return {k: (v[sel] if np.ndim(v) else v) for k, v in terms.items()}
+
+
+def softmax_prob(U: np.ndarray, choice: np.ndarray) -> np.ndarray:
+    """Probability of the chosen option under a Gumbel-max choice (= the logit / softmax probability)."""
+    U = np.asarray(U, np.float64)
+    e = np.exp(U - U.max(axis=1, keepdims=True))
+    return e[np.arange(len(U)), choice] / e.sum(axis=1)
+
+
+def chance(sim, kind: str, agents, rate, outcome="happened", factors: dict | None = None, **kw) -> np.ndarray:
+    """Record an outcome the model leaves to chance at a known rate (units: probability). Saying so is the honest
+    reason: nothing about the person made it more likely unless a factor says otherwise."""
+    agents = np.atleast_1d(np.asarray(agents, np.int64))
+    if not len(agents):
+        return np.empty(0, np.int64)
+    rate = np.broadcast_to(np.asarray(rate, np.float32), (len(agents),))
+    return sim.decisions.record(kind, sim.w.day, agents, outcome, factors or {}, base=rate, prob=rate, **kw)
+
+
+# ----------------------------------------------------------------------------- state snapshots
+def _sources(sim, var: str, names: list[str]) -> list[str]:
+    """The person variable each term of a composed state reads (its mechanism's first source), else the state."""
+    out = []
+    for t in names:
+        m = sim.reg.mechanisms.get(f"{var}.{t}")
+        src = next((s for s in (m.sources if m else []) if s in sim.w.P.specs), None)
+        out.append(src or var)
+    return out
+
+
+def state_causes(sim, events, people, var: str, sign: int = -1, k: int = 2, k_events: int = 2, min_abs: float = 0.01):
+    """Link events to what was moving a feeling at that moment: its `k` largest terms in direction `sign` (−1: the
+    terms pulling it down, +1: pushing it up) as `state` causes on the term's source variable (note = the mechanism),
+    and its `k_events` largest decaying event effects in that direction as `event` causes (note = the variable)."""
+    events = np.atleast_1d(np.asarray(events, np.int64))
+    people = np.atleast_1d(np.asarray(people, np.int64))
+    if not len(events):
+        return
+    emo = sim.systems.get("emotion")
+    C = emo.contrib.get(var) if emo is not None else None
+    if C:
+        names = [t for t in C if len(C[t]) > int(people.max())]
+        if names:
+            M = np.stack([C[t][people] for t in names]).astype(np.float32)        # (terms, people)
+            S = sign * M
+            srcs = _sources(sim, var, names)
+            notes = np.array([mech_note(sim, f"{var}.{t}") for t in names], np.int64)
+            codes = var_codes(sim.reg)
+            src_code = np.array([codes[s] for s in srcs], np.int64)
+            order = np.argsort(-S, axis=0)[: min(k, len(names))]
+            ar = np.arange(len(people))
+            for r in range(len(order)):
+                t = order[r]
+                ok = S[t, ar] >= min_abs
+                if not ok.any():
+                    continue
+                refs = (src_code[t] << 32) | (people & _LOW)
+                for nt in np.unique(notes[t[ok]]):
+                    m = ok & (notes[t] == nt)
+                    link(sim, events[m], "state", refs[m], M[t[m], ar[m]], note=int(nt) if nt >= 0 else var_note(sim, var))
+    if k_events <= 0:
+        return
+    eff = sim.effects
+    if eff.n == 0 or var not in eff.vid:
+        return
+    n = eff.n
+    pmax = int(max(people.max(), eff.agent[:n].max())) + 1
+    pos = np.full(pmax, -1, np.int64)
+    pos[people] = np.arange(len(people))
+    sel = np.flatnonzero((eff.var[:n] == eff.vid[var]) & (pos[eff.agent[:n]] >= 0) & (eff.event[:n] >= 0))
+    if not len(sel):
+        return
+    c = eff.contributions(sim.w.day)[sel] * sign
+    keep = c >= min_abs
+    sel, c = sel[keep], c[keep]
+    if not len(sel):
+        return
+    ag = eff.agent[sel].astype(np.int64)
+    order = np.lexsort((-c, ag))
+    sel, c, ag = sel[order], c[order], ag[order]
+    start = np.r_[0, np.flatnonzero(ag[1:] != ag[:-1]) + 1]
+    rank = np.arange(len(ag)) - np.repeat(start, np.diff(np.r_[start, len(ag)]))
+    top = rank < k_events
+    j = pos[ag[top]]
+    link(sim, events[j], "event", eff.event[sel[top]], sign * c[top], note=var_note(sim, var))
 
 
 # ----------------------------------------------------------------------------- lookups

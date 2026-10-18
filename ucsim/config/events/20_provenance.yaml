@@ -1,0 +1,10 @@
+# Events added so the record of why things happened has its beginnings (fields as in events.yaml).
+events:
+  intention_formed:
+    label: Made a plan
+    story: "{a} set out to do something about what mattered most to them"
+    category: plans
+    salience: 0.2
+    effects: []
+    evidence: structural
+    desc: "Value = the intention (1 ask out, 2 reconnect, 3 meet people, 4 study more, 5 find work, 6 return to church); b = the person it is about, if any. Bookkeeping only: it has no emotional effect and is too slight to be remembered, so emitting it never changes the world. The plan's later fate (kept, given up, lapsed) points back here."

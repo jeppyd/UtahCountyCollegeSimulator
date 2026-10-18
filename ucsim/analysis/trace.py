@@ -46,7 +46,7 @@ INTENTION_WORDS = {1: ("ask {b} out", "asking {b} out"), 2: ("reconnect with {b}
                    3: ("meet new people", "meeting new people"), 4: ("study more", "studying more"),
                    5: ("find work", "finding work"), 6: ("get back to church", "getting back to church")}
 UNITS_WORDS = {"logit": "log-odds", "utility": "utility", "log_rate": "log of the rate", "log": "log scale",
-               "probability": "chance"}
+               "probability": "chance", "grade_points": "grade points"}
 
 
 def lc(s: str) -> str:

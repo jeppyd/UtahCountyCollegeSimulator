@@ -11,6 +11,28 @@ decisions:
       money:         {label: "money pressure", more: "money was tight", less: ""}
       children:      {label: "being a mother of young children", more: "caring for children", less: ""}
       self_efficacy: {label: "confidence in their ability to do the work", more: "doubted they could do it", less: "confident in their schoolwork"}
+  term_grades:
+    label: How the term's grades came out
+    units: grade_points
+    outcomes: [below_a_B, B_or_better]
+    positive: B_or_better
+    factors:
+      base:              {label: "a typical student's term GPA", more: "", less: ""}
+      ability:           {label: "academic ability", more: "strong academically", less: "school comes harder to them"}
+      conscientiousness: {label: "conscientiousness", more: "organized and diligent", less: "not very organized"}
+      study:             {label: "hours of study a week", more: "studied a lot", less: "studied little"}
+      attendance:        {label: "how often they went to class", more: "went to class", less: "skipped class"}
+      fatigue:           {label: "fatigue", more: "", less: "worn out"}
+      depression:        {label: "a depressive episode", more: "", less: "depressed during the term"}
+      stress:            {label: "stress", more: "", less: "stressed"}
+      sleep:             {label: "sleep", more: "slept enough", less: "short on sleep"}
+      luck:              {label: "luck (exams, graders, everything the model does not follow)", more: "good luck", less: "bad luck"}
+  change_major:
+    label: Whether to change majors (end of term)
+    units: probability
+    outcomes: [changed]
+    factors:
+      base: {label: "the share of early students who switch majors in a term (the model has no reasons for which ones)", more: "chance", less: ""}
   finish_degree:
     label: Whether a graduate student finishes this term
     units: probability

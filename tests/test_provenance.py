@@ -233,6 +233,11 @@ def test_term_end_graduations_and_dropouts_have_reasons():
     assert np.all(s.log["decision"][drop] >= 0)
     assert s.decisions.get(int(s.log["decision"][drop[0]]))["kind"] == "drop_out"
     assert all(s.causes.of(int(e)) for e in grad)
+    # a failed or excellent term carries its grade-point terms (study, sleep, a depressive episode, luck…)
+    marked = new[np.isin(t, [s.reg.event_ids[x] for x in ("exam_failure", "academic_success", "academic_probation")])]
+    assert len(marked) and np.all(s.log["decision"][marked] >= 0)
+    d = s.decisions.get(int(s.log["decision"][marked[0]]))
+    assert d["kind"] == "term_grades" and any(f["factor"] in ("study", "luck", "ability") for f in d["factors"])
 
 
 def test_occasions_report_their_scene_and_first_meetings():

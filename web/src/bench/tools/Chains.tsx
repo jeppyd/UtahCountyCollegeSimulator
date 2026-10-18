@@ -23,7 +23,7 @@ const WINDOWS: { k: string; label: string; days?: number }[] = [
 // what surrounded events (their typed causes that are not events), colored like their shapes in Trace
 const CTX_KIND: Record<string, { v: string; label: string }> = {
   state: { v: '--s7', label: 'feelings' }, place: { v: '--s1', label: 'places' }, occasion: { v: '--s4', label: 'occasions' },
-  person: { v: '--text-secondary', label: 'people' },
+  tie: { v: '--s6', label: 'relationships' }, person: { v: '--text-secondary', label: 'people' },
 }
 
 const sharePct = (s: number) => (s > 0 && s < 0.005 ? 'under 1%' : `${Math.round(s * 100)}%`)

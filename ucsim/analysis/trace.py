@@ -1285,8 +1285,9 @@ _PERSON_ROLE = {"introduced": "Introduced by someone", "ended_by": "The partner 
 
 def _context_flows(sim, W: _Words, rows, s0: int, s1: int, pm, root_code, max_links: int, examples: int) -> list[dict]:
     """Flows into event types from their typed causes that are not events: a feeling (by variable), a kind of place (by
-    the role it played: where they met, where their time together went, the workplace…), an occasion (by kind) or a
-    person (by role). One event with two such causes counts in both flows."""
+    the role it played: where they met, where their time together went, the workplace…), an occasion (by kind), a
+    person (by role) or what about a relationship mattered (by role: time together, confiding, shared experiences,
+    drifting apart, hurt). One event with two such causes counts in both flows."""
     log, reg = sim.log, sim.reg
     C = sim.causes.t
     if not C.n:
@@ -1294,7 +1295,7 @@ def _context_flows(sim, W: _Words, rows, s0: int, s1: int, pm, root_code, max_li
     names = reg.event_names
     types = log["type"]
     ce = C["event"]
-    kinds = [CAUSE_ID[k] for k in ("state", "place", "occasion", "person")]
+    kinds = [CAUSE_ID[k] for k in ("state", "place", "occasion", "person", "tie")]
     sel = (ce >= s0) & (ce < s1) & np.isin(C["kind"], kinds)
     if pm is not None:
         sel &= pm[log["a"][np.clip(ce, 0, log.n - 1)]]
@@ -1318,6 +1319,11 @@ def _context_flows(sim, W: _Words, rows, s0: int, s1: int, pm, root_code, max_li
         sub[oc] = sim.book.occ.get("kind", ref[oc], default=-1)
     pe = kind == CAUSE_ID["person"]
     sub[pe] = np.maximum(note[pe] - ROLE_BASE, -1)
+    ti = kind == CAUSE_ID["tie"]                                  # by role, leaving out "their relationship" itself
+    generic = [ROLE_BASE + roles.index(n) for n in ("the_tie", "engaged_before", "mirror") if n in roles]
+    ti &= (note >= ROLE_BASE) & ~np.isin(note, generic)
+    sub[kind == CAUSE_ID["tie"]] = -1
+    sub[ti] = note[ti] - ROLE_BASE
     ok = sub >= 0
     ev, kind, ref, note, sub = ev[ok], kind[ok], ref[ok], note[ok], sub[ok]
     if not len(ev):
@@ -1346,6 +1352,10 @@ def _context_flows(sim, W: _Words, rows, s0: int, s1: int, pm, root_code, max_li
             ok_ = 0 <= s < len(sim.book.kinds)
             kname = sim.book.kinds[s] if ok_ else "?"
             src, label, lk = f"occasion:{kname}", "At " + lc(str(sim.book.vocab.get(kname, {}).get("label", kname))), "attended"
+        elif k == CAUSE_ID["tie"]:
+            rname = roles[s] if s < len(roles) else ""
+            words = _roles().get(rname, ("", rname.replace("_", " ")))[1]
+            src, label, lk = f"tie:{rname}", words[:1].upper() + words[1:], "contributed"
         else:
             rname = roles[s] if s < len(roles) else ""
             words = _roles().get(rname, ("", rname.replace("_", " ")))[1]
@@ -1359,13 +1369,16 @@ def _context_flows(sim, W: _Words, rows, s0: int, s1: int, pm, root_code, max_li
 
 
 def _context_words(sim, W: _Words, kind: int, ref: int) -> str:
-    """One cause in words: "Anna Ashby's financial stress", "Joe's Coffee", "game night", "Ben Carter"."""
+    """One cause in words: "Anna Ashby's financial stress", "Joe's Coffee", "game night", "Ann and Ben", "Ben Carter"."""
     if kind == CAUSE_ID["state"]:
         var, who = split_state(sim, ref)
         return f"{W.name(who)}'s {lc(W.var_label(var))}"
     if kind == CAUSE_ID["place"]:
         ctx, pid = split_place(ref)
         return W.place(ctx, pid)
+    if kind == CAUSE_ID["tie"]:
+        lo, hi = EdgeStore.split(np.array([ref], np.int64))
+        return f"{W.name(int(lo[0]))} and {W.name(int(hi[0]))}"
     if kind == CAUSE_ID["occasion"]:
         k = int(sim.book.occ.get("kind", np.array([ref]), default=-1)[0]) if len(sim.book.occ) else -1
         kname = sim.book.kinds[k] if 0 <= k < len(sim.book.kinds) else None

@@ -28,8 +28,10 @@ from __future__ import annotations
 
 import numpy as np
 from scipy.special import expit
+from scipy.stats import poisson
 
 from .. import clock
+from ..core import splitmix64
 from ..ledger import CHANNEL_ID, ORIGIN_ID, RESPONSE_ID, STATUS_ID, Table
 from ..state import CTX_ID, EdgeStore, Tie
 from .activity import A as ACT_CODE
@@ -57,12 +59,25 @@ def _rup15(m):
     return (np.asarray(m, np.int64) + 14) // 15 * 15
 
 
+def _pair_u(seed: int, a, key, salt: int) -> np.ndarray:
+    """A uniform draw per (person, occasion key). The same person deciding about the same occasion draws the same number
+    in the Original and in a What-if whatever else happened that day (common random numbers), and deciding again after
+    a change (a new time, an offered ride) reuses it, so only what changed can change the answer."""
+    with np.errstate(over="ignore"):
+        salt = ((int(seed) * 1_000_003 + np.asarray(salt, np.int64)) & 0xFFFFFFFF).astype(np.uint64)
+        k = splitmix64(np.asarray(key, np.int64).astype(np.uint64) + salt)
+        x = splitmix64(k ^ (np.asarray(a, np.int64).astype(np.uint64) * np.uint64(0x9E3779B97F4A7C15)))
+    return ((x >> np.uint64(11)).astype(np.float64) + 0.5) / float(1 << 53)
+
+
 class Occasions:
     def __init__(self, sim):
         self.sim = sim
         self.book = sim.book
         self.series_members: dict[int, list] = {}    # series id -> attendee arrays of its last instances (regulars)
         self.rides: dict[tuple[int, int], int] = {}  # (occasion, rider) -> driver (offered rides)
+        self.max_lead = 7                             # longest planning lead time seen (days); user actions extend it
+        self._aud_cache: dict[tuple[int, int], np.ndarray] = {}
         self.trips = Table({"inv": (np.int64, -1), "minutes": (np.int16, -1), "mode": (np.int8, -1), "late": (np.int16, 0),
                             "origin": (np.int8, -1)}, capacity=1 << 12)
         self._kinds()
@@ -123,6 +138,8 @@ class Occasions:
         self.R = {"person": e64, "occ": e64, "arrive": e32, "leave": e32, "inv": e64, "ride_by": e32, "came": np.empty(0, bool),
                   "travel": e16, "mode": np.empty(0, np.int8)}
         self.today: dict[int, dict] = {}      # occasion id -> {kind, start, end, unit, organizer, ctx, act, social}
+        self._n_cancel = 0
+        self._tarr_sig = None
         self.host_decision: dict[int, int] = {}
         self.burden_shift = set()
 
@@ -145,8 +162,9 @@ class Occasions:
         self.resolve()
 
     def _dances(self, day: int, wd: int):
-        """Thursday to Saturday nights every dance venue holds a dance (an open occasion: no invitations)."""
-        if wd not in (3, 4, 5):
+        """Friday and Saturday nights every dance venue holds a dance at about 9 pm (YSA stake dances, country-dance
+        nights): an open occasion, announced rather than sent."""
+        if wd not in (4, 5):
             return
         act = self.sim.systems["activity"]
         vids = np.where(act.v_type == "dance")[0]
@@ -297,7 +315,7 @@ class Occasions:
 
     # ------------------------------------------------------------------ invitations
     def _invite(self, oid: np.ndarray, hosts: np.ndarray, kind: np.ndarray, tday: int, members: dict | None = None,
-                channel_default: str = "text", stream: str = "occ_invites"):
+                channel_default: str = "text", salt: int = 29):
         """Closeness-weighted invitations from each host's casual friends and friends (or a series' regulars)."""
         sim, w = self.sim, self.sim.w
         P, E, p = w.P, w.E, sim.p
@@ -307,9 +325,11 @@ class Occasions:
             net = sim.systems["network"]
             indptr, nbr, _ = net.padded()
             deg = (indptr[hosts + 1] - indptr[hosts]).astype(np.int64)
-            rng = sim.streams.gen(stream, day, max(tday - day, 0))
+            # draws keyed on the host's occasion and each candidate, so one host's change never reshuffles another's
+            okey = self.occ_key(oid)
             kmean = self.k_invites[kind] * p("activity.gathering.invites") / 5.0
-            kk = np.minimum(np.minimum(rng.poisson(np.maximum(kmean, 0.1)), 40) + 1, deg)
+            kk = np.minimum(np.minimum(poisson.ppf(_pair_u(w.seed, hosts, okey, salt), np.maximum(kmean, 0.1)), 40) + 1,
+                            deg).astype(np.int64)
             tot = int(deg.sum())
             if tot == 0:
                 return np.empty(0, np.int64)
@@ -319,7 +339,8 @@ class Occasions:
             h_rep = hosts[seg]
             close = sim.systems["encounters"]._closeness(h_rep, cand)
             near = ((P["unit_id"][cand] == P["unit_id"][h_rep]) | ((P["complex_id"][cand] == P["complex_id"][h_rep]) & (P["complex_id"][cand] >= 0)))
-            score = np.log(0.15 + np.clip(close, 0, 1)) + p("occasions.invite.roommate_boost") * near + rng.gumbel(size=tot)
+            gum = -np.log(-np.log(_pair_u(w.seed, cand, okey[seg], salt + 1)))
+            score = np.log(0.15 + np.clip(close, 0, 1)) + p("occasions.invite.roommate_boost") * near + gum
             score = np.where(P["present"][cand], score, -np.inf)
             order = np.lexsort((-score, seg))
             rank = np.empty(tot, np.int64)
@@ -358,7 +379,9 @@ class Occasions:
         busy = (sim.systems["activity"].shift_minutes(1, int(w.env["weekday"]))[person] > 0)
         pr = expit(p("occasions.invite.seen_base") + p("occasions.invite.seen_phone") * sim.z("social_media_hours")[person]
                    - p("occasions.invite.seen_busy") * busy)
-        seen = fresh & ((chan == CHANNEL_ID["in_person"]) | (chan == CHANNEL_ID["family"]) | (sim.u("occ_seen")[person] < pr))
+        # a text gets a fresh chance each morning it is still unseen (the day is part of the salt)
+        u = self._u(person, I.cols["occ"][pos], 17 + 7 * (w.day - I.cols["sent_day"][pos].astype(np.int64)))
+        seen = fresh & ((chan == CHANNEL_ID["in_person"]) | (chan == CHANNEL_ID["family"]) | (u < pr))
         I.cols["seen_day"][pos[seen]] = w.day
         self._decide(I.ids[pos[seen]])
         return seen
@@ -385,7 +408,25 @@ class Occasions:
         return {c: O.cols[c][pos] for c in ("kind", "day", "start", "dur", "lon", "lat", "organizer", "series", "place",
                                             "origin", "status", "open", "capacity")}
 
-    def _decide(self, inv_ids: np.ndarray, stream: str = "occ_attend", extra: dict | None = None):
+    def occ_key(self, occ_ids) -> np.ndarray:
+        """A key for each occasion that is the same in the Original and a What-if: who organizes it (or where an open one
+        is), the day and the kind — not its row id (a user action that adds an occasion shifts every later id) and not
+        its start time (moving a dinner later must not reshuffle who would have come anyway). User-made occasions also
+        key on their name, so they draw numbers of their own."""
+        O = self.book.occ
+        pos = np.maximum(O.pos(np.atleast_1d(np.asarray(occ_ids, np.int64))), 0)
+        g = lambda c: O.cols[c][pos].astype(np.int64)   # noqa: E731
+        org, place = g("organizer"), g("place")
+        k = ((g("day") + 1) * 1_000_003 + org + 1) * 131 + g("kind")
+        k = k * 7919 + np.where(org < 0, place + 2, 0)
+        user = g("origin") != ORIGIN_ID["engine"]
+        return np.where(user, k * 104_729 + g("label") + 3 + 17 * g("origin"), k)
+
+    def _u(self, people, occ_ids, salt: int) -> np.ndarray:
+        """Per (person, occasion) uniforms (see _pair_u); `salt` separates the questions asked (seen, go, show up)."""
+        return _pair_u(self.sim.w.seed, people, self.occ_key(occ_ids), salt)
+
+    def _decide(self, inv_ids: np.ndarray, salt: int = 11, extra: dict | None = None):
         """attend_occasion for invitations just seen: feasibility, the factors, the yes/no, the record."""
         sim, w = self.sim, self.sim.w
         P, E, p = w.P, w.E, sim.p
@@ -450,7 +491,7 @@ class Occasions:
         ill = P["ill"][person] & (oc["day"] == w.day)
         conflict, cant = f["conflict"] & ~ill, f["cant"] & ~f["conflict"] & ~ill
         blocked = conflict | cant | ill
-        u = sim.u(stream)[person]
+        u = self._u(person, occ, salt)
         yes = (u < pyes) & ~blocked
         # two yeses for the same evening: keep the one they were keener on
         yes = self._one_per_evening(person, oc["day"], oc["start"], oc["dur"], pyes, yes)
@@ -556,13 +597,18 @@ class Occasions:
         I, O = self.book.inv, self.book.occ
         dset = np.unique(days)
         if O.n:
-            live = np.isin(O["day"], dset) & (O["status"] == STATUS_ID["planned"])
+            # rows are appended in time order: only occasions created (and invitations sent) within the longest lead
+            # time before these days can be on them
+            since = int(dset[0]) - self.max_lead - 1
+            o0 = int(np.searchsorted(O["created_day"], since))
+            live = np.isin(O["day"][o0:], dset) & (O["status"][o0:] == STATUS_ID["planned"])
             if live.any():
-                oids = O["id"][live]
-                org = O["organizer"][live].astype(np.int64)
-                yes_i = (I["response"] == RESPONSE_ID["yes"]) & np.isin(I["occ"], oids) if I.n else np.zeros(0, bool)
-                c_person = np.r_[org, I["person"][yes_i].astype(np.int64)] if I.n else org
-                c_occ = np.r_[oids, I["occ"][yes_i]] if I.n else oids
+                oids = O["id"][o0:][live]
+                org = O["organizer"][o0:][live].astype(np.int64)
+                i0 = int(np.searchsorted(I["sent_day"], since)) if I.n else 0
+                yes_i = (I["response"][i0:] == RESPONSE_ID["yes"]) & np.isin(I["occ"][i0:], oids) if I.n else np.zeros(0, bool)
+                c_person = np.r_[org, I["person"][i0:][yes_i].astype(np.int64)] if I.n else org
+                c_occ = np.r_[oids, I["occ"][i0:][yes_i]] if I.n else oids
                 cpos = O.pos(c_occ)
                 c_day = O.cols["day"][cpos]
                 key_c = c_person * 65536 + c_day
@@ -730,23 +776,36 @@ class Occasions:
         book = self.book
         day = w.day
         oc = self._occ_cols(ids)
-        # organizers (a host who is sick cancels)
+        # organizers: a host who is sick, gone, or now has a shift or class over it calls it off (recorded with why)
         org = oc["organizer"].astype(np.int64)
+        og = np.maximum(org, 0)
         has_org = org >= 0
-        o_ok = has_org & P["present"][np.maximum(org, 0)] & ~P["ill"][np.maximum(org, 0)]
-        cancel = has_org & ~o_ok
+        sick = has_org & P["present"][og] & P["ill"][og]
+        cand = has_org & P["present"][og] & ~sick
+        busy = np.zeros(len(ids), bool)
+        fo = None
+        if cand.any():
+            fo = self._feasible(org[cand], day, oc["start"][cand], oc["dur"][cand], oc["lon"][cand], oc["lat"][cand],
+                                occ=ids[cand], host=True)
+            busy[cand] = fo["conflict"]
+        cancel = has_org & ~cand | busy
+        off = sick | busy
+        if off.any():
+            sim.decisions.record("show_up", day, org[off], "did_not_come", {}, occasion=ids[off],
+                                 constraints={"ill": sick[off], "conflict": busy[off]})
         if cancel.any():
             book.mark(ids[cancel], "cancelled")
             for o in ids[cancel].tolist():
                 self.today.pop(o, None)
-        go = o_ok
+                self._n_cancel += 1
+        go = cand & ~busy
         if go.any():
-            fo = self._feasible(org[go], day, oc["start"][go], oc["dur"][go], oc["lon"][go], oc["lat"][go], occ=ids[go],
-                                host=True)
+            sub = ~busy[cand]
+            f_go = {k_: v[sub] for k_, v in fo.items()}
             home = np.array([self.k_where[c] == "home" for c in oc["kind"][go]])
-            arr = np.where(home, oc["start"][go], fo["arrive"])
-            self._add_rows(org[go], ids[go], arr, fo["leave"], np.full(int(go.sum()), -1), travel=np.where(home, 0, fo["travel"]),
-                           mode=np.where(home, -1, fo["mode"]))
+            arr = np.where(home, oc["start"][go], f_go["arrive"])
+            self._add_rows(org[go], ids[go], arr, f_go["leave"], np.full(int(go.sum()), -1),
+                           travel=np.where(home, 0, f_go["travel"]), mode=np.where(home, -1, f_go["mode"]))
         live = ids[~cancel]
         if not len(live):
             return
@@ -771,7 +830,7 @@ class Occasions:
         base = np.full(len(person), p("occasions.show_up.base"))
         pc = expit(base + sum(F.values()))
         conflict, cant = f["conflict"] & ~ill, f["cant"] & ~f["conflict"] & ~ill
-        flake = (sim.u("occ_showup")[person] >= pc) & (c["kind"] != self.date_code)   # dates: only illness or a clash stops them
+        flake = (self._u(person, occ, 13) >= pc) & (c["kind"] != self.date_code)   # dates: only illness or a clash stops them
         no = ill | conflict | cant | flake
         if no.any():
             sim.decisions.record("show_up", day, person[no], "did_not_come", {k_: v[no] for k_, v in F.items()}, base=base[no],
@@ -795,8 +854,12 @@ class Occasions:
         aud = spec.get("audience")
         if isinstance(aud, list):
             aud = {"and": aud} if aud else None
-        aud = _normalize_filter(aud)
-        return evaluate_filter(sim.w, aud, sim=sim)
+        key = (int(kind_code), sim.w.day)
+        if key not in self._aud_cache:      # once per kind and day (a dance at five venues asks the same question)
+            if len(self._aud_cache) > 64:
+                self._aud_cache = {k: v for k, v in self._aud_cache.items() if k[1] == sim.w.day}
+            self._aud_cache[key] = evaluate_filter(sim.w, _normalize_filter(aud), sim=sim)
+        return self._aud_cache[key]
 
     def _interest(self, kind_code: int, people: np.ndarray) -> np.ndarray:
         sim = self.sim
@@ -911,13 +974,18 @@ class Occasions:
 
     # ------------------------------------------------------------------ blocks (called by activity.choose)
     def _today_arrays(self):
+        sig = (len(self.today), next(reversed(self.today)) if self.today else -1, self._n_cancel)
+        if getattr(self, "_tarr_sig", None) == sig:
+            return self._tarr
         ids = np.fromiter(self.today.keys(), np.int64, len(self.today))
         order = np.argsort(ids)
         ids = ids[order]
         vals = list(self.today.values())
         get = lambda c, dt: np.array([vals[j][c] for j in order], dt)   # noqa: E731
-        return ids, {"ctx": get("ctx", np.uint8), "act": get("act", np.uint8), "dur": get("dur", np.int32),
-                     "start": get("start", np.int32), "unit": get("unit", np.int64)}
+        self._tarr_sig = sig
+        self._tarr = ids, {"ctx": get("ctx", np.uint8), "act": get("act", np.uint8), "dur": get("dur", np.int32),
+                           "start": get("start", np.int32), "unit": get("unit", np.int64)}
+        return self._tarr
 
     def block_plan(self, b: int) -> dict:
         """Who is expected at which occasion in block b: person, occ, minutes there in the block, ctx, act, share, arrive
@@ -1183,8 +1251,11 @@ class Occasions:
         exams = np.where(P["school"][org] == 1, bool(w.env.get("exam_week_BYU")), bool(w.env.get("exam_week_UVU"))) & P["enrolled"][org]
         food = self.k_cost[kind] > 0
         money = P["financial_stress"][org] * food
+        # running late on a school night (Sunday to Thursday) costs sleep before an early class or shift
+        end = (oc["start"] + oc["dur"]).astype(np.float64)
+        late_night = np.maximum(end - 22 * 60, 0) / 60.0 * (wd in (6, 0, 1, 2, 3))
         burden = (guests / 6.0 + p("occasions.burden.shift") * worked + p("occasions.burden.exams") * exams
-                  + p("occasions.burden.money") * money + P["fatigue"][org])
+                  + p("occasions.burden.money") * money + P["fatigue"][org] + p("occasions.burden.late") * late_night)
         spend = (self.k_cost[kind] * guests).astype(np.float32)
         if (spend > 0).any():
             P.cols["savings"][org] = np.maximum(P["savings"][org] - spend, 0)

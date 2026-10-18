@@ -113,39 +113,55 @@ class Romance:
         self.dates_today, self._dates_meta = [], []
         act = sim.systems["activity"]
         busy = set()
-        rng = sim.streams.gen("date_venue", day)
-        for (_, a, b, dtype, first, cause) in todays:
+        keep = []
+        for q in todays:              # bounded: today's scheduled dates (one date per person per day)
+            a, b = q[1], q[2]
             if not (P["present"][a] and P["present"][b]) or a in busy or b in busy:
                 continue
             busy.update((a, b))
-            group = DATE_VENUE_GROUP[dtype]
-            if group == "home":
-                # dinner/board games at one of their apartments: treat as nearest dessert/food venue for location
-                group = "food"
+            keep.append(q)
+        if keep:
+            # venues: near the midpoint of their homes (dinner or board games at home: the nearest food place stands in
+            # for the location); some hikes and stargazing dates go up Y Mountain / Kyhv Peak
+            k = len(keep)
+            a = np.array([q[1] for q in keep], np.int64)
+            b = np.array([q[2] for q in keep], np.int64)
+            dtypes = np.array([q[3] for q in keep], dtype=object)
+            group = np.array(["food" if DATE_VENUE_GROUP[t] == "home" else DATE_VENUE_GROUP[t] for t in dtypes], dtype=object)
             lon = (P["home_lon"][a] + P["home_lon"][b]) / 2
             lat = (P["home_lat"][a] + P["home_lat"][b]) / 2
-            vid = int(act.nearest(group, np.array([lon]), np.array([lat]), 5, rng.random(1))[0])
-            if dtype in ("hike", "stargazing") and rng.random() < 0.18:
-                kyhv = np.where(np.char.find(np.array(act.v_name, dtype=str), "KhPeak") >= 0)[0]
-                if len(kyhv):
-                    vid = int(kyhv[0])
-            self.dates_today.append((a, b, vid))
-            self._dates_meta.append((dtype, first, cause))
+            rng = sim.streams.gen("date_venue", day)
+            pick, peak = rng.random(k), rng.random(k)
+            vid = np.zeros(k, np.int64)
+            for g in np.unique(group).tolist():      # bounded: venue groups
+                m = group == g
+                vid[m] = act.nearest(g, lon[m], lat[m], 5, pick[m])
+            if not hasattr(self, "_kyhv"):
+                hit = [j for j, nm in enumerate(act.v_name) if "KhPeak" in str(nm)]
+                self._kyhv = hit[0] if hit else -1
+            if self._kyhv >= 0:
+                vid = np.where(np.isin(dtypes, ["hike", "stargazing"]) & (peak < 0.18), self._kyhv, vid)
+            self.dates_today = [(int(q[1]), int(q[2]), int(v)) for q, v in zip(keep, vid)]
+            self._dates_meta = [(q[3], q[4], q[5]) for q in keep]
         occ = sim.systems.get("occasions")
         self.date_occ = occ.plan_dates(self.dates_today, self._dates_meta) if occ is not None else \
             np.full(len(self.dates_today), -1, np.int64)
         # a date their schedules can't fit today moves to the next day (twice at most), as people would rearrange it
         if occ is not None and len(self.dates_today):
             moved = getattr(self, "_moved", {})
-            for j in np.where(occ.date_blocked == 2)[0].tolist():
+            for j, why in enumerate(occ.date_blocked.tolist()):
                 a_, b_, _ = self.dates_today[j]
-                dtype, first, cause = self._dates_meta[j]
                 key = (min(a_, b_), max(a_, b_))
-                if moved.get(key, 0) < 2:
+                if why != 2:
+                    moved.pop(key, None)
+                elif moved.get(key, 0) < 2:
+                    dtype, first, cause = self._dates_meta[j]
                     moved[key] = moved.get(key, 0) + 1
                     self.queue.append((day + 1, a_, b_, dtype, first, cause))
                     P.internal["date_planned"][[a_, b_]] = day + 1
-            self._moved = {k: v for k, v in moved.items() if v < 3 and len(moved) < 50000}
+                else:
+                    moved.pop(key, None)
+            self._moved = moved
 
     def evening(self):
         """After the late evening: how today's dates went, then make-outs at parties and dances."""

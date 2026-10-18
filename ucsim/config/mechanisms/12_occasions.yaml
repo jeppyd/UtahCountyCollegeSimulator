@@ -69,8 +69,9 @@ mechanisms:
     label: What hosting costs the host
     target: fatigue
     sources: [fatigue, financial_stress, academic_pressure]
-    form: "burden = guests/6 + shift·[worked that day] + exams·[exam week] + money·financial stress·[the kind costs food] + fatigue; a 'worn out from hosting' event when burden > threshold; food costs come out of savings."
+    form: "burden = guests/6 + shift·[worked that day] + exams·[exam week] + money·financial stress·[the kind costs food] + fatigue + late·hours past 10 pm on a school night; a 'worn out from hosting' event when burden > threshold; food costs come out of savings."
     params:
+      late: {value: 0.5, range: [0.0, 1.5]}
       threshold: {value: 1.6, range: [1.0, 3.0]}
       shift: {value: 0.8, range: [0.2, 1.5]}
       exams: {value: 0.6, range: [0.0, 1.5]}

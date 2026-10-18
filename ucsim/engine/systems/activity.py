@@ -319,7 +319,7 @@ class Activity:
             busy[pp] = True
             occ.mark_present(b, pp, plan["occ"][ok], plan["arrive"][ok])
         # ---- FHE (Monday evening ~7 pm) and ward activities (weeknights ~7 pm)
-        if b == 2 and (env["term_BYU"] or env["term_UVU"]):
+        if b == clock.EVENING[0] and (env["term_BYU"] or env["term_UVU"]):
             fhe = P.internal["fhe_group"][:n]
             if wd == 0:
                 go = (fhe >= 0) & present & ~busy & (u < P["ward_activity_rate"] * p("activity.fhe.attend_mult"))

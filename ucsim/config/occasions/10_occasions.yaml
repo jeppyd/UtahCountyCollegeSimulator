@@ -51,8 +51,8 @@ occasions:
     act: date
   # A dance: open to everyone who hears about it (YSA stake dances, country-dance nights). Who considers going:
   # single people 18–30; how keen: their dancing habit, wanting a partner, wanting fun, wanting company.
-  # base is calibrated so about 2% of young singles go on a Thursday–Saturday night (the share the old free-time
-  # choice produced; hypothetical against data we don't have).
+  # Friday and Saturday nights. base is set so about as many young singles go each week as went on Thursday to Saturday
+  # nights under the old free-time choice (hypothetical against data we don't have).
   dance:
     extend: true
     talk_h: 0.4
@@ -62,7 +62,7 @@ occasions:
     audience:
       - {var: rel_status, op: in, value: [single, talking, divorced]}
       - {var: age, op: between, value: [18, 30.99]}
-    base: -4.6
+    base: -4.2
     interest: {dancing: 1.2, drive_partnership: 2.0, drive_fun: 1.0, extraversion: 0.25}
     capacity: -1
   introduction:

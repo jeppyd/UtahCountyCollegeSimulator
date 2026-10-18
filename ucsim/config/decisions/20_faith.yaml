@@ -1,0 +1,79 @@
+# Faith decisions (engine/systems/faith.py). Field meanings: 00_core.yaml, 20_romance.yaml and 20_life.yaml.
+decisions:
+  church_attendance:
+    label: Why their chance of going to church changed
+    units: logit
+    positive: went_more
+    outcomes: [went_less, went_more]
+    # each factor is the change in one term of the weekly attendance log-odds against the person's own usual
+    # (an average of the last couple of months); "base" is that usual, so the factors add up to this week's chance
+    factors:
+      base:        {label: "their usual chance of going (log-odds)", more: "", less: ""}
+      belief:      {label: "belief", more: "believes more than usual", less: "believes less than usual"}
+      identity:    {label: "how central faith is to who they are", more: "faith feels more central", less: "faith feels less central"}
+      habit:       {label: "the habit of going", more: "the habit is stronger", less: "the habit has weakened"}
+      norm:        {label: "how much the people around them go", more: "the people around them go more", less: "the people around them go less"}
+      family:      {label: "family expectations", more: "family expects it more", less: "family expects it less"}
+      stress:      {label: "stress", more: "less stressed than usual", less: "more stressed than usual"}
+      fatigue:     {label: "tiredness", more: "less tired than usual", less: "more tired than usual"}
+      sunday_work: {label: "working on Sundays", more: "no longer works Sundays", less: "now works Sundays"}
+      crisis:      {label: "a faith crisis", more: "a faith crisis ended", less: "in a faith crisis"}
+      coping:      {label: "turning to faith to cope", more: "turning to faith to cope", less: "stopped turning to faith to cope"}
+      intention:   {label: "a plan to go back to church", more: "decided to go back", less: ""}
+      whatif:      {label: "a What-if change", more: "a What-if change", less: "a What-if change"}
+  spiritual_experience:
+    label: The chance of a spiritual experience (this week)
+    units: log_rate
+    outcomes: [happened]
+    factors:
+      base:     {label: "how often members have spiritual experiences", more: "", less: ""}
+      practice: {label: "prayer, scripture study and church attendance", more: "prays, reads and attends", less: "little private practice"}
+      belief:   {label: "how strongly they believe", more: "", less: "believes less strongly"}
+  faith_challenge:
+    label: The chance of running into a faith challenge (this week)
+    units: log_rate
+    outcomes: [happened]
+    factors:
+      base:         {label: "how often members run into challenges to their faith", more: "", less: ""}
+      openness:     {label: "openness to new ideas", more: "open to new ideas", less: "not drawn to new ideas"}
+      social_media: {label: "time on social media", more: "lots of social media", less: "little social media"}
+      history:      {label: "struggles with Church history", more: "troubled by Church history", less: ""}
+      lgbtq:        {label: "tension between their sexuality and Church teaching", more: "tension between their sexuality and Church teaching", less: ""}
+      certainty:    {label: "how sure they feel", more: "unsure of their faith", less: "sure of their faith"}
+  crisis_outcome:
+    label: How a faith crisis resolves
+    units: utility
+    outcomes: [renewed, nuanced, left]
+    factors:
+      identity:    {label: "how central faith is to who they are", more: "faith is central to who they are", less: ""}
+      norm:        {label: "how much the people around them go to church", more: "the people around them go", less: ""}
+      family:      {label: "family expectations", more: "family expects them to stay", less: "family expects them to stay"}
+      trust:       {label: "trust in Church leaders", more: "trusts Church leaders", less: ""}
+      autonomy:    {label: "trusting their own moral judgment", more: "trusts their own judgment", less: ""}
+      belief_lost: {label: "how much belief they've lost", more: "has lost much of their belief", less: ""}
+      lgbtq:       {label: "tension between their sexuality and Church teaching", more: "tension between their sexuality and Church teaching", less: ""}
+      norm_low:    {label: "few people around them going to church", more: "few people around them go", less: ""}
+  met_missionaries:
+    label: The chance of starting to meet with the missionaries (this week)
+    units: log_rate
+    outcomes: [started]
+    factors:
+      base:        {label: "how often non-members start meeting with missionaries", more: "", less: ""}
+      friends:     {label: "believing Latter-day Saint friends or partner", more: "believing friends or an LDS partner", less: "few believing friends"}
+      openness:    {label: "openness to new ideas", more: "open to new ideas", less: "not drawn to new ideas"}
+      religiosity: {label: "their own religious commitment", more: "", less: "committed to their own faith"}
+  baptism:
+    label: Whether to be baptized (this week)
+    units: logit
+    outcomes: [baptized]
+    factors:
+      base:        {label: "how rare a baptism is in any one week", more: "", less: ""}
+      dating_lds:  {label: "dating a Latter-day Saint", more: "dating a Latter-day Saint", less: ""}
+      friends:     {label: "share of friends who are active members", more: "most friends are active members", less: "few friends are active members"}
+      religiosity: {label: "their own religious commitment", more: "", less: "committed to their own tradition"}
+  stop_lessons:
+    label: Whether to stop meeting with the missionaries (this week)
+    units: probability
+    outcomes: [stopped]
+    factors:
+      base: {label: "the share who stop each week (the model has no reasons for which ones)", more: "chance", less: ""}

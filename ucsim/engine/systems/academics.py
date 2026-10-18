@@ -4,6 +4,8 @@ from __future__ import annotations
 import numpy as np
 from scipy.special import expit
 
+from ..provenance import chance, link, pick, state_ref
+
 MWF = 0b10101
 TTH = 0b01010
 
@@ -181,6 +183,22 @@ class Academics:
         target = target + sim.nudge("study")
         P["study_hours"] = np.where(in_term, np.clip(0.6 * P["study_hours"] + 0.4 * target, 0, 60), 0).astype(np.float32)
 
+    def _record_grades(self, ids, TG: dict, keep: np.ndarray, g: np.ndarray) -> np.ndarray:
+        """Record the grade-point terms of the students whose term was remarkable (failed, excellent, probation);
+        returns decision ids aligned with `ids` (−1 for the rest). Bookkeeping only."""
+        sim = self.sim
+        out = np.full(len(ids), -1, np.int64)
+        if not keep.any():
+            return out
+        rec = pick(TG, keep)
+        for k in ("fatigue", "depression", "stress"):
+            rec[k] = -rec[k]
+        out[keep] = sim.decisions.record("term_grades", sim.w.day, ids[keep], np.where(g[keep] >= 3.0, 1, 0), rec,
+                                         base=sim.p("academics.gpa.base"),
+                                         refs={"study": ("state", state_ref(sim, "study_hours", ids[keep])),
+                                               "depression": ("state", state_ref(sim, "depressive_episode", ids[keep]))})
+        return out
+
     def end_term(self, school: str):
         sim, w = self.sim, self.sim.w
         P, p = w.P, sim.p
@@ -189,11 +207,15 @@ class Academics:
         if len(ids) == 0:
             return
         rng = np.random.default_rng([w.seed, 78, w.day, code])
-        g = (p("academics.gpa.base") + p("academics.gpa.ability") * sim.z("academic_ability")[ids]
-             + p("academics.gpa.conscientiousness") * sim.z("conscientiousness")[ids]
-             + p("academics.gpa.study") * (P["study_hours"][ids] - 18) + 0.8 * (P["class_attendance"][ids] - 0.85)
-             - 0.35 * P["fatigue"][ids] - 0.3 * P["depressive_episode"][ids] - 0.15 * P["stress"][ids]
-             + 0.05 * (P["sleep_hours"][ids] - 7) + p("academics.gpa.noise") * rng.standard_normal(len(ids)))
+        # the term's grade points, term by term (added in the model's order; subtracted terms are kept positive here
+        # and recorded with their sign): the record behind a failed or an excellent term
+        TG = {"ability": p("academics.gpa.ability") * sim.z("academic_ability")[ids],
+              "conscientiousness": p("academics.gpa.conscientiousness") * sim.z("conscientiousness")[ids],
+              "study": p("academics.gpa.study") * (P["study_hours"][ids] - 18), "attendance": 0.8 * (P["class_attendance"][ids] - 0.85),
+              "fatigue": 0.35 * P["fatigue"][ids], "depression": 0.3 * P["depressive_episode"][ids], "stress": 0.15 * P["stress"][ids],
+              "sleep": 0.05 * (P["sleep_hours"][ids] - 7), "luck": p("academics.gpa.noise") * rng.standard_normal(len(ids))}
+        g = (p("academics.gpa.base") + TG["ability"] + TG["conscientiousness"] + TG["study"] + TG["attendance"]
+             - TG["fatigue"] - TG["depression"] - TG["stress"] + TG["sleep"] + TG["luck"])
         g = np.clip(g, 0, 4)
         cred = P["credits_term"][ids]
         prev = np.nan_to_num(P["gpa"][ids], nan=g)
@@ -209,13 +231,14 @@ class Academics:
         P.cols["academic_standing"][ids] = P.codes("academic_standing", st)
         fail = g < 1.9
         succ = g >= 3.85
-        if fail.any():
-            sim.emit("exam_failure", ids[fail], value=g[fail], mech="academics.gpa")
-        if succ.any():
-            sim.emit("academic_success", ids[succ], value=g[succ], mech="academics.gpa")
         newprob = (st == "probation") & ~old_prob
+        did = self._record_grades(ids, TG, fail | succ | newprob, g)
+        if fail.any():
+            sim.emit("exam_failure", ids[fail], value=g[fail], mech="academics.gpa", decision=did[fail])
+        if succ.any():
+            sim.emit("academic_success", ids[succ], value=g[succ], mech="academics.gpa", decision=did[succ])
         if newprob.any():
-            sim.emit("academic_probation", ids[newprob], mech="academics.gpa")
+            sim.emit("academic_probation", ids[newprob], mech="academics.gpa", decision=did[newprob])
         # class standing from credits
         cd = P["credits_done"][ids]
         grad_student = P.is_("class_standing", "graduate")[ids]
@@ -226,7 +249,7 @@ class Academics:
         if mc.any():
             areas = len(P.specs["study_area"].categories)
             P.cols["study_area"][ids[mc]] = rng.integers(0, areas - 1, mc.sum())
-            sim.emit("major_change", ids[mc], mech="academics.term")
+            sim.emit("major_change", ids[mc], mech="academics.term", decision=chance(sim, "change_major", ids[mc], 0.035, "changed"))
         # graduation
         # programs need 120-145 credits (majors, minors, retakes); a fixed per-person requirement spreads graduations out
         need = 120 + 25 * ((ids * 0.6180339887) % 1.0)
@@ -237,16 +260,30 @@ class Academics:
             P.cols["enrolled"][gi] = False
             P.cols["grad_day"][gi] = w.day
             ev = sim.emit("graduation", gi, mech="academics.term")
+            # undergraduates finish when their credits reach their program's requirement; graduate students' finishing
+            # is a flat chance each term in the model
+            g_st = grad_student[grad]
+            link(sim, ev[~g_st], "state", state_ref(sim, "credits_done", gi[~g_st]), 1.0, "enough_credits")
+            if g_st.any():
+                link(sim, ev[g_st], "decision", chance(sim, "finish_degree", gi[g_st], 0.22, "finished"), 1.0, "chance")
             sim.systems["lifecourse"].after_graduation(gi, ev)
         # dropout hazard
         fin = P["financial_stress"][ids]
-        h = expit(p("academics.dropout.base") + (0.9 if school == "UVU" else 0) + 1.6 * (new_gpa < 2.0) + 1.2 * np.clip(fin - 0.5, 0, None)
-                  + 0.8 * (P["children"][ids] > 0) * P.is_("sex", "F")[ids]
-                  - p("mind.self_efficacy.dropout") * (P["self_eff_academic"][ids] - 0.5))
+        # the log-odds term by term (added in the model's order; the subtracted term is kept positive here)
+        T = {"school": 0.9 if school == "UVU" else 0, "grades": 1.6 * (new_gpa < 2.0), "money": 1.2 * np.clip(fin - 0.5, 0, None),
+             "children": 0.8 * (P["children"][ids] > 0) * P.is_("sex", "F")[ids],
+             "self_efficacy": p("mind.self_efficacy.dropout") * (P["self_eff_academic"][ids] - 0.5)}
+        h = expit(p("academics.dropout.base") + T["school"] + T["grades"] + T["money"] + T["children"] - T["self_efficacy"])
         drop = ~grad & (rng.random(len(ids)) < h)
         if drop.any():
             di = ids[drop]
             P.cols["enrolled"][di] = False
             P.cols["role"][di] = P.code("role", "young_adult")
-            sim.emit("dropout", di, mech="academics.dropout")
+            rec = pick(T, drop)
+            rec["school"] = np.full(len(di), float(T["school"]))
+            rec["self_efficacy"] = -rec["self_efficacy"]
+            did = sim.decisions.record("drop_out", w.day, di, "dropped_out", rec, base=p("academics.dropout.base"), prob=h[drop],
+                                       refs={"money": ("state", state_ref(sim, "financial_stress", di)),
+                                             "grades": ("state", state_ref(sim, "gpa", di))})
+            sim.emit("dropout", di, mech="academics.dropout", decision=did)
             sim.systems["lifecourse"].schedule_stay(di)

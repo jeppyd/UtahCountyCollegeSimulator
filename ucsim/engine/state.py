@@ -98,10 +98,14 @@ class EdgeStore:
     # disclosure: how much each has let the other see (self-disclosure / intimacy); support: help given and
     # received in hard times; hurt: unrepaired injury (betrayal, conflict) that fades slowly with repair.
     FLOAT_COLS = ("liking", "closeness", "trust", "conflict", "att_lh", "att_hl", "hours", "hours_leisure",
-                  "chemistry", "bel_lh", "bel_hl", "disclosure", "support", "hurt")
+                  "chemistry", "bel_lh", "bel_hl", "disclosure", "support", "hurt", "top_h", "alt_h")
     INT_COLS = {"n_inter": np.int32, "first_day": np.int32, "last_day": np.int32, "stage": np.uint8,
                 "flags": np.uint32, "origin_ctx": np.uint8, "origin_place": np.int32, "introducer": np.int32,
-                "dates": np.int16, "shared": np.int16}
+                "dates": np.int16, "shared": np.int16,
+                # where their time together went (engine/provenance.note_time): the context with the most hours
+                # (top_ctx, its latest place, top_h) and a runner-up (alt_ctx, alt_h) — for tracing, never read by behavior
+                "top_ctx": np.uint8, "top_place": np.int32, "alt_ctx": np.uint8}
+    NEG_ONE = ("introducer", "origin_place", "top_place")     # integer columns whose "none" is −1
 
     def __init__(self, capacity: int = 1 << 16):
         self.n = 0
@@ -112,8 +116,8 @@ class EdgeStore:
             self.cols[c] = np.zeros(capacity, dtype=np.float32)
         for c, dt in self.INT_COLS.items():
             self.cols[c] = np.zeros(capacity, dtype=dt)
-        self.cols["introducer"][:] = -1
-        self.cols["origin_place"][:] = -1
+        for c in self.NEG_ONE:
+            self.cols[c][:] = -1
         self._keys_buf = np.zeros(capacity, dtype=np.int64)
 
     @staticmethod
@@ -161,7 +165,7 @@ class EdgeStore:
             new_cap = max(self.cap * 2, self.n + m + 1024)
             for c, arr in self.cols.items():
                 g = np.zeros(new_cap, dtype=arr.dtype)
-                if c in ("introducer", "origin_place"):
+                if c in self.NEG_ONE:
                     g[:] = -1
                 g[: self.cap] = arr
                 self.cols[c] = g
@@ -179,16 +183,11 @@ class EdgeStore:
         keys[pos_new] = new_keys
         keys[~is_new] = old
         self._keys_buf[:total] = keys
+        # shift the old rows in place (numpy buffers the overlapping source), then fill the new ones
+        src = np.flatnonzero(~is_new)
         for c, arr in self.cols.items():
-            vals = np.zeros(m, dtype=arr.dtype)
-            if c in ("introducer", "origin_place"):
-                vals[:] = -1
-            if c in init:
-                vals[:] = init[c]
-            merged = np.empty(total, arr.dtype)
-            merged[pos_new] = vals
-            merged[~is_new] = arr[: self.n]
-            arr[:total] = merged
+            arr[src] = arr[: self.n]
+            arr[pos_new] = init[c] if c in init else (-1 if c in self.NEG_ONE else 0)
         self.n = total
 
     def remove(self, mask_remove: np.ndarray):

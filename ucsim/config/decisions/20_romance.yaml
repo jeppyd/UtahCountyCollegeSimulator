@@ -1,0 +1,76 @@
+# Romance decisions (engine/systems/romance.py). Field meanings: config/decisions/00_core.yaml.
+#   positive  the outcome the log-odds favor (default: the first outcome); a factor with a positive value pushed toward it
+#   kind      multiplier = a factor that multiplies the chance instead of adding to the log-odds (value = log of it)
+# Only choices that happened are recorded for asks and weekly couple hazards (one row per ask, per engagement, per
+# breakup); answers to an ask are recorded both ways (yes and no).
+decisions:
+  ask_out:
+    label: Whether to ask them out
+    units: logit
+    outcomes: [asked]
+    factors:
+      base:              {label: "how often people ask someone out", more: "", less: "asking someone out is a big step"}
+      attraction:        {label: "how attracted they are", more: "really likes them", less: "only mildly interested"}
+      motivation:        {label: "how much they want to date right now", more: "eager to date", less: "not very keen to date right now"}
+      confidence:        {label: "self-esteem", more: "feeling confident", less: "low on confidence"}
+      expectation:       {label: "what they've learned to expect when asking", more: "usually hears yes", less: "expects a no"}
+      believed_interest: {label: "how interested they think the other person is", more: "thinks the interest is mutual", less: "unsure the other person is interested"}
+      gender_norm:       {label: "the local norm that men do the asking", more: "men are expected to ask", less: "women are expected to wait to be asked"}
+      propensity:        {label: "how much they date in general", more: "dates a lot", less: "rarely dates"}
+      asks_numbers:      {label: "how readily they ask for a number", more: "asks for numbers easily", less: "rarely asks for numbers"}
+      intention:         {label: "a plan to ask this person out", more: "had decided to ask them", less: ""}
+      weekday:           {label: "the day of the week (most asking happens early in the week)", kind: multiplier, more: "early in the week", less: "late in the week"}
+  accept_date:
+    label: Whether to say yes to a date
+    units: logit
+    outcomes: ["yes", "no"]
+    factors:
+      base:       {label: "how often people say yes", more: "most people say yes", less: ""}
+      attraction: {label: "how attracted they are to the person asking", more: "attracted to them", less: "not attracted to them"}
+      politeness: {label: "saying yes to a first date to be polite", more: "says yes to first dates to be polite", less: "turns down first dates they don't want"}
+      motivation: {label: "how much they want to date right now", more: "wants to date", less: "not looking to date"}
+      picky:      {label: "how picky they are", more: "not picky", less: "picky"}
+      taken:      {label: "already seeing someone", more: "", less: "already seeing someone"}
+      busy:       {label: "already has a date planned", more: "", less: "already has a date planned"}
+  get_engaged:
+    label: Whether to get engaged (this week)
+    units: logit
+    outcomes: [engaged]
+    factors:
+      young_man:  {label: "a young man who hasn't served a mission yet", more: "", less: "he is young or hasn't served a mission"}
+      base:       {label: "how rare an engagement is in any one week", more: "", less: "an engagement is a rare step in any one week"}
+      commitment: {label: "how committed they are", more: "committed to each other", less: "not very committed"}
+      timing:     {label: "how long they've dated compared with what they think is ideal", more: "dated about as long as they'd want before engagement", less: "too soon by their own ideal"}
+      active_lds: {label: "both active Latter-day Saints, with the local marriage norm", more: "both active members (a strong marriage norm)", less: ""}
+      same_sex:   {label: "Church policy on same-sex marriage while a partner is active", more: "", less: "Church policy while a partner is active"}
+      age:        {label: "their age", more: "old enough that marriage feels timely", less: "young"}
+      money:      {label: "money worries", more: "", less: "money worries"}
+      mismatch:   {label: "differences in religious belief and practice", more: "", less: "they differ in faith"}
+  break_up:
+    label: Whether the relationship ends (this week)
+    units: logit
+    outcomes: [broke_up]
+    factors:
+      base:       {label: "how often relationships end in any one week", more: "", less: "most weeks nothing ends"}
+      commitment: {label: "how committed they are", more: "", less: "committed to each other"}
+      mismatch:   {label: "differences in religious belief and practice", more: "they differ in faith", less: ""}
+      conflict:   {label: "conflict between them", more: "frequent conflict", less: ""}
+      hurt:       {label: "unresolved hurt (a betrayal or a falling-out)", more: "unresolved hurt between them", less: ""}
+      stage:      {label: "how far along they are (engaged and married couples rarely split)", kind: multiplier, more: "", less: "engaged or married couples rarely split"}
+  cheat:
+    label: Whether to cheat (this week)
+    units: logit
+    outcomes: [cheated]
+    factors:
+      base:       {label: "how rare cheating is", more: "", less: "cheating is rare"}
+      commitment: {label: "how committed they are", more: "low commitment", less: "committed"}
+      ncmo:       {label: "interest in no-strings making out", more: "open to casual hookups", less: "not into casual hookups"}
+      sensation:  {label: "sensation seeking", more: "seeks thrills", less: "cautious"}
+  app_match:
+    label: Whether a dating-app session turns up a match (today)
+    units: log_rate
+    outcomes: [matched]
+    factors:
+      base:       {label: "how often app users get a match on a given day", more: "", less: "most days on the apps bring no match"}
+      app_hours:  {label: "time spent on the apps", kind: multiplier, more: "on the apps a lot", less: "rarely opens the apps"}
+      app_appeal: {label: "how popular the apps are right now", kind: multiplier, more: "the apps are popular right now", less: "the apps are out of favor"}

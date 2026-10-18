@@ -1,0 +1,60 @@
+# Inner-life decisions (engine/systems/coping.py, plans.py, emotion.py). Field meanings: 00_core.yaml, 20_romance.yaml
+# and 20_life.yaml. Extra units:
+#   log  the factors add up to the log of a product compared with a bar (a value v makes it e^v times as strong);
+#        each factor is measured against a typical value, so 0 means "about typical"
+decisions:
+  coping_strategy:
+    label: How to cope with a hard stretch
+    units: utility
+    outcomes: [support, active, religious, distraction, withdrawal]
+    factors:
+      extraversion:      {label: "how outgoing they are", more: "outgoing", less: "reserved"}
+      agreeableness:     {label: "how warm and agreeable they are", more: "warm", less: "prickly"}
+      avoidance:         {label: "keeping people at a distance (attachment avoidance)", more: "keeps people at a distance", less: "comfortable leaning on people"}
+      perceived_support: {label: "believing support is there", more: "believes friends will be there", less: "doubts anyone will be there"}
+      learned:           {label: "what has worked for them before", more: "it worked before", less: "it hasn't worked before"}
+      no_one_close:      {label: "no close friends or partner to turn to", more: "", less: "no close friends or partner to turn to"}
+      conscientiousness: {label: "how organized and dutiful they are", more: "organized and dutiful", less: "not one for plans"}
+      controllable:      {label: "a problem they can do something about (school, money, dating)", more: "something they can work on", less: ""}
+      self_efficacy:     {label: "confidence in their schoolwork", more: "confident in their schoolwork", less: "unsure of their schoolwork"}
+      faith:             {label: "how much faith means to them", more: "faith means a lot to them", less: "faith means little to them"}
+      not_religious:     {label: "faith matters little to them", more: "", less: "faith matters little to them"}
+      sensation:         {label: "sensation seeking", more: "seeks new experiences", less: "cautious"}
+      cares_health:      {label: "how much fitness matters to them", more: "cares about fitness", less: ""}
+      cares_fun:         {label: "how much having fun matters to them", more: "cares about having fun", less: ""}
+      neuroticism:       {label: "emotional sensitivity", more: "easily overwhelmed", less: "even-keeled"}
+      social_anxiety:    {label: "social anxiety", more: "socially anxious", less: "at ease with people"}
+      expect_social:     {label: "what they expect from people", more: "expects people to be cold", less: "expects people to be warm"}
+  form_intention:
+    label: What they set out to do this week
+    units: log
+    outcomes: [ask_out, reconnect, meet_people, study_more, find_work, return_to_church]
+    factors:
+      base:       {label: "where a typical person in a typical situation stands against the bar for making a plan", more: "", less: ""}
+      drive_partnership: {label: "how much they wanted a relationship", more: "really wanted a relationship", less: "only mildly wanted a relationship"}
+      drive_connection:  {label: "how much they wanted friendship and belonging", more: "longed for closer friends", less: "only mildly wanted more friends"}
+      drive_achievement: {label: "how much they wanted to do well in school", more: "really wanted to do well in school", less: "school wasn't pressing"}
+      drive_security:    {label: "how much they wanted money and security", more: "worried about money", less: "money wasn't pressing"}
+      drive_faith:       {label: "how much they wanted to live their faith", more: "wanted their faith back", less: "faith wasn't pressing"}
+      crush:      {label: "how attracted they are to the person", more: "a strong crush", less: "a mild crush"}
+      expect:     {label: "what they've learned to expect when asking", more: "usually hears yes", less: "expects a no"}
+      closeness:  {label: "how close the friend is", more: "a close friend", less: "not that close"}
+      few_friends: {label: "how few friends they have", more: "has few friends", less: "already has some friends"}
+      grades:     {label: "low grades", more: "grades are slipping", less: ""}
+  depression_onset:
+    label: Whether a depressive episode begins (this week)
+    units: logit
+    outcomes: [started]
+    factors:
+      base:        {label: "how rare an episode is in any one week", more: "", less: "an episode is rare in any one week"}
+      low_mood:    {label: "low mood over the past two months", more: "weeks of low mood", less: ""}
+      history:     {label: "a history of depression", more: "has been depressed before", less: "no history of depression"}
+      neuroticism: {label: "emotional sensitivity", more: "easily overwhelmed", less: "even-keeled"}
+      loneliness:  {label: "loneliness", more: "lonely", less: ""}
+  depression_remission:
+    label: Whether a depressive episode lifts (this week)
+    units: probability
+    outcomes: [lifted]
+    factors:
+      base:            {label: "the usual chance of an episode lifting in a week", more: "episodes usually lift with time", less: ""}
+      mood_recovering: {label: "mood recovering", more: "mood was recovering", less: ""}

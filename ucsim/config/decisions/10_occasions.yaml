@@ -7,6 +7,7 @@ decisions:
       interest:  {label: "how much this kind of event appeals to them", more: "the kind of event they love", less: "not their kind of event"}
       ride:      {label: "a ride there", more: "someone offered a ride", less: ""}
       introduced: {label: "someone wants them to meet a person", more: "a friend wants them to meet someone", less: ""}
+      partner:   {label: "spending evenings with their partner", more: "", less: "spends evenings with their partner"}
       ill:       {label: "sick", kind: constraint, less: "sick"}
       full:      {label: "no room left", kind: constraint, less: "it was already full"}
   host_occasion:

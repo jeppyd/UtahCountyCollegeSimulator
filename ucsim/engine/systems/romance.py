@@ -146,15 +146,17 @@ class Romance:
         occ = sim.systems.get("occasions")
         self.date_occ = occ.plan_dates(self.dates_today, self._dates_meta) if occ is not None else \
             np.full(len(self.dates_today), -1, np.int64)
-        # a date their schedules can't fit today moves to the next day (twice at most), as people would rearrange it
+        # a date their schedules can't fit today (or one of them is sick) moves to the next day, for up to a week, as
+        # people would rearrange it; one that still doesn't fit is dropped
         if occ is not None and len(self.dates_today):
             moved = getattr(self, "_moved", {})
+            tries = int(sim.p("occasions.date.reschedule_days"))
             for j, why in enumerate(occ.date_blocked.tolist()):
                 a_, b_, _ = self.dates_today[j]
                 key = (min(a_, b_), max(a_, b_))
-                if why != 2:
+                if why == 0:
                     moved.pop(key, None)
-                elif moved.get(key, 0) < 2:
+                elif moved.get(key, 0) < tries:
                     dtype, first, cause = self._dates_meta[j]
                     moved[key] = moved.get(key, 0) + 1
                     self.queue.append((day + 1, a_, b_, dtype, first, cause))

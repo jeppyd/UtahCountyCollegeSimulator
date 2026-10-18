@@ -475,6 +475,8 @@ class Occasions:
             "place_culture": p("culture.feedback.reputation") * sim.systems["culture"].complex_social_z(cx),
             "intention": sim.systems["plans"].accept_boost()[person],
             "hurt": -p("occasions.attend.hurt") * hurt,
+            # dating and engaged people spend more evenings with their partner (a date itself is not a get-together)
+            "partner": -np.where(oc["kind"] == self.date_code, 0.0, self._couple_w(person)),
         }
         if rides.any():
             F["ride"] = p("occasions.action.ride") * rides
@@ -514,6 +516,12 @@ class Occasions:
                                    constraints={"conflict": conflict, "cant_get_there": cant, "ill": ill}, block=0)
         book.respond(inv_ids, np.where(yes, RESPONSE_ID["yes"], RESPONSE_ID["no"]).astype(np.int8), w.day, did)
         self._note_trips(inv_ids, f)
+
+    def _couple_w(self, person: np.ndarray) -> np.ndarray:
+        """occasions.couple: how much a serious relationship pulls someone's evenings away from friends."""
+        P, p = self.sim.w.P, self.sim.p
+        return np.where(P.is_("rel_status", "engaged")[person], p("occasions.couple.engaged"),
+                        np.where(P.is_("rel_status", "dating")[person], p("occasions.couple.dating"), 0.0))
 
     def _friends_likely(self, occ: np.ndarray, person: np.ndarray, p0: np.ndarray) -> np.ndarray:
         """For each invitee, how many friends (stage ≥ 3) among the same occasion's invitees would likely go."""
@@ -873,7 +881,9 @@ class Occasions:
         c = self._occ_cols(occ)
         o_org = c["organizer"].astype(np.int64)
         rides = self._ride_driver(occ, person) != -1
-        f = self._feasible(person, day, c["start"], c["dur"], c["lon"], c["lat"], occ=occ, ride=rides)
+        # a booked date is firm for both: a get-together that comes up later doesn't cut into it
+        f = self._feasible(person, day, c["start"], c["dur"], c["lon"], c["lat"], occ=occ, ride=rides,
+                           firm=c["kind"] == self.date_code)
         ill = P["ill"][person] | ~P["present"][person]
         close = np.where(o_org >= 0, sim.systems["encounters"]._closeness(person, np.maximum(o_org, 0)), 0.5)
         ago = day - I["decided_day"][m]

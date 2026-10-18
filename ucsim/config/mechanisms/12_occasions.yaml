@@ -103,12 +103,37 @@ mechanisms:
     label: Evenings hang together
     target: activity_now
     sources: [activity_now]
-    form: "Late-evening free-time utility += continue for the option chosen in the early evening (same friend's place, same venue)."
+    form: "Late-evening free-time utility += continue for the option chosen in the early evening (same friend's place, same venue); − settled on going out (eating out, outdoors, a friend's place, the complex) for someone who chose to stay home in the early evening."
     params:
       continue: {value: 2.0, range: [0.5, 3.5]}
+      settled: {value: 1.5, range: [0.0, 3.0]}
     timescale: block
     evidence: hypothetical
-    desc: "The day now has two evening blocks; most outings started at 6 pm carry on past 8:15, so the evening's social exposure matches the old single evening."
+    desc: "The day now has two evening blocks; most outings started at 6 pm carry on past 8:15 and few new ones start after a quiet early evening, so the evening's social exposure stays close to the old single evening (settled is set so the late block's free-time outings are about as common as the early evening's; hypothetical)."
+  occasions.couple:
+    label: Couples spend evenings together (dyadic withdrawal)
+    target: social_events_month
+    sources: [rel_status]
+    form: "Dating and engaged people: free-time utility of a friend's place and of hanging out around the complex −= dating / engaged, and logit(go) to a get-together −= the same (married people have their own home-life terms)."
+    params:
+      dating: {value: 0.35, range: [0.0, 1.0]}
+      engaged: {value: 0.9, range: [0.3, 1.5]}
+    timescale: block
+    evidence: calibrated
+    refs: ["Johnson & Leslie (1982) Social Psychology Quarterly 45:34-43: couple involvement and network structure (dyadic withdrawal)",
+           "Milardo (1982) Social Psychology Quarterly 45:162-172: friendship networks in developing relationships",
+           "Strengths set toward ProvoStats 'social events per month' by relationship status (engaged ~4.8 vs single ~8)"]
+    desc: "As a relationship gets serious, people see their friends less and their partner more. The direction is well documented; the sizes are fitted to the survey's social events by relationship status, so those rows are no longer an independent check."
+  occasions.date:
+    label: Fitting a date into two schedules
+    target: dates_30d
+    sources: [shift times, class times, ill]
+    form: "A date is booked at the date type's usual time, moved later until both are free (a shift that ends at 8: a 9 pm date) or earlier to end before one of them has to leave; when it can't fit today, or one of them is sick, it moves to the next day, for up to reschedule_days days."
+    params:
+      reschedule_days: {value: 6, range: [2, 7]}
+    timescale: daily
+    evidence: hypothetical
+    desc: "Couples work dates around shifts and classes; with weekly shift patterns, trying the next six days finds a free evening if one exists."
   occasions.action:
     label: How people respond to what a user arranges (social actions)
     target: social_events_month

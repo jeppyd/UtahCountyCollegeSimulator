@@ -430,6 +430,8 @@ class Activity:
         enrolled = P["enrolled"][idx]
         in_term = np.where(P["school"][idx] == 1, bool(env["term_BYU"]), bool(env["term_UVU"]))
         married = P.is_("rel_status", "married")[idx]
+        couple = np.where(P.is_("rel_status", "engaged")[idx], p("occasions.couple.engaged"),
+                          np.where(P.is_("rel_status", "dating")[idx], p("occasions.couple.dating"), 0.0))
         late = b == 3
         # habit/trait bases plus the person's current drives (mind.choice): rest pulls home, achievement to campus,
         # fitness to the gym, fun to venues and the outdoors, connection to friends
@@ -474,12 +476,14 @@ class Activity:
             add("extraversion", "outgoing", 6, 0.35 * E, m)
             add("weekend", "weekend", 6, 0.5 * weekend, m)
             add("married", "married (home life)", 6, -0.5 * married, m)
+            add("partner", "evenings with their partner", 6, -couple, m)
         if b >= 2:
             m = open_(7, P["complex_id"][idx] >= 0)
             add("base", "hanging out around the complex", 7, -2.0, m)
             add("extraversion", "outgoing", 7, 0.4 * E, m)
             add("approach", "wants company", 7, 0.5 * appr, m)
             add("culture", "a social complex", 7, p("culture.feedback.reputation") * sim.systems["culture"].complex_social_z(P["complex_id"][idx]), m)
+            add("partner", "evenings with their partner", 7, -couple, m)
         # dances are planned events now (open occasions in systems/occasions.py), not a free-time option
         for name, label, bias in (("routine", "habit (what they usually do then)", "routine"), ("coping", "coping with a hard stretch", "coping"),
                                   ("intention", "an intention (meeting people)", "plans")):
@@ -497,7 +501,8 @@ class Activity:
             U += wb
             if explain:
                 terms["whatif"] = ("the What-if's nudge", wb)
-        # an evening is mostly one thing: carry on with what the early evening started
+        # an evening is mostly one thing: carry on with what the early evening started; someone who chose to stay in
+        # for the early evening rarely heads out after 8:15 (the old single evening was one choice)
         if late and self._prev is not None and len(self._prev[0]) >= int(idx.max(initial=-1)) + 1:
             pc = self._prev[0][idx]
             cont = (pc != NONE) & (pc < 8)
@@ -508,6 +513,14 @@ class Activity:
                 U += C
                 if explain:
                     terms["continue"] = ("carrying on with the evening", C)
+            settled = pc == 0
+            if settled.any():
+                S = np.zeros((k, 8))
+                S[np.ix_(np.where(settled)[0], [3, 4, 6, 7])] = -p("occasions.evening.settled")
+                S = np.where(avail, S, 0.0)
+                U += S
+                if explain:
+                    terms["settled"] = ("already in for the night", S)
         for col, grp in ((3, "food"), (4, "outdoors")):
             if grp in self.empty_groups:
                 U[:, col] = -9

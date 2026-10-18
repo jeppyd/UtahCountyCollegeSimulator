@@ -122,7 +122,7 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   in the guide, screenshots in docs/img/bench-*.png. `/api/cohort_timeline` takes `people` (hand-picked selection).
   Fixed: routes_occasions/routes_act imported `WS` from `.server`, which under `python -m ucsim.api.server` is a
   second, empty module (every occasion/day/act call said "universe 'base' not available"); they now use
-  routes_trace._server. Map tool was blank (maplibre's CSS made its container 0 px tall); fixed. 174 tests pass; web
+  routes_trace._server. Map tool was blank (maplibre's CSS made its container 0 px tall); fixed. 173 tests pass; web
   build passes.
 - Next: scales (continue `wip/scales`), then calendar-weather and the rest in the order below.
 

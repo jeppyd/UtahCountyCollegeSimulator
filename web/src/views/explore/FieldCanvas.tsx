@@ -7,6 +7,8 @@ import { axisStyle, CohortBar, condLabel, cssVar, Decomposition, EChart, Evidenc
 import { DRAWERS, drawerOf, favg, fdelta, fmeaning, fpair, fval, GROUPS, isCat, pctStr, polarity, pretty, sizeWord, SPLITS } from '../../fields'
 import { DeltaChip, G, UBadge, uColor, useAsync } from '../../game'
 import { nameOf } from '../../names'
+import { Ruler } from '../../kit/Ruler'
+import { anchorWords, distOf } from '../../kit/scales'
 import { Cond, useLens, useStore, VarSpec } from '../../store'
 
 const EMO = ['mood', 'loneliness', 'stress', 'anxiety', 'belonging', 'self_esteem', 'guilt', 'fatigue', 'purpose', 'financial_stress', 'academic_pressure', 'romantic_longing']
@@ -129,29 +131,23 @@ function kpiOf(spec: VarSpec, a?: Column, ma?: Uint8Array | null, b?: Column, mb
   out.push({ label: 'People', value: s.n.toLocaleString() })
   return out
 }
-/** Where the numbers sit on their scale: the ends in words (or each survey answer), the middle half of people, and the average. */
+/** Where the numbers sit on their scale: the ruler with its anchor words, where this group sits (the middle half as a
+ *  band, 10th–90th as whiskers, the median), the group's average marked, and how the field is measured. */
 function ScaleBar({ spec, a, ma, b, mb }: { spec: VarSpec; a?: Column; ma?: Uint8Array | null; b?: Column; mb?: Uint8Array | null }) {
   const sc = spec.scale
-  const st = useMemo(() => (a && ma ? stats(values(a, ma)) : null), [a, ma])
+  const d = useMemo(() => (a && ma ? distOf(values(a, ma)) : null), [a, ma])
   const mB = useMemo(() => (b && mb ? stats(values(b, mb)).mean : null), [b, mb])
-  if (!sc || isCat(spec) || !st || !(sc.low || sc.percent || sc.z)) return null
-  const lo = sc.z ? -3 : sc.min ?? 0, hi = sc.z ? 3 : sc.max ?? 1
-  const pos = (x: number) => `${Math.max(0, Math.min(100, (100 * (x - lo)) / (hi - lo || 1)))}%`
-  const ticks: [number, string][] = sc.levels ? sc.levels.map((l, k) => [(sc.min ?? 0) + k, l])
-    : sc.z ? [[-2, '−2'], [-1, '−1'], [0, 'average'], [1, '+1'], [2, '+2']]
-    : sc.percent ? [[0, '0%'], [0.25, '25%'], [0.5, '50%'], [0.75, '75%'], [1, '100%']]
-    : [[lo, `${fmt(lo, 2)}`], [(lo + hi) / 2, `${fmt((lo + hi) / 2, 2)}`], [hi, `${fmt(hi, 2)}`]]
+  if (!sc || isCat(spec) || !d) return null
   return (
     <div className="scalebar" aria-label={`${spec.label} scale`}>
-      {!sc.levels && !sc.percent && <div className="sb-ends small"><span>← {sc.low}</span><span>{sc.high} →</span></div>}
-      <div className="sb-track">
-        <div className="sb-iqr" style={{ left: pos(st.q1), width: `calc(${pos(st.q3)} - ${pos(st.q1)})` }} title={`middle half of people: ${fval(spec, st.q1)} – ${fval(spec, st.q3)}`} />
-        {ticks.map(([x]) => <i key={x} className="sb-tick" style={{ left: pos(x) }} />)}
-        <div className={`sb-mark ${mB !== null ? 'base' : ''}`} style={{ left: pos(st.mean) }}><span>{mB !== null ? 'Original ' : 'average '}{favg(spec, st.mean)}</span></div>
-        {mB !== null && <div className="sb-mark alt" style={{ left: pos(mB) }}><span>What-if {favg(spec, mB)}</span></div>}
+      <Ruler v={spec.id} dist={d} value={d.mean} caption={false} />
+      <div className="small" style={{ marginTop: 2 }}>
+        <span className={mB !== null ? 'u-base-t' : ''}>{mB !== null ? 'Original' : 'Average'} <b className="tabular">{favg(spec, d.mean)}</b>{anchorWords(sc, d.mean) ? ` · ${anchorWords(sc, d.mean)}` : ''}</span>
+        {mB !== null && <span className="u-alt-t"> · What-if <b className="tabular">{favg(spec, mB)}</b>{anchorWords(sc, mB) ? ` · ${anchorWords(sc, mB)}` : ''}</span>}
+        <span className="muted"> · band = middle half of this group, whiskers = 10th–90th percentile</span>
       </div>
-      <div className="sb-labels">{ticks.map(([x, l]) => <span key={x} style={{ left: pos(x) }}>{l}</span>)}</div>
-      {sc.note && <p className="small muted" style={{ margin: '4px 0 0' }}>{sc.note}</p>}
+      {sc.how && <p className="small muted" style={{ margin: '4px 0 0' }}><b>How it is measured:</b> {sc.how}</p>}
+      {sc.note && <p className="small muted" style={{ margin: '2px 0 0' }}>{sc.note}</p>}
     </div>
   )
 }

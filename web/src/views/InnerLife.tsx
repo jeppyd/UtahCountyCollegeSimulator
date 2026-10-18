@@ -7,6 +7,7 @@ import { Loading, PersonLink } from '../components'
 import { pretty } from '../fields'
 import { CatIcon, useAsync } from '../game'
 import { useLens, useStore } from '../store'
+import { Val } from '../kit/Val'
 import { Story, useAdvanced } from '../ui'
 
 const INTENT: Record<string, string> = {
@@ -45,7 +46,7 @@ export function InnerLife({ id, first }: { id: number; first: string }) {
               <div key={m.motive} className={`motive ${m.motive === top.motive ? 'top' : ''}`} title={`cares ${n2(m.cares)} · fulfilled ${n2(m.fulfilled)} · drive ${n2(m.drive)}`}>
                 <span className="mo-label">{m.label}</span>
                 <span className="mo-track"><i className="mo-cares" style={{ width: `${100 * (m.cares ?? 0)}%` }}><b style={{ width: `${100 * (m.fulfilled ?? 0)}%` }} /></i></span>
-                <span className="mo-drive tabular">{n2(m.drive)}</span>
+                <span className="mo-drive tabular"><Val v={`drive_${m.motive}`} value={m.drive}>{n2(m.drive)}</Val></span>
               </div>
             ))}
           </div>
@@ -121,7 +122,7 @@ export function InnerLife({ id, first }: { id: number; first: string }) {
               <div key={s} className={`motive ${d.coping.strategy === s ? 'top' : ''}`}><span className="mo-label">{STRAT_SHORT[s]}</span>
                 <span className="mo-track"><i className="mo-plain" style={{ width: `${100 * v}%` }} /></span><span className="mo-drive tabular">{n2(v)}</span></div>))}
           </div>
-          <div className="small muted" style={{ margin: '6px 0' }}>Tendency to ruminate: {n2(d.coping.rumination)}{adv ? ` · need ${n2(d.coping.need)} · relief ${n2(d.coping.relief)}` : ''}</div>
+          <div className="small muted" style={{ margin: '6px 0' }}>Tendency to ruminate: <Val v="rumination" value={d.coping.rumination} show="words" />{adv ? ` · need ${n2(d.coping.need)} · relief ${n2(d.coping.relief)}` : ''}</div>
           <div className="episodes">
             {d.coping.episodes.slice().reverse().slice(0, 6).map((e: any) => (
               <div key={e.id} className="small">{fmtDate(e.date)} · {e.type === 'coping_started'
@@ -150,7 +151,7 @@ export function InnerLife({ id, first }: { id: number; first: string }) {
                 const s = d.routine.find((x: any) => x.day === day && x.block === b)
                 return <td key={day} title={s ? `${s.activity} · habit ${n2(s.strength)}` : 'no routine'} style={{ background: s ? `color-mix(in srgb, var(--s3) ${Math.round(15 + 70 * s.strength)}%, var(--surface-1))` : undefined }}>{s ? s.activity.split(' ')[0] : ''}</td>
               })}</tr>))}</tbody></table>
-          <div className="small muted" style={{ marginTop: 6 }}>How settled: {n2(d.routine_strength)}</div>
+          <div className="small muted" style={{ marginTop: 6 }}>How settled: <Val v="routine_strength" value={d.routine_strength} show="words" /></div>
         </div>
       </div>
 

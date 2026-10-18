@@ -111,3 +111,15 @@ export function useDist(v: string | undefined, u?: Universe): Dist | null {
   }, [key])
   return d
 }
+
+/** A distribution computed in the browser from a group's values (for a cohort the server wasn't asked about). */
+export function distOf(xs: ArrayLike<number>): Dist | null {
+  const v = Float64Array.from(Array.prototype.filter.call(xs, (x: number) => Number.isFinite(x)) as number[]).sort()
+  const n = v.length
+  if (!n) return null
+  const at = (p: number) => { const r = (p / 100) * (n - 1), k = Math.floor(r); return v[k] + (v[Math.min(n - 1, k + 1)] - v[k]) * (r - k) }
+  const q = Array.from({ length: 101 }, (_, p) => at(p))
+  let s = 0
+  for (let i = 0; i < n; i++) s += v[i]
+  return { n, mean: s / n, min: v[0], max: v[n - 1], p10: q[10], p25: q[25], p50: q[50], p75: q[75], p90: q[90], q }
+}

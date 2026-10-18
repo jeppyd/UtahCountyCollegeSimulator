@@ -7,6 +7,7 @@ import { VarPicker } from '../../components'
 import { fval } from '../../fields'
 import { useAsync } from '../../game'
 import { Busy, dayWords, Problem, useWidth, useWorldDays } from '../../kit/Bits'
+import { Ruler } from '../../kit/Ruler'
 import { loadColumns, useLens, useStore } from '../../store'
 import { PanelOptions } from '../panel'
 import type { PanelProps, ToolDef } from '../registry'
@@ -15,12 +16,14 @@ import { selPeople } from '../sel'
 const BINS = 24
 const SEL_C = 'var(--accent)', ALL_C = 'var(--text-muted)'
 
-function MeasureTool({ sel, opts, setOpts }: PanelProps) {
+function MeasureTool({ sel, setSel, opts, setOpts }: PanelProps) {
   const u = useLens().u
   const dataVersion = useStore(s => s.dataVersion)
   const reg = useStore(s => s.registry)!
   const { start } = useWorldDays()
-  const v: string = reg.variables[opts.var] ? opts.var : 'loneliness'
+  // a focused field (from Scales, a chip…) wins; otherwise the panel's own choice
+  const fv = sel.item?.kind === 'var' && reg.variables[String(sel.item.id)] ? String(sel.item.id) : null
+  const v: string = fv ?? (reg.variables[opts.var] ? opts.var : 'loneliness')
   const spec = reg.variables[v]
   const cat = spec?.dtype === 'cat' || spec?.dtype === 'bool'
   // the selected people (or the focused person) and/or the selected group
@@ -90,16 +93,13 @@ function MeasureTool({ sel, opts, setOpts }: PanelProps) {
   return (
     <div className="bme" ref={wrap}>
       <PanelOptions>
-        <VarPicker value={v} onChange={x => x && setOpts({ ...opts, var: x })} placeholder="Pick a field" />
+        <VarPicker value={v} onChange={x => { if (!x) return; setOpts({ ...opts, var: x }); if (fv) setSel({ item: undefined }) }} placeholder="Pick a field" />
       </PanelOptions>
       <div className="bme-scale">
         <b style={{ color: 'var(--text-primary)' }}>{spec?.label ?? v}</b>
         {spec?.desc && <span>{spec.desc}</span>}
-        {(spec?.scale?.low || spec?.scale?.high) && !spec?.scale?.note && (
-          <div className="ends"><span>{spec.scale.min ?? ''} {spec.scale.low ? `= ${spec.scale.low}` : ''}</span><span>{spec.scale.max ?? ''} {spec.scale.high ? `= ${spec.scale.high}` : ''}</span></div>
-        )}
         {spec?.scale?.note && <span>{spec.scale.note}</span>}
-        <div className="bme-ruler-slot" data-var={v} />
+        {!cat && <Ruler v={v} value={own && dist && !dist.cat ? dist.ms : undefined} />}
       </div>
       <div className="bx-legend">
         {own && <span><i className="bx-catdot" style={{ background: SEL_C }} />the selection</span>}

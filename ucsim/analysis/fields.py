@@ -125,7 +125,7 @@ def pulse(sim, featured: list | None = None) -> dict:
     # a day in the life: where everyone was in each block of the last full day
     blocks = []
     fr = getattr(sim.systems.get("activity"), "day_frames", None) or {}
-    for b, label in enumerate(("Morning", "Midday", "Evening", "Night")):
+    for b, label in enumerate(("Morning", "Afternoon", "Evening", "Late evening", "Night")):
         if b not in fr:
             continue
         a = np.asarray(fr[b][2])

@@ -103,7 +103,8 @@ class Romance:
 
     # ------------------------------------------------------------------ daily
     def plan_day(self):
-        """Pull today's scheduled dates; choose venues."""
+        """Pull today's scheduled dates; choose venues; book each as an occasion at a time that works for both
+        (systems/occasions.py: shifts and classes move it later; illness or an unavoidable clash cancels it)."""
         sim, w = self.sim, self.sim.w
         P = w.P
         day = w.day
@@ -130,10 +131,39 @@ class Romance:
                     vid = int(kyhv[0])
             self.dates_today.append((a, b, vid))
             self._dates_meta.append((dtype, first, cause))
+        occ = sim.systems.get("occasions")
+        self.date_occ = occ.plan_dates(self.dates_today, self._dates_meta) if occ is not None else \
+            np.full(len(self.dates_today), -1, np.int64)
+        # a date their schedules can't fit today moves to the next day (twice at most), as people would rearrange it
+        if occ is not None and len(self.dates_today):
+            moved = getattr(self, "_moved", {})
+            for j in np.where(occ.date_blocked == 2)[0].tolist():
+                a_, b_, _ = self.dates_today[j]
+                dtype, first, cause = self._dates_meta[j]
+                key = (min(a_, b_), max(a_, b_))
+                if moved.get(key, 0) < 2:
+                    moved[key] = moved.get(key, 0) + 1
+                    self.queue.append((day + 1, a_, b_, dtype, first, cause))
+                    P.internal["date_planned"][[a_, b_]] = day + 1
+            self._moved = {k: v for k, v in moved.items() if v < 3 and len(moved) < 50000}
 
     def evening(self):
+        """After the late evening: how today's dates went, then make-outs at parties and dances."""
         self._run_dates()
-        self._ncmo()
+        occ = self.sim.systems.get("occasions")
+        act = self.sim.systems["activity"]
+        if occ is None:
+            self._ncmo()
+            return
+        # dancers are at an occasion now; the NCMO step recognizes a dance floor by its context
+        saved = act.ctype
+        view = saved.copy()
+        view[occ.dancers()] = CTX_ID["dance"]
+        act.ctype = view
+        try:
+            self._ncmo()
+        finally:
+            act.ctype = saved
 
     def daily(self):
         sim, w = self.sim, self.sim.w
@@ -337,12 +367,19 @@ class Romance:
         day = w.day
         if not self.dates_today:
             return
-        a = np.array([d[0] for d in self.dates_today])
-        b = np.array([d[1] for d in self.dates_today])
-        venue = np.array([d[2] for d in self.dates_today])
-        dtypes = [m[0] for m in self._dates_meta]
-        first = np.array([m[1] for m in self._dates_meta])
-        cause = np.array([m[2] for m in self._dates_meta])
+        occ_ids = np.asarray(getattr(self, "date_occ", np.full(len(self.dates_today), -1)), np.int64)
+        occs = sim.systems.get("occasions")
+        took_place = occs.date_happened(occ_ids) if occs is not None else np.ones(len(self.dates_today), bool)
+        if not took_place.any():
+            return
+        keep = np.where(took_place)[0]
+        a = np.array([self.dates_today[j][0] for j in keep])
+        b = np.array([self.dates_today[j][1] for j in keep])
+        venue = np.array([self.dates_today[j][2] for j in keep])
+        dtypes = [self._dates_meta[j][0] for j in keep]
+        first = np.array([self._dates_meta[j][1] for j in keep], bool)
+        cause = np.array([self._dates_meta[j][2] for j in keep])
+        occ_ids = occ_ids[keep]
         keys = EdgeStore.make_keys(a, b)
         eix = E.upsert(keys)
         rng = sim.streams.gen("date_outcome", day)
@@ -381,14 +418,14 @@ class Romance:
         if first.any():
             P.cols["first_dates_total"][np.r_[a[first], b[first]]] += 1
             e1 = sim.emit("first_date", a[first], b=b[first], value=q[first], cause=cause[first], place=venue[first],
-                          block=2, mech="romance.date", ev={"quality": q[first]})
+                          block=2, mech="romance.date", ev={"quality": q[first]}, causes=[("occasion", occ_ids[first], 1.0)])
             sim.emit("first_date", b[first], b=a[first], value=q[first], cause=cause[first], place=venue[first],
-                     block=2, mech="romance.date", ev={"quality": q[first]})
+                     block=2, mech="romance.date", ev={"quality": q[first]}, causes=[("occasion", occ_ids[first], 1.0)])
             ev_first[first] = e1
         if (~first).any():
             nf = ~first
             sim.emit("date", a[nf], b=b[nf], value=q[nf], cause=cause[nf], place=venue[nf], block=2,
-                     mech="romance.date", ev={"quality": q[nf]})
+                     mech="romance.date", ev={"quality": q[nf]}, causes=[("occasion", occ_ids[nf], 1.0)])
         date_ev = np.where(ev_first >= 0, ev_first, cause)
         # kissing
         att_ab = E.attraction_from(eix, a)

@@ -42,9 +42,10 @@ class PersonTable:
     def __contains__(self, key):
         return key in self.cols or key in self.internal
 
-    def add_internal(self, key: str, dtype=np.float32, fill=0):
+    def add_internal(self, key: str, dtype=np.float32, fill=0, shape: tuple = ()):
+        """An engine-only column; `shape` adds trailing dimensions (e.g. (7,) for one value per weekday)."""
         if key not in self.internal:
-            self.internal[key] = np.full(self.cap, fill, dtype=dtype)
+            self.internal[key] = np.full((self.cap, *shape), fill, dtype=dtype)
             self._internal_fill[key] = fill
 
     def code(self, var: str, label: str) -> int:
@@ -73,7 +74,7 @@ class PersonTable:
             for store in (self.cols, self.internal):
                 for key, arr in store.items():
                     fill = self.specs[key].default_fill() if key in self.specs else self._internal_fill.get(key, 0)
-                    grown = np.full(new_cap, fill, dtype=arr.dtype)
+                    grown = np.full((new_cap, *arr.shape[1:]), fill, dtype=arr.dtype)
                     grown[: self.cap] = arr
                     store[key] = grown
             self.cap = new_cap

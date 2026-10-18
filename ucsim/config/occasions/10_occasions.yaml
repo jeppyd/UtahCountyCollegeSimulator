@@ -1,0 +1,79 @@
+# Occasions system (engine/systems/occasions.py): extra fields on the core kinds and the kinds it adds.
+# Fields read by the occasions system (all optional; defaults in parentheses):
+#   talk_h    hours a conversation there lasts on average (home 2.24 = the old get-together, venue 0.4, campus 0.5)
+#   invites   mean number of people a host invites (5)
+#   cost      dollars per guest the host spends (0); dollars per person to get in, for open occasions (0)
+#   ncmo      true where make-outs can happen (parties, dances, late get-togethers)
+#   act       what the map shows people doing there (an activity_now label; default from `where`)
+#   latest    latest start, "HH:MM", when a host moves it later to fit their own day (start + 1:30)
+#   lead      days ahead a host plans it (0 = the same day)
+# A core kind gets these through `extend: true` (registry merges the fields it doesn't have yet).
+occasions:
+  gathering:
+    extend: true
+    talk_h: 2.24
+    invites: 5
+    ncmo: true
+    act: gathering
+    latest: "21:00"
+  dinner:
+    extend: true
+    talk_h: 2.24
+    invites: 4
+    cost: 4
+    act: gathering
+    latest: "20:00"
+  game_night:
+    extend: true
+    talk_h: 2.24
+    invites: 5
+    ncmo: true
+    act: gathering
+    latest: "21:30"
+  party:
+    extend: true
+    talk_h: 1.6
+    invites: 10
+    cost: 2
+    ncmo: true
+    act: gathering
+    latest: "22:00"
+    lead: 3
+  study_group:
+    extend: true
+    talk_h: 0.6
+    invites: 4
+    act: campus
+    latest: "20:30"
+  date:
+    extend: true
+    talk_h: 2.5
+    act: date
+  # A dance: open to everyone who hears about it (YSA stake dances, country-dance nights). Who considers going:
+  # single people 18–30; how keen: their dancing habit, wanting a partner, wanting fun, wanting company.
+  # base is calibrated so about 2% of young singles go on a Thursday–Saturday night (the share the old free-time
+  # choice produced; hypothetical against data we don't have).
+  dance:
+    extend: true
+    talk_h: 0.4
+    ncmo: true
+    act: venue
+    cost: 5
+    audience:
+      - {var: rel_status, op: in, value: [single, talking, divorced]}
+      - {var: age, op: between, value: [18, 30.99]}
+    base: -4.6
+    interest: {dancing: 1.2, drive_partnership: 2.0, drive_fun: 1.0, extraversion: 0.25}
+    capacity: -1
+  introduction:
+    label: Getting introduced
+    where: venue
+    start: "19:00"
+    dur: 60
+    open: false
+    social: false
+    category: social
+    rate: 1.0
+    talk_h: 0.8
+    act: venue
+    latest: "21:00"

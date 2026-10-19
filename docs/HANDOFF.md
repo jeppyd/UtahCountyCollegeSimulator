@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| Claude Code (cloud session) | 2026-10-19 | talk | WIP on `wip/talk`. |
+| — | — | — | Nobody. Talk merged 2026-10-19; next is travel. |
 
 ## The goal in one paragraph
 
@@ -67,8 +67,8 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [scales](workstreams/scales.md) | **done, merged** | working branch | — |
 | [sexuality-survey](workstreams/sexuality-survey.md) (+ dealbreakers) | **done, merged** | working branch | open issues below |
 | [calendar-weather](workstreams/calendar-weather.md) | **done, merged** | working branch | open issues below |
-| [talk](workstreams/talk.md) (Ask + interviews) | **in progress** | `wip/talk` | facts, checker, jobs, routes, tools |
-| [travel](workstreams/travel.md) | not started | — | can start any time (keeps `ucsim/geo/travel.py`'s interface) |
+| [talk](workstreams/talk.md) (Ask + interviews) | **done, merged** | working branch | open issues below |
+| [travel](workstreams/travel.md) | not started | — | next (keeps `ucsim/geo/travel.py`'s interface) |
 | [messaging](workstreams/messaging.md) (wave 2) | not started | — | after time-occasions |
 | [institutions](workstreams/institutions.md) (wave 2) | not started | — | after time-occasions + provenance |
 | [family-homes](workstreams/family-homes.md) (wave 2) | not started | — | after calendar-weather |
@@ -109,6 +109,13 @@ institutions, family-homes) can start now too, but coordinate: they touch the sa
   (dealbreakers end ~9% of them; reaction and reveal rates are hypothetical). Non-members' limits, masturbation and
   dealbreakers are drawn as the survey's inactive members. `scripts/validate.py` has the new rows but wasn't re-run
   end to end (docs/VALIDATION.md unchanged). No workbench/UI work for intimacy yet beyond the generic field views.
+- Talk: never run against a real model in this container (no claude CLI or local server here) — everything is tested
+  on a scripted stand-in; the owner's first real runs may show prompt/schema issues (the Claude path reuses
+  backends.run_claude with a per-feature pack dir in ~/.ucsim/talk_<feature>/; Codex returns `args_json` unpacked to
+  `args`, both handled). The checker's 100% catch / 0% false-alarm on tests/data/talk_cases.json is on the set it was
+  tuned against (floor in the test: ≥ 90% / ≤ 10%); real answers will be harder — add the misses you see as cases.
+  Name checks know only the synthetic name lists and the fact sheet's own names. Ask's lookups are a fixed list;
+  "why a number changed" is the current decomposition plus the change since a recent history snapshot.
 
 ## Open questions for the owner
 
@@ -128,6 +135,27 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-19 (2) — Claude Code (cloud session)
+- Built and merged **talk** (Ask the world + Interviews). `ucsim/llm/talk/`: `facts.py` (typed claims; the interview
+  dossier — feelings, perceptions, closest ties as they see them, memories read without rehearsing, intentions,
+  coping, the top reason for their own recent decisions — with sensitive fields and events left out by default;
+  `view_vs_truth`; eight query tools: find_people, rank_places, event_counts, explain_feeling, why_changed,
+  most_affected, person, trace), `check.py` (citations, numbers incl. spelled-out and percentages with hedges, names
+  incl. invented synthetic names, causal wording incl. causal "since", feeling words → field value ranges and the
+  person they're about, interview hidden-state rule), `llm.py` (per-feature backend in ~/.ucsim/talk.json: auto =
+  local model for interviews when loaded; FAKE hook for tests), `jobs.py` (start/poll/cancel; check → one repair →
+  drop with reasons; interview safety screen: self-harm methods, clinical advice, theology), `ask.py`,
+  `interview.py` (also in the What-if world). Prompts `llm/prompts/talk_ask.md`, `talk_interview.md`. API
+  `routes_talk.py` (/api/talk/status, settings, ask, ask/{job}, ask/{job}/cancel, interview/{i}, differs/{i}; the
+  What-if local-only guard). Web: `kit/Answer.tsx` (+ useTalkJob, talk.css), workbench tools `Ask.tsx`,
+  `Interview.tsx` (backend picker, "view vs. truth", What-if toggle), talkApi in api.ts, a Guide entry, a section in
+  docs/WHATIF_LLM.md, screenshot docs/img/talk-ask-interview.png (scripted stand-in model).
+  `tests/data/talk_cases.json` (73 seeded statements: 32 true, 41 false across wrong number/person/cause/intensity,
+  hidden-state leak, uncited); `tests/test_talk.py` (evaluation floor, unit tests, Ask and Interview end to end through
+  the API on a fake backend, interviews change nothing, sensitive fields out). 204 tests pass; web build passes.
+- Next: travel, messaging, institutions, family-homes, survey-followups (needs the other surveys' raw CSVs),
+  integration.
 
 ### 2026-10-19 — Claude Code (cloud session)
 - The owner supplied the LDS Sexuality Survey (`data/raw/lds-sexuality_2025-06-29.xlsx`, gitignored), so

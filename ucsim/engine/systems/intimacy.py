@@ -19,7 +19,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.special import expit
 
-from ..provenance import link, mirror, pick, total
+from ..provenance import link, mirror, pick, state_ref, total
 from ..state import EdgeStore, Tie
 
 TIERS = ("touch", "underclothes", "naked", "sex")
@@ -336,6 +336,7 @@ class Intimacy:
         if not go.any():
             return
         x = x[go]
-        sim.emit("bishop_porn_talk", x, mech="intimacy.bishop_porn")
+        ev = sim.emit("bishop_porn_talk", x, mech="intimacy.bishop_porn")
+        link(sim, ev, "state", state_ref(sim, "porn_incongruence", x), P["porn_incongruence"][x], "dissonance")
         P.cols["talked_to_bishop_sexual"][x] = True
         P.cols["bishop_meetings"][x] = np.minimum(P["bishop_meetings"][x] + 1, 10)

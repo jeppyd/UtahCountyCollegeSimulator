@@ -40,15 +40,16 @@ def test_escalation_respects_limits_on_average(ran):
     lim = np.minimum(I.allowed(a, stage), I.allowed(b, stage))
     assert (P["intimacy_level"][a] == P["intimacy_level"][b]).all()
     assert (lvl <= lim).mean() > 0.8                           # most couples stay within both partners' limits
-    # the steps taken: a step past someone's line is much rarer than one within both
+    # the steps taken: a step past someone's line was far less likely, week for week, than one within both
     D = sim.decisions
-    k = D.kind_id["intimacy_step"]
-    rows = np.flatnonzero(D.t["kind"][: D.t.n] == k)
+    rows = np.flatnonzero(D.t["kind"][: D.t.n] == D.kind_id["intimacy_step"])
     assert len(rows) > 0
     fid = D.factor_id["intimacy_step.within_lines"]
     codes, vals = D.t["f_code"][rows], D.t["f_val"][rows].astype(float)
-    within = vals[codes == fid]
-    assert (within > 0).mean() > 0.4
+    within = (np.where(codes == fid, vals, 0).sum(1) > 0)
+    prob = D.t["prob"][rows].astype(float)
+    assert within.any() and (~within).any()
+    assert prob[within].mean() > 2 * prob[~within].mean()
 
 
 def test_dealbreaker_can_end_a_relationship():

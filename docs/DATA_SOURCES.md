@@ -28,6 +28,36 @@ religious mix, activity) are calibrated to institutional targets at synthesis ti
 survey linkage uses only shared bridge variables (sex, religion, activity, age, school proxy) — see
 `MODEL_ASSUMPTIONS.md`.
 
+### The LDS Sexuality Survey (June 2025)
+
+A fifth survey from the owner (LDStats audience; 1,641 responses, an Excel export). `python -m ucsim.ingest.sexuality`
+reads `data/raw/lds-sexuality_2025-06-29.xlsx` in place and adds only its own sections to
+`ucsim/priors/survey_priors.json` (`blocks.lds_sexuality`, `targets.lds_sex_*`, `tables.lds_sex_*`,
+`meta.sources["lds-sexuality"]`); the other four surveys' sections are left exactly as they were.
+
+* **Scope:** ages 18–35, men and women: **1,411 respondents** (50% women; 46% single, 19% in a relationship, 4%
+  engaged, 31% married; 86% active, 12% less active, 2% inactive members; 77% from Utah).
+* **Used for:** sex drive; the relationship stage at which each of four tiers of physical intimacy is acceptable
+  (touching / under clothes / naked / sex; each tier is the median of the survey's "When is this acceptable?" items);
+  sex education at home; shame about sexuality ("my feelings toward sexuality have been negatively impacted by
+  negative cultural messages"); porn use and masturbation in the last year; having addressed porn or masturbation
+  with a bishop; the five dating dealbreakers; married people's satisfaction with their sex life and marriage and
+  the desire gap with their spouse. A Gaussian-copula block bridged to ProvoStats by age, relationship stage,
+  activity, mission and the kissing/NCMO/relationship/sexual-partner counts. Church members' porn use now comes
+  from this survey (it was a literature extrapolation); non-members are drawn as the survey's inactive members.
+* **Targets** (scripts/validate.py): kissing, NCMO and relationship counts by sex, age and activity (held out — an
+  independent check of what ProvoStats seeds); premarital sex among the unmarried by activity; porn use by sex and
+  activity; talking to a bishop by sex; married sexual and marital satisfaction.
+* **Left out on purpose:** City, College and every free-text answer (fantasy, favourite activity, wildest place,
+  "anything else", every "Other – Text"), the extra sheets (Fantasy, Favorites, Location, Dropdowns), birth control,
+  positions, toys and how oral sex ends (the owner's decision), the moral-wrongness-in-marriage and "wish you could"
+  items. These columns are never read (`ucsim/ingest/survey_spec.py` lists the only ones that are).
+* **Privacy:** the same boundary as above; in addition, answer levels held by fewer than 10 people (per sex) are
+  pooled into the neighbouring level before any marginal is stored. `tests/test_sexuality_priors.py` checks it.
+* **Biases:** self-selected LDStats followers willing to answer an explicit survey; a broad age range (the ingest
+  keeps 18–35); mostly Utah and mostly active members, so less-active and inactive cells are small (10–29 or 30–99)
+  and non-members are extrapolated. About a quarter of respondents stop before the attitude and dealbreaker pages.
+
 ## Institutional & market figures (`ucsim/config/world.yaml`)
 
 Fall 2025 headcounts: BYU 37,337 (modeled 35,000 daytime, in-residence) and UVU 48,670 (16,000 in scope).

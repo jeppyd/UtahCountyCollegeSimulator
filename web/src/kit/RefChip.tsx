@@ -45,7 +45,7 @@ const KIND_WORD: Record<string, string> = {
 }
 /** The tool made for each kind of thing (used only when that tool exists on the shelf). */
 export const NATURAL: Partial<Record<RefKind, string>> = {
-  person: 'life', occasion: 'occasion', place: 'place', institution: 'place', tie: 'ties', var: 'measure',
+  person: 'life', occasion: 'occasion', place: 'place', institution: 'institution', tie: 'ties', var: 'measure',
   calendar: 'calendar', thread: 'chats', event: 'timeline', decision: 'trace', state: 'measure', trip: 'day',
 }
 

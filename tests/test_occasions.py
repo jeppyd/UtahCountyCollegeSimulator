@@ -112,6 +112,7 @@ def test_feasibility_shift_then_dinner(fresh):
     day = sim.w.day + 1
     wd = sim.cal.weekday(day)
     P.cols["employed"][i] = True
+    sim.systems["institutions"].shift_flex = lambda people, d: np.zeros(len(np.atleast_1d(people)), bool)  # a firm shift
     P.internal["shift_start"][i, wd] = 15 * 60
     P.internal["shift_end"][i, wd] = 19 * 60
     u = int(P["unit_id"][i])

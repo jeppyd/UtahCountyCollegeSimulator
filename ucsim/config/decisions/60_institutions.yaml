@@ -1,0 +1,12 @@
+# Institution-related choices people make (engine/systems/institutions.py). Field meanings: config/decisions/00_core.yaml.
+decisions:
+  seek_counseling:
+    label: Whether to seek counseling (this week)
+    units: logit
+    outcomes: [sought]
+    factors:
+      base:       {label: "how often struggling students ask for help", more: "", less: "most don't ask"}
+      depression: {label: "being in a depressive episode", more: "depressed", less: ""}
+      strain:     {label: "how much strain they're under", more: "under heavy strain", less: "coping all right"}
+      openness:   {label: "openness to new things", more: "open to it", less: "wary of it"}
+      stigma:     {label: "worry about what others think", more: "", less: "worried what others would think"}

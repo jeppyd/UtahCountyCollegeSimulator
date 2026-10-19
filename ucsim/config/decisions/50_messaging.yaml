@@ -1,0 +1,36 @@
+# Messaging decisions (engine/systems/messaging.py). Field meanings: config/decisions/00_core.yaml.
+decisions:
+  reply_message:
+    label: Whether to reply to a text
+    units: logit
+    outcomes: [replied, no_reply]
+    factors:
+      base:           {label: "how often texts get answered", more: "", less: ""}
+      closeness:      {label: "how close they are", more: "close friends", less: "not that close"}
+      responsiveness: {label: "how responsive they are in general", more: "answers quickly", less: "slow to answer anyone"}
+      mood:           {label: "their mood", more: "in a good mood", less: "feeling low"}
+      busy:           {label: "being at work or in class", more: "", less: "busy"}
+      depression:     {label: "a depressive episode", more: "", less: "withdrawn while depressed"}
+  share_news:
+    label: Whether to tell people their news
+    units: logit
+    outcomes: [shared, kept_private]
+    factors:
+      base:          {label: "how often people share news", more: "", less: ""}
+      privacy:       {label: "how private the news is", more: "", less: "a private matter"}
+      extraversion:  {label: "how outgoing they are", more: "outgoing", less: "reserved"}
+      close_friends: {label: "how many close friends they have", more: "many close friends", less: "few close friends"}
+  add_to_chat:
+    label: Adding someone to a group chat
+    units: logit
+    outcomes: [added]
+    factors:
+      closeness:    {label: "how close they are", more: "close", less: ""}
+      in_the_group: {label: "being part of the same circle of friends", more: "in the same circle", less: ""}
+  leave_chat:
+    label: Leaving a group chat
+    units: logit
+    outcomes: [left]
+    factors:
+      base:    {label: "how often people leave a chat", more: "", less: "most stay"}
+      drifted: {label: "how far they've drifted from the group", more: "drifted away from them", less: "still close"}

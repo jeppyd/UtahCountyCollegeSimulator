@@ -1,0 +1,70 @@
+# Events from engine/systems/messaging.py. Same fields as events.yaml; magnitudes hypothetical and small.
+events:
+  felt_ignored:
+    label: Felt ignored
+    story: "{a} felt ignored when {b} didn't answer"
+    category: social
+    salience: 0.35
+    effects:
+      - {var: loneliness, mag: 0.02, sd: 0.4, half_life: 5, mods: {rejection_sensitivity: 0.4}}
+      - {var: self_esteem, mag: -0.01, sd: 0.4, half_life: 7, mods: {rejection_sensitivity: 0.3}}
+      - {var: mood, mag: -0.015, sd: 0.4, half_life: 3}
+    evidence: hypothetical
+    desc: "A text went unanswered for a couple of days and they read it as being ignored (more likely for rejection-sensitive people)."
+  assumed_busy:
+    label: Figured they were busy
+    story: "{a} figured {b} was just busy"
+    category: social
+    salience: 0.1
+    effects: []
+    evidence: hypothetical
+    desc: "A text went unanswered and they didn't take it personally."
+  left_out:
+    label: Found out they were left out
+    story: "{a} found out friends got together at {b}'s without them"
+    category: social
+    salience: 0.5
+    effects:
+      - {var: belonging, mag: -0.03, sd: 0.4, half_life: 10}
+      - {var: loneliness, mag: 0.03, sd: 0.4, half_life: 7, mods: {rejection_sensitivity: 0.3}}
+      - {var: mood, mag: -0.02, sd: 0.4, half_life: 3}
+    evidence: hypothetical
+    refs: ["Przybylski et al. (2013): fear of missing out"]
+  assumed_not_interested:
+    label: Didn't think they'd want to come
+    story: "{a} didn't invite {b}, figuring they wouldn't be interested"
+    category: social
+    salience: 0.15
+    effects: []
+    evidence: hypothetical
+  group_chat_started:
+    label: Started a group chat
+    story: "{a} started a group chat with their friends"
+    category: social
+    salience: 0.3
+    effects:
+      - {var: belonging, mag: 0.01, sd: 0.4, half_life: 10}
+    evidence: hypothetical
+  added_to_chat:
+    label: Added to a group chat
+    story: "{a} was added to a group chat"
+    category: social
+    salience: 0.15
+    effects:
+      - {var: belonging, mag: 0.008, sd: 0.4, half_life: 7}
+    evidence: hypothetical
+    desc: "The value says which kind: 0 apartment, 1 friend group, 2 club, 3 team, 4 ward, 5 family."
+  left_chat:
+    label: Left a group chat
+    story: "{a} left a group chat"
+    category: social
+    salience: 0.15
+    effects: []
+    evidence: hypothetical
+  muted_chat:
+    label: Muted a group chat
+    story: "{a} quietly muted a busy group chat"
+    category: social
+    salience: 0.05
+    effects: []
+    evidence: hypothetical

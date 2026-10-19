@@ -1,0 +1,42 @@
+# Family and home states (engine/systems/family.py): where people are from and their family back home. Kin are
+# light records off-map (parents, siblings, grandparents); trips home are in the family system's trip ledger.
+entity: person
+defaults: {domain: demographics, kind: attribute, dtype: f4, update: static, evidence: calibrated, flags: [filter, chart]}
+variables:
+  home_state:
+    label: Home state
+    dtype: cat
+    categories: ["", "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "District of Columbia", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming", "International"]
+    desc: "The state their family lives in (International for those from abroad), consistent with where they're from: ProvoStats' origin-state shares within each region. Utah homes are split by county (Utah County when their family is local)."
+    init: "origin_region + tables.origin_state (ProvoStats)"
+    source: [provostats]
+    flags: [filter, chart, map]
+  home_drive_hours:
+    label: Drive home
+    units: hours
+    range: [0, 30]
+    desc: "Hours by car to their family's home (1.25 × the straight-line distance at 95 km/h). Beyond about 12 hours people fly."
+    init: "distance from Provo to the home metro"
+  family_closeness:
+    label: Closeness to family
+    domain: social_emotion
+    kind: state
+    range: [0, 1]
+    desc: "How close they are to their family back home: higher with agreeableness, family expectations and a local family, lower when parents divorced. Raises the pull of trips home and homesickness after."
+    evidence: hypothetical
+  n_siblings:
+    label: Siblings
+    dtype: u1
+    kind: history
+    range: [0, 12]
+    units: people
+    desc: "Brothers and sisters (more in Latter-day Saint families: Poisson mean 3.2 vs 1.6)."
+    evidence: hypothetical
+  trips_home:
+    label: Trips home
+    dtype: i2
+    kind: history
+    update: event
+    range: [0, 60]
+    units: trips
+    desc: "Trips home since the story began (weekends, holidays, family events)."

@@ -1,0 +1,71 @@
+# Events from engine/systems/family.py. Same fields as events.yaml; magnitudes hypothetical.
+events:
+  went_home:
+    label: Went home
+    story: "{a} went home to see family"
+    category: family
+    salience: 0.5
+    effects: []
+    evidence: hypothetical
+    desc: "The value says why: 0 a weekend, 1 Thanksgiving, 2 Christmas, 3 a wedding, 4 a mission farewell or homecoming, 5 an illness, 6 a funeral, 7 a new baby."
+  time_with_family:
+    label: Time with family
+    story: "{a} spent time with family back home"
+    category: family
+    salience: 0.35
+    effects:
+      - {var: loneliness, mag: -0.05, sd: 0.4, half_life: 7, mods: {family_closeness: 0.6}}
+      - {var: mood, mag: 0.03, sd: 0.5, half_life: 5, mods: {family_closeness: 0.5}}
+      - {var: guilt, mag: 0.01, sd: 0.8, half_life: 7, mods: {family_expectation: 0.6, faith_belief: -0.6}}
+    evidence: hypothetical
+  homesick:
+    label: Homesick after a trip
+    story: "{a} came back from home a little homesick"
+    category: family
+    salience: 0.25
+    effects:
+      - {var: loneliness, mag: 0.03, sd: 0.4, half_life: 5, mods: {family_closeness: 0.6}}
+    evidence: hypothetical
+  sibling_wedding:
+    label: A sibling got married
+    story: "{a}'s brother or sister got married"
+    category: family
+    salience: 0.6
+    effects:
+      - {var: mood, mag: 0.02, sd: 0.5, half_life: 5}
+      - {var: romantic_longing, mag: 0.02, sd: 0.6, half_life: 14}
+    evidence: hypothetical
+  sibling_mission:
+    label: A sibling's mission
+    story: "{a}'s brother or sister left on (or came home from) a mission"
+    category: family
+    salience: 0.5
+    effects: []
+    evidence: hypothetical
+    desc: "Value −1 is the homecoming."
+  new_niece_nephew:
+    label: Became an aunt or uncle
+    story: "{a} became an aunt or uncle"
+    category: family
+    salience: 0.45
+    effects:
+      - {var: mood, mag: 0.02, sd: 0.5, half_life: 5}
+    evidence: hypothetical
+  parent_ill:
+    label: A parent fell ill
+    story: "{a}'s parent fell seriously ill"
+    category: family
+    salience: 0.8
+    effects:
+      - {var: stress, mag: 0.08, sd: 0.4, half_life: 21, mods: {family_closeness: 0.6}}
+      - {var: anxiety, mag: 0.05, sd: 0.4, half_life: 21}
+    evidence: hypothetical
+  family_visited:
+    label: Family came to visit
+    story: "{a}'s family came to visit"
+    category: family
+    salience: 0.35
+    effects:
+      - {var: loneliness, mag: -0.03, sd: 0.4, half_life: 5}
+      - {var: mood, mag: 0.02, sd: 0.4, half_life: 3}
+    evidence: hypothetical

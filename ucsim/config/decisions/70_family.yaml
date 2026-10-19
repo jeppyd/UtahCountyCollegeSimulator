@@ -1,0 +1,15 @@
+# Family decisions (engine/systems/family.py). Field meanings: config/decisions/00_core.yaml.
+decisions:
+  trip_home:
+    label: Whether to go home
+    units: logit
+    outcomes: [went, stayed]
+    factors:
+      base:           {label: "how often people go home for this", more: "most go home for this", less: "most stay"}
+      closeness:      {label: "how close they are to their family", more: "close to their family", less: "not close to their family"}
+      distance:       {label: "how far home is", more: "", less: "home is far"}
+      cost:           {label: "what the trip costs", more: "", less: "can't afford the trip"}
+      homesick:       {label: "loneliness here", more: "lonely here", less: "happy here"}
+      obligations:    {label: "shifts and exams while they'd be away", more: "", less: "has to work or study"}
+      occasion:       {label: "a family event", more: "a family event to go to", less: ""}
+      partner_family: {label: "whose family it's the turn of", more: "", less: "their spouse's family's turn"}

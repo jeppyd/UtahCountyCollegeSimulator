@@ -262,7 +262,8 @@ def test_practice_share_limits_who_can_adopt(world):
     k, st = next(iter(alt.whatif.practices.items()))
     scope = alt.whatif._scope(k, alt.whatif.items[k])
     adopted = st["adopted"][:len(scope)]
-    assert adopted.any() and not (adopted & ~scope).any()                  # nobody outside the share adopts
+    here = alt.w.P["present"][:len(scope)].astype(bool)    # the scope is evaluated over people here (not away on a trip)
+    assert adopted.any() and not (adopted & ~scope & here).any()           # nobody outside the share adopts
     assert scope[alt.w.P["present"].astype(bool)].mean() < 0.4
 
 

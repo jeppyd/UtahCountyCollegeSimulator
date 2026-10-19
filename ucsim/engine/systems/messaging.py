@@ -218,6 +218,13 @@ class Messaging:
                              sender=I.cols["inviter"][gc[ok]][first], kind=ACT_ID["invite"], ref=pair[:, 0])
             self._bump(pair[:, 1])
 
+    def family_news(self, people, events):
+        """News from home arrives in the family chat (posted by someone off-map)."""
+        th = self._thread_ids("family", np.asarray(people, np.int64), self.sim.w.day)
+        self.acts.append(len(th), thread=th, day=self.sim.w.day, block=3, sender=-1, kind=ACT_ID["news"], to=people,
+                         ref=events, event=events)
+        self._bump(th)
+
     def _bump(self, threads, k=1):
         p = self.threads.pos(np.asarray(threads, np.int64))
         p = p[p >= 0]
@@ -526,6 +533,8 @@ class Messaging:
         P = w.P
         n = P.n
         pres = P["present"][:n].astype(bool)
+        if "trip_away" in P.internal:          # away on a trip home is not moving out
+            pres = pres | P.internal["trip_away"][:n]
         for kind, col in (("household", "unit_id"), ("club", "club_id"), ("team", "team_id"), ("ward", "ward_id")):
             if col not in P.cols:
                 continue
@@ -534,6 +543,8 @@ class Messaging:
             if kind == "ward":
                 ok &= P["lds_member"][:n].astype(bool) & (P["attend_rate"][:n] > 0.2)
             self._follow(kind, g, ok, initial, min_n=2)
+        if "home_state" in P.cols:              # a family chat with the people back home (kin are off-map)
+            self._follow("family", np.arange(n, dtype=np.int64), pres & (P["home_state"][:n] > 0), initial, min_n=1)
         self._friend_groups(initial)
         self._idx = None
         T, M = self.threads, self.members

@@ -167,7 +167,7 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   and never returned by the API. `POST /api/whatif/llm/test` does a one-word round trip and says what to fix. The old
   inline setup in Ask.tsx is replaced by the dialog. `anthropic` added to dependencies and the PyInstaller spec; package
   data now includes config/**/*.json and *.csv (the weather CSV was missing from pip installs). docs/AI_SETUP_GUIDE.md
-  updated. The real CLIs and API keys can't be exercised in the cloud container (tests use stand-ins). 191 tests pass;
+  updated. Ask the world and Interviews (talk) also accept the two API-key backends. The real CLIs and API keys can't be exercised in the cloud container (tests use stand-ins). 228 tests pass;
   web build passes.
 - Next: sexuality-survey once the owner supplies the xlsx.
 

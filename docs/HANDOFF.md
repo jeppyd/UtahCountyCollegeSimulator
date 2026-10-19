@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| Claude Code (cloud session) | 2026-10-19 | talk | sexuality-survey skipped for now: no `data/raw/` in this container. WIP on `wip/talk`. |
+| Claude Code (cloud session) | 2026-10-19 | sexuality-survey | Owner supplied the xlsx (in `data/raw/`, gitignored). WIP on `wip/sexuality-survey`. |
 
 ## The goal in one paragraph
 
@@ -65,9 +65,9 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [provenance-trace](workstreams/provenance-trace.md) | **done, merged** | working branch | open issues below |
 | [workbench](workstreams/workbench.md) | **done, merged** | working branch | open issues below |
 | [scales](workstreams/scales.md) | **done, merged** | working branch | — |
-| [sexuality-survey](workstreams/sexuality-survey.md) (+ dealbreakers) | not started | — | needs the raw xlsx in `data/raw/` (owner supplies) |
+| [sexuality-survey](workstreams/sexuality-survey.md) (+ dealbreakers) | **in progress** | `wip/sexuality-survey` | ingest → variables → intimacy system → dealbreakers → validation |
 | [calendar-weather](workstreams/calendar-weather.md) | **done, merged** | working branch | open issues below |
-| [talk](workstreams/talk.md) (Ask + interviews) | **in progress** | `wip/talk` | facts, checker, jobs, routes, tools |
+| [talk](workstreams/talk.md) (Ask + interviews) | not started | — | after sexuality-survey |
 | [travel](workstreams/travel.md) | not started | — | can start any time (keeps `ucsim/geo/travel.py`'s interface) |
 | [messaging](workstreams/messaging.md) (wave 2) | not started | — | after time-occasions |
 | [institutions](workstreams/institutions.md) (wave 2) | not started | — | after time-occasions + provenance |

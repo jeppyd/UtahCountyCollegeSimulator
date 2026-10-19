@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| — | — | — | Nobody. Talk merged 2026-10-19; next is travel. |
+| Claude Code (cloud session) | 2026-10-19 | messaging (then institutions, family-homes) | Owner asked for these three next. WIP on `wip/messaging`. |
 
 ## The goal in one paragraph
 
@@ -69,7 +69,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [calendar-weather](workstreams/calendar-weather.md) | **done, merged** | working branch | open issues below |
 | [talk](workstreams/talk.md) (Ask + interviews) | **done, merged** | working branch | open issues below |
 | [travel](workstreams/travel.md) | not started | — | next (keeps `ucsim/geo/travel.py`'s interface) |
-| [messaging](workstreams/messaging.md) (wave 2) | not started | — | after time-occasions |
+| [messaging](workstreams/messaging.md) (wave 2) | **in progress** | `wip/messaging` | threads, attention, replies/silence, knowledge, API, Chats tool |
 | [institutions](workstreams/institutions.md) (wave 2) | not started | — | after time-occasions + provenance |
 | [family-homes](workstreams/family-homes.md) (wave 2) | not started | — | after calendar-weather |
 | [survey-followups](workstreams/survey-followups.md) | audits designed, interrupted | — | needs the raw survey files in `data/raw/` |

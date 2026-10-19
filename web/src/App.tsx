@@ -30,6 +30,7 @@ import { ChangeDrawer } from './views/whatif/Change'
 import WhatIf from './views/whatif/WhatIf'
 import World from './views/World'
 import { WorldSetupPage } from './views/WorldSetup'
+import { AiSetup } from './kit/AiSetup'
 
 export default function App() {
   const { route, setRoute, status, refreshStatus, registry } = useStore()
@@ -91,6 +92,7 @@ export default function App() {
       <TimeRibbon />
       <TopNav active={active} hasAlt={!!status.has_alt} div={div} />
       <main className="main"><ViewBoundary key={view}>{body}</ViewBoundary></main>
+      <AiSetup />
       <NewsWatcher />
       <RecapWatcher />
       <Toasts />

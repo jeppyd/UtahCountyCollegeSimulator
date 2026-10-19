@@ -5,6 +5,9 @@
   the plan as schema-checked JSON.
 * `codex`   — OpenAI Codex CLI (`codex exec`), signed in with ChatGPT Plus. Reads the guide + catalog from AGENTS.md.
 * `openai`  — any OpenAI-compatible local server (LM Studio, Ollama): a small tool loop, then a schema-constrained answer.
+* `anthropic` — the Claude API with an API key (pay as you go, no install): the official SDK, the same tool loop, then
+  a structured-output answer.
+* `openai_api` — the OpenAI API with an API key (pay as you go, no install): `openai`'s loop against api.openai.com.
 
 Every backend returns {"plan": dict|None, "text": str, "error": str|None, "meta": {...}} and reports progress through
 `on_step(kind, text)`.
@@ -547,8 +550,8 @@ def codex_models(override: str | None = None) -> list[dict]:
     return out
 
 
-def openai_models(base_url: str) -> list[str]:
-    return [m["id"] for m in local_models(base_url)]
+def openai_models(base_url: str, key: str = "") -> list[str]:
+    return [m["id"] for m in local_models(base_url, key)]
 
 
 OPENAI_TOOLS = [
@@ -566,7 +569,9 @@ OPENAI_TOOLS = [
 def run_openai(system: str, prompt: str, schema: dict, settings: dict, on_step, cancel: threading.Event, tool_fn) -> dict:
     base = (settings.get("openai_url") or "http://localhost:1234/v1").rstrip("/")
     key = settings.get("openai_key") or "lm-studio"
-    model = settings.get("openai_model") or (openai_models(base) or [""])[0]
+    model = settings.get("openai_model") or (openai_models(base, key) or [""])[0]
+    hosted = "api.openai.com" in base          # OpenAI's own API: reasoning models only take the default temperature
+    temp = (lambda t: {}) if hosted else (lambda t: {"temperature": t})
     if not model:
         return {"plan": None, "text": "", "error": f"No model is loaded at {base} (start LM Studio's server and load a model).", "meta": {}}
     deadline = time.time() + float(settings.get("timeout", 600))     # one budget for the whole conversation
@@ -582,7 +587,7 @@ def run_openai(system: str, prompt: str, schema: dict, settings: dict, on_step, 
         for _ in range(int(settings.get("openai_tool_rounds", 6)) if tool_fn is not None else 0):
             if cancel.is_set():
                 return {"plan": None, "text": "", "error": "cancelled", "meta": {}}
-            r = _post(base + "/chat/completions", {"model": model, "messages": msgs, "tools": OPENAI_TOOLS, "temperature": 0.3}, key, left())
+            r = _post(base + "/chat/completions", {"model": model, "messages": msgs, "tools": OPENAI_TOOLS, **temp(0.3)}, key, left())
             m = r["choices"][0]["message"]
             calls = m.get("tool_calls") or []
             if not calls:
@@ -607,21 +612,215 @@ def run_openai(system: str, prompt: str, schema: dict, settings: dict, on_step, 
             return {"plan": None, "text": "", "error": "cancelled", "meta": {}}
         msgs.append({"role": "user", "content": "Now give the final plan as JSON matching the schema."})
         on_step("tool", "Writing up the plan")
-        r = _post(base + "/chat/completions", {"model": model, "messages": msgs, "temperature": 0.2,
+        r = _post(base + "/chat/completions", {"model": model, "messages": msgs, **temp(0.2),
                                                "response_format": {"type": "json_schema", "json_schema": {"name": "whatif_plan", "strict": True, "schema": schema}}},
                   key, left())
         txt = r["choices"][0]["message"].get("content") or ""
     except TimeoutError as e:
         return {"plan": None, "text": "", "error": str(e), "meta": {}}
+    except urllib.error.HTTPError as e:
+        return {"plan": None, "text": "", "error": _http_words(e, "OpenAI" if hosted else "Local model"), "meta": {}}
     except urllib.error.URLError as e:
         return {"plan": None, "text": "", "error": f"Couldn't reach {base}: {e}", "meta": {}}
     except Exception as e:  # noqa: BLE001
-        return {"plan": None, "text": "", "error": f"Local model error: {e!r}", "meta": {}}
+        return {"plan": None, "text": "", "error": _http_words(e, "OpenAI" if hosted else "Local model"), "meta": {}}
     plan = _json_from_text(txt)
     if plan is None:
-        return {"plan": None, "text": txt, "error": "The local model didn't return a valid plan.", "meta": {"model": model}}
+        return {"plan": None, "text": txt, "error": f"{'The model' if hosted else 'The local model'} didn't return a valid plan.", "meta": {"model": model}}
     from .plan import unstrict
     return {"plan": unstrict(plan), "text": "", "error": None, "meta": {"model": model, "backend": "openai"}}
+
+
+def _http_words(e: Exception, who: str) -> str:
+    """An HTTP failure from a hosted API in plain words (a wrong key, no credit, too many requests)."""
+    code = getattr(e, "code", None) or getattr(e, "status_code", None)
+    body = ""
+    try:
+        body = e.read().decode()[:300] if hasattr(e, "read") else str(getattr(e, "message", "") or "")
+    except Exception:  # noqa: BLE001
+        pass
+    if code == 401:
+        return f"{who} didn't accept the API key (check that it was copied in full)."
+    if code == 403:
+        return f"{who} refused the request: the key may lack access to this model. {body}".strip()
+    if code == 404:
+        return f"{who} doesn't know that model name. Pick another model. {body}".strip()
+    if code == 429:
+        return f"{who} says too many requests, or the account is out of credit. Check your billing page, wait a minute, and try again."
+    if code in (400, 402) and re.search(r"credit|billing|quota|balance", body, re.I):
+        return f"{who} says the account has no credit left. Add credit on the billing page and try again."
+    return f"{who} error{f' ({code})' if code else ''}: {body or repr(e)}"
+
+
+# ---------------------------------------------------------------------- the Claude API (an API key)
+ANTHROPIC_MODELS = [("claude-opus-5-5", "Claude Opus 5.5 (most careful)"), ("claude-sonnet-5-5", "Claude Sonnet 5.5 (faster, cheaper)"),
+                    ("claude-haiku-5-5", "Claude Haiku 5.5 (quickest, cheapest)")]
+ANTHROPIC_EFFORTS = ("low", "medium", "high", "xhigh", "max")
+
+
+def _anthropic_tools() -> list[dict]:
+    return [{"name": t["function"]["name"], "description": t["function"]["description"], "input_schema": t["function"]["parameters"]}
+            for t in OPENAI_TOOLS]
+
+
+def _anthropic_client(key: str, timeout: float):
+    import anthropic
+    return anthropic.Anthropic(api_key=key, timeout=timeout, max_retries=2)
+
+
+def _anthropic_error(e: Exception) -> str:
+    import anthropic
+    if isinstance(e, anthropic.AuthenticationError):
+        return "Claude didn't accept the API key (check that it was copied in full)."
+    if isinstance(e, anthropic.PermissionDeniedError):
+        return "This API key can't use that model; pick another model or check the key's workspace."
+    if isinstance(e, anthropic.NotFoundError):
+        return "Claude doesn't know that model name; pick another model."
+    if isinstance(e, anthropic.RateLimitError):
+        return "Claude says too many requests right now; wait a minute and try again."
+    if isinstance(e, anthropic.BadRequestError) and re.search(r"credit|billing|balance", str(e), re.I):
+        return "The Claude account has no API credit left. Add credit at console.anthropic.com (Billing) and try again."
+    if isinstance(e, anthropic.APIConnectionError):
+        return "Couldn't reach the Claude API: check the internet connection."
+    if isinstance(e, anthropic.APIStatusError):
+        return f"Claude API error ({e.status_code}): {getattr(e, 'message', e)}"
+    return f"Claude API error: {e!r}"
+
+
+def _anthropic_call(client, **kw):
+    """One request, with server-side refusal fallback (the API re-runs a declined request on a suitable model)."""
+    return client.beta.messages.create(betas=["server-side-fallback-2026-07-01"], fallbacks="default", **kw)
+
+
+def run_anthropic(system: str, prompt: str, schema: dict, settings: dict, on_step, cancel: threading.Event, tool_fn) -> dict:
+    key = settings.get("anthropic_key") or ""
+    if not key:
+        return {"plan": None, "text": "", "error": "Paste your Claude API key in the AI setup first.", "meta": {}}
+    model = settings.get("anthropic_model") or ANTHROPIC_MODELS[0][0]
+    effort = settings.get("anthropic_effort") or "medium"
+    deadline = time.time() + float(settings.get("timeout", 600))
+    try:
+        client = _anthropic_client(key, float(settings.get("timeout", 600)))
+    except ImportError:
+        return {"plan": None, "text": "", "error": "The `anthropic` package is missing (pip install anthropic).", "meta": {}}
+    # the guide and catalog are the same every time: cache them
+    sys_blocks = [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
+    common = {"model": model, "max_tokens": 16000, "system": sys_blocks, "output_config": {"effort": effort}}
+    msgs: list = [{"role": "user", "content": prompt}]
+    on_step("start", f"Asking {model} (Claude API)")
+    try:
+        if tool_fn is not None:
+            for _ in range(int(settings.get("anthropic_tool_rounds", 8))):
+                if cancel.is_set():
+                    return {"plan": None, "text": "", "error": "cancelled", "meta": {}}
+                if time.time() > deadline:
+                    raise TimeoutError(f"no answer within {int(float(settings.get('timeout', 600)))} s")
+                r = _anthropic_call(client, messages=msgs, tools=_anthropic_tools(), **common)
+                if r.stop_reason == "refusal":
+                    return {"plan": None, "text": "", "error": "Claude declined this request.", "meta": {"model": model}}
+                msgs.append({"role": "assistant", "content": r.content})
+                calls = [b for b in r.content if b.type == "tool_use"]
+                if r.stop_reason != "tool_use" or not calls:
+                    break
+                results = []
+                for c in calls:
+                    on_step("tool", _describe_tool(c.name, c.input))
+                    try:
+                        res = tool_fn(c.name, c.input if isinstance(c.input, dict) else {})
+                    except Exception as e:  # noqa: BLE001 — a bad tool call goes back to the model
+                        res = {"error": f"{type(e).__name__}: {e}"}
+                    results.append({"type": "tool_result", "tool_use_id": c.id, "content": json.dumps(res)[:6000]})
+                msgs.append({"role": "user", "content": results})
+        if cancel.is_set():
+            return {"plan": None, "text": "", "error": "cancelled", "meta": {}}
+        final = "Now give the final plan as JSON matching the schema."
+        if msgs[-1]["role"] == "assistant":
+            msgs.append({"role": "user", "content": final})
+        elif isinstance(msgs[-1]["content"], list):       # the tool rounds ran out right after tool results
+            msgs[-1]["content"].append({"type": "text", "text": final})
+        on_step("tool", "Writing up the plan")
+        extra = {"tools": _anthropic_tools(), "tool_choice": {"type": "none"}} if tool_fn is not None else {}
+        r = _anthropic_call(client, messages=msgs, **extra,
+                            **{**common, "output_config": {"effort": effort, "format": {"type": "json_schema", "schema": schema}}})
+        if r.stop_reason == "refusal":
+            return {"plan": None, "text": "", "error": "Claude declined this request.", "meta": {"model": model}}
+        txt = "".join(b.text for b in r.content if b.type == "text")
+    except TimeoutError as e:
+        return {"plan": None, "text": "", "error": str(e), "meta": {}}
+    except Exception as e:  # noqa: BLE001
+        return {"plan": None, "text": "", "error": _anthropic_error(e), "meta": {}}
+    plan = _json_from_text(txt)
+    if plan is None:
+        return {"plan": None, "text": txt, "error": "Claude didn't return a valid plan.", "meta": {"model": model}}
+    from .plan import unstrict
+    return {"plan": unstrict(plan), "text": "", "error": None, "meta": {"model": model, "backend": "anthropic"}}
+
+
+# ---------------------------------------------------------------------- "is it really working?" (a one-word round trip)
+SIGNED_OUT = re.compile(r"log ?in|sign ?in|authenticat|unauthori[sz]ed|credential|api key|not logged|/login|expired", re.I)
+
+
+def test_connection(backend: str, settings: dict, timeout: float = 90) -> dict:
+    """Ask the chosen model to reply with one word. {ok, reply, seconds, error, hint} — the hint says what to do next."""
+    t0 = time.time()
+    ask = "Reply with exactly one word: ready"
+
+    def out(ok, reply="", error="", hint=""):
+        return {"ok": ok, "reply": reply[:200], "error": error[:600], "hint": hint, "seconds": round(time.time() - t0, 1), "backend": backend}
+    try:
+        if backend in ("claude", "codex"):
+            argv, why = resolve_cli(backend, settings.get(f"{backend}_path") or None)
+            if not argv:
+                return out(False, error=why or f"{'Claude Code' if backend == 'claude' else 'Codex'} isn't installed yet.",
+                           hint="Do the install step, then test again.")
+            if backend == "claude":
+                cmd = [*argv, "-p", ask, "--max-turns", "1", "--output-format", "text"]
+                if settings.get("claude_model") and SAFE_TOKEN.match(str(settings["claude_model"])):
+                    cmd += ["--model", settings["claude_model"]]
+                env = _child_env(settings.get("use_subscription", True))
+            else:
+                cmd = [*argv, "exec", "--skip-git-repo-check", "--sandbox", "read-only", ask]
+                env = _child_env(False)
+            r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
+                               env=env, stdin=subprocess.DEVNULL, creationflags=_NO_WINDOW)
+            text = (r.stdout or "").strip()
+            err = (r.stderr or "").strip()
+            if r.returncode == 0 and re.search(r"ready", text, re.I):
+                return out(True, text.splitlines()[-1] if text else "")
+            blob = f"{text}\n{err}"
+            if SIGNED_OUT.search(blob):
+                return out(False, error=blob.strip()[-600:], hint=f"Sign in: run `{'claude' if backend == 'claude' else 'codex login'}` once and finish the sign-in in your browser, then test again.")
+            return out(False, error=blob.strip()[-600:] or f"exit code {r.returncode}", hint="See the message above; if it mentions your plan or limits, check your subscription.")
+        if backend == "anthropic":
+            if not settings.get("anthropic_key"):
+                return out(False, error="No API key yet.", hint="Paste your Claude API key, then test again.")
+            client = _anthropic_client(settings["anthropic_key"], timeout)
+            r = _anthropic_call(client, model=settings.get("anthropic_model") or ANTHROPIC_MODELS[0][0], max_tokens=1000,
+                                output_config={"effort": "low"}, messages=[{"role": "user", "content": ask}])
+            text = "".join(b.text for b in r.content if b.type == "text").strip()
+            return out(True, text or "(answered)")
+        # local server or the OpenAI API: one chat completion
+        base = (settings.get("openai_url") or "").rstrip("/")
+        key = settings.get("openai_key") or ""
+        model = settings.get("openai_model") or (openai_models(base, key) or [""])[0]
+        if not model:
+            return out(False, error=f"No model to talk to at {base}.",
+                       hint="In LM Studio, download a model and switch the server on (Developer tab), then pick it here." if backend == "openai" else "Pick a model.")
+        body = {"model": model, "messages": [{"role": "user", "content": ask}], "max_completion_tokens" if "api.openai.com" in base else "max_tokens": 400}
+        r = _post(base + "/chat/completions", body, key, timeout)
+        text = (r["choices"][0]["message"].get("content") or "").strip()
+        return out(True, text or "(answered)")
+    except subprocess.TimeoutExpired:
+        return out(False, error=f"No answer within {int(timeout)} s.", hint="It may be waiting for a sign-in: open it once yourself and sign in, then test again.")
+    except urllib.error.HTTPError as e:
+        return out(False, error=_http_words(e, "OpenAI" if backend == "openai_api" else "The server"))
+    except urllib.error.URLError as e:
+        return out(False, error=f"Couldn't reach {settings.get('openai_url')}: {e.reason}",
+                   hint="Is LM Studio open with its server switched on (Developer tab → Start server)?" if backend == "openai" else "Check the internet connection.")
+    except Exception as e:  # noqa: BLE001
+        if backend == "anthropic":
+            return out(False, error=_anthropic_error(e))
+        return out(False, error=repr(e))
 
 
 def python_exe() -> str:

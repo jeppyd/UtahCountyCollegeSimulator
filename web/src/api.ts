@@ -449,6 +449,7 @@ export const api = {
   async llmModels(url: string) { return j(`/api/whatif/llm/models?url=${encodeURIComponent(url)}`, undefined, 15000) },
   async llmStatus(refresh = false) { return STATIC ? { ready: false, settings: {} } : j(`/api/whatif/llm/status${refresh ? '?refresh=1' : ''}`, undefined, 60000) },
   async llmSettings(body: any) { return post('/api/whatif/llm/settings', body) },
+  async llmTest() { return post('/api/whatif/llm/test', {}) },
   async whatifCompile(body: any) { return post('/api/whatif/compile', body) },
   async whatifJob(id: string) { return j(`/api/whatif/compile/${id}`, undefined, 30000) },
   async whatifCancel(id: string) { return post(`/api/whatif/compile/${id}/cancel`, {}) },

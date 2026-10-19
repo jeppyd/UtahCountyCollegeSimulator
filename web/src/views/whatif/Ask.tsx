@@ -1,6 +1,7 @@
 // "Describe it": type any What-if in plain language, tag the exact people, places and groups you mean, and an LLM
 // (Claude through your Claude Code login, Codex through ChatGPT, or a local model) reads the model's lever catalog,
 // checks its plan against the live world, and hands back a plan you can inspect, trim and run.
+import { BACKEND_NAME, useAiSetup, useAiStatus } from '../../kit/AiSetup'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, STATIC } from '../../api'
 import { G, useAsync } from '../../game'
@@ -65,9 +66,8 @@ export function AskPanel({ onDone }: { onDone?: () => void }) {
   const hasAlt = !!status.has_alt
   const [mode, setMode] = useState<'new' | 'add'>(hasAlt ? 'add' : 'new')
   useEffect(() => setMode(hasAlt ? 'add' : 'new'), [hasAlt])
-  const [ver, setVer] = useState(0)
-  const st = useAsync(() => api.llmStatus(ver > 0), [ver], { key: 'llm-status' })
-  const [showSetup, setShowSetup] = useState(false)
+  const st = useAiStatus()
+  const showSetup = useAiSetup(s => s.show)
   const endRef = useRef<HTMLDivElement>(null)
   const busy = ask.msgs.some(m => m.state === 'queued' || m.state === 'running')
   // resume watching jobs that were running before a reload or a drawer close
@@ -102,19 +102,25 @@ export function AskPanel({ onDone }: { onDone?: () => void }) {
   }
   const s: any = st.data
   const ready = s?.ready
-  const backendName = s ? ({ claude: 'Claude Code', codex: 'Codex', openai: 'Local model' } as any)[s.settings?.backend] : ''
+  const backendName = s ? BACKEND_NAME[s.settings?.backend] ?? '' : ''
   return (
     <div className="ask">
       <div className="ask-head">
         <div className="ask-title"><b>Describe your What-if</b><span className="small muted">Plain language. Tag the exact people and places you mean with @.</span></div>
         <span className="spacer" />
-        {s && <button className={`pill ask-backend ${ready ? 'ok' : 'warn'}`} onClick={() => setShowSetup(!showSetup)} title="Which model turns your words into changes">
+        {s && <button className={`pill ask-backend ${ready ? 'ok' : 'warn'}`} onClick={showSetup} title="Which model turns your words into changes">
           <i className="dot" />{backendName}{s.settings?.backend === 'claude' && s.settings?.claude_model ? ` · ${s.settings.claude_model}` : ''}{ready ? '' : ' · set up'}
         </button>}
-        <button className="btn ghost small" onClick={() => setShowSetup(!showSetup)} aria-label="Model settings">{G.gear}</button>
+        <button className="btn ghost small" onClick={showSetup} aria-label="Model settings">{G.gear}</button>
         {ask.msgs.length > 0 && <button className="btn ghost small" disabled={busy} onClick={() => setAsk({ msgs: [], mentions: [] })} title="Start a new conversation">New idea</button>}
       </div>
-      {(showSetup || (s && !ready && !ask.msgs.length)) && <Setup s={s} onSaved={() => { setShowSetup(false); setVer(v => v + 1) }} onCheck={() => setVer(v => v + 1)} checking={st.loading} />}
+      {s && !ready && !ask.msgs.length && (
+        <div className="ask-setup card flat">
+          <b className="small">Connect an AI first</b>
+          <p className="small muted" style={{ margin: '4px 0 8px' }}>Turning plain words into changes needs an AI model: Claude, ChatGPT, or a free model on this computer. A short guided setup walks you through it, no technical knowledge needed.</p>
+          <button className="btn primary small" onClick={showSetup}>Set up an AI</button>
+        </div>
+      )}
       <div className="ask-thread">
         {ask.msgs.length === 0 && (
           <div className="ask-empty">
@@ -356,179 +362,3 @@ function Composer({ onSend, busy, refining, mode }: { onSend: (t: string) => voi
 }
 
 // ------------------------------------------------------------------ setup
-function Cmd({ c }: { c: string }) {
-  const [done, setDone] = useState(false)
-  return (
-    <span className="ask-cmd"><code>{c}</code>
-      <button className="btn ghost small" onClick={() => { navigator.clipboard?.writeText(c).then(() => { setDone(true); window.setTimeout(() => setDone(false), 1500) }) }}>{done ? 'Copied' : 'Copy'}</button>
-    </span>
-  )
-}
-
-function Found({ ok, yes, no, note }: { ok: boolean; yes: React.ReactNode; no: React.ReactNode; note?: string | null }) {
-  return <p className={`small ask-found ${ok ? 'ok' : 'warn'}`}>{ok ? '✓ ' : '✕ '}{ok ? yes : no}{!ok && note ? <><br />{note}</> : null}</p>
-}
-
-const EFFORT_LABEL: Record<string, string> = { minimal: 'minimal', low: 'low', medium: 'medium', high: 'high', xhigh: 'extra high', max: 'maximum' }
-
-function Setup({ s, onSaved, onCheck, checking }: { s: any; onSaved: () => void; onCheck: () => void; checking: boolean }) {
-  const [form, setForm] = useState<any>(s?.settings ?? {})
-  const [saving, setSaving] = useState(false)
-  useEffect(() => { if (s?.settings) setForm(s.settings) }, [s?.settings?.backend])
-  const set = (k: string, v: any) => setForm({ ...form, [k]: v })
-  const save = async () => { setSaving(true); try { await api.llmSettings(form); onSaved() } finally { setSaving(false) } }
-  const b = form.backend ?? 'claude'
-  const win = s?.windows ?? /Win/.test(navigator.platform)
-  const shell = win ? <>Open <b>PowerShell</b> (press Start, type <i>PowerShell</i>, press Enter)</> : <>Open <b>Terminal</b></>
-  const check = <button className="btn small" disabled={checking} onClick={onCheck}>{checking ? 'Checking…' : 'Check again'}</button>
-  const tools = <label className="inline" title="Search the live world, count people and check its draft while it works. Every plan is checked again before it runs either way.">
-    <input type="checkbox" checked={form.use_tools ?? true} onChange={e => set('use_tools', e.target.checked)} />let it look things up and check its plan{s && !s.mcp ? ' (needs: pip install mcp)' : ''}</label>
-  // Codex: its own model catalog, with each model's reasoning levels
-  const cxModels: any[] = s?.codex_models ?? []
-  const cxModel = cxModels.find((m: any) => m.slug === form.codex_model) ?? cxModels[0]
-  const cxEfforts: string[] = (form.codex_model ? cxModel?.efforts : [...new Set(cxModels.flatMap((m: any) => m.efforts))]) ?? ['low', 'medium', 'high']
-  // local server: load a model with a big enough window, from here
-  const [ctx, setCtx] = useState(32768)
-  const [unloadOthers, setUnloadOthers] = useState(true)
-  const [loading, setLoading] = useState<{ busy: boolean; msg: string; ok?: boolean }>({ busy: false, msg: '' })
-  const loadModel = async (model: string, context: number) => {
-    setLoading({ busy: true, msg: `Loading ${model} in LM Studio… big models can take a minute or two.` })
-    try {
-      const r: any = await api.llmLoad({ url: form.openai_url, model, context_length: context, unload_others: unloadOthers })
-      if (!r.ok) { setLoading({ busy: false, msg: r.error, ok: false }); return }
-      const next = { ...form, backend: 'openai', openai_model: model }
-      setForm(next)
-      await api.llmSettings(next)
-      setLoading({ busy: false, msg: `✓ Loaded ${model}${r.seconds ? ` in ${Math.round(r.seconds)} s` : ''} with a ${(r.context ?? context).toLocaleString()}-token window, and saved it as your model.`, ok: true })
-      setLocalVer(v => v + 1)
-    } catch (e: any) { setLoading({ busy: false, msg: String(e?.message ?? e), ok: false }) }
-  }
-  // local server: the models it offers, fetched live (debounced while the address is typed)
-  const [localVer, setLocalVer] = useState(0)
-  const [custom, setCustom] = useState(false)
-  const [local, setLocal] = useState<{ loading: boolean; models: { id: string; loaded: boolean | null; context?: number | null; max_context?: number | null; name?: string; params?: string; size_gb?: number }[] }>({ loading: false, models: [] })
-  useEffect(() => {
-    if (b !== 'openai' || !form.openai_url) return
-    let live = true
-    setLocal(l => ({ ...l, loading: true }))
-    const t = window.setTimeout(() => api.llmModels(form.openai_url).then((r: any) => { if (live) setLocal({ loading: false, models: r.models ?? [] }) })
-      .catch(() => { if (live) setLocal({ loading: false, models: [] }) }), localVer ? 0 : 500)
-    return () => { live = false; window.clearTimeout(t) }
-  }, [b, form.openai_url, localVer])
-  return (
-    <div className="ask-setup card flat">
-      <div className="row" style={{ marginBottom: 8 }}>
-        <b className="small">Which model turns your words into changes?</b><span className="spacer" />
-        <div className="seg small-seg">
-          {[['claude', 'Claude (Pro/Max)'], ['codex', 'ChatGPT (Plus)'], ['openai', 'Local model']].map(([k, l]) => <button key={k} className={b === k ? 'on' : ''} onClick={() => set('backend', k)}>{l}</button>)}
-        </div>
-      </div>
-      <details className="small ask-why">
-        <summary>Do I need to install anything?</summary>
-        <p>For <b>Claude</b> or <b>ChatGPT</b>, yes, once: a small free program from Anthropic (<i>Claude Code</i>) or OpenAI (<i>Codex</i>)
-          that you sign in to with your account. The simulator borrows that sign-in, which is how it uses your existing subscription with
-          no API key and no extra bill. After the one-time setup you never need to open it yourself; it runs out of sight when you press Send,
-          and each What-if counts toward your plan's normal usage limits.</p>
-        <p>For a <b>local model</b>, there's no account and nothing to sign in to: you only need LM Studio (or Ollama) running on this computer.
-          It's free and private, but slower and less careful than Claude or ChatGPT unless you have a strong graphics card.</p>
-        <p><b>Stuck?</b> Give the file <code>docs/AI_SETUP_GUIDE.md</code> (in the simulator's GitHub repository) to an AI assistant like Claude or ChatGPT and ask it to set this up with you. It's written for the assistant, step by step.</p>
-      </details>
-
-      {b === 'claude' && <>
-        <Found ok={!!s?.claude} yes={<>Claude Code is installed ({s?.claude}). If you haven't signed in yet, do step 3 below.</>}
-          no={<>Claude Code isn't installed yet (or the simulator can't find it).</>} note={s?.claude_note} />
-        <ol className="small ask-steps-setup">
-          <li>{shell}.</li>
-          <li>Install Claude Code by pasting this and pressing Enter:<br />
-            <Cmd c={win ? 'irm https://claude.ai/install.ps1 | iex' : 'curl -fsSL https://claude.ai/install.sh | bash'} /></li>
-          <li>Sign in: type <Cmd c="claude" /> and press Enter. Sign in with your Claude account (Pro or Max; the free plan doesn't
-            include Claude Code) in the browser window that opens, then type <code>/exit</code>. If <code>claude</code> isn't recognized,
-            close PowerShell and open a new window first.</li>
-          <li>Come back here and press {check}</li>
-        </ol>
-        {s?.api_key_in_env && <p className="small pc-warn">⚠ ANTHROPIC_API_KEY is set on this computer. The simulator removes it when it calls Claude Code, so your subscription is used, not API billing.</p>}
-        <div className="row small"><span>Model</span>
-          <select value={form.claude_model ?? ''} onChange={e => set('claude_model', e.target.value)}><option value="">Claude Code default</option><option value="sonnet">Sonnet (fast, recommended)</option><option value="opus">Opus (deepest reasoning, uses more of your limit)</option><option value="haiku">Haiku (quickest)</option></select>
-          <span>Effort</span>
-          <select value={form.claude_effort ?? ''} onChange={e => set('claude_effort', e.target.value)}><option value="">default</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select>
-          {tools}
-        </div>
-      </>}
-
-      {b === 'codex' && <>
-        <Found ok={!!s?.codex} yes={<>Codex is installed ({s?.codex}). If you haven't signed in yet, do step 4 below.</>}
-          no={<>Codex isn't installed yet (or the simulator can't find it).</>} note={s?.codex_note} />
-        <ol className="small ask-steps-setup">
-          <li>Install <b>Node.js</b> (the "LTS" download from <a href="https://nodejs.org" target="_blank" rel="noreferrer">nodejs.org</a>) if you don't have it. Accept the defaults.</li>
-          <li>{shell}. If you just installed Node.js, open a new window so it's found.</li>
-          <li>Install Codex: <Cmd c="npm install -g @openai/codex" /></li>
-          <li>Sign in: <Cmd c="codex login" /> and choose <b>Sign in with ChatGPT</b>.</li>
-          <li>Come back here and press {check}</li>
-        </ol>
-        <div className="row small"><span>Model</span>
-          {cxModels.length
-            ? <select value={form.codex_model ?? ''} onChange={e => {
-                const m = cxModels.find((x: any) => x.slug === e.target.value)
-                setForm({ ...form, codex_model: e.target.value, codex_effort: m && form.codex_effort && !m.efforts.includes(form.codex_effort) ? '' : form.codex_effort })
-              }}>
-                <option value="">Codex default</option>
-                {cxModels.map((m: any) => <option key={m.slug} value={m.slug}>{m.name}</option>)}
-                {form.codex_model && !cxModels.some((m: any) => m.slug === form.codex_model) && <option value={form.codex_model}>{form.codex_model}</option>}
-              </select>
-            : <input type="text" value={form.codex_model ?? ''} onChange={e => set('codex_model', e.target.value)} placeholder="Codex default" />}
-          <span>Reasoning</span>
-          <select value={form.codex_effort ?? ''} onChange={e => set('codex_effort', e.target.value)}>
-            <option value="">{cxModel?.default_effort ? `default (${EFFORT_LABEL[cxModel.default_effort] ?? cxModel.default_effort})` : 'default'}</option>
-            {cxEfforts.map(e => <option key={e} value={e}>{EFFORT_LABEL[e] ?? e}</option>)}
-          </select>
-          {tools}</div>
-        <p className="small muted" style={{ margin: '4px 0 0' }}>More reasoning gives more careful plans but takes longer and uses more of your ChatGPT plan's limits.</p>
-      </>}
-
-      {b === 'openai' && <>
-        <Found ok={!!local.models.length} yes={<>Connected to {form.openai_url}: {local.models.length} model{local.models.length === 1 ? '' : 's'} to choose from{local.models.some(m => m.loaded) ? `, ${local.models.filter(m => m.loaded).length} loaded` : ''}.</>}
-          no={local.loading ? <>Looking for a local server at {form.openai_url}…</> : <>No local server answering at {form.openai_url || 'the address below'} yet.</>} />
-        <ol className="small ask-steps-setup">
-          <li>Install <b>LM Studio</b> from <a href="https://lmstudio.ai" target="_blank" rel="noreferrer">lmstudio.ai</a>.</li>
-          <li>In its <b>Discover</b> tab, download a model. Bigger follows the catalog better: about 12–14B parameters for a graphics card with 8–12 GB, about 27–32B for 24 GB. Small models (under 8B) often produce plans that fail the checks.</li>
-          <li>In its <b>Developer</b> tab, switch <b>Start server</b> on (it should say it's running at <code>http://localhost:1234</code>). You don't need to load a model there.</li>
-          <li>Leave the address below as it is, pick a model from the list (press <b>Refresh</b> if it isn't there yet), and press <b>Load</b>. The simulator loads it with a big enough context window and saves it as your choice.</li>
-        </ol>
-        <p className="small muted">Ollama works too: run <code>ollama pull</code> with a model name, and set the server to <code>http://localhost:11434/v1</code>.</p>
-        <div className="row small"><span>Server</span><input type="text" value={form.openai_url ?? ''} onChange={e => set('openai_url', e.target.value)} style={{ width: 220 }} />
-          <span>Model</span>
-          {local.models.length > 0 && !custom
-            ? <select value={form.openai_model ?? ''} onChange={e => e.target.value === '__other' ? setCustom(true) : set('openai_model', e.target.value)} style={{ maxWidth: 280 }}>
-                <option value="">Automatic (the first loaded model)</option>
-                {local.models.map(m => <option key={m.id} value={m.id}>{m.name ?? m.id}{m.params ? ` · ${m.params}` : ''}{m.size_gb ? ` · ${m.size_gb} GB` : ''}{m.loaded === true ? ` · loaded${m.context ? ` (${Math.round(m.context / 1024)}k)` : ''}` : ''}</option>)}
-                {form.openai_model && !local.models.some(m => m.id === form.openai_model) && <option value={form.openai_model}>{form.openai_model} (not on the server)</option>}
-                <option value="__other">Type a name…</option>
-              </select>
-            : <input type="text" value={form.openai_model ?? ''} onChange={e => set('openai_model', e.target.value)} placeholder="model name, or empty for the first loaded one" />}
-          <button className="btn ghost small" disabled={local.loading} onClick={() => { setCustom(false); setLocalVer(v => v + 1) }}>{local.loading ? 'Looking…' : 'Refresh'}</button></div>
-        {local.models.some(m => m.loaded !== null) && (() => {
-          const target = local.models.find(m => m.id === form.openai_model) ?? local.models[0]
-          const ready = target?.loaded && (target.context ?? 0) >= 16384
-          const sizes = [16384, 32768, 65536].filter(c => !target?.max_context || c <= target.max_context)
-          return <div className="row small ask-load">
-            <button className={`btn small ${ready ? '' : 'primary'}`} disabled={!target || loading.busy} onClick={() => loadModel(target!.id, ctx)}>
-              {loading.busy ? 'Loading…' : ready ? 'Reload' : 'Load'} {target?.name ?? target?.id}</button>
-            <span>with a</span>
-            <select value={ctx} onChange={e => setCtx(+e.target.value)}>{sizes.map(c => <option key={c} value={c}>{c / 1024}k-token</option>)}</select>
-            <span>context window</span>
-            <label className="inline"><input type="checkbox" checked={unloadOthers} onChange={e => setUnloadOthers(e.target.checked)} />unload other models first</label>
-          </div>
-        })()}
-        {loading.msg && <p className={`small ${loading.ok === false ? 'pc-warn' : 'muted'}`} style={{ margin: '2px 0' }}>{loading.msg}</p>}
-        <div className="row small">{tools}<span className="muted">(turn it off if your model handles tools badly)</span></div>
-        {(() => {   // LM Studio often loads models with a 4,096-token window; the guide and catalog alone are ~12k tokens
-          const m = local.models.find(x => x.id === form.openai_model) ?? local.models.find(x => x.loaded)
-          return m?.context && m.context < 16384
-            ? <p className="small pc-warn">⚠ {m.id} is loaded with a {m.context.toLocaleString()}-token context window, too small for the simulator's instructions (about 12,500 tokens). <button className="btn small" disabled={loading.busy} onClick={() => loadModel(m.id, 32768)}>Reload it with 32k</button></p>
-            : null
-        })()}
-      </>}
-      <div className="row" style={{ marginTop: 8 }}><span className="small muted">Settings are saved on this computer.</span><span className="spacer" /><button className="btn primary small" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</button></div>
-    </div>
-  )
-}

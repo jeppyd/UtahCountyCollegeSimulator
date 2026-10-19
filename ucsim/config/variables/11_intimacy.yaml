@@ -1,0 +1,115 @@
+# Physical intimacy, from the LDS Sexuality Survey (June 2025; 1,411 respondents aged 18–35, a self-selected
+# LDStats audience, mostly active members from Utah). Drawn by population/synth.py from the copula block
+# `lds_sexuality`, conditioned on age, relationship stage, activity, mission and the ProvoStats kissing/NCMO/
+# relationship counts. Used by engine/systems/intimacy.py. Everything here is sensitive: interviews leave it out.
+entity: person
+defaults: {domain: values_sexuality, kind: value, dtype: u1, update: static, evidence: empirical, source: [lds-sexuality], flags: [filter, chart, sensitive]}
+variables:
+  sex_drive:
+    label: Sex drive
+    kind: trait
+    ordinal: [very low, low, average, high, very high]
+    desc: Self-rated sex drive. Sets how quickly a couple moves toward the next step when both are willing.
+    init: "copula lds_sexuality.sex_drive"
+  ok_stage_touch:
+    label: When touching is OK
+    ordinal: [on a date, committed relationship, engaged, married]
+    desc: "The relationship stage at which this person thinks touching over clothes, making out and grinding become acceptable (the median of the survey's items in this tier)."
+    init: "copula lds_sexuality.ok_touch"
+  ok_stage_underclothes:
+    label: When under-clothes touching is OK
+    ordinal: [on a date, committed relationship, engaged, married]
+    desc: "The stage at which touching under clothes or seeing each other in underwear becomes acceptable."
+    init: "copula lds_sexuality.ok_underclothes"
+  ok_stage_naked:
+    label: When being naked together is OK
+    ordinal: [on a date, committed relationship, engaged, married]
+    desc: "The stage at which being naked together and manual sex become acceptable."
+    init: "copula lds_sexuality.ok_naked"
+  ok_stage_sex:
+    label: When sex is OK
+    ordinal: [on a date, committed relationship, engaged, married]
+    desc: "The stage at which oral sex and intercourse become acceptable (about three in four say marriage)."
+    init: "copula lds_sexuality.ok_sex"
+  intimacy_level:
+    label: Physical intimacy with partner
+    kind: state
+    update: event
+    evidence: calibrated
+    ordinal: [none yet, kissing, touching, under clothes, naked, sex]
+    desc: "How far physical intimacy has gone with their current partner (0 when single). Moves up the ladder at a pace set by both partners' limits, drive, chastity commitment and time alone."
+    init: "Set from relationship stage, the couple's limits and premarital history at the start."
+  sex_ed_home:
+    label: Taught about sex growing up
+    kind: history
+    ordinal: [none at all, a little, a moderate amount, a lot, a great deal]
+    desc: How much they were taught about sex growing up.
+    init: "copula lds_sexuality.sex_ed_home"
+  sexual_shame:
+    label: Shame about sexuality
+    kind: belief
+    dtype: f4
+    range: [0, 1]
+    update: event
+    desc: "Agreement that their feelings about sexuality were hurt by negative cultural messages about sex (0 strongly disagree … 1 strongly agree). Raises guilt after crossing a line."
+    init: "copula lds_sexuality.sexual_shame / 4"
+  masturbation:
+    label: Masturbation
+    kind: habit
+    ordinal: [none, rare, monthly, weekly+]
+    update: monthly
+    desc: Current frequency (in the last year).
+    init: "copula lds_sexuality.masturbation (members); literature-like for others"
+  talked_to_bishop_sexual:
+    label: Has talked to a bishop about porn or masturbation
+    dtype: bool
+    kind: history
+    update: event
+    desc: "Has addressed pornography or masturbation with a bishop as part of repentance at some point."
+    init: "copula lds_sexuality.bishop_any (members)"
+  db_watches_porn:
+    label: "Dealbreaker: partner watches porn"
+    kind: preference
+    ordinal: [strongly disagree, disagree, neutral, agree, strongly agree]
+    desc: "\"It's a dealbreaker if I find out the person I'm dating watches porn.\""
+    init: "copula lds_sexuality.db_watches_porn"
+  db_past_porn:
+    label: "Dealbreaker: partner had a porn problem"
+    kind: preference
+    ordinal: [strongly disagree, disagree, neutral, agree, strongly agree]
+    desc: "\"It's a dealbreaker if I find out the person I'm dating had a porn problem in the past.\""
+    init: "copula lds_sexuality.db_past_porn"
+  db_masturbates:
+    label: "Dealbreaker: partner masturbates"
+    kind: preference
+    ordinal: [strongly disagree, disagree, neutral, agree, strongly agree]
+    desc: "\"It's a dealbreaker if I find out the person I'm dating masturbates.\""
+    init: "copula lds_sexuality.db_masturbates"
+  db_not_virgin:
+    label: "Dealbreaker: partner isn't a virgin"
+    kind: preference
+    ordinal: [strongly disagree, disagree, neutral, agree, strongly agree]
+    desc: "\"It's a dealbreaker if I find out the person I'm dating isn't a virgin, even if they repented.\""
+    init: "copula lds_sexuality.db_not_virgin"
+  db_asexual:
+    label: "Dealbreaker: partner is asexual"
+    kind: preference
+    ordinal: [strongly disagree, disagree, neutral, agree, strongly agree]
+    desc: "\"It's a dealbreaker if I find out the person I'm dating is asexual.\""
+    init: "copula lds_sexuality.db_asexual"
+  sexual_satisfaction:
+    label: Satisfaction with sex life (married)
+    kind: state
+    dtype: f4
+    range: [0, 1]
+    update: weekly
+    desc: "Married people's satisfaction with their sex life (0 very dissatisfied … 1 very satisfied); 0 for the unmarried. Feeds relationship satisfaction modestly."
+    init: "copula lds_sexuality.sex_satisfaction / 4 (married)"
+  desire_gap:
+    label: Desire gap with spouse
+    kind: state
+    dtype: f4
+    range: [-1, 1]
+    update: static
+    desc: "How their desire compares with their spouse's (−1 much less, 0 about the same, +1 much more); 0 for the unmarried. A wide gap lowers sexual satisfaction."
+    init: "copula lds_sexuality.desire_gap (married), centered"

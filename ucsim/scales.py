@@ -227,6 +227,12 @@ ANCHORS: dict[str, list[A]] = {
     "plans_kept": [(0, "none"), (1, "one"), (5, "a few"), (20, "many"), (60, "a great many")],
     "plans_abandoned": [(0, "none"), (1, "one"), (5, "a few"), (20, "many"), (60, "a great many")],
     # survey items whose answer words need a little context
+    "sexual_shame": [(0, "strongly disagrees", "feels no harm from cultural messages about sex"), (0.25, "disagrees"),
+                     (0.5, "neutral"), (0.75, "agrees"), (1, "strongly agrees", "feels deeply hurt by negative messages about sex")],
+    "sexual_satisfaction": [(0, "very dissatisfied"), (0.25, "dissatisfied"), (0.5, "neutral"), (0.75, "satisfied"),
+                            (1, "very satisfied")],
+    "desire_gap": [(-1, "desires much less than their spouse"), (-0.5, "desires somewhat less"),
+                   (0, "about the same desire"), (0.5, "desires somewhat more"), (1, "desires much more than their spouse")],
     "prefers_rm": [(0, "much worse", "a returned missionary seems a much worse match"), (1, "somewhat worse"),
                    (2, "about the same", "a mission makes no difference"), (3, "somewhat better"),
                    (4, "much better", "strongly prefers someone who served")],
@@ -263,9 +269,13 @@ ENDS = {
 }
 
 # ------------------------------------------------------------------------------------------------ how it's measured
-SURVEY_TITLE = {"provostats": "ProvoStats", "college_life": "College Life", "dating": "Dating", "culture": "Culture & Lifestyle"}
+SURVEY_TITLE = {"provostats": "ProvoStats", "college_life": "College Life", "dating": "Dating", "culture": "Culture & Lifestyle",
+                "lds_sexuality": "LDS Sexuality"}
 
 HOW: dict[str, str] = {
+    "intimacy_level": "How far physical intimacy has gone with their current partner. Couples move one step at a time "
+                      "(weekly), quickly when both think the step is fine at their stage, rarely when it crosses a line "
+                      "one of them has set; married couples are at the top.",
     "mood": "A feeling the model composes each day: a personal set-point (from extraversion and neuroticism) plus loneliness, "
             "stress, their relationship, sense of purpose, sleep, exercise, the season and friends' moods, plus the fading "
             "effects of recent events.",

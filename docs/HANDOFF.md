@@ -158,6 +158,19 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
 
 ## Session log (newest first)
 
+### 2026-10-19 — Claude Code (cloud session)
+- **AI setup** (owner request, outside the workstream list): checked the LLM wiring (What-if compiler with Claude Code,
+  Codex and LM Studio/Ollama backends; tests pass) and made it easy to connect: a guided **Connect an AI** dialog
+  (`web/src/kit/AiSetup.tsx`; top-bar pill, Settings menu, What-if panel) with Choose → Connect → Test. New backends
+  `anthropic` (Claude API key, official `anthropic` SDK, refusal fallback, cached system prompt, structured output) and
+  `openai_api` (OpenAI API key through the existing OpenAI-compatible loop). Keys are saved only in `~/.ucsim/llm.json`
+  and never returned by the API. `POST /api/whatif/llm/test` does a one-word round trip and says what to fix. The old
+  inline setup in Ask.tsx is replaced by the dialog. `anthropic` added to dependencies and the PyInstaller spec; package
+  data now includes config/**/*.json and *.csv (the weather CSV was missing from pip installs). docs/AI_SETUP_GUIDE.md
+  updated. The real CLIs and API keys can't be exercised in the cloud container (tests use stand-ins). 191 tests pass;
+  web build passes.
+- Next: sexuality-survey once the owner supplies the xlsx.
+
 ### 2026-10-19 (5) — Claude Code (cloud session)
 - Built and merged **family-homes**. `engine/systems/family.py`: home state and metro from origin_region and
   ProvoStats' origin-state table (Utah split by county; family_local → Utah County), drive hours (fly beyond 12 h),

@@ -556,13 +556,14 @@ class Synthesizer:
     def _sexuality(self, S: dict, put, sex, age, rel, act, lds, mission, n) -> dict:
         """The LDS Sexuality Survey block (June 2025), drawn conditional on what the ProvoStats block already gave
         each person (dating history) plus age, stage, activity and mission. Church members' porn use comes from it;
-        non-members keep the literature draw (the survey's sample is ~95% members)."""
+        non-members are drawn as inactive members (the survey's closest group) but keep the literature porn draw (the survey's sample is ~95% members)."""
         cop = self.cop.get("lds_sexuality")
         if cop is None:
             return {}
         rng = self.rng_sx
         rel_level = np.array([REL_LEVEL_NUM[r] for r in rel], dtype=float)
-        known = {"age": age, "rel_level": rel_level, "activity": np.where(lds == 1, act, np.nan).astype(float),
+        # non-members are drawn as the survey's least active members (its closest group; ~95% of it are members)
+        known = {"age": age, "rel_level": rel_level, "activity": np.where(lds == 1, act, 0).astype(float),
                  "mission": np.where(lds == 1, mission, np.nan).astype(float),
                  "n_kissed": S["n_kissed"].astype(float), "n_ncmo": S["n_ncmo"].astype(float),
                  "n_relationships": S["n_relationships"].astype(float),

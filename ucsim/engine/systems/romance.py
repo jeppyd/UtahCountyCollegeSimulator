@@ -824,6 +824,13 @@ class Romance:
         due = np.where(P.internal["confess_day"][: P.n] == w.day)[0]
         if len(due) == 0:
             return
+        inst = sim.systems.get("institutions")
+        if inst is not None:      # the bishop has a few interview slots a week; the rest wait a day and ask again
+            ok = inst.bishop_gate(due)
+            P.internal["confess_day"][due[~ok]] = w.day + 1
+            due = due[ok]
+            if len(due) == 0:
+                return
         exp_pos = P["institutional_trust"][due] - 0.4
         sim.emit("bishop_confession", due, cause=P.internal["rel_event"][due], mech="romance.confession",
                  ev={"experience": exp_pos})

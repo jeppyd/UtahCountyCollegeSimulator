@@ -130,6 +130,23 @@ export const msgApi = {
     j(`/api/messaging/news/${e}?u=${u}`),
 }
 
+// ---------------------------------------------------------------- institutions (routes_institutions.py)
+export type InstRow = { id: number; kind: string; ref: number; name: string; capacity?: number; budget: number; hours: number; delay: number
+  weekday: number; food: boolean; demand: number; served: number; waitlist: number; utilization: number }
+export type InstPerson = { person: number; name: string; asked: number; crisis: boolean; waited?: number; sessions?: number }
+export type InstDetail = InstRow & {
+  history: { day: number; demand: number; served: number; waitlist: number; attended: number }[]
+  decisions: { day: number; date: string; action: string; words: string; turnout: number; officer: number | null; officer_name: string | null; event: number | null; occasion: number | null }[]
+  occasions: { id: number; day: number; date: string; label: string; came: number; status: string }[]
+  members?: number; flexibility?: number
+  queue?: { waiting: InstPerson[]; in_care: InstPerson[]; n_waiting: number; n_in_care: number; n_finished: number; n_gave_up: number; mean_wait_days: number | null }
+}
+export const instApi = {
+  list: (u: Universe = 'base', kind = ''): Promise<InstRow[]> => j(`/api/institutions?u=${u}&kind=${kind}`),
+  get: (id: number, u: Universe = 'base'): Promise<InstDetail> => j(`/api/institutions/${id}?u=${u}`),
+  find: (kind: string, ref: number, u: Universe = 'base'): Promise<{ id: number }> => j(`/api/institutions/find?kind=${kind}&ref=${ref}&u=${u}`),
+}
+
 export const benchApi = {
   async events(s: BenchSel & { cats?: string[]; types?: string[]; q?: string; minSalience?: number; place?: number; limit?: number; offset?: number; order?: 'new' | 'old' }, u: Universe = 'base'):
     Promise<{ total: number; events: BenchEvent[]; today: number; start_date: string; n_people: number | null }> {

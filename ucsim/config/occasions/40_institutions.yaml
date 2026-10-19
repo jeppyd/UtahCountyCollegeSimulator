@@ -1,0 +1,81 @@
+# Occasions institutions run (engine/systems/institutions.py, origin "institution"): open occasions for their own
+# members only (a club's members, a ward, a complex's residents). Bases are hypothetical (no attendance data).
+occasions:
+  club_social:
+    label: Club social
+    where: group
+    start: "19:00"
+    dur: 90
+    open: true
+    social: true
+    category: social
+    rate: 0.7
+    talk_h: 0.6
+    act: campus
+    base: -0.6
+    interest: {extraversion: 0.4, drive_connection: 0.5, drive_fun: 0.4}
+  club_social_food:
+    label: Club social (with food)
+    where: group
+    start: "19:00"
+    dur: 90
+    open: true
+    social: true
+    category: social
+    rate: 0.7
+    talk_h: 0.6
+    act: campus
+    base: 0.0
+    interest: {extraversion: 0.4, drive_connection: 0.5, drive_fun: 0.4, financial_stress: 0.3}
+  ward_activity:
+    label: Ward activity
+    where: meetinghouse
+    start: "19:00"
+    dur: 90
+    open: true
+    social: true
+    category: religion
+    rate: 0.8
+    talk_h: 0.6
+    act: church
+    base: -1.4
+    interest: {attend_rate: 1.2, ward_activity_rate: 1.0, extraversion: 0.3}
+  ward_activity_plain:
+    label: Ward activity (no food)
+    where: meetinghouse
+    start: "19:00"
+    dur: 75
+    open: true
+    social: true
+    category: religion
+    rate: 0.8
+    talk_h: 0.6
+    act: church
+    base: -1.9
+    interest: {attend_rate: 1.2, ward_activity_rate: 1.0, extraversion: 0.3}
+  service_project:
+    label: Ward service project
+    where: park
+    start: "09:00"
+    dur: 150
+    open: true
+    social: true
+    category: religion
+    rate: 0.6
+    talk_h: 0.5
+    act: church
+    base: -2.2
+    interest: {attend_rate: 1.0, ward_activity_rate: 0.8, agreeableness: 0.4}
+  resident_event:
+    label: Resident event (free food)
+    where: complex
+    start: "17:00"
+    dur: 120
+    open: true
+    social: true
+    category: social
+    rate: 0.8
+    talk_h: 0.4
+    act: home
+    base: -1.7
+    interest: {extraversion: 0.3, financial_stress: 0.5, drive_connection: 0.3}

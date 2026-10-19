@@ -450,7 +450,7 @@ class Occasions:
         O = self.book.occ
         pos = np.maximum(O.pos(occ_ids), 0)
         return {c: O.cols[c][pos] for c in ("kind", "day", "start", "dur", "lon", "lat", "organizer", "series", "place",
-                                            "origin", "status", "open", "capacity")}
+                                            "origin", "status", "open", "capacity", "org_kind", "org_id")}
 
     def occ_key(self, occ_ids) -> np.ndarray:
         """A key for each occasion that is the same in the Original and a What-if: who organizes it (or where an open one
@@ -652,6 +652,9 @@ class Occasions:
         s = P.internal["shift_start"][persons, wd].astype(np.int32)
         e = P.internal["shift_end"][persons, wd].astype(np.int32)
         m = (s >= 0) & P["employed"][persons]
+        inst = sim.systems.get("institutions")
+        if inst is not None and m.any():   # employers that would let them swap the shift (schedule flexibility)
+            m &= ~inst.shift_flex(persons, days)
         emp = np.maximum(P["employer_id"][persons], 0)
         rows.append(np.where(m)[0])
         cs.append(s[m])
@@ -965,6 +968,18 @@ class Occasions:
             self._aud_cache[key] = evaluate_filter(sim.w, _normalize_filter(aud), sim=sim)
         return self._aud_cache[key]
 
+    def _org_members(self, org_kind: int, org_id: int):
+        """An open occasion run by a group, ward or complex speaks only to its own members (True for everyone else)."""
+        P = self.sim.w.P
+        col = {ORG_ID["group"]: ("club_id", "team_id", "institute_class"), ORG_ID["ward"]: ("ward_id",),
+               ORG_ID["complex"]: ("complex_id",)}.get(org_kind)
+        if col is None or org_id < 0:
+            return True
+        m = np.zeros(P.n, bool)
+        for c in col:
+            m |= P[c][: P.n] == org_id
+        return m
+
     def _interest(self, kind_code: int, people: np.ndarray) -> np.ndarray:
         sim = self.sim
         P = sim.w.P
@@ -1008,7 +1023,7 @@ class Occasions:
             J = np.where(grp == gi)[0]
             aud = np.zeros((P.n, len(J)), bool)
             for c_i, j in enumerate(J):
-                aud[:, c_i] = self._audience(int(oc["kind"][j])) & pres
+                aud[:, c_i] = self._audience(int(oc["kind"][j])) & pres & self._org_members(int(oc["org_kind"][j]), int(oc["org_id"][j]))
             people = np.where(aud.any(axis=1))[0]
             if not len(people):
                 continue
@@ -1829,8 +1844,7 @@ class Occasions:
 
     def shift_conflict(self, people, occ: int) -> dict:
         """Whether each person's shift that day overlaps an occasion, by how many minutes, and whether the employer
-        would let them swap or leave early. Every shift is firm for now; institutions (employers with schedule
-        flexibility and shift swaps, a later wave) plug in through `self.shift_flex(people, day) -> bool mask`."""
+        would let them swap or leave early (institutions.shift_flex; a flexible shift isn't a firm commitment)."""
         P = self.sim.w.P
         people = np.atleast_1d(np.asarray(people, np.int64))
         oc = self._occ_cols(np.array([occ], np.int64))
@@ -1841,7 +1855,8 @@ class Occasions:
         e = P.internal["shift_end"][people, wd].astype(np.int32)
         has = (s >= 0) & P["employed"][people]
         ov = np.where(has, np.clip(np.minimum(e, en) - np.maximum(s, st), 0, None), 0)
-        flex = self.shift_flex(people, day) if callable(getattr(self, "shift_flex", None)) else np.zeros(len(people), bool)
+        inst = self.sim.systems.get("institutions")
+        flex = inst.shift_flex(people, day) if inst is not None else np.zeros(len(people), bool)
         return {"overlap_minutes": ov.tolist(), "shift_start": np.where(has, s, -1).tolist(), "shift_end": np.where(has, e, -1).tolist(),
                 "conflict": (ov > 0).tolist(), "flexible": np.asarray(flex, bool).tolist()}
 

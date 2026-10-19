@@ -1,0 +1,61 @@
+# Events from engine/systems/institutions.py. Same fields as events.yaml; magnitudes hypothetical.
+events:
+  club_changed_plans:
+    label: Club officers changed plans
+    story: "{a}'s club changed its plans after low turnout"
+    category: social
+    salience: 0.3
+    effects: []
+    evidence: hypothetical
+    desc: "The value says what they did: 0 added food, 1 moved to another night, 2 recruited, 3 capped the room."
+  joined_group:
+    label: Joined a club or team
+    story: "{a} joined a club after being recruited"
+    category: social
+    salience: 0.35
+    effects:
+      - {var: belonging, mag: 0.01, sd: 0.4, half_life: 14}
+    evidence: hypothetical
+  waiting_for_bishop:
+    label: Waiting to see the bishop
+    story: "{a} is waiting for a slot with their bishop"
+    category: religion
+    salience: 0.2
+    effects:
+      - {var: stress, mag: 0.01, sd: 0.4, half_life: 5}
+    evidence: hypothetical
+  sought_counseling:
+    label: Asked for counseling
+    story: "{a} asked the campus counseling center for help"
+    category: health
+    salience: 0.6
+    effects: []
+    evidence: hypothetical
+  counseling_started:
+    label: Started counseling
+    story: "{a} started seeing a counselor"
+    category: health
+    salience: 0.6
+    effects:
+      - {var: stress, mag: -0.02, sd: 0.4, half_life: 10}
+    evidence: hypothetical
+    desc: "The value is how many days they waited."
+  counseling_session:
+    label: Counseling session
+    story: "{a} had a counseling session"
+    category: health
+    salience: 0.15
+    effects:
+      - {var: mood, mag: 0.02, sd: 0.5, half_life: 7}
+      - {var: stress, mag: -0.015, sd: 0.5, half_life: 7}
+    evidence: hypothetical
+    refs: ["Brief therapy in college counseling centers: modest average improvement over a handful of sessions (CCMH)"]
+  gave_up_waiting:
+    label: Gave up waiting for counseling
+    story: "{a} gave up waiting for a counseling appointment"
+    category: health
+    salience: 0.45
+    effects:
+      - {var: mood, mag: -0.02, sd: 0.4, half_life: 7}
+    evidence: hypothetical
+    desc: "The value is how many days they had waited."

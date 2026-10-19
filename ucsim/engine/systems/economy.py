@@ -119,6 +119,9 @@ class Economy:
             trying = trying | plans.wants_work()
         seeking = present & ~P["employed"] & (P["age"] < 65) & ((P["financial_stress"] > 0.5) | ~P["enrolled"] | trying) & ~P.is_("role", "faculty")
         h_find = expit(p("economy.job_find.base") + 2.0 * (P["financial_stress"] - 0.4) + 0.5 * trying) * (0.032 / ur) ** 0.8
+        inst = sim.systems.get("institutions")
+        if inst is not None:      # seasonal openings (campus jobs at semester start, holiday retail)
+            h_find = np.clip(h_find * inst.openings(w.day), 0, 1)
         find = seeking & (sim.u("job_find") < h_find)
         if find.any():
             ids = np.where(find)[0]

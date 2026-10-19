@@ -115,6 +115,21 @@ export const talkApi = {
   differs: (i: number, u: Universe = 'base'): Promise<NonNullable<TalkResult['differs']>> => j(`/api/talk/differs/${i}?u=${u}`),
 }
 
+// ---------------------------------------------------------------- messaging (routes_messaging.py)
+export type MsgAct = { id: number; day: number; date: string; kind: string; words: string; thread: number; sender: number; sender_name: string | null
+  to: number | null; to_name: string | null; replied_day: number | null; event: number | null; read_as?: string
+  occasion?: { id: number; label: string; day: number } | null; news?: any }
+export type MsgThread = { id: number; kind: string; name: string; n: number; volume: number; muted: boolean; joined: number }
+export const msgApi = {
+  person: (i: number, u: Universe = 'base'): Promise<{ person: number; name: string; threads: MsgThread[]; acts: MsgAct[]; today: number }> =>
+    j(`/api/messaging/person/${i}?u=${u}`),
+  thread: (t: number, u: Universe = 'base'): Promise<{ id: number; kind: string; name: string; active: boolean; created_day: number; creator: number | null
+    volume: number; members: { id: number; name: string; joined: number; left: number | null; muted: boolean }[]; acts: MsgAct[] }> =>
+    j(`/api/messaging/thread/${t}?u=${u}`),
+  news: (e: number, u: Universe = 'base'): Promise<{ event: any; knowers: { person: number; name: string; source: number; source_name: string | null; day: number; channel: string }[]; tracked: boolean }> =>
+    j(`/api/messaging/news/${e}?u=${u}`),
+}
+
 export const benchApi = {
   async events(s: BenchSel & { cats?: string[]; types?: string[]; q?: string; minSalience?: number; place?: number; limit?: number; offset?: number; order?: 'new' | 'old' }, u: Universe = 'base'):
     Promise<{ total: number; events: BenchEvent[]; today: number; start_date: string; n_people: number | null }> {

@@ -96,6 +96,7 @@ ROLES: dict[str, tuple[str, str]] = {
     "dealbreaker": ("caused", "finding out something that was a dealbreaker for them"),
     "brought_to_light": ("contributed", "what brought it to light"),
     "crossed": ("led_to", "a step further than they had planned"),
+    "unanswered": ("caused", "a message that went unanswered"),
 }
 ROLE_CODE = {k: ROLE_BASE + i for i, k in enumerate(ROLES)}
 ROLE_NAME = {v: k for k, v in ROLE_CODE.items()}

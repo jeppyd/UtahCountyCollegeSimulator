@@ -392,13 +392,16 @@ class Occasions:
         nb = (P["complex_id"][person] == P["complex_id"][iv]) & (P["complex_id"][person] >= 0) & (inviter >= 0)
         ch = np.where(same | nb | (channel_default == "in_person"), CHANNEL_ID["in_person"], CHANNEL_ID[channel_default])
         inv = self.book.invite(occ_rep, person, inviter=inviter, channel=ch, day=day, block=0)
+        msg = self.sim.systems.get("messaging")
+        if msg is not None:
+            msg.assign_threads(inv)        # group-chat invitations go to a chat they share
         self.deliver(inv)
         return inv
 
     def deliver(self, inv_ids: np.ndarray, channel: str | None = None):
         """Who notices an invitation, and when. In person: at once. A text or group chat: seen in time with a chance that
         rises with phone habits and falls when they're at work or in class when it arrives; unseen texts get another
-        chance each morning until the day. Messaging (wave 2) replaces this hook with threads and attention."""
+        chance each morning until the day. With messaging running, the chance comes from its attention model."""
         sim, w = self.sim, self.sim.w
         P, p = w.P, sim.p
         book = self.book
@@ -413,8 +416,13 @@ class Occasions:
         chan = I.cols["channel"][pos]
         fresh = I.cols["seen_day"][pos] < 0
         busy = (sim.systems["activity"].shift_minutes(1, sim.cal.weekday(w.day))[person] > 0)
-        pr = expit(p("occasions.invite.seen_base") + p("occasions.invite.seen_phone") * sim.z("social_media_hours")[person]
-                   - p("occasions.invite.seen_busy") * busy)
+        msg = sim.systems.get("messaging")
+        if msg is not None:     # attention: phone checks, how busy the chat is, whether it's addressed to them
+            th = I.cols["thread"][pos].astype(np.int64)
+            pr = msg.notice_prob(person, chan, th, mention=th < 0)
+        else:
+            pr = expit(p("occasions.invite.seen_base") + p("occasions.invite.seen_phone") * sim.z("social_media_hours")[person]
+                       - p("occasions.invite.seen_busy") * busy)
         # a text gets a fresh chance each morning it is still unseen (the day is part of the salt)
         u = self._u(person, I.cols["occ"][pos], 17 + 7 * (w.day - I.cols["sent_day"][pos].astype(np.int64)))
         seen = fresh & ((chan == CHANNEL_ID["in_person"]) | (chan == CHANNEL_ID["family"]) | (u < pr))
@@ -885,6 +893,8 @@ class Occasions:
                                  constraints={"ill": sick[off], "conflict": busy[off]})
         if cancel.any():
             book.mark(ids[cancel], "cancelled")
+            if sim.systems.get("messaging") is not None:
+                sim.systems["messaging"].plan_change(ids[cancel])
             for o in ids[cancel].tolist():
                 self.today.pop(o, None)
                 self._n_cancel += 1

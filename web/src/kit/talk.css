@@ -29,3 +29,8 @@
 .ta-differs { margin: 6px 0 10px; padding: 6px 8px; border: 1px dashed var(--border-strong); border-radius: 6px; font-size: 12.5px; }
 .ta-differs li { margin-bottom: 3px; }
 .ta-who { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 12.5px; color: var(--text-secondary); flex-wrap: wrap; }
+/* Chats (bench/tools/Chats.tsx) */
+.ms-silence { opacity: .85; }
+.ms-flag { color: var(--critical); font-size: 12px; }
+.ms-node { display: flex; align-items: center; gap: 6px; padding: 2px 0; font-size: 12.5px; }
+.ms-node .when { min-width: 64px; color: var(--text-muted); font-size: 11.5px; }

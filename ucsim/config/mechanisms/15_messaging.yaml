@@ -1,0 +1,102 @@
+system: messaging
+# Messaging and group chats (engine/systems/messaging.py). Directions are well documented (phone checking, busy group
+# chats getting skimmed, rejection-sensitive people reading ambiguity as rejection, FOMO from seeing friends together);
+# magnitudes are hypothetical.
+mechanisms:
+  messaging.attention:
+    label: Seeing a message in time
+    target: social_events_month
+    sources: [social_media_hours]
+    form: "P(seen today) = 1 − exp(−checks · f · 0.35), checks = exp(checks + phone·z(social media) − busy·at work or class), f = mention-boost (addressed to them) / (1 + thread volume / volume_scale); a muted chat × 0.15"
+    params:
+      checks: {value: 1.4, range: [0.8, 2.2]}
+      phone: {value: 0.3, range: [0, 0.6]}
+      busy: {value: 0.5, range: [0, 1]}
+      volume_scale: {value: 25, range: [5, 80]}
+      mention: {value: 2.5, range: [1, 4]}
+    timescale: daily
+    evidence: hypothetical
+    refs: ["Deloitte Global Mobile Consumer Survey (2019): young adults check phones dozens of times a day"]
+  messaging.background:
+    label: Everyday chat volume
+    target: social_media_hours
+    sources: []
+    form: "messages per member per day by kind of chat (an exponential average of the day's volume)"
+    params:
+      household: {value: 1.0, range: [0.2, 3]}
+      friends: {value: 1.5, range: [0.2, 4]}
+      club: {value: 0.2, range: [0, 1]}
+      team: {value: 0.3, range: [0, 1]}
+      ward: {value: 0.08, range: [0, 0.5]}
+      family: {value: 0.6, range: [0, 2]}
+    timescale: daily
+    evidence: hypothetical
+  messaging.checkin:
+    label: Checking in on a friend
+    target: support
+    sources: [agreeableness, extraversion, mood, loneliness]
+    form: "texts to close friends per day ~ Poisson(rate · exp(0.2·A + 0.2·E)); friends who are low or lonely are kept more often"
+    params:
+      rate: {value: 0.04, range: [0.01, 0.15]}
+    timescale: daily
+    evidence: hypothetical
+  messaging.reply:
+    label: Replying to a text
+    target: hurt
+    sources: [closeness, conscientiousness, agreeableness, mood, depressive_episode]
+    form: "P(reply) = logistic(base + closeness·c + responsive·z((C + A)/2) + mood·(mood − 0.5) − busy − 1·depression); unanswered after silence_days, it is interpreted"
+    params:
+      base: {value: 0.8, range: [0, 2]}
+      closeness: {value: 2.0, range: [0.5, 3]}
+      responsive: {value: 0.6, range: [0, 1.2]}
+      mood: {value: 1.5, range: [0, 3]}
+      busy: {value: 0.4, range: [0, 1]}
+      silence_days: {value: 2, range: [1, 4]}
+    timescale: daily
+    evidence: hypothetical
+  messaging.silence:
+    label: Reading silence
+    target: [loneliness, hurt]
+    sources: [rejection_sensitivity]
+    form: "P(read as being ignored) = logistic(ignored_base + rs·z(rejection sensitivity)); otherwise they assume the friend is busy. Ignored: hurt +0.04 on the tie, their belief that the friend cares × 0.92"
+    params:
+      ignored_base: {value: -0.8, range: [-2, 0.5]}
+      rs: {value: 1.4, range: [0.5, 2.5]}
+    evidence: literature
+    refs: ["Downey & Feldman (1996): rejection-sensitive people read ambiguous cues as rejection"]
+  messaging.leftout:
+    label: Finding out you were left out
+    target: [belonging, hurt]
+    sources: []
+    form: "after a get-together of 3+, close friends of 2+ attendees who weren't invited find out with P = via_chat (they share a chat with the host) or via_news"
+    params:
+      min_friends: {value: 2, range: [1, 4]}
+      via_chat: {value: 0.35, range: [0.1, 0.9]}
+      via_news: {value: 0.08, range: [0, 0.5]}
+    evidence: hypothetical
+    refs: ["Przybylski et al. (2013): fear of missing out"]
+  messaging.news:
+    label: News spreading
+    target: closeness
+    sources: [extraversion, n_close_friends]
+    form: "the person it's about shares with P = logistic(share_base − privacy·how private + 0.4·E + 0.3·log(1+close friends)); knowers tell close friends each day with P = tell (the person it's about) or gossip (others) × (0.5 + closeness), for `days` days, up to `cap` people"
+    params:
+      share_base: {value: 1.5, range: [0, 3]}
+      privacy: {value: 3.5, range: [1, 6]}
+      tell: {value: 0.35, range: [0.05, 0.8]}
+      gossip: {value: 0.06, range: [0, 0.3]}
+      days: {value: 21, range: [7, 60]}
+      cap: {value: 60, range: [20, 300]}
+    timescale: daily
+    evidence: hypothetical
+  messaging.chat:
+    label: Joining, leaving and muting chats
+    target: belonging
+    sources: [closeness]
+    form: "friend-group chats follow clusters of close friends (weekly); someone who drifted out of the cluster leaves with P = logistic(leave_base + drift·(0.3 − closeness to the group)); busy ward/club/team chats get muted with P = logistic(mute_base + 0.05·volume)"
+    params:
+      leave_base: {value: -1.5, range: [-3, 0]}
+      drift: {value: 4.0, range: [1, 8]}
+      mute_base: {value: -4.0, range: [-6, -2]}
+    timescale: weekly
+    evidence: hypothetical

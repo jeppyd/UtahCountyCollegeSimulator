@@ -29,7 +29,7 @@ class Simulation:
     def __init__(self, world: World, interventions: list | None = None, name: str = "baseline",
                  record: bool = True):
         from .systems import (academics, activity, economy, emotion, encounters, environment, faith, groups, housing,
-                              history, intimacy, lifecourse, mind, coping, culture, network, norms, occasions, plans,
+                              history, intimacy, lifecourse, messaging, mind, coping, culture, network, norms, occasions, plans,
                               recorder, romance, routine)
         self.w = world
         self.name = name
@@ -70,6 +70,7 @@ class Simulation:
             "culture": culture.Culture(self),
             "economy": economy.Economy(self),
             "occasions": occasions.Occasions(self),
+            "messaging": messaging.Messaging(self),
             "housing": housing.Housing(self),
             "recorder": recorder.Recorder(self),
             "history": history.History(self),
@@ -78,7 +79,7 @@ class Simulation:
         self._zcache: dict[str, tuple[float, float]] = {}
         for name in ("environment", "housing", "activity", "groups", "network", "academics", "encounters", "economy",
                      "romance", "intimacy", "faith", "norms", "mind", "coping", "plans", "routine", "emotion", "culture", "occasions",
-                     "lifecourse", "recorder"):
+                     "messaging", "lifecourse", "recorder"):
             sysobj = self.systems[name]
             if hasattr(sysobj, "init"):
                 sysobj.init()
@@ -244,6 +245,7 @@ class Simulation:
         wd = self.cal.weekday(d)
         self._run("encounters", S["encounters"].friend_contact)
         self._run("occasions", S["occasions"].end_of_day)
+        self._run("messaging", S["messaging"].end_of_day)
         self._run("romance", S["romance"].daily)
         self._run("mind", S["mind"].daily)
         self._run("coping", S["coping"].daily)

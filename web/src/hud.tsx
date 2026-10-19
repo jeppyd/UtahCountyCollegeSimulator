@@ -5,6 +5,7 @@ import { api, STATIC } from './api'
 import { DivergenceMeter, G, LensSwitch, timeOfDay } from './game'
 import { useStore } from './store'
 import { WorldDialog } from './views/WorldSetup'
+import { AiPill, useAiSetup } from './kit/AiSetup'
 
 // seconds per simulated day at each speed (the server waits at least this long per day)
 const SPEEDS: [number, string, string][] = [[1.4, 'Speed 1: about a day per second and a half', '▶'], [0.45, 'Speed 2: about two days per second', '▶▶'], [0, 'Speed 3: as fast as the computer allows', '▶▶▶']]
@@ -106,6 +107,7 @@ export function Hud() {
       </button>
       <span className="hud-pop small tabular" title="People living in Provo/Orem right now">{G.people}{status.present?.toLocaleString()}</span>
       <UpdatePill />
+      <AiPill />
       <Settings />
     </header>
   )
@@ -162,6 +164,7 @@ function Settings() {
           <div className="menu-row"><span className="small muted" style={{ width: 92 }} title="Show formulas, evidence labels, parameters and research tools inside pages">Research details</span>
             <div className="seg small-seg"><button className={mode === 'simple' ? 'on' : ''} onClick={() => setMode('simple')}>hide</button><button className={mode === 'advanced' ? 'on' : ''} onClick={() => setMode('advanced')}>show</button></div></div>
           {!STATIC && <><div className="menu-sep" />
+            <button onClick={() => { setOpen(false); useAiSetup.getState().show() }}>Connect an AI… <span className="muted">Claude, ChatGPT or a local model</span></button>
             <button onClick={() => { setOpen(false); setWorldOpen(true) }}>Build a new world… <span className="muted">scale {status.scale} · seed {status.seed}</span></button>
             <UpdateRow /></>}
           <div className="menu-sep" />

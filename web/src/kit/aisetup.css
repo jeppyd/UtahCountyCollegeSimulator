@@ -1,0 +1,41 @@
+/* ======================================================================= Connect an AI (kit/AiSetup.tsx) */
+.ai-backdrop { position: fixed; inset: 0; z-index: 90; background: color-mix(in srgb, var(--text-primary) 28%, transparent); display: grid; place-items: center; padding: 16px; }
+.ai-dialog { width: min(720px, 100%); max-height: min(88vh, 900px); display: flex; flex-direction: column; padding: 0; overflow: hidden; background: var(--surface-1);
+  border: 1px solid var(--border-strong); border-radius: 14px; box-shadow: var(--shadow); }
+.ai-head { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--grid); }
+.ai-head > b { font-size: 16px; }
+.ai-crumbs { display: flex; gap: 4px; flex: 1; justify-content: center; }
+.ai-crumbs button { border: 0; background: none; font: inherit; font-size: 12.5px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 999px; cursor: pointer; }
+.ai-crumbs button:disabled { cursor: default; opacity: .5; }
+.ai-crumbs button i { font-style: normal; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; border: 1px solid var(--border-strong); }
+.ai-crumbs button.on { color: var(--text-primary); font-weight: 600; background: var(--surface-2); }
+.ai-crumbs button.on i { background: var(--accent); border-color: var(--accent); color: white; }
+.ai-crumbs button.done i { background: var(--accent-soft); border-color: transparent; }
+.ai-body { padding: 16px 20px; overflow: auto; font-size: 13.5px; line-height: 1.5; }
+.ai-foot { display: flex; padding: 12px 18px; border-top: 1px solid var(--grid); gap: 8px; }
+.ai-lede { margin: 0 0 12px; color: var(--text-secondary); }
+.ai-note { font-size: 12px; color: var(--text-muted); margin: 6px 0; }
+.ai-warn { font-size: 12.5px; color: var(--critical); margin: 6px 0; }
+.ai-group { margin-bottom: 12px; }
+.ai-group-h { display: flex; gap: 8px; align-items: baseline; margin-bottom: 6px; }
+.ai-group-h span { color: var(--text-muted); font-size: 12px; }
+.ai-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
+.ai-option { text-align: left; border: 1px solid var(--border); background: var(--surface-1); border-radius: 10px; padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; font: inherit; color: inherit; }
+.ai-option:hover { border-color: var(--accent); }
+.ai-option.on { border-color: var(--accent); background: var(--accent-soft); }
+.ai-option b { font-size: 13.5px; display: flex; align-items: center; gap: 6px; }
+.ai-option span { font-size: 12.5px; color: var(--text-secondary); }
+.ai-option small { font-size: 11.5px; color: var(--text-muted); }
+.ai-rec { font-size: 10.5px !important; font-weight: 600; color: var(--accent) !important; border: 1px solid var(--accent); border-radius: 999px; padding: 0 6px; }
+.ai-steps { padding-left: 20px; margin: 8px 0; display: flex; flex-direction: column; gap: 8px; }
+.ai-cmd { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; max-width: 100%; }
+.ai-cmd code { background: var(--surface-2); border-radius: 6px; padding: 3px 8px; font-size: 12.5px; overflow-x: auto; white-space: nowrap; }
+.ai-found { margin: 4px 0 8px; font-weight: 600; color: var(--text-secondary); }
+.ai-found.ok { color: var(--good); }
+.ai-found.warn { color: var(--text-secondary); }
+.ai-found.big { font-size: 16px; }
+.ai-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; flex-wrap: wrap; font-size: 12.5px; }
+.ai-row > span:first-child { color: var(--text-secondary); min-width: 50px; }
+.ai-more summary { cursor: pointer; font-size: 12.5px; color: var(--text-secondary); margin-top: 8px; }
+.ai-test { display: flex; flex-direction: column; gap: 4px; }
+.ai-pill { white-space: nowrap; }

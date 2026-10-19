@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| — | — | — | Nobody. Sexuality-survey merged 2026-10-19; next is talk. |
+| Claude Code (cloud session) | 2026-10-19 | talk | WIP on `wip/talk`. |
 
 ## The goal in one paragraph
 
@@ -67,7 +67,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [scales](workstreams/scales.md) | **done, merged** | working branch | — |
 | [sexuality-survey](workstreams/sexuality-survey.md) (+ dealbreakers) | **done, merged** | working branch | open issues below |
 | [calendar-weather](workstreams/calendar-weather.md) | **done, merged** | working branch | open issues below |
-| [talk](workstreams/talk.md) (Ask + interviews) | not started | — | next (exclude `flags: [sensitive]` fields from dossiers) |
+| [talk](workstreams/talk.md) (Ask + interviews) | **in progress** | `wip/talk` | facts, checker, jobs, routes, tools |
 | [travel](workstreams/travel.md) | not started | — | can start any time (keeps `ucsim/geo/travel.py`'s interface) |
 | [messaging](workstreams/messaging.md) (wave 2) | not started | — | after time-occasions |
 | [institutions](workstreams/institutions.md) (wave 2) | not started | — | after time-occasions + provenance |

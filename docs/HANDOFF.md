@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| Claude Code (cloud session) | 2026-10-19 | sexuality-survey | Owner supplied the xlsx (in `data/raw/`, gitignored). WIP on `wip/sexuality-survey`. |
+| — | — | — | Nobody. Talk merged 2026-10-19; next is travel. |
 
 ## The goal in one paragraph
 
@@ -65,10 +65,10 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [provenance-trace](workstreams/provenance-trace.md) | **done, merged** | working branch | open issues below |
 | [workbench](workstreams/workbench.md) | **done, merged** | working branch | open issues below |
 | [scales](workstreams/scales.md) | **done, merged** | working branch | — |
-| [sexuality-survey](workstreams/sexuality-survey.md) (+ dealbreakers) | **in progress** | `wip/sexuality-survey` | ingest → variables → intimacy system → dealbreakers → validation |
+| [sexuality-survey](workstreams/sexuality-survey.md) (+ dealbreakers) | **done, merged** | working branch | open issues below |
 | [calendar-weather](workstreams/calendar-weather.md) | **done, merged** | working branch | open issues below |
-| [talk](workstreams/talk.md) (Ask + interviews) | not started | — | after sexuality-survey |
-| [travel](workstreams/travel.md) | not started | — | can start any time (keeps `ucsim/geo/travel.py`'s interface) |
+| [talk](workstreams/talk.md) (Ask + interviews) | **done, merged** | working branch | open issues below |
+| [travel](workstreams/travel.md) | not started | — | next (keeps `ucsim/geo/travel.py`'s interface) |
 | [messaging](workstreams/messaging.md) (wave 2) | not started | — | after time-occasions |
 | [institutions](workstreams/institutions.md) (wave 2) | not started | — | after time-occasions + provenance |
 | [family-homes](workstreams/family-homes.md) (wave 2) | not started | — | after calendar-weather |
@@ -101,6 +101,21 @@ institutions, family-homes) can start now too, but coordinate: they touch the sa
 - Workbench: Life/Measure history is every two weeks (coarse). `/api/person/{i}/day` lists some class meetings twice (the Day tool de-duplicates). The
   DecisionCard shows "Person 1005" instead of a name for the agent. Bench panels are placed at the first free spot,
   so the order tools are added decides the layout.
+- Sexuality survey (validation at scale 0.15, 200 days, seed 1): premarital sex among unmarried **less-active and
+  inactive** students runs low (0.27 vs 0.50; 0.41 vs 0.67 — both failed before too; the stock comes from ProvoStats);
+  the ladder makes fewer couples start having sex than the old weekly hazard did (142 vs 226 events), while active
+  members stay a little high (0.21 vs 0.16). Held-out NCMO/kissing rows: less-active men run high (6.5 vs 2.5 NCMO
+  partners; 15 vs 9 kissed) — a ProvoStats-vs-LDS-Sexuality disagreement in the starting values. Breakups +13%
+  (dealbreakers end ~9% of them; reaction and reveal rates are hypothetical). Non-members' limits, masturbation and
+  dealbreakers are drawn as the survey's inactive members. `scripts/validate.py` has the new rows but wasn't re-run
+  end to end (docs/VALIDATION.md unchanged). No workbench/UI work for intimacy yet beyond the generic field views.
+- Talk: never run against a real model in this container (no claude CLI or local server here) — everything is tested
+  on a scripted stand-in; the owner's first real runs may show prompt/schema issues (the Claude path reuses
+  backends.run_claude with a per-feature pack dir in ~/.ucsim/talk_<feature>/; Codex returns `args_json` unpacked to
+  `args`, both handled). The checker's 100% catch / 0% false-alarm on tests/data/talk_cases.json is on the set it was
+  tuned against (floor in the test: ≥ 90% / ≤ 10%); real answers will be harder — add the misses you see as cases.
+  Name checks know only the synthetic name lists and the fact sheet's own names. Ask's lookups are a fixed list;
+  "why a number changed" is the current decomposition plus the change since a recent history snapshot.
 
 ## Open questions for the owner
 
@@ -120,6 +135,51 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-19 (2) — Claude Code (cloud session)
+- Built and merged **talk** (Ask the world + Interviews). `ucsim/llm/talk/`: `facts.py` (typed claims; the interview
+  dossier — feelings, perceptions, closest ties as they see them, memories read without rehearsing, intentions,
+  coping, the top reason for their own recent decisions — with sensitive fields and events left out by default;
+  `view_vs_truth`; eight query tools: find_people, rank_places, event_counts, explain_feeling, why_changed,
+  most_affected, person, trace), `check.py` (citations, numbers incl. spelled-out and percentages with hedges, names
+  incl. invented synthetic names, causal wording incl. causal "since", feeling words → field value ranges and the
+  person they're about, interview hidden-state rule), `llm.py` (per-feature backend in ~/.ucsim/talk.json: auto =
+  local model for interviews when loaded; FAKE hook for tests), `jobs.py` (start/poll/cancel; check → one repair →
+  drop with reasons; interview safety screen: self-harm methods, clinical advice, theology), `ask.py`,
+  `interview.py` (also in the What-if world). Prompts `llm/prompts/talk_ask.md`, `talk_interview.md`. API
+  `routes_talk.py` (/api/talk/status, settings, ask, ask/{job}, ask/{job}/cancel, interview/{i}, differs/{i}; the
+  What-if local-only guard). Web: `kit/Answer.tsx` (+ useTalkJob, talk.css), workbench tools `Ask.tsx`,
+  `Interview.tsx` (backend picker, "view vs. truth", What-if toggle), talkApi in api.ts, a Guide entry, a section in
+  docs/WHATIF_LLM.md, screenshot docs/img/talk-ask-interview.png (scripted stand-in model).
+  `tests/data/talk_cases.json` (73 seeded statements: 32 true, 41 false across wrong number/person/cause/intensity,
+  hidden-state leak, uncited); `tests/test_talk.py` (evaluation floor, unit tests, Ask and Interview end to end through
+  the API on a fake backend, interviews change nothing, sensitive fields out). 204 tests pass; web build passes.
+- Next: travel, messaging, institutions, family-homes, survey-followups (needs the other surveys' raw CSVs),
+  integration.
+
+### 2026-10-19 — Claude Code (cloud session)
+- The owner supplied the LDS Sexuality Survey (`data/raw/lds-sexuality_2025-06-29.xlsx`, gitignored), so
+  **sexuality-survey** went before talk; built and merged it. `ucsim/ingest/sexuality.py` (`python -m
+  ucsim.ingest.sexuality`, openpyxl in the new `ingest` extra) reads only the columns in
+  `survey_spec.SEXUALITY_SPEC` (no free text, no birth control/positions/toys/oral endings, extra sheets never
+  opened), keeps ages 18–35 (1,411 respondents), pools answer levels under 10 people, and writes only
+  `blocks.lds_sexuality`, `targets.lds_sex_*`, `tables.lds_sex_*`, `meta.sources["lds-sexuality"]` (pure additions to
+  survey_priors.json). New person variables (`config/variables/11_intimacy.yaml`, all `flags: [sensitive]`, as are
+  porn_use, n_sex_partners, premarital_sex_current, n_ncmo, ever_cheated(_on), porn_incongruence): sex_drive,
+  ok_stage_touch/underclothes/naked/sex, intimacy_level, sex_ed_home, sexual_shame, masturbation,
+  talked_to_bishop_sexual, the five db_* dealbreakers, sexual_satisfaction, desire_gap. synth.py draws them from
+  their own stream (`[seed, 7002]`, nobody else's draws changed); members' porn_use now comes from the survey.
+  `engine/systems/intimacy.py` (weekly, after romance): the ladder with decisions `intimacy_step`, crossed lines
+  (guilt, sometimes a bishop, conflict when one-sided), sex via `romance._sex(via_ladder=True)` (the old weekly
+  hazard is bypassed while intimacy runs), married sex life → relationship satisfaction, porn talks with a bishop,
+  dealbreakers revealed through the tie (decision `dealbreaker_reaction`, ending via `romance._end`). Romance edits:
+  `_sex` (via_ladder, decision, returns events) and `_ncmo` (own limits lower NCMOs). Mechanisms
+  `14_intimacy.yaml`, events/decisions `40_intimacy.yaml`, roles dealbreaker/brought_to_light/crossed, scales anchors.
+  Validation rows in `scripts/validate.py` (SEX_CHECKS); before/after at 0.15 × 200 days: shared rows 62/27/14 →
+  67/26/10 (pass/warn/fail), new rows 17/7/7; 0.50 → 0.53 s/day (intimacy 1 ms/day). Docs: DATA_SOURCES.md
+  subsection, data/README.md. Tests: test_sexuality_priors.py, test_intimacy.py. 197 tests pass; web build passes.
+- Next: talk (exclude sensitive fields), then travel, messaging, institutions, family-homes, survey-followups
+  (the other surveys' raw CSVs aren't in this container), integration.
 
 ### 2026-10-18 (late night, 4) — Claude Code (cloud session)
 - Built and merged **calendar-weather**: `config/calendar/2026_27.yaml` (BYU and UVU 2026–27 terms and finals,

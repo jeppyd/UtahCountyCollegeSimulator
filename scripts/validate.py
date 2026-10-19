@@ -82,6 +82,53 @@ def sim_value(P, var, transform, m):
     return float(x.mean()) if len(x) else float("nan")
 
 
+# The LDS Sexuality Survey (2025; ucsim/ingest/sexuality.py): table → (variable, transform, kind, floor, held out,
+# who). transform: None (mean), "pos" (share > 0), "ge1"/"ge3" (share at or above), "x4" (0–1 scale shown on the
+# survey's 0–4 codes). who: None, "unmarried" or "married". Kissing, NCMO and relationship counts are an
+# independent second survey of what ProvoStats seeds, so they are held out.
+SEX_CHECKS = {
+    "lds_sex_n_kissed_by_sex_activity": ("n_kissed", None, "emergent", 1.0, True, None),
+    "lds_sex_n_ncmo_by_sex_activity": ("n_ncmo", None, "emergent", 1.0, True, None),
+    "lds_sex_n_relationships_by_sex_age": ("n_relationships", None, "diagnostic", 0.3, True, None),
+    "lds_sex_premarital_sex_unmarried_by_activity": ("n_sex_partners", "pos", "emergent", 0.05, False, "unmarried"),
+    "lds_sex_porn_now_by_sex_activity": ("porn_use", "ge1", "input", 0.05, False, None),
+    "lds_sex_porn_weekly_by_sex_activity": ("porn_use", "ge3", "input", 0.04, False, None),
+    "lds_sex_bishop_porn_by_sex": ("talked_to_bishop_sexual", None, "input", 0.05, False, None),
+    "lds_sex_sex_satisfaction_married_by_sex": ("sexual_satisfaction", "x4", "input", 0.2, False, "married"),
+    "lds_sex_marriage_satisfaction_married_by_sex": ("relationship_satisfaction", "x4", "diagnostic", 0.2, True, "married"),
+}
+
+
+def sexuality_rows(sim, priors):
+    P = sim.w.P
+    rows = []
+    for table, (var, transform, kind, floor, held, who) in SEX_CHECKS.items():
+        for r in priors["targets"].get(table, []):
+            m = band_mask(P, r)
+            if who == "unmarried":
+                m &= ~P.isin("rel_status", ["married", "divorced"])
+            elif who == "married":
+                m &= P.is_("rel_status", "married")
+            n = int(m.sum())
+            if n < 25:
+                continue
+            x = P[var][m].astype(float)
+            x = x[np.isfinite(x)]
+            got = float({"pos": (x > 0).mean(), "ge1": (x >= 1).mean(), "ge3": (x >= 3).mean(),
+                         "x4": (4 * x).mean()}.get(transform, x.mean()) if transform else x.mean())
+            target = float(r["mean"])
+            iqr = float(r.get("p75", 0) - r.get("p25", 0)) if transform is None else 0.0
+            tol = max(0.15 * abs(target), 0.1 * iqr, floor)
+            group = ", ".join(f"{k}={ACT.get(v, v) if k == 'activity' else v}" for k, v in r.items()
+                              if k in ("sex", "activity", "age_band") and v is not None)
+            if who:
+                group = f"{who}, {group}" if group else who
+            rows.append({"table": table, "group": group, "var": var, "kind": kind, "target": target, "sim": got,
+                         "diff": got - target, "tol": tol, "n_sim": n, "n_band": r.get("n_band"),
+                         "status": status(got - target, tol), "holdout": held})
+    return rows
+
+
 # Survey tables held out of calibration (scripts/calibrate.py never sees them): they test the calibrated model
 # on targets it was not tuned to.
 HOLDOUT = {"gpa_by_school_sex", "scripture_minutes_by_activity", "alcohol_by_activity", "sleep_by_school"}
@@ -197,7 +244,7 @@ def compare(sim, priors):
             rows.append({"table": table, "group": group, "var": var, "kind": kind, "target": target, "sim": got,
                          "diff": got - target, "tol": tol, "n_sim": n, "n_band": r.get("n_band"), "status": status(got - target, tol),
                          "holdout": table in HOLDOUT})
-    return rows
+    return rows + sexuality_rows(sim, priors)
 
 
 def benchmarks(sim):

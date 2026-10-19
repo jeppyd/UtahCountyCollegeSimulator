@@ -88,6 +88,33 @@ const selQuery = (s: BenchSel, q: URLSearchParams) => {
   return q
 }
 const benchOnly = () => { if (STATIC) throw new Error('The workbench needs the live simulator (it is not part of the static demo).') }
+// ---------------------------------------------------------------- talk: Ask the world and Interviews (routes_talk.py)
+export type TalkRef = { kind: string; id: string | number; name?: string }
+export type TalkClaim = { id: string; kind: 'fact' | 'perception' | 'cause' | 'measurement' | 'belief'; subject: TalkRef; text: string; refs: TalkRef[]; value?: number; band?: string; share?: number }
+export type TalkSentence = { text: string; claims: string[]; ok: boolean; reasons: string[]; refs: TalkRef[] }
+export type TalkResult = {
+  sentences: TalkSentence[]; removed: { text: string; reasons: string[] }[]; repaired: boolean; claims: TalkClaim[]; refs: TalkRef[]
+  backend: string; seconds: number; question: string; u: Universe
+  tools_used?: { tool: string; args: any; facts?: number; error?: string }[]
+  person?: TalkRef; differs?: { what: string; believed: number; actual: number; gap: number; words: string; note?: string }[]
+  sensitive_included?: boolean
+}
+export type TalkJob = { id: string; kind: string; state: 'queued' | 'running' | 'done' | 'error' | 'cancelled'; steps: { t: number; kind: string; text: string }[]
+  result: TalkResult | null; error: string | null; backend: string; elapsed: number }
+export type TalkStatus = { settings: { ask_backend: string; interview_backend: string; sensitive: boolean }; using: Record<'ask' | 'interview', string>
+  available: Record<string, boolean>; local_model: string | null; recommended: Record<'ask' | 'interview', string> }
+export const talkApi = {
+  status: (): Promise<TalkStatus> => j('/api/talk/status'),
+  settings: (s: Partial<TalkStatus['settings']>) => post('/api/talk/settings', s),
+  ask: (question: string, mentions: { kind: string; id: string | number; label?: string }[], u: Universe = 'base'): Promise<{ job: string }> =>
+    post('/api/talk/ask', { question, mentions, u }),
+  interview: (i: number, question: string, history: { q: string; a: string }[], u: Universe = 'base'): Promise<{ job: string }> =>
+    post(`/api/talk/interview/${i}`, { question, history, u }),
+  poll: (job: string): Promise<TalkJob> => j(`/api/talk/ask/${job}`),
+  cancel: (job: string): Promise<TalkJob> => post(`/api/talk/ask/${job}/cancel`, {}),
+  differs: (i: number, u: Universe = 'base'): Promise<NonNullable<TalkResult['differs']>> => j(`/api/talk/differs/${i}?u=${u}`),
+}
+
 export const benchApi = {
   async events(s: BenchSel & { cats?: string[]; types?: string[]; q?: string; minSalience?: number; place?: number; limit?: number; offset?: number; order?: 'new' | 'old' }, u: Universe = 'base'):
     Promise<{ total: number; events: BenchEvent[]; today: number; start_date: string; n_people: number | null }> {

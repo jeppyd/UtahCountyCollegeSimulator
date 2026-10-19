@@ -19,7 +19,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.special import expit
 
-from ..provenance import link, mirror, pick, total
+from ..provenance import link, mirror, pick, state_ref, total
 from ..state import EdgeStore, Tie
 
 TIERS = ("touch", "underclothes", "naked", "sex")
@@ -56,6 +56,12 @@ class Intimacy:
         for t in TIERS:
             ok += (P[f"ok_stage_{t}"][x].astype(np.int8) <= stage)
         return ok
+
+    def tier_stage(self, x: np.ndarray, tier: np.ndarray) -> np.ndarray:
+        """The stage at which person x thinks ladder tier `tier` (0 touch … 3 sex) becomes acceptable."""
+        P = self.sim.w.P
+        st = np.column_stack([P[f"ok_stage_{t}"][x] for t in TIERS]).astype(np.int8)
+        return st[np.arange(len(x)), tier]
 
     def _couples(self):
         w = self.sim.w
@@ -150,7 +156,11 @@ class Intimacy:
         ok_b = self.allowed(b, st) >= nxt
         months = np.maximum((day - P["rel_start_day"][a]) / 30.4, 0)
         drive = (P["sex_drive"][a].astype(float) + P["sex_drive"][b]) / 2
-        cross_cost = (~ok_a) * (0.5 + P["chastity_commitment"][a]) + (~ok_b) * (0.5 + P["chastity_commitment"][b])
+        # how far ahead of their own stage the step is (stages early), weighted by how committed to chastity they are
+        tier = np.clip(nxt - 2, 0, 3)
+        gap_a = np.clip(self.tier_stage(a, tier) - st, 0, 3)
+        gap_b = np.clip(self.tier_stage(b, tier) - st, 0, 3)
+        cross_cost = (gap_a * (0.2 + 1.2 * P["chastity_commitment"][a]) + gap_b * (0.2 + 1.2 * P["chastity_commitment"][b]))
         T = {"tier": p("intimacy.step.tier") * (lv - 1),
              "drive": p("intimacy.step.drive") * (drive - 2) / 2,
              "time_together": p("intimacy.step.months") * np.log1p(months),
@@ -326,6 +336,7 @@ class Intimacy:
         if not go.any():
             return
         x = x[go]
-        sim.emit("bishop_porn_talk", x, mech="intimacy.bishop_porn")
+        ev = sim.emit("bishop_porn_talk", x, mech="intimacy.bishop_porn")
+        link(sim, ev, "state", state_ref(sim, "porn_incongruence", x), P["porn_incongruence"][x], "dissonance")
         P.cols["talked_to_bishop_sexual"][x] = True
         P.cols["bishop_meetings"][x] = np.minimum(P["bishop_meetings"][x] + 1, 10)

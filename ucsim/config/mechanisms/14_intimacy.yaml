@@ -8,15 +8,15 @@ mechanisms:
     label: Physical intimacy escalation
     target: intimacy_level
     sources: [ok_stage_touch, ok_stage_underclothes, ok_stage_naked, ok_stage_sex, sex_drive, chastity_commitment, self_control, sensation_seeking, living]
-    form: "weekly h(level → level+1) for unmarried couples = logistic(base + tier·(level−1) + drive·(mean drive − 2)/2 + months·log(1+months) − alone·both in contracted housing + within (both partners' limits allow it at this stage) − cross·Σ(0.5 + chastity) over partners whose line it crosses − 0.5·self-control + 0.4·SS). Married couples are at the top of the ladder."
+    form: "weekly h(level → level+1) for unmarried couples = logistic(base + tier·(level−1) + drive·(mean drive − 2)/2 + months·log(1+months) − alone·both in contracted housing + within (both partners' limits allow it at this stage) − cross·Σ(stages early × (0.2 + 1.2·chastity)) over partners whose line it crosses − 0.5·self-control + 0.4·SS). Married couples are at the top of the ladder."
     params:
-      base: {value: -0.5, range: [-3, 0.5]}
+      base: {value: -0.2, range: [-3, 0.5]}
       tier: {value: -0.3, range: [-1.5, 0]}
       drive: {value: 0.6, range: [0, 1.5]}
       months: {value: 0.3, range: [0, 0.8]}
       alone: {value: 0.4, range: [0, 1.2]}
       within: {value: 1.0, range: [0, 2]}
-      cross: {value: 1.6, range: [1.5, 5]}
+      cross: {value: 1.9, range: [1.5, 5]}
     evidence: hypothetical
     refs: ["LDS Sexuality Survey (2025): the stage at which each tier is acceptable, by sex and activity", "ProvoStats: sexual partners by relationship status and activity (the premarital-sex rows)"]
   intimacy.confession:

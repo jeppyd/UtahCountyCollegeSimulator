@@ -1,0 +1,14 @@
+# Occasions of the family system (engine/systems/family.py).
+occasions:
+  friendsgiving:
+    label: Friendsgiving
+    where: home
+    start: "15:00"
+    dur: 180
+    open: false
+    social: true
+    category: social
+    rate: 1.1
+    talk_h: 2.5
+    invites: 6
+    cost: 12

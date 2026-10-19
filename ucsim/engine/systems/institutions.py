@@ -416,7 +416,9 @@ class Institutions:
         P = w.P
         people = np.atleast_1d(np.asarray(people, np.int64))
         emp = P["employer_id"][people].astype(np.int64)
-        flex = np.array([FLEX.get(str(t), 0.3) for t in w.employers["type"]], np.float32)
+        flex = getattr(self, "_flex", None)
+        if flex is None or len(flex) != len(w.employers["type"]):
+            flex = self._flex = np.array([FLEX.get(str(t), 0.3) for t in w.employers["type"]], np.float32)
         f = np.where(emp >= 0, flex[np.maximum(emp, 0)], 0.0) * self.sim.p("institutions.employer.flex_scale")
         return hash_uniform(people * 1000 + np.asarray(day, np.int64), "shift_swap") < f
 

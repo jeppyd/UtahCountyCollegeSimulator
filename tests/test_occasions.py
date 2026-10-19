@@ -209,6 +209,8 @@ def test_a_date_right_after_a_shift_happens(fresh):
     day = sim.w.day                     # the next day to run
     wd = sim.cal.weekday(day)
     P.cols["employed"][a] = True
+    P.cols["home_drive_hours"][[a, b]] = 0.2          # family nearby: no weekend trip home in the way
+    sim.systems["institutions"].shift_flex = lambda people, d: np.zeros(len(np.atleast_1d(people)), bool)  # firm shifts
     P.internal["shift_start"][[a, b]] = -1
     P.internal["shift_end"][[a, b]] = -1
     P.internal["shift_start"][a, wd], P.internal["shift_end"][a, wd] = 8 * 60, 14 * 60 + 45
@@ -234,6 +236,8 @@ def test_a_date_that_does_not_fit_moves_to_a_free_evening(fresh):
     a, b = int(cand[2]), int(cand[3])
     day0, wd0 = sim.w.day, sim.cal.weekday(sim.w.day)
     P.cols["employed"][a] = True
+    P.cols["home_drive_hours"][[a, b]] = 0.2          # family nearby: no weekend trip home in the way
+    sim.systems["institutions"].shift_flex = lambda people, d: np.zeros(len(np.atleast_1d(people)), bool)  # firm shifts
     P.internal["shift_start"][[a, b]] = -1
     P.internal["shift_end"][[a, b]] = -1
     for d in range(7):

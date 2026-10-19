@@ -1,0 +1,55 @@
+system: family
+# Family and home states (engine/systems/family.py). Directions are well documented (students near home go home more;
+# holidays empty campus towns); magnitudes are hypothetical.
+mechanisms:
+  family.trip:
+    label: Going home
+    target: trips_home
+    sources: [family_closeness, home_drive_hours, financial_stress, loneliness]
+    form: "P(go) = logistic(base_[weekend|thanksgiving|christmas|event] + closeness·(closeness − 0.5) − distance·log(1 + hours) (short trips) − cost·(dollars/300)·(0.5 + money stress) + homesick·(loneliness − 0.3) − obligations·(2 × share of days with a shift + 0.6·exam week) + the occasion's pull − 0.8 (married, the in-laws' turn)); fly beyond fly_hours"
+    params:
+      base_weekend: {value: -0.5, range: [-3, 1]}
+      base_thanksgiving: {value: 2.0, range: [0.5, 4]}
+      base_christmas: {value: 3.6, range: [1, 6]}
+      base_event: {value: 0.5, range: [-1, 2]}
+      closeness: {value: 2.0, range: [0.5, 4]}
+      distance: {value: 0.9, range: [0.2, 2]}
+      cost: {value: 1.0, range: [0.2, 2]}
+      homesick: {value: 1.5, range: [0, 3]}
+      obligations: {value: 1.5, range: [0.5, 3]}
+      flight_cost: {value: 350, range: [150, 900]}
+      fly_hours: {value: 12, range: [8, 16]}
+      weekend_hours: {value: 5, range: [2, 8]}
+    timescale: daily
+    evidence: hypothetical
+  family.kin:
+    label: Life events back home
+    target: [trips_home, mood]
+    sources: []
+    form: "weekly hazards per kin record: a sibling marries (19–30; ×1.6 for members, ×0.6 others), leaves on a mission (18), has a baby (married, 22–40); a parent falls ill (rising with age); a grandparent dies (rising steeply after 80). Close family within driving range is pulled home."
+    params:
+      wedding: {value: 0.0025, range: [0.001, 0.01]}
+      mission: {value: 0.012, range: [0.002, 0.03]}
+      baby: {value: 0.004, range: [0.001, 0.01]}
+      illness: {value: 0.0006, range: [0.0001, 0.002]}
+      death: {value: 0.0012, range: [0.0004, 0.004]}
+    timescale: weekly
+    evidence: hypothetical
+  family.visit:
+    label: Family visiting Provo
+    target: mood
+    sources: [family_closeness, home_drive_hours]
+    form: "P(today) = rate × (0.5 + closeness) × (2 on Fri–Sun) × event_boost on game days and graduation, for people whose family is within 8 hours"
+    params:
+      rate: {value: 0.004, range: [0.001, 0.02]}
+      event_boost: {value: 4, range: [1, 10]}
+    timescale: daily
+    evidence: hypothetical
+  family.friendsgiving:
+    label: Friendsgiving
+    target: social_events_month
+    sources: [extraversion]
+    form: "on Thanksgiving, people in Provo with 2+ close friends also in town host with P = host × (1 + 0.3·z(extraversion))"
+    params:
+      host: {value: 0.08, range: [0.01, 0.3]}
+    evidence: hypothetical

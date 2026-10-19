@@ -47,3 +47,9 @@
 .in-legend .w::before { background: var(--critical); opacity: .45; height: 8px; }
 .in-sec { margin-top: 10px; }
 .in-sec h4 { margin: 0 0 4px; font-size: 12.5px; color: var(--text-secondary); font-weight: 600; }
+/* US map (bench/tools/USMap.tsx) */
+.us-map { width: 100%; height: auto; display: block; margin: 4px 0; }
+.us-st { fill: var(--surface-3); stroke: var(--surface-1); stroke-width: .8; }
+.us-st.has { fill: var(--accent); cursor: pointer; }
+.us-st.on { stroke: var(--text-primary); stroke-width: 1.6; }
+.us-lab { font-size: 19px; font-weight: 600; fill: var(--text-primary); text-anchor: middle; dominant-baseline: middle; pointer-events: none; paint-order: stroke; stroke: var(--surface-1); stroke-width: 4px; }

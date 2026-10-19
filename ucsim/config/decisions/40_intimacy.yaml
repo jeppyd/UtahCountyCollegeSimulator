@@ -1,0 +1,27 @@
+# Physical intimacy and dealbreakers (engine/systems/intimacy.py). Field meanings: config/decisions/00_core.yaml.
+# One row per step a couple took (recorded for the partner listed first) and per reaction to a dealbreaker.
+decisions:
+  intimacy_step:
+    label: Whether a couple becomes more physically intimate (this week)
+    units: logit
+    outcomes: [took_a_step]
+    factors:
+      base:         {label: "how quickly couples move to the next step", more: "", less: "most weeks nothing changes"}
+      tier:         {label: "how big the next step is", more: "", less: "a bigger step than before"}
+      drive:        {label: "both partners' sex drive", more: "strong drive", less: "low drive"}
+      time_together: {label: "how long they've been together", more: "together a while", less: "still new"}
+      alone_time:   {label: "time alone (both in approved student housing with visiting rules)", more: "", less: "rarely alone"}
+      within_lines: {label: "whether the step is within both partners' own limits for this stage", more: "both think it's fine at this stage", less: "it goes past a line one of them has set"}
+      self_control: {label: "self-control", more: "", less: "self-controlled"}
+      sensation:    {label: "sensation seeking", more: "adventurous", less: "cautious"}
+  dealbreaker_reaction:
+    label: Whether finding out ends the relationship
+    units: logit
+    outcomes: [ended_it, stayed]
+    factors:
+      base:       {label: "how often a dealbreaker really ends things", more: "", less: "many people reconsider"}
+      strength:   {label: "how strongly they hold this dealbreaker", more: "a firm dealbreaker for them", less: "only a mild one"}
+      commitment: {label: "how committed they are", more: "", less: "committed to each other"}
+      closeness:  {label: "how close they are", more: "", less: "very close"}
+      time_together: {label: "how long they've been together", more: "", less: "together a long time"}
+      honesty:    {label: "whether the partner told them or they found out", more: "found out rather than being told", less: "the partner was honest about it"}

@@ -347,3 +347,83 @@ SPEC = {
         },
     },
 }
+
+# ---------------------------------------------------------------------- The LDS Sexuality Survey (June 2025, xlsx)
+# An Excel export keyed by header text, not question ids: each entry is a header prefix (matched case-insensitively
+# after collapsing whitespace) -> (name, type, opts). Only these columns are ever read. Left out on purpose: City,
+# College, every free-text column ("Other - Text", fantasy, favourite activity, wildest place, anything else to
+# share), birth control, positions, toys, oral-sex endings (owner's decision), and the extra sheets.
+AGREE5_SHORT = ["strongly disagree", "disagree", "neutral", "agree", "strongly agree"]
+STAGE5 = ["casual dating (on a date)", "committed relationship", "engagement", "marriage", "never"]
+SAT5 = ["very disatisfied", "disatisfied", "neutral", "satisfied", "very satisfied"]   # the survey's spelling
+DESIRE5 = ["i desire much less", "i desire somewhat less", "we have about the same desire", "i desire somewhat more",
+           "i desire much more"]
+NOWFREQ = ["every few monthes or less", "monthly", "weekly", "nearly every day"]       # the survey's spelling
+DRIVE5 = ["very low", "low", "average", "high", "very high"]
+PERIODS = {"As a teenager": "teen", "On my mission": "mission", "In the last few years": "recent",
+           "Now (in the last year)": "now", "Never": "never"}
+
+# the intimacy ladder: "When is this acceptable?" items grouped into four tiers (the stage a tier becomes acceptable
+# is the median of its items' answers)
+WHEN_TIERS = {
+    "touch": ["when - feel someone's butt", "when - feel a woman's breasts (over clothes)", "when- makeout",
+              "when- grind on eachother"],
+    "underclothes": ["when- feel a woman's breasts (under clothes)", "when- feel someone's genitals (over clothes)",
+                     "when- see eachother in garments/underwhere", "when- makeout in garments/underwear",
+                     "when- grind on eachother in garmen"],
+    "naked": ["when- feel someone's genitals (under clothes)", "when- see eachother naked", "when- makeout naked",
+              "when- grind on eachother naked", "when- manual sex"],
+    "sex": ["when- oral sex", "when- sexual intercourse"],
+}
+
+SEXUALITY_SPEC = {
+    "title": "The LDS Sexuality Survey",
+    "file": "lds-sexuality_2025-06-29.xlsx",
+    "vars": {
+        "gender": ("sex_raw", "cat", {}),
+        "age": ("age", "num", {"clip": (16, 90)}),
+        "relationship status": ("rel_raw", "cat", {}),
+        "utah?": ("origin_utah", "bin", {"yes": ["yes"]}),
+        "sexuality": ("orientation", "cat", {}),
+        "membership": ("membership", "cat", {}),
+        "activity": ("activity", "ord", {"levels": ["inactive", "less active", "active"]}),
+        "mission": ("mission", "bin", {"yes": ["yes"]}),
+        "temple": ("temple", "bin", {"yes": ["yes"]}),
+        "drive": ("sex_drive", "ord", {"levels": DRIVE5}),
+        **{h: (f"when_{t}_{j}", "ord", {"levels": STAGE5}) for t, hs in WHEN_TIERS.items() for j, h in enumerate(hs)},
+        "how many premaritally? sexual intercourse": ("premarital_partners", "num", {"clip": (0, 60)}),
+        "did you and your spouse do this? - sexual intercourse": ("sex_with_spouse_before", "bin", {"yes": ["yes"]}),
+        "how would you describe the difference in desire": ("desire_gap", "ord", {"levels": DESIRE5}),
+        "rate your satisfaction of the following things: - your overall sex life": ("sex_satisfaction", "ord", {"levels": SAT5}),
+        "rate your satisfaction of the following things: - you marriage": ("marriage_satisfaction", "ord", {"levels": SAT5}),
+        "select the period(s) in your life in which you engaged in the following sexual activities. - intentionally viewed pornographic images":
+            ("porn_img_periods", "multi", {"flags": {k: f"porn_img_{v}" for k, v in PERIODS.items()}}),
+        "select the period(s) in your life in which you engaged in the following sexual activities. - intentionally viewed pornographic videos":
+            ("porn_vid_periods", "multi", {"flags": {k: f"porn_vid_{v}" for k, v in PERIODS.items()}}),
+        "select the period(s) in your life in which you engaged in the following sexual activities. - masturbated":
+            ("mast_periods", "multi", {"flags": {k: f"mast_{v}" for k, v in PERIODS.items()}}),
+        "how often do you do the following sexual activities? - intentionally viewed pornographic images": ("porn_img_freq", "ord", {"levels": NOWFREQ}),
+        "how often do you do the following sexual activities? - intentionally viewed pornographic videos": ("porn_vid_freq", "ord", {"levels": NOWFREQ}),
+        "how often do you do the following sexual activities? - masturbated": ("mast_freq", "ord", {"levels": NOWFREQ}),
+        "select all of the things (if any) you have addressed with a bishop":
+            ("bishop", "multi", {"flags": {"Pornography": "bishop_porn", "Masturbation": "bishop_mast"}}),
+        "how much were you taught about sex growing up?": ("sex_ed_home", "ord", {"levels": AMOUNT5}),
+        "how many.... - people have you kissed?": ("n_kissed", "num", {"clip": (0, 150)}),
+        "how many.... - people have you had a ncmo with?": ("n_ncmo", "num", {"clip": (0, 150)}),
+        "how many.... - romantic relationships have you been in?": ("n_relationships", "num", {"clip": (0, 25)}),
+        "how many.... - years old were you when you had your first romantic relationship?": ("age_first_relationship", "num", {"clip": (8, 40)}),
+        "how many.... - years old were you when you had your first kiss?": ("age_first_kiss", "num", {"clip": (8, 40)}),
+        "how many.... - years have you and your spouse been married for?": ("years_married", "num", {"clip": (0, 60)}),
+        "select how you much you agree/disagree with the following statements: - it is morally wrong to view pornography": ("porn_wrong", "ord", {"levels": AGREE5_SHORT}),
+        "select how you much you agree/disagree with the following statements: - it is morally wrong for single people to masturbate": ("mast_wrong", "ord", {"levels": AGREE5_SHORT}),
+        "select how you much you agree/disagree with the following statements: - my feelings towards sexuality have been negatively impacted": ("sexual_shame", "ord", {"levels": AGREE5_SHORT}),
+        "select how you much you agree/disagree with the following statements: - i had a rough time transitioning": ("rough_transition", "ord", {"levels": AGREE5_SHORT}),
+        "select how you much you agree/disagree with the following statements: - i feel uncomfortable talking about sexuality": ("talk_discomfort", "ord", {"levels": AGREE5_SHORT}),
+        "select how you much you agree/disagree with the following statements: - i view sex as a good thing": ("sex_positive", "ord", {"levels": AGREE5_SHORT}),
+        "considering yourself in a dating context, select how much you agree/disagree with the following 'dealbreakers'. - it's a dealbreaker if i find out the person i'm dating watches porn": ("db_watches_porn", "ord", {"levels": AGREE5_SHORT}),
+        "considering yourself in a dating context, select how much you agree/disagree with the following 'dealbreakers'. - it's a dealbreaker if i find out the person i'm dating had a porn problem in the past": ("db_past_porn", "ord", {"levels": AGREE5_SHORT}),
+        "considering yourself in a dating context, select how much you agree/disagree with the following 'dealbreakers'. - it's a dealbreaker if i find out the person i'm dating masturbates": ("db_masturbates", "ord", {"levels": AGREE5_SHORT}),
+        "considering yourself in a dating context, select how much you agree/disagree with the following 'dealbreakers'. - it's a dealbreaker if i find out the person i'm dating isn't a virgin": ("db_not_virgin", "ord", {"levels": AGREE5_SHORT}),
+        "considering yourself in a dating context, select how much you agree/disagree with the following 'dealbreakers'. - it's a dealbreaker if i find out the person i'm dating is asexual": ("db_asexual", "ord", {"levels": AGREE5_SHORT}),
+    },
+}

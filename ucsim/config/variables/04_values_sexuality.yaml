@@ -76,7 +76,7 @@ variables:
     update: event
     init: "copula provostats.n_ncmo"
     source: [provostats]
-    flags: [filter, chart, map, timeseries]
+    flags: [filter, chart, map, timeseries, sensitive]
   n_sex_partners:
     label: Sexual partners (lifetime)
     dtype: i2
@@ -86,7 +86,7 @@ variables:
     update: event
     init: "copula provostats.n_sex_partners"
     source: [provostats]
-    flags: [filter, chart, map, timeseries]
+    flags: [filter, chart, map, timeseries, sensitive]
   premarital_sex_current:
     label: Sexually active (unmarried relationship)
     dtype: bool
@@ -94,6 +94,7 @@ variables:
     update: event
     desc: Currently sexually active in an unmarried relationship.
     evidence: calibrated
+    flags: [filter, chart, map, sensitive]
   porn_use:
     label: Pornography use
     dtype: u1
@@ -101,9 +102,11 @@ variables:
     range: [0, 3]
     ordinal: [none, rare, monthly, weekly+]
     update: monthly
-    desc: Pornography-use frequency. NOT measured in the supplied surveys — initialized from broad literature prevalence by sex and adjusted by religiosity; treat as extrapolated.
-    evidence: extrapolated
-    init: "Literature prevalence (young adult men ≫ women), lowered by chastity commitment."
+    desc: "Pornography-use frequency in the last year. Church members: from the LDS Sexuality Survey (June 2025), conditioned on sex, age, activity and dating history; others: broad literature prevalence lowered by chastity commitment."
+    evidence: empirical
+    source: [lds-sexuality]
+    init: "copula lds_sexuality.porn_use (members); literature prevalence (non-members)"
+    flags: [filter, chart, map, sensitive]
   porn_incongruence:
     label: Moral incongruence (porn)
     kind: state
@@ -111,6 +114,7 @@ variables:
     update: weekly
     desc: Distress from use that conflicts with one's moral beliefs (moral incongruence model; Grubbs et al. 2019). Feeds guilt and faith dissonance.
     evidence: literature
+    flags: [filter, chart, map, sensitive]
   made_out_kyhv_peak:
     label: Made out at Kyhv Peak
     dtype: bool
@@ -126,6 +130,7 @@ variables:
     update: event
     init: "copula provostats.ever_cheated"
     source: [provostats]
+    flags: [filter, chart, map, sensitive]
   ever_cheated_on:
     label: Has been cheated on
     dtype: bool
@@ -133,3 +138,4 @@ variables:
     update: event
     init: "copula provostats.ever_cheated_on"
     source: [provostats]
+    flags: [filter, chart, map, sensitive]

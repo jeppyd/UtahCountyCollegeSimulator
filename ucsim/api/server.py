@@ -1015,6 +1015,14 @@ def llm_settings(request: Request, body: dict = Body(...)):
     return jresp(compiler.save_settings(body))
 
 
+@app.post("/api/whatif/llm/test")
+def llm_test(request: Request):
+    """Ask the chosen model for a one-word reply: does the sign-in or API key really work? (Uses a tiny bit of usage.)"""
+    _local_only(request)
+    from ..llm import compiler
+    return jresp(compiler.test_connection())
+
+
 @app.get("/api/whatif/llm/models")
 def llm_models(request: Request, url: str = ""):
     """Models a local server (LM Studio, Ollama) offers, for the settings dropdown."""

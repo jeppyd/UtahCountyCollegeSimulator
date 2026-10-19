@@ -304,16 +304,16 @@ def calendar():
     sim = WS.base
     cal, day = sim.cal, sim.w.day
     today = cal.date(day)
-    y0 = today.year if (today.month, today.day) >= (8, 24) else today.year - 1
-    start = dt.date(y0, 8, 24)
-    end = dt.date(y0 + 1, 8, 23)
+    y0 = today.year if today.month >= 8 else today.year - 1
+    start = dt.date(y0, 8, 1)
+    end = dt.date(y0 + 1, 7, 31)
     segs = []
-    for t in cal.byu_terms:
-        yr = y0 if int(t["start"][:2]) >= 8 else y0 + 1
-        s = dt.date(yr, int(t["start"][:2]), int(t["start"][3:]))
-        e = dt.date(yr, int(t["end"][:2]), int(t["end"][3:]))
-        segs.append({"label": f"{t['name']} {'semester' if t['name'] in ('Fall', 'Winter') else 'term'}", "kind": "term",
-                     "start": (s - cal.start).days, "end": (e - cal.start).days})
+    for t in cal.real.terms_between(start, end):     # BYU's real terms (engine/calendar_real.py)
+        if t.school != "BYU":
+            continue
+        segs.append({"label": f"{t.name} {'semester' if t.name in ('Fall', 'Winter') else 'term'}", "kind": "term",
+                     "start": max((t.start - cal.start).days, (start - cal.start).days),
+                     "end": min((t.finals_end - cal.start).days, (end - cal.start).days)})
     segs.sort(key=lambda s: s["start"])
     full, cur = [], (start - cal.start).days
     for s in segs:
@@ -778,6 +778,11 @@ def cohort_timeline(body: dict = Body(...)):
         H, P = sim.systems["history"], sim.w.P
         vars_ = [v for v in body.get("vars", []) if H.tracked(v)]
         mask = _flow_mask(sim, body.get("filter"))
+        if body.get("people"):   # a hand-picked selection (the workbench) narrows the group further
+            ids = np.asarray([int(i) for i in body["people"] if 0 <= int(i) < P.n], np.int64)
+            sel = np.zeros(P.n, bool)
+            sel[ids] = True
+            mask = mask & sel
         if body.get("filter_world") == "base" and sim is not WS.base and WS.base is not None:
             # the same people as in the Original: pick the group there, follow them in this world
             mb = _flow_mask(WS.base, body.get("filter"))

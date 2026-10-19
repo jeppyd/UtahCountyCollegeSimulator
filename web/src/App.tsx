@@ -1,8 +1,9 @@
-import { Component, ReactNode, useEffect, useState } from 'react'
+import { Component, ReactNode, useEffect, useRef, useState } from 'react'
 import { api, STATIC } from './api'
+import Bench from './bench/Bench'
 import { G } from './game'
 import { Hud, timeCtl } from './hud'
-import { NAV } from './nav'
+import { CLASSIC, NAV, TOP } from './nav'
 import { Palette } from './palette'
 import { useStore } from './store'
 import { TimeRibbon } from './time'
@@ -33,7 +34,6 @@ import { WorldSetupPage } from './views/WorldSetup'
 export default function App() {
   const { route, setRoute, status, refreshStatus, registry } = useStore()
   const [err, setErr] = useState<string | null>(null)
-  const [deskOpen, setDeskOpen] = useState<boolean>(() => { try { return localStorage.getItem('ucsim-desk') === 'open' } catch { return false } })
   useEffect(() => {
     useStore.getState().setTheme(useStore.getState().theme)
     ;(async () => {
@@ -56,10 +56,12 @@ export default function App() {
   if (!registry || !status) return <div className="boot"><div className="boot-orbit"><i /><i /><i /></div>Waking up Provo and Orem…</div>
   if (!STATIC && !status.has_world) return <WorldSetupPage />
 
-  const alias: Record<string, string> = { home: 'world', overview: 'trends', dashboard: 'trends', lab: 'whatif' }
-  const view = alias[route[0]] ?? route[0] ?? 'world'
+  const alias: Record<string, string> = { home: 'bench', workbench: 'bench', overview: 'trends', dashboard: 'trends', lab: 'whatif' }
+  const view = alias[route[0]] ?? route[0] ?? 'bench'
   let body
   switch (view) {
+    case 'bench': body = STATIC ? <World /> : <Bench />; break
+    case 'world': body = <World />; break
     case 'guide': body = <Guide section={route[1]} />; break
     case 'trends': body = <Overview />; break
     case 'map': body = <MapView initial={route[1]} />; break
@@ -79,39 +81,15 @@ export default function App() {
     case 'mechanisms': body = <Mechanisms id={route[1]} />; break
     case 'modelcheck': body = <ModelCheck />; break
     case 'about': body = <About />; break
-    default: body = <World />
+    default: body = STATIC ? <World /> : <Bench />
   }
   const active = view === 'person' ? 'people' : view === 'network' ? 'relationships' : view
-  const inDesk = NAV[1].items.some(i => i.id === active)
   const div = status.divergence?.any_state_diff
   return (
-    <div className={`game ${view === 'map' ? 'full' : ''}`}>
+    <div className={`game v6 ${view === 'map' ? 'full' : ''} ${view === 'bench' ? 'on-bench' : ''}`}>
       <Hud />
       <TimeRibbon />
-      <nav className="worldnav" aria-label="Places">
-        {NAV[0].items.map(i => (
-          <button key={i.id} title={i.hint} className={`wn ${active === i.id ? 'active' : ''}`} onClick={() => setRoute([i.id])} style={{ ['--wc' as any]: `var(${i.color ?? '--accent'})` }}>
-            <span className="wn-icon">{G[i.icon]}</span><span className="wn-label">{i.label}</span>
-            {i.id === 'whatif' && status.has_alt && <span className="wn-badge tabular" title="Lives that differ between the worlds">{div !== undefined && div !== null ? `${(100 * div).toFixed(div < 0.1 ? 1 : 0)}%` : '•'}</span>}
-          </button>
-        ))}
-        <div className={`desk ${deskOpen || inDesk ? 'open' : ''}`}>
-          <button className="desk-head" onClick={() => { const v = !deskOpen; setDeskOpen(v); try { localStorage.setItem('ucsim-desk', v ? 'open' : 'closed') } catch { /* private */ } }} aria-expanded={deskOpen || inDesk}>
-            <span className="wn-icon">{G.desk}</span><span className="wn-label">{NAV[1].label}</span><span className="desk-chev">{G.chevron}</span>
-          </button>
-          {(deskOpen || inDesk) && NAV[1].items.map(i => (
-            <button key={i.id} title={i.hint} className={`wn sub ${active === i.id ? 'active' : ''}`} onClick={() => setRoute([i.id])}>
-              <span className="wn-icon">{G[i.icon]}</span><span className="wn-label">{i.label}</span>
-            </button>
-          ))}
-        </div>
-        <span className="spacer" />
-        {NAV[2].items.map(i => (
-          <button key={i.id} title={i.hint} className={`wn ${active === i.id ? 'active' : ''}`} onClick={() => setRoute([i.id])}>
-            <span className="wn-icon">{G[i.icon]}</span><span className="wn-label">{i.label}</span>
-          </button>
-        ))}
-      </nav>
+      <TopNav active={active} hasAlt={!!status.has_alt} div={div} />
       <main className="main"><ViewBoundary key={view}>{body}</ViewBoundary></main>
       <NewsWatcher />
       <RecapWatcher />
@@ -145,6 +123,61 @@ function useKeys() {
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
   }, [])
+}
+
+/** The app's top navigation: the workbench, the What-if, every earlier page under "Classic views", and the guide. */
+function TopNav({ active, hasAlt, div }: { active: string; hasAlt: boolean; div: number | null | undefined }) {
+  const setRoute = useStore(s => s.setRoute)
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const h = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false) }
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', h); document.addEventListener('keydown', k)
+    return () => { document.removeEventListener('mousedown', h); document.removeEventListener('keydown', k) }
+  }, [open])
+  const all = NAV.flatMap(g => g.items)
+  const top = TOP.map(id => all.find(i => i.id === id)!).filter(i => i && !(STATIC && i.id === 'bench'))
+  const classic = CLASSIC.flatMap(g => g.items).find(i => i.id === active)
+  const help = NAV[2].items
+  const go = (id: string) => { setRoute([id]); setOpen(false) }
+  return (
+    <nav className="topnav" aria-label="Places">
+      {top.map(i => (
+        <button key={i.id} title={i.hint} className={`tn ${active === i.id ? 'active' : ''}`} onClick={() => go(i.id)} style={{ ['--wc' as any]: `var(${i.color ?? '--accent'})` }}>
+          <span className="tn-icon">{G[i.icon]}</span><span>{i.label}</span>
+          {i.id === 'whatif' && hasAlt && <span className="wn-badge tabular" title="Lives that differ between the worlds">{div !== undefined && div !== null ? `${(100 * div).toFixed(div < 0.1 ? 1 : 0)}%` : '•'}</span>}
+        </button>
+      ))}
+      <div className="tn-menu" ref={box}>
+        <button className={`tn ${classic ? 'active classic' : ''}`} onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="menu"
+          title="Every earlier page: World, Map, People, Relationships, Places, Events, Explore and the research desk">
+          <span className="tn-icon">{G[classic?.icon ?? 'globe']}</span><span>{classic ? `Classic · ${classic.label}` : 'Classic views'}</span><span className="tn-chev">{G.chevron}</span>
+        </button>
+        {open && (
+          <div className="tn-pop" role="menu">
+            {CLASSIC.map(g => (
+              <div key={g.label} className="tn-group">
+                <div className="tn-g">{g.label}</div>
+                {g.items.map(i => (
+                  <button key={i.id} role="menuitem" className={`tn-item ${active === i.id ? 'on' : ''}`} onClick={() => go(i.id)}>
+                    <span className="tn-icon sm">{G[i.icon]}</span><span className="tn-t"><b>{i.label}</b><small>{i.hint}</small></span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <span className="spacer" />
+      {help.map(i => (
+        <button key={i.id} title={i.hint} className={`tn ${active === i.id ? 'active' : ''}`} onClick={() => go(i.id)}>
+          <span className="tn-icon">{G[i.icon]}</span><span>{i.label}</span>
+        </button>
+      ))}
+    </nav>
+  )
 }
 
 /** Keeps one broken view from blanking the whole app; offers a way back. */

@@ -73,6 +73,63 @@ export const traceApi = {
   },
 }
 
+// ---------------------------------------------------------------- workbench: events for a selection, venues (routes_bench.py),
+// occasions, a person's day and social actions (routes_occasions.py, routes_act.py)
+export type BenchEvent = {
+  id: number; day: number; block: number; type: string; label: string; category: string; salience: number; value: number
+  a: number; a_name: string | null; b: number | null; b_name: string | null; cause: number | null; decision: number | null; place: number | null
+}
+export type BenchSel = { people?: number[]; filter?: any[]; since?: number; until?: number }
+const selQuery = (s: BenchSel, q: URLSearchParams) => {
+  if (s.people?.length) q.set('people', s.people.join(','))
+  if (s.filter?.length) q.set('filter', JSON.stringify(s.filter))
+  if (s.since !== undefined) q.set('since', String(s.since))
+  if (s.until !== undefined) q.set('until', String(s.until))
+  return q
+}
+const benchOnly = () => { if (STATIC) throw new Error('The workbench needs the live simulator (it is not part of the static demo).') }
+export const benchApi = {
+  async events(s: BenchSel & { cats?: string[]; types?: string[]; q?: string; minSalience?: number; place?: number; limit?: number; offset?: number; order?: 'new' | 'old' }, u: Universe = 'base'):
+    Promise<{ total: number; events: BenchEvent[]; today: number; start_date: string; n_people: number | null }> {
+    benchOnly()
+    const q = selQuery(s, new URLSearchParams({ u, limit: String(s.limit ?? 300), offset: String(s.offset ?? 0), order: s.order ?? 'new' }))
+    if (s.cats?.length) q.set('cats', s.cats.join(','))
+    if (s.types?.length) q.set('types', s.types.join(','))
+    if (s.q) q.set('q', s.q)
+    if (s.minSalience) q.set('min_salience', String(s.minSalience))
+    if (s.place !== undefined) q.set('place', String(s.place))
+    return j(`/api/bench/events?${q}`)
+  },
+  async density(s: BenchSel & { minSalience?: number }, u: Universe = 'base'):
+    Promise<{ days: number[]; cats: string[]; counts: Record<string, number[]>; total: number; n_people: number | null; start_date: string; today: number }> {
+    benchOnly()
+    const q = selQuery(s, new URLSearchParams({ u }))
+    if (s.minSalience) q.set('min_salience', String(s.minSalience))
+    return j(`/api/bench/density?${q}`)
+  },
+  async venue(id: number, u: Universe = 'base'): Promise<any> { benchOnly(); return j(`/api/bench/venue/${id}?u=${u}`) },
+  async occasion(id: number, u: Universe = 'base'): Promise<any> { benchOnly(); return j(`/api/occasion/${id}?u=${u}`) },
+  async occasions(o: { day?: number; kind?: string; person?: number; place?: number; limit?: number }, u: Universe = 'base'): Promise<any> {
+    benchOnly()
+    const q = new URLSearchParams({ u, limit: String(o.limit ?? 300) })
+    for (const k of ['day', 'kind', 'person', 'place'] as const) if (o[k] !== undefined) q.set(k, String(o[k]))
+    return j(`/api/occasions?${q}`)
+  },
+  async day(i: number, day?: number, u: Universe = 'base'): Promise<any> {
+    benchOnly()
+    return j(`/api/person/${i}/day?u=${u}${day !== undefined ? `&day=${day}` : ''}`)
+  },
+  async choice(i: number, block?: number, u: Universe = 'base'): Promise<any> {
+    benchOnly()
+    return j(`/api/person/${i}/choice?u=${u}${block !== undefined ? `&block=${block}` : ''}`)
+  },
+  async actCheck(action: any): Promise<any> { benchOnly(); return post('/api/act/check', action) },
+  async act(action: any): Promise<any> { benchOnly(); return post('/api/act', action) },
+  // the Provo calendar and the observed weather each day replays (routes_calendar.py)
+  async calendarItems(frm: number, to: number, u: Universe = 'base'): Promise<any> { benchOnly(); return j(`/api/calendar/items?u=${u}&frm=${frm}&to=${to}`) },
+  async calendarWeather(frm: number, to: number, u: Universe = 'base'): Promise<any> { benchOnly(); return j(`/api/calendar/weather?u=${u}&frm=${frm}&to=${to}`) },
+}
+
 export function decodePack(buf: ArrayBuffer): Record<string, Column> {
   const dv = new DataView(buf)
   const hlen = dv.getUint32(0, true)

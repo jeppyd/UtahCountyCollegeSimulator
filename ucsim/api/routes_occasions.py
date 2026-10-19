@@ -17,7 +17,8 @@ def occasion(oid: int, u: str = "base"):
     """One occasion as a scene: when and where, who organized it and why, every invitation (how it was sent, when it
     was seen, the answer and the reasons), who came (when, how they got there), who met whom, and what happened."""
     from ..analysis.scenes import scene
-    from .server import WS, jresp
+    from .routes_trace import _server
+    WS, jresp = _server()   # under `python -m` the serving module is __main__
     sim = WS.sim(u)
     with WS.lock:
         out = scene(sim, oid)
@@ -31,7 +32,8 @@ def occasions(u: str = "base", day: int | None = None, kind: str | None = None, 
               place: int | None = None, limit: int = 300):
     """Occasions on a day (default today), of a kind, involving a person (all days), or at a place."""
     from ..analysis.scenes import list_occasions
-    from .server import WS, jresp
+    from .routes_trace import _server
+    WS, jresp = _server()   # under `python -m` the serving module is __main__
     sim = WS.sim(u)
     with WS.lock:
         out = list_occasions(sim, day=day, kind=kind, person=person, place=place, limit=max(1, min(limit, 2000)))
@@ -43,7 +45,8 @@ def occasions(u: str = "base", day: int | None = None, kind: str | None = None, 
 def person_day(i: int, u: str = "base", day: int | None = None):
     """A person's day: the four blocks (what they were doing), commitments with clock times (classes, shifts, church,
     clubs), the occasions they're invited to or organize (with times, places, how they'd get there) and free stretches."""
-    from .server import WS, jresp
+    from .routes_trace import _server
+    WS, jresp = _server()   # under `python -m` the serving module is __main__
     sim = WS.sim(u)
     with WS.lock:
         _person(sim, i)
@@ -54,7 +57,8 @@ def person_day(i: int, u: str = "base", day: int | None = None):
 def person_choice(i: int, u: str = "base", block: int | None = None):
     """The free-time options a person weighs in a block today, each utility broken into the terms that were summed
     (computed now: everyday free-time choices are not logged one by one)."""
-    from .server import WS, jresp
+    from .routes_trace import _server
+    WS, jresp = _server()   # under `python -m` the serving module is __main__
     sim = WS.sim(u)
     with WS.lock:
         _person(sim, i)

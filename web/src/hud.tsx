@@ -68,7 +68,7 @@ export function Hud() {
   const activeSpeed = playing ? SPEEDS.findIndex(s => Math.abs(s[0] - (job.pace ?? 0)) < 1e-6) : -1
   return (
     <header className="hud">
-      <button className="hud-brand" onClick={() => setRoute(['world'])} title="The world (home)">
+      <button className="hud-brand" onClick={() => setRoute(['bench'])} title="The workbench (home)">
         <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><circle cx="10" cy="12" r="5" fill="var(--u-base)" /><circle cx="22" cy="10" r="4" fill="var(--u-alt)" /><circle cx="17" cy="22" r="5" fill="var(--s3)" /><path d="M10 12L22 10L17 22Z" stroke="var(--text-secondary)" fill="none" strokeWidth="1.5" /></svg>
         <span>Provo–Orem<small>Social Simulator</small></span>
       </button>

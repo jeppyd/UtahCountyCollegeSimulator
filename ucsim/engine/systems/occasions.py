@@ -500,6 +500,8 @@ class Occasions:
             "exam_soon": -p("occasions.attend.exam") * exams,
             "travel": -p("occasions.attend.travel") * np.maximum(f["travel"] - 10, 0) / 15.0,
             "late": -p("occasions.attend.late") * f["late"] / 30.0,
+            # a cold, snowy or rainy evening keeps some people home when going means a trip (weather.going_out)
+            "weather": -float(w.env.get("weather_penalty", 0.0)) * (f["travel"] > 5),
             "place_culture": p("culture.feedback.reputation") * sim.systems["culture"].complex_social_z(cx),
             "intention": sim.systems["plans"].accept_boost()[person],
             "hurt": -p("occasions.attend.hurt") * hurt,
@@ -1015,7 +1017,8 @@ class Occasions:
                 spec = self.book.vocab[self.book.kinds[kc]]
                 T = {"base": np.full(len(pp), float(spec.get("base", -3.0))), "interest": self._interest(kc, pp),
                      "travel": -p("occasions.attend.travel") * np.maximum(f["travel"] - 10, 0) / 15.0,
-                     "late": -p("occasions.attend.late") * f["late"] / 30.0}
+                     "late": -p("occasions.attend.late") * f["late"] / 30.0,
+                     "weather": -float(w.env.get("weather_penalty", 0.0)) * (f["travel"] > 5)}
                 intent = 0.8 * plans_b._active("meet_people")[pp] * plans_b._resolve()[pp] * self.k_social[kc]
                 if self.k_act[kc] == ACT_CODE["venue"] and self.k_social[kc]:
                     wb = sim.whatif.choice_bias(pp)

@@ -1,0 +1,70 @@
+# Recurring rules: plausible dates for any academic year (August–July) that has no file of its own, and the weekly
+# items every year has (devotionals). Fitted to the published 2026–27 calendar (2026_27.yaml); basis: rule unless
+# marked hypothetical. engine/calendar_real.py interprets them.
+#
+# A date rule is one of:
+#   {fixed: "MM-DD"}                          that day in the fall year (Aug–Dec) or the spring year (Jan–Jul)
+#   {nth: [month, weekday, n]}                the n-th weekday of the month (weekday 0 = Monday; n = -1: the last)
+#   {on_or_after: ["MM-DD", weekday]}         the first such weekday on or after the day
+#   {after: <rule or {term: "BYU.Fall.finals_end"}>, days: k, weekday?: w}   k days after another date (then the next w)
+#   {observed: "MM-DD"}                       a fixed holiday, moved to Friday/Monday when it falls on a weekend
+# Terms: start = first day of classes; classes_end, finals_start, finals_end as days after the start.
+
+terms:
+  BYU:
+    - {name: Fall, start: {on_or_after: ["08-30", 2]}, classes_end: 99, finals_start: 100, finals_end: 106}
+    - {name: Winter, start: {on_or_after: ["01-05", 2]}, classes_end: 98, finals_start: 99, finals_end: 105}
+    - {name: Spring, start: {after: {term: BYU.Winter.finals_end}, days: 4, weekday: 1}, classes_end: 48, finals_start: 49, finals_end: 51}
+    - {name: Summer, start: {after: {term: BYU.Spring.finals_end}, days: 3, weekday: 0}, classes_end: 49, finals_start: 50, finals_end: 52}
+  UVU:
+    - {name: Fall, start: {on_or_after: ["08-16", 2]}, classes_end: 107, finals_start: 110, finals_end: 114}
+    - {name: Spring, start: {on_or_after: ["01-08", 0]}, classes_end: 106, finals_start: 108, finals_end: 114}
+    - {name: Summer, start: {on_or_after: ["05-09", 2]}, classes_end: 86, finals_start: 86, finals_end: 86}
+
+items:
+  - {id: labor_day, label: Labor Day, date: {nth: [9, 0, 1]}, kind: holiday, effects: {no_class: [BYU, UVU]}}
+  - {id: conference_oct, label: General Conference, date: {nth: [10, 5, 1]}, days: 2, kind: conference, effects: {conference: true}}
+  - {id: halloween, label: Halloween, date: {fixed: "10-31"}, kind: holiday}
+  - {id: byu_friday_instruction, label: "BYU Friday instruction (Wednesday before Thanksgiving)", date: {after: {nth: [11, 3, 4]}, days: -1},
+     kind: school, effects: {friday_instruction: true}}
+  - {id: thanksgiving, label: Thanksgiving, date: {nth: [11, 3, 4]}, days: 2, kind: holiday, effects: {no_class: [BYU, UVU]}}
+  - {id: uvu_thanksgiving_wed, label: UVU Thanksgiving break (Wednesday), date: {after: {nth: [11, 3, 4]}, days: -1}, kind: break,
+     effects: {no_class: [UVU]}}
+  - {id: thanksgiving_travel, label: Thanksgiving travel, date: {after: {nth: [11, 3, 4]}, days: -1}, days: 5, kind: travel,
+     effects: {travel_home_likely: true}}
+  - {id: christmas_break, label: Christmas break, date: {after: {term: BYU.Fall.finals_end}, days: 1}, until: {after: {term: BYU.Winter.start}, days: -1},
+     kind: break, effects: {travel_home_likely: true}}
+  - {id: christmas, label: Christmas, date: {fixed: "12-24"}, days: 3, kind: holiday, effects: {no_class: [BYU, UVU]}}
+  - {id: new_year, label: New Year, date: {fixed: "12-31"}, days: 2, kind: holiday, effects: {no_class: [BYU, UVU]}}
+  - {id: mlk_day, label: Martin Luther King Jr. Day, date: {nth: [1, 0, 3]}, kind: holiday, effects: {no_class: [BYU, UVU]}}
+  - {id: valentines, label: "Valentine's Day", date: {fixed: "02-14"}, kind: holiday}
+  - {id: presidents_day, label: "Presidents' Day", date: {nth: [2, 0, 3]}, kind: holiday, effects: {no_class: [BYU, UVU]}}
+  - {id: byu_monday_instruction, label: "BYU Monday instruction (Tuesday after Presidents' Day)", date: {after: {nth: [2, 0, 3]}, days: 1},
+     kind: school, effects: {monday_instruction: true}}
+  - {id: uvu_spring_break, label: UVU spring break, date: {nth: [3, 0, 3]}, days: 6, kind: break, basis: hypothetical, effects: {no_class: [UVU]}}
+  - {id: conference_apr, label: General Conference, date: {nth: [4, 5, 1]}, days: 2, kind: conference, effects: {conference: true}}
+  - {id: memorial_day, label: Memorial Day, date: {nth: [5, 0, -1]}, kind: holiday, effects: {no_class: [BYU, UVU]}}
+  - {id: juneteenth, label: Juneteenth, date: {observed: "06-19"}, kind: holiday, effects: {no_class: [BYU, UVU]}}
+  - {id: stadium_of_fire, label: "Stadium of Fire (America's Freedom Festival)", date: {stadium_of_fire: true}, time: "20:00", place: stadium,
+     kind: festival, basis: hypothetical, effects: {occasion: {kind: stadium_of_fire}}}
+  - {id: independence_day, label: Independence Day, date: {observed: "07-04"}, kind: holiday, effects: {no_class: [BYU, UVU]}}
+  - {id: pioneer_day, label: Pioneer Day, date: {observed: "07-24"}, kind: holiday, effects: {no_class: [BYU, UVU]}}
+  # BYU home football: about seven Saturday games, September to Thanksgiving weekend (opponents unknown)
+  - {id: fb_home_1, label: BYU home football game, date: {nth: [9, 5, 1]}, time: "19:00", place: stadium, kind: football, basis: hypothetical, effects: {occasion: {kind: football_game}}}
+  - {id: fb_home_2, label: BYU home football game, date: {nth: [9, 5, 2]}, time: "19:00", place: stadium, kind: football, basis: hypothetical, effects: {occasion: {kind: football_game}}}
+  - {id: fb_home_3, label: BYU home football game, date: {nth: [10, 5, 2]}, time: "19:00", place: stadium, kind: football, basis: hypothetical, effects: {occasion: {kind: football_game}}}
+  - {id: fb_home_4, label: BYU home football game (Homecoming), date: {nth: [10, 5, 3]}, time: "17:30", place: stadium, kind: football, basis: hypothetical, effects: {occasion: {kind: football_game}}}
+  - {id: fb_home_5, label: BYU home football game, date: {nth: [10, 5, -1]}, time: "19:00", place: stadium, kind: football, basis: hypothetical, effects: {occasion: {kind: football_game}}}
+  - {id: fb_home_6, label: BYU home football game, date: {nth: [11, 5, 2]}, time: "14:00", place: stadium, kind: football, basis: hypothetical, effects: {occasion: {kind: football_game}}}
+  - {id: fb_home_7, label: BYU home football game, date: {after: {nth: [11, 3, 4]}, days: 2}, time: "14:00", place: stadium, kind: football, basis: hypothetical, effects: {occasion: {kind: football_game}}}
+
+# Weekly items, every year (real years too): generated for each week of the named terms' classes.
+weekly:
+  - {id: devotional, label: "BYU devotional or forum", weekday: 1, time: "11:05", place: marriott, kind: devotional,
+     terms: [BYU.Fall, BYU.Winter], skip_first_week: false,
+     note: "BYU holds a university devotional or forum most Tuesdays at 11:05 am in fall and winter semesters; speakers vary.",
+     source: https://speeches.byu.edu, effects: {occasion: {kind: devotional}}}
+
+places:
+  stadium: {name: LaVell Edwards Stadium, lon: -111.6546, lat: 40.2576}
+  marriott: {name: Marriott Center, lon: -111.6490, lat: 40.2493}

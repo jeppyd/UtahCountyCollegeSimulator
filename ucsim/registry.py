@@ -83,9 +83,9 @@ class VarSpec:
         d["mappable"] = "map" in self.flags
         d["intervenable"] = "intervene" in self.flags or self.kind in ("trait", "belief", "habit", "preference")
         d["time_varying"] = self.update not in ("static",)
-        if self.entity == "person":
-            from .scales import scale_of
-            sc = scale_of(self)
+        if self.entity in ("person", "edge"):
+            from .scales import scale_for
+            sc = scale_for(self)
             if sc:
                 d["scale"] = sc
         return d

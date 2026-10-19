@@ -1,0 +1,121 @@
+# The 2026–27 Provo year: real dates where they are published (with the source), recurring rules where they are not
+# yet (basis: rule), and our guesses where nothing is published (basis: hypothetical). Loaded by
+# engine/calendar_real.py; later years come from rules.yaml.
+#
+# terms.<school>: one entry per term. classes = [first, last day of instruction]; finals = [first, last day of the exam
+#   period, including an exam-preparation day]; the term runs from the first class through the last exam.
+# items: id, label, date (YYYY-MM-DD) or range [from, to], time ("HH:MM", when known), place {name, lon, lat}, kind,
+#   basis (real | rule | hypothetical), source (URL, for real), note, and effects:
+#     no_class: [BYU, UVU]     no classes that day (a holiday or break)
+#     travel_home_likely: true students who can go home tend to (Thanksgiving, Christmas) — data for the family builder
+#     occasion: {kind, audience?}  an open occasion planned on that day (kinds in config/occasions/30_calendar.yaml)
+#     conference: true         General Conference weekend (no regular Sunday ward meetings)
+#     friday_instruction / monday_instruction: true   classes follow another weekday's schedule
+year: "2026-27"
+first: 2026-08-01
+last: 2027-07-31
+
+sources:
+  byu_catalog: https://catalog26byu.catalog.prod.coursedog.com/policy/dates-and-deadlines
+  uvu_fall: https://www.uvu.edu/schedule/fall/
+  uvu_spring: https://www.uvu.edu/schedule/spring/
+  uvu_finals: https://www.uvu.edu/academicscheduling/docs/2026-2027_final_exams_table.pdf
+  uvu_future: https://www.uvu.edu/schedule/future.html
+  byu_football: https://byucougars.com/news/2026/08/6/fall-camp-week-1-a-look-at-byus-2026-schedule
+  conference_oct: https://newsroom.churchofjesuschrist.org/event/october-2026-general-conference
+
+places:
+  stadium: {name: LaVell Edwards Stadium, lon: -111.6546, lat: 40.2576}
+  marriott: {name: Marriott Center, lon: -111.6490, lat: 40.2493}
+  uccu: {name: UCCU Center (UVU), lon: -111.7140, lat: 40.2779}
+
+terms:
+  BYU:
+    - {name: Fall, classes: [2026-09-02, 2026-12-10], finals: [2026-12-11, 2026-12-17], basis: real, source: byu_catalog}
+    - {name: Winter, classes: [2027-01-06, 2027-04-14], finals: [2027-04-15, 2027-04-21], basis: real, source: byu_catalog}
+    - {name: Spring, classes: [2027-04-27, 2027-06-14], finals: [2027-06-15, 2027-06-17], basis: real, source: byu_catalog}
+    - {name: Summer, classes: [2027-06-21, 2027-08-09], finals: [2027-08-10, 2027-08-12], basis: real, source: byu_catalog}
+  UVU:
+    - {name: Fall, classes: [2026-08-19, 2026-12-04], finals: [2026-12-07, 2026-12-11], basis: real, source: uvu_fall}
+    - {name: Spring, classes: [2027-01-11, 2027-04-27], finals: [2027-04-29, 2027-05-05], basis: real, source: uvu_spring}
+    # Summer 2027 isn't published yet; UVU's pattern (Summer 2028: Wed May 10 – Fri Aug 4) gives these
+    - {name: Summer, classes: [2027-05-12, 2027-08-06], finals: [2027-08-06, 2027-08-06], basis: rule, source: uvu_future}
+
+items:
+  # ---------------------------------------------------------------- the start of the year
+  - {id: uvu_classes_begin, label: UVU fall classes begin, date: 2026-08-19, kind: school, basis: real, source: uvu_fall}
+  - {id: byu_move_in, label: BYU freshman move-in, date: [2026-08-27, 2026-08-29], kind: school, basis: hypothetical,
+     note: "Move-in is the days before New Student Orientation (Aug 28 and 31, real); exact days not published."}
+  - {id: byu_orientation, label: BYU New Student Orientation, date: [2026-08-28, 2026-08-31], kind: school, basis: real, source: byu_catalog}
+  - {id: byu_classes_begin, label: BYU fall classes begin, date: 2026-09-02, kind: school, basis: real, source: byu_catalog}
+  - {id: labor_day, label: Labor Day, date: 2026-09-07, kind: holiday, basis: real, source: byu_catalog, effects: {no_class: [BYU, UVU]}}
+
+  # ---------------------------------------------------------------- BYU home football (kickoff times not yet announced)
+  - {id: fb_utah_tech, label: "BYU football vs Utah Tech", date: 2026-09-05, time: "19:00", place: stadium, kind: football, basis: real,
+     source: byu_football, note: "Kickoff time not announced; 7 pm assumed.", effects: {occasion: {kind: football_game}}}
+  - {id: fb_arizona, label: "BYU football vs Arizona", date: 2026-09-12, time: "19:00", place: stadium, kind: football, basis: real,
+     source: byu_football, note: "Kickoff time not announced; 7 pm assumed.", effects: {occasion: {kind: football_game}}}
+  - {id: fb_at_csu, label: "BYU football at Colorado State (away)", date: 2026-09-19, kind: football_away, basis: real, source: byu_football}
+  - {id: fb_at_tcu, label: "BYU football at TCU (away, conference Saturday)", date: 2026-10-03, kind: football_away, basis: real, source: byu_football}
+  - {id: fb_iowa_state, label: "BYU football vs Iowa State (Friday)", date: 2026-10-09, time: "19:00", place: stadium, kind: football,
+     basis: real, source: byu_football, note: "A Friday-night game; time assumed.", effects: {occasion: {kind: football_game}}}
+  - {id: fb_notre_dame, label: "BYU football vs Notre Dame", date: 2026-10-17, time: "17:30", place: stadium, kind: football, basis: real,
+     source: byu_football, note: "First Notre Dame game in Provo since 2004; time assumed.", effects: {occasion: {kind: football_game}}}
+  - {id: fb_at_ucf, label: "BYU football at UCF (away)", date: 2026-10-24, kind: football_away, basis: real, source: byu_football}
+  - {id: fb_arizona_state, label: "BYU football vs Arizona State (Halloween)", date: 2026-10-31, time: "19:00", place: stadium, kind: football,
+     basis: real, source: byu_football, note: "Time assumed.", effects: {occasion: {kind: football_game}}}
+  - {id: fb_at_utah, label: "BYU football at Utah (rivalry, away)", date: 2026-11-07, kind: football_away, basis: real, source: byu_football}
+  - {id: fb_baylor, label: "BYU football vs Baylor", date: 2026-11-14, time: "14:00", place: stadium, kind: football, basis: real,
+     source: byu_football, note: "Time assumed (November afternoon).", effects: {occasion: {kind: football_game}}}
+  - {id: fb_at_kansas, label: "BYU football at Kansas (away)", date: 2026-11-21, kind: football_away, basis: real, source: byu_football}
+  - {id: fb_cincinnati, label: "BYU football vs Cincinnati (Thanksgiving weekend)", date: 2026-11-28, time: "14:00", place: stadium,
+     kind: football, basis: real, source: byu_football, note: "Time assumed; many students are home for Thanksgiving.",
+     effects: {occasion: {kind: football_game}}}
+  - {id: fb_big12_title, label: "Big 12 Championship (if BYU qualifies)", date: 2026-12-04, time: "18:00", kind: football_away, basis: real,
+     source: byu_football, note: "Arlington, Texas; 7 pm CT."}
+
+  # ---------------------------------------------------------------- October
+  - {id: conference_oct, label: General Conference, date: [2026-10-03, 2026-10-04], kind: conference, basis: real, source: conference_oct,
+     note: "Sessions 10 am and 2 pm both days; watched at home or with friends.", effects: {conference: true}}
+  - {id: byu_homecoming, label: BYU Homecoming week, date: [2026-10-05, 2026-10-10], kind: school, basis: hypothetical,
+     note: "Not yet announced; BYU usually ties Homecoming to an October home game (here Iowa State, Oct 9)."}
+  - {id: uvu_fall_break, label: UVU fall break, date: [2026-10-15, 2026-10-18], kind: break, basis: real, source: uvu_fall,
+     effects: {no_class: [UVU]}}
+  - {id: halloween, label: Halloween, date: 2026-10-31, kind: holiday, basis: rule}
+
+  # ---------------------------------------------------------------- November – December
+  - {id: byu_friday_instruction, label: "BYU Friday instruction (Wednesday before Thanksgiving)", date: 2026-11-25, kind: school,
+     basis: real, source: byu_catalog, effects: {friday_instruction: true}}
+  - {id: thanksgiving, label: Thanksgiving, date: [2026-11-26, 2026-11-27], kind: holiday, basis: real, source: byu_catalog,
+     effects: {no_class: [BYU, UVU]}}
+  - {id: uvu_thanksgiving_wed, label: UVU Thanksgiving break (Wednesday), date: 2026-11-25, kind: break, basis: rule,
+     note: "UVU usually cancels classes the Wednesday before Thanksgiving.", effects: {no_class: [UVU]}}
+  - {id: thanksgiving_travel, label: Thanksgiving travel, date: [2026-11-25, 2026-11-29], kind: travel, basis: rule,
+     effects: {travel_home_likely: true}}
+  - {id: christmas_break, label: Christmas break, date: [2026-12-18, 2027-01-05], kind: break, basis: real, source: byu_catalog,
+     note: "Between BYU's last fall exam (Dec 17) and first winter class (Jan 6).", effects: {travel_home_likely: true}}
+  - {id: christmas, label: Christmas, date: [2026-12-24, 2026-12-26], kind: holiday, basis: real, source: byu_catalog, effects: {no_class: [BYU, UVU]}}
+  - {id: new_year, label: New Year, date: [2026-12-31, 2027-01-01], kind: holiday, basis: real, source: byu_catalog, effects: {no_class: [BYU, UVU]}}
+
+  # ---------------------------------------------------------------- winter
+  - {id: mlk_day, label: Martin Luther King Jr. Day, date: 2027-01-18, kind: holiday, basis: real, source: byu_catalog, effects: {no_class: [BYU, UVU]}}
+  - {id: valentines, label: "Valentine's Day (Sunday; dates on Saturday)", date: 2027-02-14, kind: holiday, basis: rule}
+  - {id: presidents_day, label: "Presidents' Day", date: 2027-02-15, kind: holiday, basis: real, source: byu_catalog, effects: {no_class: [BYU, UVU]}}
+  - {id: byu_monday_instruction, label: "BYU Monday instruction (Tuesday after Presidents' Day)", date: 2027-02-16, kind: school, basis: rule,
+     note: "BYU holds Monday classes the day after Presidents' Day; the catalog's table lists this row but is garbled.",
+     effects: {monday_instruction: true}}
+  - {id: uvu_spring_break, label: UVU spring break, date: [2027-03-15, 2027-03-20], kind: break, basis: hypothetical,
+     note: "UVU's spring break is mid-March; exact 2027 week not confirmed.", effects: {no_class: [UVU]}}
+  - {id: conference_apr, label: General Conference, date: [2027-04-03, 2027-04-04], kind: conference, basis: rule,
+     note: "The first weekend of April.", effects: {conference: true}}
+
+  # ---------------------------------------------------------------- spring and summer
+  - {id: memorial_day, label: Memorial Day, date: 2027-05-31, kind: holiday, basis: real, source: byu_catalog, effects: {no_class: [BYU, UVU]}}
+  - {id: juneteenth, label: Juneteenth, date: 2027-06-18, kind: holiday, basis: real, source: byu_catalog, effects: {no_class: [BYU, UVU]}}
+  - {id: stadium_of_fire, label: "Stadium of Fire (America's Freedom Festival)", date: 2027-07-03, time: "20:00", place: stadium,
+     kind: festival, basis: hypothetical, note: "Held July 4, or the Saturday before when the Fourth falls on a Sunday (as in 2027).",
+     effects: {occasion: {kind: stadium_of_fire}}}
+  - {id: independence_day, label: Independence Day, date: 2027-07-05, kind: holiday, basis: real, source: byu_catalog,
+     note: "Observed Monday July 5 (the Fourth is a Sunday).", effects: {no_class: [BYU, UVU]}}
+  - {id: pioneer_day, label: Pioneer Day, date: 2027-07-23, kind: holiday, basis: real, source: byu_catalog,
+     note: "Observed Friday July 23 (the 24th is a Saturday).", effects: {no_class: [BYU, UVU]}}

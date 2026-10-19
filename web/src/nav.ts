@@ -1,7 +1,10 @@
-// The places you can go. "World" areas are the game; the research desk holds the deeper tools.
+// The places you can go. The workbench is home; the earlier pages ("classic views") and the research desk stay reachable
+// from the Classic views menu, so nothing is lost.
 export type NavItem = { id: string; label: string; icon: string; hint: string; color?: string }
+export const BENCH: NavItem = { id: 'bench', label: 'Workbench', icon: 'desk', hint: 'Your own bench of raw tools: pick anyone or anything and see what led to it and what it led to', color: '--s1' }
 export const NAV: { group: string; label: string; items: NavItem[] }[] = [
   { group: 'world', label: 'The world', items: [
+    BENCH,
     { id: 'world', label: 'World', icon: 'globe', hint: 'What is happening right now: news, trends, lives to follow, the two worlds', color: '--s1' },
     { id: 'map', label: 'Map', icon: 'map', hint: 'Watch people move through Provo and Orem; color homes by anything', color: '--s3' },
     { id: 'people', label: 'People', icon: 'people', hint: 'Find and follow individual lives', color: '--s7' },
@@ -25,4 +28,11 @@ export const NAV: { group: string; label: string; items: NavItem[] }[] = [
   { group: 'help', label: '', items: [
     { id: 'guide', label: 'How it works', icon: 'book', hint: 'The field guide: how to play, and how the world works' },
   ] },
+]
+
+/** The top of the app: the workbench and the What-if; every other page lives under Classic views. */
+export const TOP = ['bench', 'whatif']
+export const CLASSIC: { label: string; items: NavItem[] }[] = [
+  { label: 'The world', items: NAV[0].items.filter(i => !TOP.includes(i.id)) },
+  { label: NAV[1].label, items: NAV[1].items },
 ]

@@ -1,9 +1,10 @@
-"""World environment: calendar flags, weather, economy, interventions."""
+"""World environment: calendar flags (the real Provo calendar), observed weather, economy, interventions."""
 from __future__ import annotations
 
 import numpy as np
 
 from ..interventions import InterventionManager
+from ..weather import Weather
 
 
 class Environment:
@@ -34,10 +35,15 @@ class Environment:
             "enrollment_index": 1.0,
             "social_media_intensity": 1.0,
             "marriage_norm": 1.0,
+            # which observed weather year (fall year) this world replays; a What-if may set another
+            "weather_year": 0,
         }
         w.env.update(self.base)
         self.manager = InterventionManager(sim, sim.interventions)
         self.market_rent = 1.0
+        self.weather = Weather(cfg, sim.cal.start)
+        self.base["weather_year"] = self.weather.year0
+        w.env["weather_year"] = self.weather.year0
 
     def init(self):
         self._flags()
@@ -54,23 +60,70 @@ class Environment:
         self.manager.apply_params(d)
         self.manager.apply_agents(d)
         self._flags()
+        self._calendar_occasions(d)
 
     def _flags(self):
         sim, w = self.sim, self.sim.w
         d = w.day
         cal = sim.cal
         env = w.env
-        noise = sim.streams.normal("weather", d, 1)[0]
-        env["temp_f"] = cal.temp_f(d) + 7.0 * noise + env["temp_delta"]
+        p = sim.p
+        date = cal.date(d)
+        wx = self.weather.on(date, int(env.get("weather_year") or 0) or None)
+        for k in ("tmax_f", "tmin_f", "precip_in", "snow_in", "snow_depth_in"):
+            env[k] = wx[k]
+        env["weather_label"] = wx["label"]
+        env["weather_year_used"] = wx["weather_year"]
+        env["weather_filled"] = bool(wx["filled"])
+        # the old daytime temperature: the observed high (plus any What-if warming)
+        env["temp_f"] = wx["tmax_f"] + env["temp_delta"]
         env["weekday"] = cal.weekday(d)
         env["holiday"] = cal.holiday(d)
         env["conference"] = cal.is_conference_weekend(d)
+        items = cal.items_on(d)
+        env["calendar_items"] = [it.id for it in items]
+        env["travel_home_likely"] = any(it.effects.get("travel_home_likely") for it in items)
         for school in ("BYU", "UVU"):
             term = cal.term(school, d)
             env[f"term_{school}"] = term
             prog = cal.term_progress(school, d)
             env[f"term_progress_{school}"] = prog
-            env[f"exam_week_{school}"] = bool(term and prog > 0.9) or bool(term and 0.45 < prog < 0.52)
-        env["date"] = str(cal.date(d))
-        env["month"] = cal.date(d).month
-        env["outdoor_appeal"] = float(np.clip(1 - abs(env["temp_f"] - 72) / 35, 0.05, 1.0))
+            env[f"finals_{school}"] = cal.in_finals(school, d)
+            env[f"no_class_{school}"] = cal.no_class(school, d)
+            # exam pressure: the real finals, and midterms (approximated from term progress)
+            env[f"exam_week_{school}"] = env[f"finals_{school}"] or bool(term and 0.45 < prog < 0.52)
+        env["no_class"] = env["no_class_BYU"] and env["no_class_UVU"]
+        env["date"] = str(date)
+        env["month"] = date.month
+        rain = wx["precip_in"] >= 0.05 and wx["snow_in"] < 0.5
+        snow = min(wx["snow_in"], 6.0) / 6.0
+        env["outdoor_appeal"] = float(np.clip(1 - abs(env["temp_f"] - 72) / 35, 0.05, 1.0)
+                                      * (1 - p("weather.outdoor.rain") * rain) * (1 - p("weather.outdoor.snow") * snow))
+        env["weather_penalty"] = float(p("weather.going_out.cold") * max(0.0, 35 - wx["tmin_f"]) / 20
+                                       + p("weather.going_out.snow") * snow + p("weather.going_out.rain") * rain)
+
+    def _calendar_occasions(self, d: int):
+        """Plan today's calendar events that people go to (home football games, devotionals, Stadium of Fire) as open
+        occasions; the occasions system settles who goes. Planned once per day and place, in both worlds alike."""
+        sim = self.sim
+        book = getattr(sim, "book", None)
+        if book is None:
+            return
+        O = book.occ
+        have = set(O["label"][O["day"] == d].tolist()) if O.n else set()
+        for it in sim.cal.items_on(d):
+            occ = it.effects.get("occasion")
+            if not occ or occ.get("kind") not in book.kind_id:
+                continue
+            kind = occ["kind"]
+            label = it.label
+            if book.label_id(label) in have:
+                continue
+            spec = book.vocab[kind]
+            start = it.minutes()
+            if start is None:
+                hh, mm = str(spec.get("start", "19:00")).split(":")
+                start = int(hh) * 60 + int(mm)
+            pl = it.place or {}
+            book.plan(kind, d, start, int(spec.get("dur", 120)), lon=float(pl.get("lon", np.nan)), lat=float(pl.get("lat", np.nan)),
+                      origin="calendar", open_=True, label=label, capacity=int(spec.get("capacity", -1)))

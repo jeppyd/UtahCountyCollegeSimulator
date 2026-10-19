@@ -103,6 +103,29 @@ your words + tagged entities + the conversation
 
   Every random choice uses its own stream or a stable hash, so the Original world is never disturbed and do-nothing changes leave the twin identical.
 
+## Ask the world and Interviews
+
+The same logins power two workbench tools (`ucsim/llm/talk/`, routes in `ucsim/api/routes_talk.py`):
+
+* **Ask the world** — the model picks lookups from a fixed list (find people by a filter, rank complexes or wards by a
+  measure, count events, explain one person's feeling, what a group's feeling is made of, who a What-if changed most,
+  one person's basics, what led to an event); the simulator runs them and turns the results into numbered facts; the
+  model answers citing those facts.
+* **Interview** — the selected person answers in the first person from their own dossier: their feelings, what they
+  believe (not what is true), how they see the people around them, what they remember (read without strengthening the
+  memory), their plans, how they cope and the reasons behind their own recent choices. Sensitive fields (anything
+  flagged `sensitive`, sexual history, porn use, cheating) stay out unless `sensitive` is turned on. "View vs. truth"
+  is computed by the simulator.
+
+Every sentence is checked by `ucsim/llm/talk/check.py` (no model): it must cite facts; its numbers, names, feeling words
+and causal words must match them; an interviewee may only use their own perceptions, beliefs and facts. Failing
+sentences get one repair round, then are dropped and shown with the reason. Interviews also drop talk of self-harm
+methods, clinical advice and doctrine. The checker is measured on `tests/data/talk_cases.json` (73 seeded statements).
+
+Which backend each uses is set in the tool (or `~/.ucsim/talk.json`: `ask_backend`, `interview_backend` =
+auto | claude | codex | openai, and `sensitive`). *Automatic* uses the model on this computer for interviews when one is
+loaded, otherwise the What-if backend.
+
 ## Troubleshooting
 
 | Symptom | Fix |

@@ -1,0 +1,31 @@
+/* Ask the world and Interviews (kit/Answer.tsx, bench/tools/Ask.tsx, Interview.tsx) */
+.ta-answer { font-size: 13.5px; line-height: 1.55; color: var(--text-primary); }
+.ta-answer.first .ta-sent { font-style: normal; }
+.ta-sent { margin: 0 0 6px; }
+.ta-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: middle; margin-left: 2px; }
+.ta-none { color: var(--text-muted); font-style: italic; margin-bottom: 6px; }
+.ta-removed { margin: 6px 0; padding: 6px 8px; border-left: 3px solid var(--critical); background: var(--surface-2); border-radius: 4px; font-size: 12.5px; }
+.ta-removed s { color: var(--text-muted); }
+.ta-removed .why { color: var(--critical); font-size: 12px; }
+.ta-more { background: none; border: 0; padding: 2px 0; color: var(--accent); cursor: pointer; font-size: 12.5px; }
+.ta-claims { margin: 4px 0 6px; padding-left: 16px; font-size: 12.5px; color: var(--text-secondary); }
+.ta-claims li { margin-bottom: 4px; }
+.ta-kind { display: inline-block; font-size: 10.5px; padding: 0 6px; border-radius: 8px; background: var(--surface-3); color: var(--text-secondary); margin-right: 4px; }
+.ta-kind.k-cause { background: var(--accent-soft); color: var(--accent); }
+.ta-kind.k-perception, .ta-kind.k-belief { background: var(--surface-2); border: 1px solid var(--border); }
+.ta-foot { font-size: 11.5px; color: var(--text-muted); margin-top: 6px; }
+.ta-steps { font-size: 12.5px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; margin: 6px 0; }
+.ta-steps .t { color: var(--text-muted); }
+.ta-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: ta-pulse 1.2s infinite ease-in-out; }
+@keyframes ta-pulse { 0%, 100% { opacity: .3 } 50% { opacity: 1 } }
+.ta-ask { display: flex; gap: 6px; margin-bottom: 8px; }
+.ta-ask textarea { flex: 1; resize: vertical; min-height: 38px; font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-1); color: var(--text-primary); }
+.ta-ask button { align-self: flex-end; }
+.ta-examples { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.ta-examples button { font-size: 11.5px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary); border-radius: 12px; padding: 2px 8px; cursor: pointer; }
+.ta-examples button:hover { color: var(--text-primary); border-color: var(--border-strong); }
+.ta-turn { margin-bottom: 10px; }
+.ta-q { font-weight: 600; font-size: 12.5px; color: var(--text-secondary); margin-bottom: 2px; }
+.ta-differs { margin: 6px 0 10px; padding: 6px 8px; border: 1px dashed var(--border-strong); border-radius: 6px; font-size: 12.5px; }
+.ta-differs li { margin-bottom: 3px; }
+.ta-who { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 12.5px; color: var(--text-secondary); flex-wrap: wrap; }

@@ -1,0 +1,934 @@
+{
+ "about": "Seeded statements for the wording checker (ucsim/llm/talk/check.py): true ones it must pass and subtly false ones (wrong number, wrong person, unsupported cause, wrong intensity, hidden-state leak in an interview, uncited) it must catch. The interviewee in interview cases is person 5.",
+ "self_id": 5,
+ "claims": [
+  {
+   "id": "f1",
+   "kind": "fact",
+   "subject": {
+    "kind": "person",
+    "id": 5,
+    "name": "Emma Jensen"
+   },
+   "field": "loneliness",
+   "value": 0.71,
+   "band": "lonely most days",
+   "text": "Emma Jensen's loneliness is 0.71 (lonely most days)."
+  },
+  {
+   "id": "f2",
+   "kind": "fact",
+   "subject": {
+    "kind": "person",
+    "id": 5,
+    "name": "Emma Jensen"
+   },
+   "field": "stress",
+   "value": 0.38,
+   "band": "stressed",
+   "text": "Emma Jensen's stress is 0.38."
+  },
+  {
+   "id": "f3",
+   "kind": "fact",
+   "subject": {
+    "kind": "person",
+    "id": 9,
+    "name": "Tyler Smith"
+   },
+   "field": "mood",
+   "value": 0.82,
+   "band": "very happy",
+   "text": "Tyler Smith's mood is 0.82 (very happy)."
+  },
+  {
+   "id": "f4",
+   "kind": "fact",
+   "subject": {
+    "kind": "person",
+    "id": 9,
+    "name": "Tyler Smith"
+   },
+   "field": "loneliness",
+   "value": 0.12,
+   "band": "not lonely",
+   "text": "Tyler Smith's loneliness is 0.12."
+  },
+  {
+   "id": "c1",
+   "kind": "cause",
+   "subject": {
+    "kind": "person",
+    "id": 5,
+    "name": "Emma Jensen"
+   },
+   "refs": [
+    {
+     "kind": "person",
+     "id": 9,
+     "name": "Tyler Smith"
+    },
+    {
+     "kind": "event",
+     "id": 4410
+    }
+   ],
+   "text": "Tyler Smith broke up with Emma Jensen on day 41; it raised her loneliness."
+  },
+  {
+   "id": "m1",
+   "kind": "measurement",
+   "subject": {
+    "kind": "group",
+    "id": "byu_freshmen",
+    "name": "BYU freshmen"
+   },
+   "value": 0.43,
+   "count": 118,
+   "numbers": [
+    274
+   ],
+   "licenses": [
+    "loneliness"
+   ],
+   "text": "118 of 274 BYU freshmen (43%) are lonely (loneliness at least 0.5)."
+  },
+  {
+   "id": "m2",
+   "kind": "measurement",
+   "subject": {
+    "kind": "place",
+    "id": "complex:12",
+    "name": "Belmont Apartments"
+   },
+   "field": "loneliness",
+   "value": 0.36,
+   "numbers": [
+    52
+   ],
+   "text": "Belmont Apartments: average loneliness 0.36 among 52 residents, the highest of any complex."
+  },
+  {
+   "id": "m3",
+   "kind": "measurement",
+   "subject": {
+    "kind": "person",
+    "id": 5,
+    "name": "Emma Jensen"
+   },
+   "field": "loneliness",
+   "share": 0.46,
+   "value": 0.33,
+   "text": "Of Emma Jensen's loneliness, 0.33 (46%) comes from having few close friends."
+  },
+  {
+   "id": "m4",
+   "kind": "measurement",
+   "subject": {
+    "kind": "person",
+    "id": 5,
+    "name": "Emma Jensen"
+   },
+   "share": 0.06,
+   "value": 0.04,
+   "text": "Of Emma Jensen's loneliness, 0.04 (6%) comes from the weather."
+  },
+  {
+   "id": "m5",
+   "kind": "measurement",
+   "subject": {
+    "kind": "group",
+    "id": "events"
+   },
+   "value": 37,
+   "text": "37 breakups happened in October."
+  },
+  {
+   "id": "f5",
+   "kind": "fact",
+   "subject": {
+    "kind": "person",
+    "id": 5,
+    "name": "Emma Jensen"
+   },
+   "refs": [
+    {
+     "kind": "person",
+     "id": 12,
+     "name": "Sophie Hansen"
+    }
+   ],
+   "field": "closeness",
+   "value": 0.81,
+   "text": "Emma Jensen and Sophie Hansen are close (closeness 0.81)."
+  },
+  {
+   "id": "f6",
+   "kind": "fact",
+   "subject": {
+    "kind": "person",
+    "id": 12,
+    "name": "Sophie Hansen"
+   },
+   "field": "faith_belief",
+   "value": 0.88,
+   "band": "fully believes",
+   "text": "Sophie Hansen's belief is 0.88."
+  },
+  {
+   "id": "f7",
+   "kind": "fact",
+   "subject": {
+    "kind": "person",
+    "id": 5,
+    "name": "Emma Jensen"
+   },
+   "field": "relationship_satisfaction",
+   "value": 0.3,
+   "text": "Emma Jensen's relationship satisfaction was 0.3 before the breakup."
+  },
+  {
+   "id": "p1",
+   "kind": "perception",
+   "subject": {
+    "kind": "person",
+    "id": 5,
+    "name": "Emma Jensen"
+   },
+   "field": "perceived_support",
+   "value": 0.25,
+   "text": "Emma Jensen believes the support she could count on is 0.25 (very little)."
+  },
+  {
+   "id": "b1",
+   "kind": "belief",
+   "subject": {
+    "kind": "person",
+    "id": 5,
+    "name": "Emma Jensen"
+   },
+   "refs": [
+    {
+     "kind": "person",
+     "id": 12,
+     "name": "Sophie Hansen"
+    }
+   ],
+   "text": "Emma Jensen thinks Sophie Hansen is too busy for her."
+  },
+  {
+   "id": "h1",
+   "kind": "fact",
+   "subject": {
+    "kind": "person",
+    "id": 12,
+    "name": "Sophie Hansen"
+   },
+   "field": "stress",
+   "value": 0.72,
+   "text": "Sophie Hansen's stress is 0.72 (very stressed)."
+  },
+  {
+   "id": "f8",
+   "kind": "fact",
+   "subject": {
+    "kind": "person",
+    "id": 5,
+    "name": "Emma Jensen"
+   },
+   "field": "mood",
+   "value": 0.31,
+   "text": "Emma Jensen's mood is 0.31 (low)."
+  },
+  {
+   "id": "e1",
+   "kind": "fact",
+   "subject": {
+    "kind": "person",
+    "id": 5,
+    "name": "Emma Jensen"
+   },
+   "refs": [
+    {
+     "kind": "place",
+     "id": "venue:3",
+     "name": "the Wilkinson Center"
+    }
+   ],
+   "numbers": [
+    2
+   ],
+   "text": "Emma Jensen went to two devotionals at the Wilkinson Center this month."
+  }
+ ],
+ "cases": [
+  {
+   "text": "Emma Jensen is lonely most days.",
+   "claims": [
+    "f1"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "Emma Jensen is very lonely.",
+   "claims": [
+    "f1"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "Emma is lonely.",
+   "claims": [
+    "f1"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "Tyler Smith is very happy.",
+   "claims": [
+    "f3"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "Tyler Smith is not lonely.",
+   "claims": [
+    "f4"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "Tyler is happy.",
+   "claims": [
+    "f3"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "Emma Jensen is lonely because Tyler Smith broke up with her.",
+   "claims": [
+    "f1",
+    "c1"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "The breakup with Tyler Smith on day 41 raised Emma Jensen's loneliness.",
+   "claims": [
+    "c1"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "About 40% of BYU freshmen are lonely.",
+   "claims": [
+    "m1"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "43% of BYU freshmen are lonely.",
+   "claims": [
+    "m1"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "118 of 274 BYU freshmen are lonely.",
+   "claims": [
+    "m1"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "Nearly half of BYU freshmen are lonely.",
+   "claims": [
+    "m1"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "Belmont Apartments has the highest average loneliness of any complex, 0.36 among 52 residents.",
+   "claims": [
+    "m2"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "Most of Emma Jensen's loneliness, 46%, comes from having few close friends, which is why she feels isolated.",
+   "claims": [
+    "m3",
+    "f1"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "Emma Jensen's loneliness is high because she has few close friends.",
+   "claims": [
+    "m3"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "37 breakups happened in October.",
+   "claims": [
+    "m5"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "There were thirty-seven breakups in October.",
+   "claims": [
+    "m5"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "Emma Jensen is close to Sophie Hansen.",
+   "claims": [
+    "f5"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "Emma and Sophie are very close.",
+   "claims": [
+    "f5"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "Sophie Hansen is devout.",
+   "claims": [
+    "f6"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "Sophie Hansen is very stressed.",
+   "claims": [
+    "h1"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "Emma Jensen and Tyler Smith were unhappy together before the breakup.",
+   "claims": [
+    "f7",
+    "c1"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "Emma Jensen is feeling low.",
+   "claims": [
+    "f8"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "Emma Jensen went to two devotionals at the Wilkinson Center this month.",
+   "claims": [
+    "e1"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "Emma Jensen is somewhat stressed and lonely most days.",
+   "claims": [
+    "f1",
+    "f2"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "Since day 41, Emma Jensen has been lonely.",
+   "claims": [
+    "f1",
+    "c1"
+   ],
+   "mode": "ask",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "I feel like I don't have much support.",
+   "claims": [
+    "p1"
+   ],
+   "mode": "interview",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "I think Sophie Hansen is too busy for me.",
+   "claims": [
+    "b1"
+   ],
+   "mode": "interview",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "I'm lonely most days.",
+   "claims": [
+    "f1"
+   ],
+   "mode": "interview",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "I'm lonely because Tyler Smith broke up with me.",
+   "claims": [
+    "c1",
+    "f1"
+   ],
+   "mode": "interview",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "I've been feeling low.",
+   "claims": [
+    "f8"
+   ],
+   "mode": "interview",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "I'm close to Sophie Hansen.",
+   "claims": [
+    "f5"
+   ],
+   "mode": "interview",
+   "truth": true,
+   "error": null
+  },
+  {
+   "text": "45% of BYU freshmen are lonely.",
+   "claims": [
+    "m1"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "number"
+  },
+  {
+   "text": "128 of 274 BYU freshmen are lonely.",
+   "claims": [
+    "m1"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "number"
+  },
+  {
+   "text": "47 breakups happened in October.",
+   "claims": [
+    "m5"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "number"
+  },
+  {
+   "text": "Belmont Apartments has an average loneliness of 0.63.",
+   "claims": [
+    "m2"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "number"
+  },
+  {
+   "text": "Emma Jensen went to three devotionals at the Wilkinson Center this month.",
+   "claims": [
+    "e1"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "number"
+  },
+  {
+   "text": "Two thirds of BYU freshmen are lonely.",
+   "claims": [
+    "m1"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "number"
+  },
+  {
+   "text": "Tyler Smith broke up with Emma Jensen on day 14.",
+   "claims": [
+    "c1"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "number"
+  },
+  {
+   "text": "Of Emma Jensen's loneliness, 64% comes from having few close friends.",
+   "claims": [
+    "m3"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "number"
+  },
+  {
+   "text": "Tyler Smith is lonely most days.",
+   "claims": [
+    "f1"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "person"
+  },
+  {
+   "text": "Sophie Hansen is very lonely.",
+   "claims": [
+    "f1",
+    "f5"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "person"
+  },
+  {
+   "text": "Emma Jensen is devout.",
+   "claims": [
+    "f6"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "person"
+  },
+  {
+   "text": "Tyler Smith is very stressed.",
+   "claims": [
+    "h1",
+    "f3"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "person"
+  },
+  {
+   "text": "Sarah Peterson is lonely most days.",
+   "claims": [
+    "f1"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "person"
+  },
+  {
+   "text": "Emma Jensen is close to Hannah Larsen.",
+   "claims": [
+    "f5"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "person"
+  },
+  {
+   "text": "Jacob Nielsen broke up with Emma Jensen on day 41.",
+   "claims": [
+    "c1"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "person"
+  },
+  {
+   "text": "Sophie Hansen is very happy.",
+   "claims": [
+    "f3"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "person"
+  },
+  {
+   "text": "Emma Jensen is lonely because of the weather.",
+   "claims": [
+    "f1",
+    "m4"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "cause"
+  },
+  {
+   "text": "Emma Jensen is lonely because she moved.",
+   "claims": [
+    "f1"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "cause"
+  },
+  {
+   "text": "The breakups in October led to more loneliness.",
+   "claims": [
+    "m5"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "cause"
+  },
+  {
+   "text": "Belmont Apartments is lonely due to its layout.",
+   "claims": [
+    "m2"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "cause"
+  },
+  {
+   "text": "Sophie Hansen's faith made her stressed.",
+   "claims": [
+    "f6",
+    "h1"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "cause"
+  },
+  {
+   "text": "Tyler Smith is happy, so Emma Jensen is lonely.",
+   "claims": [
+    "f3",
+    "f1"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "cause"
+  },
+  {
+   "text": "Since Tyler Smith is happy, Emma Jensen feels worse.",
+   "claims": [
+    "f3",
+    "f8"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "cause"
+  },
+  {
+   "text": "Emma Jensen is stressed, which is why she went to devotionals.",
+   "claims": [
+    "f2",
+    "e1"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "cause"
+  },
+  {
+   "text": "Emma Jensen is a little lonely.",
+   "claims": [
+    "f1"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "intensity"
+  },
+  {
+   "text": "Emma Jensen is not lonely.",
+   "claims": [
+    "f1"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "intensity"
+  },
+  {
+   "text": "Emma Jensen is very stressed.",
+   "claims": [
+    "f2"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "intensity"
+  },
+  {
+   "text": "Emma Jensen is overwhelmed.",
+   "claims": [
+    "f2"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "intensity"
+  },
+  {
+   "text": "Tyler Smith is lonely.",
+   "claims": [
+    "f4"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "intensity"
+  },
+  {
+   "text": "Emma Jensen is very happy.",
+   "claims": [
+    "f8"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "intensity"
+  },
+  {
+   "text": "Emma Jensen and Sophie Hansen have drifted apart.",
+   "claims": [
+    "f5"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "intensity"
+  },
+  {
+   "text": "Sophie Hansen is doubting her faith.",
+   "claims": [
+    "f6"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "intensity"
+  },
+  {
+   "text": "Emma Jensen and Tyler Smith were happy together.",
+   "claims": [
+    "f7"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "intensity"
+  },
+  {
+   "text": "Emma Jensen is calm.",
+   "claims": [
+    "f2"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "intensity"
+  },
+  {
+   "text": "Sophie Hansen is really stressed right now.",
+   "claims": [
+    "h1"
+   ],
+   "mode": "interview",
+   "truth": false,
+   "error": "leak"
+  },
+  {
+   "text": "Tyler Smith is very happy without me.",
+   "claims": [
+    "f3"
+   ],
+   "mode": "interview",
+   "truth": false,
+   "error": "leak"
+  },
+  {
+   "text": "Tyler isn't lonely at all.",
+   "claims": [
+    "f4"
+   ],
+   "mode": "interview",
+   "truth": false,
+   "error": "leak"
+  },
+  {
+   "text": "Sophie fully believes.",
+   "claims": [
+    "f6"
+   ],
+   "mode": "interview",
+   "truth": false,
+   "error": "leak"
+  },
+  {
+   "text": "About 40% of BYU freshmen feel like me.",
+   "claims": [
+    "m1"
+   ],
+   "mode": "interview",
+   "truth": false,
+   "error": "leak"
+  },
+  {
+   "text": "Emma Jensen is lonely most days.",
+   "claims": [],
+   "mode": "ask",
+   "truth": false,
+   "error": "uncited"
+  },
+  {
+   "text": "Emma Jensen is lonely most days.",
+   "claims": [
+    "zz9"
+   ],
+   "mode": "ask",
+   "truth": false,
+   "error": "uncited"
+  }
+ ]
+}

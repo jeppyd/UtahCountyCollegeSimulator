@@ -562,7 +562,9 @@ class Romance:
         pn = expit(p("romance.ncmo.base") + p("romance.ncmo.interest") * ((P["ncmo_interest"][a] + P["ncmo_interest"][b]) / 2 - 1.5)
                    + 0.5 * (sim.z("sensation_seeking")[a] + sim.z("sensation_seeking")[b]) / 2
                    - p("romance.ncmo.chastity") * (chast - 0.5) + 2.0 * mutual
-                   + 0.4 * (loc[a] == CTX_ID["dance"]))
+                   + 0.4 * (loc[a] == CTX_ID["dance"])
+                   - (sim.p("intimacy.ncmo.boundary") * ((P["ok_stage_touch"][a].astype(float) + P["ok_stage_touch"][b]) / 2 - 1)
+                      if "intimacy" in sim.systems else 0.0))
         hit = comp & (mutual > 0.1) & (sim.u("ncmo")[a] < pn)
         if not hit.any():
             return
@@ -788,14 +790,24 @@ class Romance:
                     break
         return out
 
-    def _sex(self, a, b, eix):
+    def _sex(self, a, b, eix, via_ladder=False, decision=None):
+        """Premarital sex begins. With the intimacy system running, only its ladder gets here (the weekly hazard
+        above is bypassed); returns the first partner's event ids."""
         sim, w = self.sim, self.sim.w
         P, E, p = w.P, w.E, sim.p
+        if not via_ladder and "intimacy" in sim.systems:
+            return None
         E.cols["flags"][eix] |= Tie.SEXUAL
+        first = None
         for x, y in ((a, b), (b, a)):
             P.cols["n_sex_partners"][x] += 1
             P.cols["premarital_sex_current"][x] = True
-            ev = sim.emit("premarital_sex", x, b=y, cause=P.internal["rel_event"][x], mech="romance.sex")
+            ev = sim.emit("premarital_sex", x, b=y, cause=P.internal["rel_event"][x], mech="romance.sex",
+                          decision=decision if first is None else None)
+            if first is None:
+                first = ev
+            else:
+                mirror(sim, ev, first)
             # dissonance pathway: some will meet with a bishop (repentance), others shift beliefs (faith system)
             lds = P["lds_member"][x] & (P["chastity_commitment"][x] > 0.35)
             pc = expit(p("romance.confession.base") + 2.0 * P["religious_identity"][x] + 1.5 * P["guilt"][x]
@@ -804,6 +816,7 @@ class Romance:
             delay = (7 + 40 * sim.u("confess_delay")[x]).astype(int)
             P.internal["confess_day"][x[conf]] = w.day + delay[conf]
             P.internal["rel_event"][x[conf]] = ev[conf]
+        return first
 
     def _confessions(self):
         sim, w = self.sim, self.sim.w

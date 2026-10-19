@@ -29,8 +29,8 @@ class Simulation:
     def __init__(self, world: World, interventions: list | None = None, name: str = "baseline",
                  record: bool = True):
         from .systems import (academics, activity, economy, emotion, encounters, environment, faith, groups, housing,
-                              history, lifecourse, mind, coping, culture, network, norms, occasions, plans, recorder,
-                              romance, routine)
+                              history, intimacy, lifecourse, mind, coping, culture, network, norms, occasions, plans,
+                              recorder, romance, routine)
         self.w = world
         self.name = name
         self.reg = world.reg
@@ -59,6 +59,7 @@ class Simulation:
             "encounters": encounters.Encounters(self),
             "network": network.Network(self),
             "romance": romance.Romance(self),
+            "intimacy": intimacy.Intimacy(self),
             "emotion": emotion.Emotion(self),
             "faith": faith.Faith(self),
             "norms": norms.Norms(self),
@@ -76,7 +77,7 @@ class Simulation:
         self._zcache_day = -999
         self._zcache: dict[str, tuple[float, float]] = {}
         for name in ("environment", "housing", "activity", "groups", "network", "academics", "encounters", "economy",
-                     "romance", "faith", "norms", "mind", "coping", "plans", "routine", "emotion", "culture", "occasions",
+                     "romance", "intimacy", "faith", "norms", "mind", "coping", "plans", "routine", "emotion", "culture", "occasions",
                      "lifecourse", "recorder"):
             sysobj = self.systems[name]
             if hasattr(sysobj, "init"):
@@ -256,6 +257,7 @@ class Simulation:
             self._run("faith", S["faith"].weekly)
             self._run("norms", S["norms"].weekly)
             self._run("romance", S["romance"].weekly)
+            self._run("intimacy", S["intimacy"].weekly)
             self._run("plans", S["plans"].weekly)
             self._run("routine", S["routine"].weekly)
             self._run("academics", S["academics"].weekly)

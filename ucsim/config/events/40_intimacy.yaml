@@ -1,0 +1,53 @@
+# Events from engine/systems/intimacy.py (physical intimacy, crossing one's own line, dealbreakers). Same fields as
+# events.yaml. Magnitudes are hypothetical, in line with romance.yaml's similar events.
+events:
+  intimacy_step:
+    label: Became more physically intimate
+    story: "{a} and {b} became more physically intimate"
+    category: sexuality
+    salience: 0.45
+    effects:
+      - {var: mood, mag: 0.03, sd: 0.6, half_life: 4}
+      - {var: romantic_longing, mag: -0.03, sd: 0.5, half_life: 10}
+    evidence: hypothetical
+    desc: "A couple moved one step along the intimacy ladder (touching → under clothes → naked → sex). The value is the new step."
+  crossed_own_line:
+    label: Crossed a line they had set for themselves
+    story: "{a} went further with {b} than they had planned to"
+    category: sexuality
+    salience: 0.7
+    effects:
+      - {var: guilt, mag: 0.14, sd: 0.4, half_life: 30, mods: {chastity_commitment: 0.8, sexual_shame: 0.5, moral_autonomy: -0.5}}
+      - {var: anxiety, mag: 0.04, sd: 0.5, half_life: 14, mods: {sexual_shame: 0.4}}
+    evidence: hypothetical
+    refs: ["LDS Sexuality Survey (2025): most say intimacy beyond touching belongs in marriage; many report having gone further premaritally"]
+    desc: "The step went past the stage at which this person thinks it is acceptable. Guilt scales with their chastity commitment and shame about sexuality."
+  bishop_porn_talk:
+    label: Talked to their bishop about pornography
+    story: "{a} talked to their bishop about pornography"
+    category: religion
+    salience: 0.55
+    effects:
+      - {var: guilt, mag: -0.1, sd: 0.4, half_life: 30, delay: 3}
+      - {var: stress, mag: 0.03, sd: 0.5, half_life: 7}
+    evidence: empirical
+    refs: ["LDS Sexuality Survey (2025): ~70% of men and ~17% of women aged 18–35 have addressed pornography or masturbation with a bishop"]
+  dealbreaker_found:
+    label: Found out something that was a dealbreaker
+    story: "{a} found out something about {b} that was a dealbreaker for them"
+    category: romance
+    salience: 0.7
+    effects:
+      - {var: stress, mag: 0.06, sd: 0.4, half_life: 10}
+      - {var: mood, mag: -0.05, sd: 0.4, half_life: 7}
+    evidence: hypothetical
+    refs: ["LDS Sexuality Survey (2025): the five dating dealbreakers"]
+    desc: "Their partner's past or practice (porn, masturbation, not a virgin, asexual) came to light through the relationship. The value says which: 0 watches porn, 1 past porn problem, 2 masturbates, 3 not a virgin, 4 asexual."
+  dealbreaker_overlooked:
+    label: Decided it wasn't a dealbreaker after all
+    story: "{a} decided what they learned about {b} wasn't a dealbreaker after all"
+    category: romance
+    salience: 0.5
+    effects:
+      - {var: stress, mag: -0.02, sd: 0.4, half_life: 5}
+    evidence: hypothetical

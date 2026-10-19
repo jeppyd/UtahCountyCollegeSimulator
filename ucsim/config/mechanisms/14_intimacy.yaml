@@ -1,0 +1,95 @@
+system: intimacy
+# Physical intimacy, crossing lines, bishops and dealbreakers (engine/systems/intimacy.py). The survey gives the
+# limits, drive, shame, porn use and dealbreakers (person variables); how fast couples move and how often a dealbreaker
+# ends things are not measured anywhere — those are hypothetical, tuned so premarital-sex and NCMO rows stay in range.
+mechanisms:
+  intimacy.step:
+    timescale: weekly
+    label: Physical intimacy escalation
+    target: intimacy_level
+    sources: [ok_stage_touch, ok_stage_underclothes, ok_stage_naked, ok_stage_sex, sex_drive, chastity_commitment, self_control, sensation_seeking, living]
+    form: "weekly h(level → level+1) for unmarried couples = logistic(base + tier·(level−1) + drive·(mean drive − 2)/2 + months·log(1+months) − alone·both in contracted housing + within (both partners' limits allow it at this stage) − cross·Σ(0.5 + chastity) over partners whose line it crosses − 0.5·self-control + 0.4·SS). Married couples are at the top of the ladder."
+    params:
+      base: {value: -0.5, range: [-3, 0.5]}
+      tier: {value: -0.3, range: [-1.5, 0]}
+      drive: {value: 0.6, range: [0, 1.5]}
+      months: {value: 0.3, range: [0, 0.8]}
+      alone: {value: 0.4, range: [0, 1.2]}
+      within: {value: 1.0, range: [0, 2]}
+      cross: {value: 1.6, range: [1.5, 5]}
+    evidence: hypothetical
+    refs: ["LDS Sexuality Survey (2025): the stage at which each tier is acceptable, by sex and activity", "ProvoStats: sexual partners by relationship status and activity (the premarital-sex rows)"]
+  intimacy.confession:
+    label: Talking to a bishop after crossing a line
+    target: [guilt, temple_recommend]
+    sources: [religious_identity, guilt, moral_autonomy]
+    form: "after crossing one's own line (members with chastity > 0.35): P = logistic(base + 2·identity + 1.5·guilt − 1.2·autonomy), within weeks"
+    params:
+      base: {value: -3.0, range: [-4.5, -1.5]}
+    evidence: hypothetical
+    refs: ["LDS Sexuality Survey (2025): premarital activities addressed with a bishop"]
+  intimacy.mismatch:
+    timescale: weekly
+    label: Mismatched limits → conflict
+    target: conflict
+    sources: [ok_stage_touch, ok_stage_sex]
+    form: "+conflict when a step crosses only one partner's line; a small weekly strain while one partner is held back by the other's limits"
+    params:
+      crossed: {value: 0.15, range: [0, 0.4]}
+      held_back: {value: 0.01, range: [0, 0.05]}
+    evidence: hypothetical
+  intimacy.married:
+    timescale: weekly
+    label: Sex life → marriage satisfaction
+    target: relationship_satisfaction
+    sources: [sexual_satisfaction, desire_gap, stress]
+    form: "sexual satisfaction relaxes to the survey-drawn level minus 0.1·(stress − 0.3); relationship satisfaction += weight·(mean sexual satisfaction − 0.65) each week"
+    params:
+      weight: {value: 0.04, range: [0, 0.1]}
+    evidence: empirical
+    refs: ["LDS Sexuality Survey (2025): married satisfaction with sex life and with marriage"]
+  intimacy.bishop_porn:
+    timescale: weekly
+    label: Talking to a bishop about pornography
+    target: [talked_to_bishop_sexual, guilt]
+    sources: [porn_use, porn_incongruence, religious_identity]
+    form: "weekly for members who use porn: h = logistic(base + 2·incongruence + identity)"
+    params:
+      base: {value: -8.5, range: [-10, -6]}
+    evidence: calibrated
+    refs: ["LDS Sexuality Survey (2025): ~70% of men and ~17% of women have addressed it with a bishop (lifetime)"]
+  intimacy.reveal:
+    timescale: weekly
+    label: A partner's past comes to light
+    target: relationship_commitment
+    sources: [disclosure, rel_status]
+    form: "weekly per unknown, relevant fact: P = logistic(base + disclosure·tie disclosure + months·log(1+months) + engaged·engaged + crossed·(a line was crossed this week))"
+    params:
+      base: {value: -5.0, range: [-7, -3]}
+      disclosure: {value: 2.0, range: [0.5, 4]}
+      months: {value: 0.5, range: [0, 1]}
+      engaged: {value: 1.0, range: [0, 2]}
+      crossed: {value: 1.5, range: [0, 3]}
+    evidence: hypothetical
+  intimacy.dealbreaker:
+    label: Reacting to a dealbreaker
+    target: rel_status
+    sources: [db_watches_porn, db_past_porn, db_masturbates, db_not_virgin, db_asexual, relationship_commitment, closeness]
+    form: "P(end it) = logistic(base + strength·s − commitment·c − closeness·k − months·log(1+months) + honesty) with s = how strongly they agree (agree 0.5, strongly 1)"
+    params:
+      base: {value: -2.0, range: [-3.5, 0]}
+      strength: {value: 3.0, range: [1, 5]}
+      commitment: {value: 2.0, range: [0.5, 4]}
+      closeness: {value: 1.0, range: [0, 2]}
+      months: {value: 0.3, range: [0, 1]}
+      honesty: {value: 0.8, range: [0, 2]}
+    evidence: hypothetical
+    refs: ["LDS Sexuality Survey (2025): the five dating dealbreakers (shares agreeing, by sex)"]
+  intimacy.ncmo:
+    label: Own limits → NCMOs
+    target: n_ncmo
+    sources: [ok_stage_touch]
+    form: "romance.ncmo log-odds − boundary·(pair's mean stage for touching − 1): people who keep making out for a committed relationship or later rarely NCMO"
+    params:
+      boundary: {value: 0.6, range: [0, 1.5]}
+    evidence: hypothetical

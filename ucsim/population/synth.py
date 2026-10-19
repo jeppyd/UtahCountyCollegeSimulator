@@ -87,6 +87,7 @@ class Synthesizer:
         self.reg = registry
         self.scale = scale
         self.rng = np.random.default_rng([seed, 7001])
+        self.rng_sx = np.random.default_rng([seed, 7002])   # the LDS Sexuality Survey block: its own stream, so adding it changed nobody else's draws
         self.cfg = load_world_cfg()
         self.sk = skeleton()
         self.cop = copulas()
@@ -432,6 +433,7 @@ class Synthesizer:
         freq = np.where(any_use, rng.choice([1, 2, 3], n, p=[0.45, 0.33, 0.22]), 0)
         freq = np.where((sex == "M") & any_use & (rng.random(n) < 0.25), np.maximum(freq, 2), freq)
         put("porn_use", freq.astype(np.uint8))
+        sx_int = self._sexuality(S, put, sex, age, rel, act, lds, mission, n)
         mission_status = np.where(mission == 1, np.where(rng.random(n) < 0.06, "early_returned", "returned"), "none")
         put("mission_status", P.codes("mission_status", mission_status))
         put("mission_foreign", (mission == 1) & (np.nan_to_num(ps["mission_foreign"], nan=0.5) > 0.5))
@@ -535,9 +537,11 @@ class Synthesizer:
         P.add_internal("budget_pref", np.float32, 500.0)
         P.add_internal("eat_out_month", np.float32, 6.0)
         P.add_internal("live_parents_pref", np.bool_, False)
+        P.add_internal("sexsat_latent", np.float32, 0.65)       # sex-life satisfaction once married (shown when married)
+        P.add_internal("desire_gap_latent", np.float32, 0.0)
         S_int = {"budget_pref": np.clip(np.nan_to_num(cl["housing_cost"], nan=520), 0, 2500),
                  "eat_out_month": np.clip(np.nan_to_num(cl["eat_out_month"], nan=6), 0, 40),
-                 "live_parents_pref": np.nan_to_num(cl["live_parents"]) > 0.5}
+                 "live_parents_pref": np.nan_to_num(cl["live_parents"]) > 0.5, **sx_int}
 
         for col, val in S.items():
             spec = P.specs.get(col)
@@ -549,6 +553,42 @@ class Synthesizer:
         return ids
 
     # ------------------------------------------------------------------ helpers
+    def _sexuality(self, S: dict, put, sex, age, rel, act, lds, mission, n) -> dict:
+        """The LDS Sexuality Survey block (June 2025), drawn conditional on what the ProvoStats block already gave
+        each person (dating history) plus age, stage, activity and mission. Church members' porn use comes from it;
+        non-members keep the literature draw (the survey's sample is ~95% members)."""
+        cop = self.cop.get("lds_sexuality")
+        if cop is None:
+            return {}
+        rng = self.rng_sx
+        rel_level = np.array([REL_LEVEL_NUM[r] for r in rel], dtype=float)
+        known = {"age": age, "rel_level": rel_level, "activity": np.where(lds == 1, act, np.nan).astype(float),
+                 "mission": np.where(lds == 1, mission, np.nan).astype(float),
+                 "n_kissed": S["n_kissed"].astype(float), "n_ncmo": S["n_ncmo"].astype(float),
+                 "n_relationships": S["n_relationships"].astype(float),
+                 "premarital_partners": np.where(rel_level < 3, S["n_sex_partners"], np.nan).astype(float)}
+        x = cop.sample(rng, sex, known, cop.vars)
+        member = lds == 1
+        put("sex_drive", np.clip(np.nan_to_num(x["sex_drive"], nan=2), 0, 4).astype(np.uint8))
+        ladder = np.column_stack([np.nan_to_num(x[f"ok_{t}"], nan=3) for t in ("touch", "underclothes", "naked", "sex")])
+        ladder = np.maximum.accumulate(np.clip(ladder, 0, 3), axis=1)   # a further tier is never OK earlier than a nearer one
+        for k, t in enumerate(("touch", "underclothes", "naked", "sex")):
+            put(f"ok_stage_{t}", ladder[:, k].astype(np.uint8))
+        put("sex_ed_home", np.clip(np.nan_to_num(x["sex_ed_home"], nan=1), 0, 4).astype(np.uint8))
+        put("sexual_shame", (np.clip(np.nan_to_num(x["sexual_shame"], nan=2), 0, 4) / 4).astype(np.float32))
+        put("porn_use", np.where(member, np.clip(np.nan_to_num(x["porn_use"], nan=0), 0, 3), S["porn_use"]).astype(np.uint8))
+        put("masturbation", np.clip(np.nan_to_num(x["masturbation"], nan=0), 0, 3).astype(np.uint8))
+        put("talked_to_bishop_sexual", member & (np.nan_to_num(x["bishop_any"]) > 0.5))
+        for d in ("watches_porn", "past_porn", "masturbates", "not_virgin", "asexual"):
+            put(f"db_{d}", np.clip(np.nan_to_num(x[f"db_{d}"], nan=1), 0, 4).astype(np.uint8))
+        sat = (np.clip(np.nan_to_num(x["sex_satisfaction"], nan=3), 0, 4) / 4).astype(np.float32)
+        gap = ((np.clip(np.nan_to_num(x["desire_gap"], nan=2), 0, 4) - 2) / 2).astype(np.float32)
+        married = rel_level == 3
+        put("sexual_satisfaction", np.where(married, sat, 0).astype(np.float32))
+        put("desire_gap", np.where(married, gap, 0).astype(np.float32))
+        put("intimacy_level", np.zeros(n, np.uint8))
+        return {"sexsat_latent": sat, "desire_gap_latent": gap}
+
     def _calibrated_rel(self, school_key, sex, age, target_married, n):
         rel_cpt = self.sk["rel"]
         ab = age_band(age)

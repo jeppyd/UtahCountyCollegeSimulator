@@ -1,0 +1,66 @@
+system: institutions
+# Institutions with constraints (engine/systems/institutions.py). Capacities and budgets are parameters so What-ifs can
+# change them; most are approximate or hypothetical (labelled per item).
+mechanisms:
+  institutions.group:
+    label: Club and team socials, and how officers adapt
+    target: social_events_month
+    sources: [extraversion]
+    form: "a social every 4 weeks on the group's night in term; turnout share = came / members; below low_share three socials running → add food (if 2× food_cost is left), move nights, or recruit; full room → cap"
+    params:
+      room: {value: 40, range: [15, 120]}
+      budget: {value: 300, range: [0, 2000]}
+      food_cost: {value: 60, range: [20, 200]}
+      low_share: {value: 0.15, range: [0.05, 0.4]}
+    timescale: weekly
+    evidence: hypothetical
+  institutions.ward:
+    label: Ward activities and the bishop's interview hours
+    target: [social_events_month, bishop_meetings]
+    sources: [attend_rate, ward_activity_rate]
+    form: "a monthly activity (with food while the budget lasts) and a quarterly service project; the bishop has bishop_hours × 3 twenty-minute slots a week, other_interviews of them taken by temple-recommend, calling and youth interviews; the rest go first come first served"
+    params:
+      budget: {value: 400, range: [0, 3000]}
+      activity_cost: {value: 80, range: [20, 300]}
+      bishop_hours: {value: 3, range: [1, 10]}
+      other_interviews: {value: 0.65, range: [0, 0.9]}
+    timescale: weekly
+    evidence: hypothetical
+    refs: ["General Handbook (Church of Jesus Christ): ward budgets and bishop interviews (amounts here are guesses)"]
+  institutions.counseling:
+    label: Campus counseling capacity and waitlists
+    target: coping_relief
+    sources: [depressive_episode, coping_need, openness, conformity]
+    form: "weekly: students in a depressive episode or under heavy strain seek help with P = logistic(seek_base + seek_depression·episode + seek_strain·(need − 0.5) + 0.3·O − 0.4·conformity); sessions/week = *_sessions × world scale; crisis first, then longest wait; course sessions each; relief added to coping relief per session; P(give up) = logistic(−4 + 0.5·weeks waited)"
+    params:
+      byu_sessions: {value: 900, range: [300, 2000]}
+      uvu_sessions: {value: 500, range: [150, 1500]}
+      seek_base: {value: -4.4, range: [-6, -2.5]}
+      seek_depression: {value: 1.6, range: [0.5, 3]}
+      seek_strain: {value: 1.5, range: [0.5, 3]}
+      course: {value: 6, range: [3, 12]}
+      relief: {value: 0.12, range: [0, 0.3]}
+    timescale: weekly
+    evidence: hypothetical
+    refs: ["Center for Collegiate Mental Health annual reports: average ~5–6 sessions per student; waits rise mid-semester (capacities here are approximate, not BYU/UVU figures)"]
+  institutions.employer:
+    label: Shift flexibility and seasonal openings
+    target: [work_hours, employed]
+    sources: []
+    form: "P(a shift can be swapped) = flexibility of the job type × flex_scale (campus 0.5, retail 0.3, health 0.15…); job-finding × semester_start (Aug, Sep, Jan), holiday_retail (Nov, Dec), early_summer (May)"
+    params:
+      flex_scale: {value: 1.0, range: [0, 2]}
+      semester_start: {value: 1.35, range: [1, 2]}
+      holiday_retail: {value: 1.2, range: [1, 1.8]}
+      early_summer: {value: 0.8, range: [0.5, 1]}
+    evidence: hypothetical
+  institutions.complex:
+    label: Complex resident events
+    target: social_events_month
+    sources: []
+    form: "complexes with ≥ min_residents (scaled to the world) hold a resident event every 4 weeks on a Friday while the budget allows"
+    params:
+      min_residents: {value: 60, range: [20, 200]}
+      budget: {value: 400, range: [0, 3000]}
+      cost: {value: 100, range: [20, 400]}
+    evidence: hypothetical

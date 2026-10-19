@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| Claude Code (cloud session) | 2026-10-19 | messaging (then institutions, family-homes) | Owner asked for these three next. WIP on `wip/messaging`. |
+| Claude Code (cloud session) | 2026-10-19 | family-homes | Messaging and institutions merged. WIP on `wip/family-homes`. |
 
 ## The goal in one paragraph
 
@@ -69,9 +69,9 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [calendar-weather](workstreams/calendar-weather.md) | **done, merged** | working branch | open issues below |
 | [talk](workstreams/talk.md) (Ask + interviews) | **done, merged** | working branch | open issues below |
 | [travel](workstreams/travel.md) | not started | — | next (keeps `ucsim/geo/travel.py`'s interface) |
-| [messaging](workstreams/messaging.md) (wave 2) | **in progress** | `wip/messaging` | threads, attention, replies/silence, knowledge, API, Chats tool |
-| [institutions](workstreams/institutions.md) (wave 2) | not started | — | after time-occasions + provenance |
-| [family-homes](workstreams/family-homes.md) (wave 2) | not started | — | after calendar-weather |
+| [messaging](workstreams/messaging.md) (wave 2) | **done, merged** | working branch | family chats when family-homes lands; open issues below |
+| [institutions](workstreams/institutions.md) (wave 2) | **done, merged** | working branch | open issues below |
+| [family-homes](workstreams/family-homes.md) (wave 2) | **in progress** | `wip/family-homes` | next |
 | [survey-followups](workstreams/survey-followups.md) | audits designed, interrupted | — | needs the raw survey files in `data/raw/` |
 | [integration](workstreams/integration.md) | ongoing | — | after each merge |
 
@@ -116,6 +116,18 @@ institutions, family-homes) can start now too, but coordinate: they touch the sa
   tuned against (floor in the test: ≥ 90% / ≤ 10%); real answers will be harder — add the misses you see as cases.
   Name checks know only the synthetic name lists and the fact sheet's own names. Ask's lookups are a fixed list;
   "why a number changed" is the current decomposition plus the change since a recent history snapshot.
+- Messaging: all magnitudes are hypothetical (no survey covers texting). Friend-group chats come from weekly label
+  propagation on the close-friend graph; new groups keep forming (~10 a week per 2,400 people after the first month).
+  News tracks ~20 kinds of salient life events (faith crisis, depression and probation are mostly kept private);
+  knowledge, acts and old memberships thin after `sim.detail_days`. No family chats yet (family-homes will add kin).
+  Invitations sent "to a group chat" only stay group-chat when inviter and invitee share a chat (else they become
+  texts). Cost 0.028 s/day at scale 0.15 (≈ 7%); full scale not measured.
+- Institutions: capacities, budgets and turnout bases are hypothetical (counseling sessions/week approximate, not
+  BYU/UVU figures); they are mechanism parameters, so What-ifs can change them. Not done from the spec: a conditional
+  "if attendance falls below X then…" intervention atom, employer hiring as an employer-side decision, splitting
+  overcrowded clubs (they cap instead), temple-recommend interviews as their own queue (they're a fixed share of the
+  bishop's slots). A swapped shift is dropped from occasions' feasibility, but activity still places the person at
+  work during it. Bishop waits are rare at current confession rates.
 
 ## Open questions for the owner
 
@@ -135,6 +147,39 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-19 (4) — Claude Code (cloud session)
+- Built and merged **institutions**. `engine/systems/institutions.py`: an institution table (clubs/teams/institute
+  classes, wards, BYU CAPS and UVU counseling, employers, larger complexes) with capacity, budget, hours, delay and a
+  weekly state/history; club socials every 4 weeks and officer adaptation after 3 low-turnout socials (add food /
+  change night / recruit; cap when full) as institution decisions + `club_changed_plans` events; ward activities
+  (food while the budget lasts) and quarterly service projects; complex resident events; the bishop's interview slots
+  (`bishop_gate`, used by romance._confessions and intimacy's porn talks; `waiting_for_bishop`); counseling with
+  `seek_counseling` decisions, weekly capacity, crisis-first waitlists, courses of sessions (coping relief), giving
+  up; employer shift flexibility (`shift_flex`, used by occasions' commitments and shift_conflict) and seasonal
+  openings (economy's job finding). Occasions: open occasions run by a group/ward/complex speak only to its members
+  (`_org_members`). Config 16_institutions.yaml, occasions 40_institutions.yaml, decisions/events 60_institutions.yaml,
+  role "organization". API routes_institutions.py (/api/institutions, /find, /{id}); workbench tool Institution.tsx
+  (chart of demand vs served with waitlist, waiting list, decisions, events run); institution chips open it; guide
+  entry; screenshot docs/img/institution.png. tests/test_institutions.py; test_occasions' firm-shift test now pins a
+  firm shift. 219 tests pass; web build passes. Institutions cost ~1.4 ms/day at scale 0.04.
+- Next: family-homes (and family chats in messaging).
+
+### 2026-10-19 (3) — Claude Code (cloud session)
+- Built and merged **messaging** (owner asked for messaging, institutions, family-homes next).
+  `engine/systems/messaging.py`: threads (apartment, friend-group via weekly label propagation with matching/splits,
+  club, team, ward; direct threads implicit), membership records and events (added/left/muted, group chat started;
+  decisions add_to_chat, leave_chat), typed acts (invite, check-in, reply, silence, news, plan change), attention
+  (`notice_prob`: phone checks, busy/muted chats, mentions — occasions.deliver now uses it, `assign_threads` routes
+  group-chat invitations through a shared chat, `plan_change` on cancellations), check-ins with `reply_message`
+  decisions and silences read by rejection sensitivity (felt_ignored: hurt on the tie, lower believed caring;
+  assumed_busy), left_out with the occasion as cause plus the host's assumed_not_interested, and `KnowledgeStore`
+  (person, event, source, day, channel) with `share_news` decisions, gossip along close ties and chat posts.
+  Config 15_messaging.yaml, 50_messaging.yaml (decisions, events); role "unanswered". API routes_messaging.py
+  (/api/messaging/person/{i}, thread/{t}, news/{event}); workbench tool Chats.tsx (a person's chats and messages, a
+  chat, how news spread); guide entry; screenshot docs/img/chats.png. tests/test_messaging.py. 212 tests pass; web
+  build passes.
+- Next: institutions, then family-homes (add family chats to messaging there).
 
 ### 2026-10-19 (2) — Claude Code (cloud session)
 - Built and merged **talk** (Ask the world + Interviews). `ucsim/llm/talk/`: `facts.py` (typed claims; the interview

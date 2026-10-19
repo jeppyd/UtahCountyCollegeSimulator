@@ -336,6 +336,11 @@ class Intimacy:
         if not go.any():
             return
         x = x[go]
+        inst = sim.systems.get("institutions")
+        if inst is not None:      # only if the bishop has a slot this week
+            x = x[inst.bishop_gate(x, "porn")]
+            if not len(x):
+                return
         ev = sim.emit("bishop_porn_talk", x, mech="intimacy.bishop_porn")
         link(sim, ev, "state", state_ref(sim, "porn_incongruence", x), P["porn_incongruence"][x], "dissonance")
         P.cols["talked_to_bishop_sexual"][x] = True

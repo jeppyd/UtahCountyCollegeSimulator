@@ -29,8 +29,8 @@ class Simulation:
     def __init__(self, world: World, interventions: list | None = None, name: str = "baseline",
                  record: bool = True):
         from .systems import (academics, activity, economy, emotion, encounters, environment, faith, groups, housing,
-                              history, intimacy, lifecourse, messaging, mind, coping, culture, network, norms, occasions, plans,
-                              recorder, romance, routine)
+                              history, institutions, intimacy, lifecourse, messaging, mind, coping, culture, network,
+                              norms, occasions, plans, recorder, romance, routine)
         self.w = world
         self.name = name
         self.reg = world.reg
@@ -71,6 +71,7 @@ class Simulation:
             "economy": economy.Economy(self),
             "occasions": occasions.Occasions(self),
             "messaging": messaging.Messaging(self),
+            "institutions": institutions.Institutions(self),
             "housing": housing.Housing(self),
             "recorder": recorder.Recorder(self),
             "history": history.History(self),
@@ -79,7 +80,7 @@ class Simulation:
         self._zcache: dict[str, tuple[float, float]] = {}
         for name in ("environment", "housing", "activity", "groups", "network", "academics", "encounters", "economy",
                      "romance", "intimacy", "faith", "norms", "mind", "coping", "plans", "routine", "emotion", "culture", "occasions",
-                     "messaging", "lifecourse", "recorder"):
+                     "institutions", "messaging", "lifecourse", "recorder"):
             sysobj = self.systems[name]
             if hasattr(sysobj, "init"):
                 sysobj.init()
@@ -227,6 +228,7 @@ class Simulation:
             self._run("groups", S["groups"].daily)
             self._run("faith", S["faith"].daily)
             self._run("romance", S["romance"].plan_day)
+            self._run("institutions", S["institutions"].plan_day)
             self._run("occasions", S["occasions"].plan_day)
         elif phase.startswith("block"):
             b = int(phase[5:])
@@ -245,6 +247,7 @@ class Simulation:
         wd = self.cal.weekday(d)
         self._run("encounters", S["encounters"].friend_contact)
         self._run("occasions", S["occasions"].end_of_day)
+        self._run("institutions", S["institutions"].end_of_day)
         self._run("messaging", S["messaging"].end_of_day)
         self._run("romance", S["romance"].daily)
         self._run("mind", S["mind"].daily)

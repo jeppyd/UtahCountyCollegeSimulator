@@ -652,56 +652,86 @@ class Messaging:
                 if c not in match and t not in used and k >= 2:
                     match[c], used = t, used | {t}
         rng = sim.streams.gen("msg_groups", day)
-        for c in ok_l.tolist():
-            mem = people[comm == c]
-            t = match.get(c)
-            if t is None:                                   # a new group chat: the best-connected member starts it
-                closeness_sum = np.zeros(len(mem))
-                for j, x in enumerate(mem.tolist()):
-                    eix = E.find(EdgeStore.make_keys(np.full(len(mem), x), mem))
-                    closeness_sum[j] = E["closeness"][eix[eix >= 0]].sum()
-                creator = int(mem[np.argmax(closeness_sum)])
-                t = int(self._thread_ids("friends", np.array([T.next_id], np.int64), day, np.array([creator]))[0])
-                others = mem[mem != creator]
-                if not initial:
-                    eix = E.find(EdgeStore.make_keys(np.full(len(others), creator), others))
-                    clos = np.where(eix >= 0, E["closeness"][np.maximum(eix, 0)], 0.0)
-                    did = sim.decisions.record("add_to_chat", day, np.full(len(others), creator), "added",
-                                               {"closeness": 2.0 * clos, "in_the_group": np.full(len(others), 1.0)},
-                                               base=0.0, other=others)
-                    ev = sim.emit("group_chat_started", creator, mech="messaging.chat", value=float(len(mem)))
-                    ev2 = sim.emit("added_to_chat", others, b=np.full(len(others), creator), mech="messaging.chat",
-                                   value=float(KIND_ID["friends"]), decision=did, cause=np.full(len(others), int(ev[0])))
-                    del ev2
-                new = mem
-            else:
-                have = M["person"][(M["left"] < 0) & (M["thread"] == t)].astype(np.int64)
-                new = mem[~np.isin(mem, have)]
-                drift = have[~np.isin(have, mem)]
-                if len(drift) and not initial:              # drifted out of the group: maybe leave the chat
-                    others = mem
-                    clos = np.zeros(len(drift))
-                    for j, x in enumerate(drift.tolist()):
-                        eix = E.find(EdgeStore.make_keys(np.full(len(others), x), others))
-                        clos[j] = E["closeness"][eix[eix >= 0]].mean() if (eix >= 0).any() else 0.0
-                    TL = {"drifted": p("messaging.chat.drift") * (0.3 - clos)}
-                    base = p("messaging.chat.leave_base")
-                    pr = expit(base + TL["drifted"])
-                    go = rng.random(len(drift)) < pr
-                    if go.any():
-                        did = sim.decisions.record("leave_chat", day, drift[go], "left", {"drifted": TL["drifted"][go]},
-                                                   base=base, prob=pr[go])
-                        rows = np.flatnonzero((M["left"] < 0) & (M["thread"] == t) & np.isin(M["person"], drift[go]))
-                        M.cols["left"][rows] = day
-                        sim.emit("left_chat", drift[go], mech="messaging.chat", value=float(KIND_ID["friends"]), decision=did)
-                if len(new) and not initial:
-                    sim.emit("added_to_chat", new, mech="messaging.chat", value=float(KIND_ID["friends"]))
-            if len(new):
-                # one friend-group chat at a time: joining this one means leaving the old one (the group split)
-                old = np.flatnonzero((M["left"] < 0) & np.isin(M["person"], new) & (M["thread"] != t)
-                                     & (T.get("kind", M["thread"], default=-1) == KIND_ID["friends"]))
-                M.cols["left"][old] = day
-                M.append(len(new), thread=t, person=new, joined=day)
+        cl = np.array(sorted(match), np.int64)
+        mt = np.array([match[c] for c in cl.tolist()], np.int64)
+        # ---- new group chats: the best-connected member starts it and adds the others
+        new_c = ok_l[~np.isin(ok_l, cl)]
+        inn = np.isin(comm, new_c)
+        np_, nc = people[inn], comm[inn]
+        joins_p, joins_t = [np.empty(0, np.int64)], [np.empty(0, np.int64)]
+        if len(np_):
+            order = np.argsort(nc, kind="stable")
+            np_, nc = np_[order], nc[order]
+            uc, start, size = np.unique(nc, return_index=True, return_counts=True)
+            g = np.repeat(np.arange(len(uc)), size * size)               # every ordered pair inside each group
+            off = np.arange(len(g)) - np.repeat(np.cumsum(size * size) - size * size, size * size)
+            i_ = start[g] + off // size[g]
+            j_ = start[g] + off % size[g]
+            eix = E.find(EdgeStore.make_keys(np_[i_], np_[j_]))
+            clos = np.where((eix >= 0) & (i_ != j_), E["closeness"][np.maximum(eix, 0)], 0.0)
+            tot = np.bincount(i_, weights=clos, minlength=len(np_))
+            best = np.lexsort((-tot, nc))
+            creator_pos = best[np.unique(nc[best], return_index=True)[1]]
+            creators = np_[creator_pos]
+            tids = T.append(len(uc), kind=KIND_ID["friends"], key=T.next_id + np.arange(len(uc)), created_day=day, creator=creators)
+            gi = np.searchsorted(uc, nc)
+            joins_p.append(np_)
+            joins_t.append(tids[gi])
+            if not initial:
+                ev = sim.emit("group_chat_started", creators, mech="messaging.chat", value=size.astype(float))
+                others = np_ != creators[gi]
+                op, og = np_[others], gi[others]
+                e2 = E.find(EdgeStore.make_keys(creators[og], op))
+                c2 = np.where(e2 >= 0, E["closeness"][np.maximum(e2, 0)], 0.0)
+                did = sim.decisions.record("add_to_chat", day, creators[og], "added",
+                                           {"closeness": 2.0 * c2, "in_the_group": np.ones(len(op))}, base=0.0, other=op)
+                sim.emit("added_to_chat", op, b=creators[og], mech="messaging.chat", value=float(KIND_ID["friends"]),
+                         decision=did, cause=ev[og])
+        # ---- existing chats: newcomers join; people who drifted out of the group may leave
+        if len(cl):
+            inm = np.isin(comm, cl)
+            mp, mc = people[inm], comm[inm]
+            mth = mt[np.searchsorted(cl, mc)]
+            live = (M["left"] < 0) & np.isin(M["thread"], mt)
+            have_k = (M["thread"][live].astype(np.int64) << 24) | M["person"][live].astype(np.int64)
+            want_k = (mth << 24) | mp
+            newbies = ~np.isin(want_k, have_k)
+            joins_p.append(mp[newbies])
+            joins_t.append(mth[newbies])
+            if newbies.any() and not initial:
+                sim.emit("added_to_chat", mp[newbies], mech="messaging.chat", value=float(KIND_ID["friends"]))
+            drift_rows = np.flatnonzero(live)[~np.isin(have_k, want_k)]
+            if len(drift_rows) and not initial:
+                dp = M["person"][drift_rows].astype(np.int64)
+                dt = M["thread"][drift_rows].astype(np.int64)
+                # mean closeness to the group the chat now follows
+                order = np.argsort(mth, kind="stable")
+                gm, gt = mp[order], mth[order]
+                lo_ = np.searchsorted(gt, dt, "left")
+                cnt = np.searchsorted(gt, dt, "right") - lo_
+                rep = np.repeat(np.arange(len(dp)), cnt)
+                off = np.arange(len(rep)) - np.repeat(np.cumsum(cnt) - cnt, cnt)
+                e3 = E.find(EdgeStore.make_keys(dp[rep], gm[lo_[rep] + off]))
+                c3 = np.where(e3 >= 0, E["closeness"][np.maximum(e3, 0)], 0.0)
+                clos = np.bincount(rep, weights=c3, minlength=len(dp)) / np.maximum(cnt, 1)
+                TL = {"drifted": p("messaging.chat.drift") * (0.3 - clos)}
+                base = p("messaging.chat.leave_base")
+                pr = expit(base + TL["drifted"])
+                go = rng.random(len(dp)) < pr
+                if go.any():
+                    did = sim.decisions.record("leave_chat", day, dp[go], "left", {"drifted": TL["drifted"][go]}, base=base,
+                                               prob=pr[go])
+                    M.cols["left"][drift_rows[go]] = day
+                    sim.emit("left_chat", dp[go], mech="messaging.chat", value=float(KIND_ID["friends"]), decision=did)
+        jp, jt = np.concatenate(joins_p), np.concatenate(joins_t)
+        if len(jp):
+            # one friend-group chat at a time: joining this one means leaving the old one (the group split)
+            cur_rows = np.flatnonzero((M["left"] < 0) & np.isin(M["person"], jp)
+                                      & (T.get("kind", M["thread"], default=-1) == KIND_ID["friends"]))
+            new_of = np.full(P.n, -1, np.int64)
+            new_of[jp] = jt
+            M.cols["left"][cur_rows[M["thread"][cur_rows] != new_of[M["person"][cur_rows]]]] = day
+            M.append(len(jp), thread=jt, person=jp, joined=day)
         # chats left with fewer than two members go quiet
         fr = np.flatnonzero((T["kind"] == KIND_ID["friends"]) & T["active"])
         if len(fr):

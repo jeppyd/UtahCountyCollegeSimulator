@@ -12,7 +12,7 @@ import { focusItem, subjectPerson } from '../sel'
 import '../../kit/talk.css'
 
 const KIND_WORDS: Record<string, string> = { household: 'Apartment', friends: 'Friends', club: 'Club', team: 'Team', ward: 'Ward', family: 'Family' }
-const READ_AS: Record<string, string> = { felt_ignored: 'they felt ignored', assumed_busy: 'they figured it was just busy' }
+const READ_AS: Record<string, string> = { felt_ignored: 'felt ignored', assumed_busy: 'figured they were just busy' }
 
 function Act({ a, u, start, setSel }: { a: MsgAct; u: 'base' | 'alt'; start?: string; setSel: PanelProps['setSel'] }) {
   return (
@@ -23,8 +23,8 @@ function Act({ a, u, start, setSel }: { a: MsgAct; u: 'base' | 'alt'; start?: st
         {a.to !== null && <> {a.kind === 'silence' ? 'to' : a.kind === 'reply' ? 'to' : 'with'} <RefChip r={{ kind: 'person', id: a.to, label: a.to_name ?? undefined, u }} /></>}
         {a.occasion && <> — <RefChip r={{ kind: 'occasion', id: a.occasion.id, label: a.occasion.label, u }} /></>}
         {a.news && <> — <RefChip r={{ kind: 'event', id: a.news.id, label: a.news.label, u }} /></>}
-        {a.kind === 'checkin' && a.replied_day === null && <span className="ms-flag"> no reply yet</span>}
-        {a.read_as && a.event !== null && <> — <span className="ms-flag" onClick={() => focusItem(setSel, { kind: 'event', id: a.event!, u })} style={{ cursor: 'pointer' }}>{READ_AS[a.read_as] ?? a.read_as}</span></>}
+        {a.kind === 'checkin' && a.replied_day === null && <span className="ms-flag"> no reply</span>}
+        {a.read_as && a.event !== null && <> — <span className="ms-flag" onClick={() => focusItem(setSel, { kind: 'event', id: a.event!, u })} style={{ cursor: 'pointer' }}>{(a.to_name ?? '').split(' ')[0]} {READ_AS[a.read_as] ?? a.read_as}</span></>}
       </span>
     </div>
   )

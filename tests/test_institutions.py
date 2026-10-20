@@ -23,17 +23,17 @@ def test_counseling_respects_capacity_and_crisis_first(ran):
                 assert Q["crisis"][started].all()
 
 
-def test_bishop_slots_queue_the_rest(fresh):
+def test_bishop_sees_everyone_who_asks(fresh):
+    """Bishops make time for members who want to talk: no queue, no waiting; the ward counts the meetings."""
     I = fresh.systems["institutions"]
     P = fresh.w.P
     ward = int(np.bincount(P["ward_id"][P["ward_id"] >= 0]).argmax())
     people = np.flatnonzero((P["ward_id"] == ward) & P["present"].astype(bool))[:20]
-    slots = int(I.T["capacity"][I.row("ward", ward)])
-    ok = I.bishop_gate(people)
-    assert ok.sum() == min(slots, len(people))
+    assert I.bishop_gate(people).all()
+    assert I.bishop_gate(people[:3]).all()                  # and again the same week
+    assert int(I.T["waitlist"][I.row("ward", ward)]) == 0
     L = fresh.log
-    assert (L.cols["type"][: L.n] == fresh.reg.event_ids["waiting_for_bishop"]).sum() >= len(people) - slots
-    assert not I.bishop_gate(people[~ok][:1]).any()        # still full this week
+    assert (L.cols["type"][: L.n] == fresh.reg.event_ids["waiting_for_bishop"]).sum() == 0
 
 
 def test_officers_adapt_after_low_turnout(fresh):

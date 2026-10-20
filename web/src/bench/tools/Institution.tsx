@@ -43,7 +43,7 @@ function Detail({ id, setSel }: { id: number; setSel: PanelProps['setSel'] }) {
   if (d.error && !d.data) return <Problem error={d.error} />
   if (!d.data) return <Busy what="Opening the records" />
   const x = d.data
-  const lim = x.kind === 'counseling' ? `${x.capacity} sessions a week` : x.kind === 'ward' ? `${x.capacity} open interview slots a week with the bishop`
+  const lim = x.kind === 'counseling' ? `${x.capacity} sessions a week` : x.kind === 'ward' ? `${x.served ?? 0} meetings with the bishop this week (no waiting: bishops make time)`
     : x.kind === 'employer' ? `lets about ${Math.round((x.flexibility ?? 0) * 100)}% of shift swaps through` : x.capacity && x.capacity > 0 ? `room for ${x.capacity}` : ''
   return (
     <>

@@ -166,3 +166,15 @@ def test_population_grows_with_cohort_and_never_loses_rows(days, fresh):
     n0 = sim.w.P.n
     sim.run_days(days)
     assert sim.w.P.n >= n0
+
+
+def test_keyed_uniform_is_per_pair():
+    """Draws keyed by (person, event) don't depend on which other pairs are drawn or how many agents exist."""
+    from ucsim.engine.core import Streams
+    S = Streams(9)
+    a = S.keyed_uniform("open_attend", 4, np.arange(1000), 77)
+    b = S.keyed_uniform("open_attend", 4, np.array([5, 999, 3]), np.array([77, 77, 77]))
+    assert np.array_equal(b, a[[5, 999, 3]])
+    assert 0 < a.min() and a.max() < 1 and abs(a.mean() - 0.5) < 0.05
+    assert not np.array_equal(a, S.keyed_uniform("open_attend", 5, np.arange(1000), 77))
+    assert not np.array_equal(a, Streams(10).keyed_uniform("open_attend", 4, np.arange(1000), 77))

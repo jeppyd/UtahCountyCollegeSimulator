@@ -50,7 +50,7 @@ def act(body: dict = Body(...)):
     it = _atom(body)
     with WS.lock:
         made = WS.alt is None
-        target = WS.base if made else WS.alt
+        target = WS.base if made else WS.take_alt()   # mid-run the live What-if may be on the second core
         pre = check(target, it)
         if not pre["ok"]:
             return jresp({"ok": False, "problems": pre["problems"], "people": pre["people"], "made_whatif": False})

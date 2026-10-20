@@ -168,6 +168,15 @@ class EventLog:
     COLS = {"day": np.int32, "block": np.int8, "type": np.int16, "a": np.int32, "b": np.int32, "place": np.int32,
             "value": np.float32, "cause": np.int64, "mech": np.int16, "decision": np.int64}
 
+    def __getstate__(self):
+        """Copies and pickles carry the used rows plus headroom (see state.PersonTable)."""
+        from .state import _headroom
+        keep = _headroom(self.n, self.cap)
+        st = dict(self.__dict__)
+        st["cols"] = {k: v[:keep] for k, v in self.cols.items()}
+        st["cap"] = keep
+        return st
+
     def __init__(self, registry: Registry, capacity: int = 1 << 16):
         self.reg = registry
         self.n = 0

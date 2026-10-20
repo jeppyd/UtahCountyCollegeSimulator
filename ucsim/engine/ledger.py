@@ -56,6 +56,16 @@ class Table:
         self.cols = {name: np.full((self.cap, *shape), fill, dtype) for name, (dtype, fill, shape) in self.schema.items()}
         self.ids = np.zeros(self.cap, np.int64)
 
+    def __getstate__(self):
+        """Copies and pickles carry the used rows plus headroom (see state.PersonTable)."""
+        from .state import _headroom
+        keep = max(16, _headroom(self.n, self.cap))
+        st = dict(self.__dict__)
+        st["cols"] = {k: v[:keep] for k, v in self.cols.items()}
+        st["ids"] = self.ids[:keep]
+        st["cap"] = keep
+        return st
+
     def __len__(self):
         return self.n
 

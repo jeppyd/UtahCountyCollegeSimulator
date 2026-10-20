@@ -75,11 +75,12 @@ def test_endorsement_withdrawn_at_renewal_and_no_enrollment(world):
     lds = ids[P["lds_member"][ids]][:20]
     P.cols["activity"][lds] = P.code("activity", "inactive")
     sim.p.set("honor.endorsement.decline_inactive", 1.0)
-    # jump to BYU's next fall start and run the day hook
-    fall = next(d for d in range(sim.w.day, sim.w.day + 400) if sim.cal.term_start("BYU", d) == "Fall")
-    sim.w.day = fall
+    # a year of day hooks: each renews on their own date, and the next term start turns the withdrawn away
     h = sim.systems["honor"]
-    h.daily()
+    d0 = sim.w.day
+    for d in range(d0, d0 + 400):
+        sim.w.day = d
+        h.daily()
     out = lds[P["endorsement"][lds] == 0]                    # withdrawn, then left (endorsement cleared to n/a)
     assert h.withdrawn > 0 and len(out) > 0
     assert not P["enrolled"][out].any()
@@ -88,9 +89,9 @@ def test_endorsement_withdrawn_at_renewal_and_no_enrollment(world):
 def test_switch_off_endorsement(world):
     sim = copy.deepcopy(world)
     sim.w.env["endorsement_required"] = False
-    fall = next(d for d in range(sim.w.day, sim.w.day + 400) if sim.cal.term_start("BYU", d) == "Fall")
-    sim.w.day = fall
-    sim.systems["honor"].daily()
+    for d in range(sim.w.day, sim.w.day + 400):
+        sim.w.day = d
+        sim.systems["honor"].daily()
     assert sim.systems["honor"].withdrawn == 0
 
 

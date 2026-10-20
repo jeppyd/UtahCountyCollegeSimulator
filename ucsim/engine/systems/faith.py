@@ -88,6 +88,10 @@ class Faith:
         u = sim.u("church")
         conf = w.env["conference"]
         prob = P.internal["attend_prob"][:n] * (0.0 if conf else 1.0)
+        # not taking the sacrament for a while: some stay home so nobody sees them pass the tray
+        shy = P.internal["church_shy"][:n] if "church_shy" in P.internal else None
+        if shy is not None and shy.any():
+            prob = np.where(shy, prob * sim.p("institutions.bishop.skip_attend"), prob)
         att = P["lds_member"] & P["present"] & (P["ward_id"] >= 0) & (u < prob)
         self.attending_today = att
         members = P["lds_member"] & P["present"]
@@ -288,6 +292,8 @@ class Faith:
         clean = (((P["coffee"] == 0) | bool(w.env.get("coffee_permitted"))) & ((P["alcohol"] == 0) | bool(w.env.get("alcohol_permitted")))
                  & ~P["premarital_sex_current"])
         eligible = P["lds_member"] & (P["activity"] == 3) & (P["faith_belief"] > 0.6) & clean & (P["age"] >= 18)
+        if "recommend_hold_until" in P.internal:            # not while the bishop is holding it back
+            eligible &= P.internal["recommend_hold_until"][: P.n] < 0
         gain = eligible & ~P["temple_recommend"] & (sim.u("tr") < 0.03)
         lose = P["temple_recommend"] & (~clean | (P["activity"] < 3)) & (sim.u("tr2") < 0.2)
         P.cols["temple_recommend"][np.where(gain)[0]] = True

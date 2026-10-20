@@ -32,6 +32,16 @@ events:
       - {var: stress, mag: 0.03, sd: 0.5, half_life: 7}
     evidence: empirical
     refs: ["LDS Sexuality Survey (2025): ~70% of men and ~17% of women aged 18–35 have addressed pornography or masturbation with a bishop"]
+  bishop_masturbation_talk:
+    label: Talked to their bishop about masturbation
+    story: "{a} talked to their bishop about masturbation"
+    category: religion
+    salience: 0.45
+    effects:
+      - {var: guilt, mag: -0.08, sd: 0.4, half_life: 30, delay: 3}
+      - {var: stress, mag: 0.02, sd: 0.5, half_life: 7}
+    evidence: empirical
+    refs: ["LDS Sexuality Survey (2025): ~64% of men and ~19% of women aged 18–35 have talked to a bishop about masturbation (pornography: ~71% and ~17%)"]
   dealbreaker_found:
     label: Found out something that was a dealbreaker
     story: "{a} found out something about {b} that was a dealbreaker for them"

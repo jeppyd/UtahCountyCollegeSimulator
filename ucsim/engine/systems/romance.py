@@ -33,6 +33,7 @@ class Romance:
     def __init__(self, sim):
         self.sim = sim
         self.queue: list[tuple] = []   # (day, a, b, date_type, is_first, cause_event)
+        self.ncmo_queue: list[tuple] = []   # (day, a, b, place, cause_event): meet-ups arranged over an app
         self.dates_today: list[tuple] = []   # (a, b, venue_id)
         self._dates_meta: list[tuple] = []
         self.last_evening_pairs = None
@@ -167,8 +168,9 @@ class Romance:
             self._moved = moved
 
     def evening(self):
-        """After the late evening: how today's dates went, then make-outs at parties and dances."""
+        """After the late evening: how today's dates went, app meet-ups, then make-outs at parties and dances."""
         self._run_dates()
+        self._app_ncmo_meetups()
         occ = self.sim.systems.get("occasions")
         act = self.sim.systems["activity"]
         if occ is None:
@@ -220,7 +222,11 @@ class Romance:
         base = np.where(u < 0.55, to_fri, to_sat)
         base = np.where(base < 1, base + 7, base)
         near = 1 + (u * 3).astype(int)
-        return day + np.where(u < 0.75, base, near)
+        out = day + np.where(u < 0.75, base, near)
+        # fewer dates on Sunday (they still happen): most of those move to Monday
+        sun = (out - day + wd) % 7 == 6
+        move = sun & ((u * 7919) % 1 >= self.sim.p("romance.date.sunday_keep"))
+        return out + move
 
     def _asks(self, wd: int):
         sim, w = self.sim, self.sim.w
@@ -349,10 +355,13 @@ class Romance:
         planned = P.internal["date_planned"][: P.n] >= day
         rate = p("romance.app.rate") * w.env["app_appeal"] * P["app_hours"] / 7.0
         u = sim.u("app")
+        pool = np.where(seek & ~planned)[0]
+        # most NCMOs start here: app users who want something casual match and meet up (a parked car, an apartment,
+        # somewhere quiet) instead of going on a date
+        self._app_ncmo(pool)
         ids = np.where(seek & ~planned & (u < rate))[0]
         if len(ids) == 0:
             return
-        pool = np.where(seek & ~planned)[0]
         if len(pool) < 10:
             return
         rng = sim.streams.gen("app_pool", day)
@@ -405,6 +414,65 @@ class Romance:
             self.queue.append((d_, a_, b_, t_, True, c_))
         P.internal["date_planned"][ids] = dd
         P.internal["date_planned"][tgt] = dd
+
+    NCMO_PLACES = ("a parked car", "an apartment", "a quiet spot")
+
+    def _app_ncmo(self, pool: np.ndarray):
+        """App users looking for something casual (romance.ncmo app terms): today's hazard per person is
+        app_rate · hours/7 · logistic(app_base + βi·(interest − 1.5) + 0.5·SS − βc·(chastity − 0.5)); they match with
+        another such user who likes their profile and meet up within 0–3 days."""
+        sim, w = self.sim, self.sim.w
+        P, p = w.P, sim.p
+        if len(pool) < 10:
+            return
+        lean = expit(p("romance.ncmo.app_base") + p("romance.ncmo.interest") * (P["ncmo_interest"][pool] - 1.5)
+                     + 0.5 * sim.z("sensation_seeking")[pool] - p("romance.ncmo.chastity") * (P["chastity_commitment"][pool] - 0.5))
+        want = sim.u("app_ncmo")[pool] < p("romance.ncmo.app_rate") * P["app_hours"][pool] / 7.0 * w.env["app_appeal"] * lean
+        ids = pool[want]
+        open_ = pool[lean > 0.2]
+        if not len(ids) or len(open_) < 5:
+            return
+        rng = sim.streams.gen("app_ncmo_pool", w.day)
+        K = 8
+        cand = open_[rng.integers(0, len(open_), (len(ids), K))]
+        src = np.repeat(ids, K)
+        ok = (self.compatible(src, cand.ravel()) & self.compatible(cand.ravel(), src)).reshape(-1, K) & (cand != ids[:, None])
+        a1 = self.initial_attraction(src, cand.ravel()).reshape(-1, K)
+        a2 = self.initial_attraction(cand.ravel(), src).reshape(-1, K)
+        sc = np.where(ok & (a2 > 0), a1, -9)
+        best = np.argmax(sc, axis=1)
+        tgt = cand[np.arange(len(ids)), best]
+        hit = sc[np.arange(len(ids)), best] > 0
+        ids, tgt = ids[hit], tgt[hit]
+        u = sim.u("app_ncmo_when")[ids]
+        for a_, b_, uu in zip(ids.tolist(), tgt.tolist(), u.tolist()):
+            self.ncmo_queue.append((w.day + int(uu * 4), a_, b_, int(uu * 1000) % 3, -1))
+
+    def _app_ncmo_meetups(self):
+        """Tonight's app meet-ups (both still single and in town)."""
+        sim, w = self.sim, self.sim.w
+        P, E = w.P, w.E
+        day = w.day
+        due = [q for q in self.ncmo_queue if q[0] <= day]
+        self.ncmo_queue = [q for q in self.ncmo_queue if q[0] > day]
+        if not due:
+            return
+        a = np.array([q[1] for q in due], np.int64)
+        b = np.array([q[2] for q in due], np.int64)
+        place = np.array([q[3] for q in due], np.float64)
+        seek = self.seeking_mask()
+        ok = seek[a] & seek[b] & P["present"][a].astype(bool) & P["present"][b].astype(bool)
+        a, b, place = a[ok], b[ok], place[ok]
+        if not len(a):
+            return
+        eix = E.upsert(EdgeStore.make_keys(a, b))
+        new_k = (E["flags"][eix] & Tie.KISSED) == 0
+        E.cols["flags"][eix] |= Tie.NCMO | Tie.KISSED
+        E.cols["last_day"][eix] = day
+        for x, y in ((a, b), (b, a)):
+            P.cols["n_ncmo"][x] += 1
+            P.cols["n_kissed"][x[new_k]] += 1
+            sim.emit("ncmo", x, b=y, value=place, block=3, mech="romance.ncmo")
 
     # ------------------------------------------------------------------ dates
     def _run_dates(self):
@@ -574,7 +642,7 @@ class Romance:
         for x, y in ((a, b), (b, a)):
             P.cols["n_ncmo"][x] += 1
             P.cols["n_kissed"][x[new_k]] += 1
-            sim.emit("ncmo", x, b=y, block=2, mech="romance.ncmo")
+            sim.emit("ncmo", x, b=y, value=np.full(len(x), 3.0), block=2, mech="romance.ncmo")
 
     # ------------------------------------------------------------------ weekly relationship dynamics
     def weekly(self):
@@ -705,7 +773,11 @@ class Romance:
             for x in (a_, b_):
                 P.cols["rel_status"][x] = P.code("rel_status", "engaged")
                 P.cols["engaged_day"][x] = day
-            lead = np.where(both_active[eng], rng.uniform(70, 140, eng.sum()), rng.uniform(120, 300, eng.sum())).astype(int)
+            # active LDS couples: usually 4–7 months (median ≈ 5½), about one in five a quick ~3 months
+            k = eng.sum()
+            quick = rng.random(k) < 0.2
+            lds_lead = np.where(quick, rng.uniform(75, 110, k), rng.triangular(110, 165, 260, k))
+            lead = np.where(both_active[eng], lds_lead, rng.uniform(120, 300, k)).astype(int)
             # student couples usually marry between semesters: move the date to the next break if one starts soon after
             students = P["enrolled"][a_] | P["enrolled"][b_]
             wed = self._break_date(day + lead, students, rng.random(eng.sum()))
@@ -825,19 +897,21 @@ class Romance:
         if len(due) == 0:
             return
         inst = sim.systems.get("institutions")
-        if inst is not None:      # the bishop has a few interview slots a week; the rest wait a day and ask again
+        if inst is not None:      # bishops make time for everyone who asks
             ok = inst.bishop_gate(due)
             P.internal["confess_day"][due[~ok]] = w.day + 1
             due = due[ok]
             if len(due) == 0:
                 return
         exp_pos = P["institutional_trust"][due] - 0.4
-        sim.emit("bishop_confession", due, cause=P.internal["rel_event"][due], mech="romance.confession",
-                 ev={"experience": exp_pos})
+        ev = sim.emit("bishop_confession", due, cause=P.internal["rel_event"][due], mech="romance.confession",
+                      ev={"experience": exp_pos})
         P.cols["bishop_meetings"][due] = np.minimum(P["bishop_meetings"][due] + 1, 10)
         P.cols["temple_recommend"][due] = False
         P.cols["chastity_commitment"][due] = np.clip(P["chastity_commitment"][due] + 0.08, 0, 1)
         P.cols["institutional_trust"][due] = np.clip(P["institutional_trust"][due] + 0.04 * np.sign(exp_pos), 0, 1)
+        if inst is not None:      # recommend held for a few weeks, often the sacrament too; monthly follow-ups
+            inst.counsel(due, "sex", ev)
 
     def _end(self, a, b, att_a, att_b, kind="breakup", married=None, why=None, decide=None):
         """End a relationship; the less-attracted partner initiates.
@@ -890,6 +964,7 @@ class Romance:
             P.cols["rel_status"][x] = np.where(is_married, P.code("rel_status", "divorced"), P.code("rel_status", "single"))
             P.cols["partner_id"][x] = -1
             P.cols["premarital_sex_current"][x] = False
+            P.cols["sexual_satisfaction"][x] = 0.0            # a married-life measure; none once it ends
             P.cols["relationship_satisfaction"][x] = np.nan
             P.internal["wedding_planned"][x] = -1
             P.cols["waiting_for_missionary"][x] = False

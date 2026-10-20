@@ -327,7 +327,10 @@ class Intimacy:
         sim, w = self.sim, self.sim.w
         P, p = w.P, sim.p
         n = P.n
-        who = P["present"][:n] & P["lds_member"][:n] & (P["porn_use"][:n] >= 1)
+        inst = sim.systems.get("institutions")
+        seeing = inst.in_followup(n) if inst is not None else np.zeros(n, bool)   # already meeting monthly
+        who = P["present"][:n] & P["lds_member"][:n] & (P["porn_use"][:n] >= 1) & ~seeing
+        self._bishop_masturbation(inst, seeing)
         if not who.any():
             return
         x = np.flatnonzero(who)
@@ -336,8 +339,7 @@ class Intimacy:
         if not go.any():
             return
         x = x[go]
-        inst = sim.systems.get("institutions")
-        if inst is not None:      # only if the bishop has a slot this week
+        if inst is not None:      # bishops make time for everyone who asks
             x = x[inst.bishop_gate(x, "porn")]
             if not len(x):
                 return
@@ -345,3 +347,26 @@ class Intimacy:
         link(sim, ev, "state", state_ref(sim, "porn_incongruence", x), P["porn_incongruence"][x], "dissonance")
         P.cols["talked_to_bishop_sexual"][x] = True
         P.cols["bishop_meetings"][x] = np.minimum(P["bishop_meetings"][x] + 1, 10)
+        if inst is not None:
+            inst.counsel(x, "porn", ev)
+
+    def _bishop_masturbation(self, inst, seeing: np.ndarray):
+        """Members who masturbate (and don't use porn, whose talks cover both) sometimes raise it with their bishop."""
+        sim, w = self.sim, self.sim.w
+        P, p = w.P, sim.p
+        n = P.n
+        who = P["present"][:n] & P["lds_member"][:n] & (P["masturbation"][:n] >= 1) & (P["porn_use"][:n] == 0) & ~seeing
+        if not who.any():
+            return
+        x = np.flatnonzero(who)
+        h = expit(p("intimacy.bishop_masturbation.base") + 2.0 * P["sexual_shame"][x] + P["religious_identity"][x])
+        x = x[sim.u("bishop_mast")[x] < h]
+        if inst is not None and len(x):
+            x = x[inst.bishop_gate(x, "masturbation")]
+        if not len(x):
+            return
+        ev = sim.emit("bishop_masturbation_talk", x, mech="intimacy.bishop_masturbation")
+        P.cols["talked_to_bishop_sexual"][x] = True
+        P.cols["bishop_meetings"][x] = np.minimum(P["bishop_meetings"][x] + 1, 10)
+        if inst is not None:
+            inst.counsel(x, "masturbation", ev)

@@ -10,15 +10,15 @@ mechanisms:
     sources: [coffee, alcohol, premarital_sex_current, orientation, rel_status, living, conscientiousness]
     form: "weekly P(reported) = 1 − exp(−enforcement · rate · Σ violations · (1 + roommates·[contracted housing]) · (1.3 − 0.6·conscientiousness_z₊)), violations: coffee or tea (≥ weekly), alcohol (any), premarital sex (current), same-sex dating; enforcement = world honor_enforcement"
     params:
-      rate_coffee: {value: 0.0016, range: [0.0005, 0.01]}
-      rate_alcohol: {value: 0.004, range: [0.001, 0.02]}
-      rate_sex: {value: 0.003, range: [0.001, 0.015]}
-      rate_same_sex: {value: 0.003, range: [0.001, 0.015]}
-      roommates: {value: 0.6, range: [0, 1.5]}
+      rate_coffee: {value: 0.0003, range: [0.0001, 0.01]}
+      rate_alcohol: {value: 0.0025, range: [0.001, 0.02]}
+      rate_sex: {value: 0.0015, range: [0.001, 0.015]}
+      rate_same_sex: {value: 0.006, range: [0.001, 0.02]}
+      roommates: {value: 0.25, range: [0, 1.5]}
       quit_after: {value: 0.55, range: [0.2, 0.9]}
     timescale: weekly
     evidence: hypothetical
-    desc: "Most reports come from people close by (roommates, friends, neighbours in contracted housing); careful people are caught less. After a report many stop (quit_after) — coffee and alcohol are dropped, or a dating couple slows down."
+    desc: "About 0.4% of BYU students a year are reported for the behaviours simulated here (the published 1.5–3.5% contacted a year also covers cheating, dress and other things not simulated). Reports are rare and mostly anonymous — reporting someone is frowned on ('snitching') — and lean toward same-sex romance and alcohol; coffee is seldom reported. Roommates in contracted housing raise the odds a little; careful people are caught less. After a report many stop (quit_after) — coffee and alcohol are dropped, or a dating couple slows down."
     refs: ["Slate 2011: 1.5–3.5% of BYU students contacted by the Honor Code Office each year", "Daily Universe 1996: freshmen are the most frequent offenders"]
   honor.outcome:
     label: How Honor Code cases end
@@ -40,7 +40,7 @@ mechanisms:
     label: Ecclesiastical endorsement
     target: endorsement
     sources: [lds_member, activity, faith_belief]
-    form: "Leaving the Church (resigned membership) withdraws the endorsement at once; at the yearly renewal (the start of fall semester) a bishop declines it with probability decline_inactive for inactive members and decline_less_active for less-active ones. Withdrawn: no enrollment from the next term (rare exception: exception_rate); they transfer to UVU or stop (honor.outcome transfer_uvu)."
+    form: "Leaving the Church (resigned membership) withdraws the endorsement at once; at the yearly renewal (each student's own date, 12 months after the last) a bishop declines it with probability decline_inactive for inactive members and decline_less_active for less-active ones. Withdrawn: no enrollment from the next term (rare exception: exception_rate); they transfer to UVU or stop (honor.outcome transfer_uvu)."
     params:
       decline_inactive: {value: 0.35, range: [0.05, 0.8]}
       decline_less_active: {value: 0.04, range: [0, 0.2]}

@@ -14,6 +14,7 @@ from __future__ import annotations
 import numpy as np
 
 from ...analysis.person import synthetic_name
+from ucsim.population.structure import ward_name
 
 # Always left out of interviews unless the owner turns sensitive topics on (besides YAML `flags: [sensitive]`).
 SENSITIVE_VARS = {"porn_use", "n_sex_partners", "premarital_sex_current", "ever_cheated", "ever_cheated_on"}
@@ -326,7 +327,7 @@ def _rank_places(sim, args) -> Sheet:
     words = "lowest" if str(args.get("order")) == "low" else "highest"
     for rank, o in enumerate(order, 1):
         g = int(elig[o])
-        name = str(w.complexes["name"][g]) if kind == "complex" else f"{str(w.wards['kind'][g]).replace('_', ' ').upper()} ward #{g}"
+        name = str(w.complexes["name"][g]) if kind == "complex" else ward_name(w.wards, g)
         ref = {"kind": "place", "id": f"{kind}:{g}", "name": name}
         b = band(sim, var, mean[o])
         sh.add("measurement", ref, f"{name}: average {label(sim, var)} {mean[o]:.2f}" + (f" ({b})" if b else "")

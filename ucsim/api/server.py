@@ -32,6 +32,7 @@ from ..engine import runner
 from ..engine.interventions import load_presets
 from ..engine.state import CTX, Tie
 from ..registry import get_registry
+from ucsim.population.structure import ward_name
 
 ROOT = Path(__file__).resolve().parents[2]
 WEB_DIST = ROOT / "web" / "dist"
@@ -205,8 +206,11 @@ class Workspace:
                             self.divergence.append(runner.divergence(self.base, alt))
                     self.compare_cache = None
                 self.job.update(progress=k + 1, updated=time.time(), day_seconds=round(time.time() - t_day, 2))
+                # the pace can change while time runs (the speed buttons): read it fresh every day
+                pace = float(self.job.get("pace", pace) or 0.0)
                 while pace and time.time() - t_day < pace and not self.job.get("cancel"):
                     time.sleep(0.05)
+                    pace = float(self.job.get("pace", pace) or 0.0)
             self.finish_job("run", "paused" if self.job.get("cancel") and self.job.get("progress", 0) < days else "done")
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
@@ -387,6 +391,16 @@ async def cancel():
     """Pause: the current run stops after the day in progress.  On the event loop, so it is never stuck in a queue."""
     WS.job["cancel"] = True
     return {"ok": True, "state": WS.job.get("state")}
+
+
+@app.post("/api/pace")
+async def set_pace(body: dict = Body(default={})):
+    """Change the speed of a run in progress without stopping it (takes effect at once)."""
+    pace = max(0.0, min(float(body.get("pace", 0.0)), 10.0))
+    if WS.job.get("state") != "running" or WS.job.get("cancel"):
+        return {"ok": False, "state": WS.job.get("state")}
+    WS.job["pace"] = pace
+    return {"ok": True, "pace": pace}
 
 
 @app.get("/api/interventions/presets")
@@ -1333,7 +1347,7 @@ def complexes(var: str = "loneliness", u: str = "base", min_n: int = 3):
         out = []
         for k in np.where(n >= min_n)[0]:
             row = {"id": int(k), "name": cx["name"][int(k)], "lon": float(cx["lon"][int(k)]), "lat": float(cx["lat"][int(k)]),
-                   "n": int(n[k]), "mean": float(s[k] / n[k]), "kind": cx["kind"][int(k)],
+                   "name": ward_name(w.wards, k), "n": int(n[k]), "mean": float(s[k] / n[k]), "kind": cx["kind"][int(k)],
                    "contracted": bool(cx["contracted"][int(k)])}
             C = w.meta.get("culture")
             if C is not None:
@@ -1368,7 +1382,7 @@ def wards(var: str = "attend_rate", u: str = "base"):
         n = np.bincount(wid, minlength=nw)
         s = np.bincount(wid, weights=np.nan_to_num(P[var][pres].astype(float)), minlength=nw)
         return jresp([{"id": k, "kind": str(w.wards["kind"][k]), "lon": float(w.wards["lon"][k]), "lat": float(w.wards["lat"][k]),
-                       "n": int(n[k]), "mean": float(s[k] / max(n[k], 1))} for k in range(nw) if n[k] > 0])
+                       "name": ward_name(w.wards, k), "n": int(n[k]), "mean": float(s[k] / max(n[k], 1))} for k in range(nw) if n[k] > 0])
 
 
 INSTITUTION_VARS = ["age", "mood", "loneliness", "stress", "belonging", "faith_belief", "attend_rate", "n_friends",
@@ -1385,7 +1399,7 @@ def institution(kind: str, iid: int, u: str = "base"):
             name = w.complexes["name"][iid]
         elif kind == "ward":
             mask = P["ward_id"] == iid
-            name = f"{w.wards['kind'][iid].replace('_', ' ').upper()} ward #{iid}"
+            name = ward_name(w.wards, iid)
         elif kind == "employer":
             mask = P["employer_id"] == iid
             name = str(w.employers["name"][iid])

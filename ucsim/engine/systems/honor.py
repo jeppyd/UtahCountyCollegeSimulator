@@ -1,13 +1,14 @@
 """BYU's Honor Code and ecclesiastical endorsement (config/policies/campus.yaml).
 
 Weekly, each BYU student whose behaviour breaks the Honor Code in a way the model simulates (coffee or tea, alcohol,
-premarital sex, same-sex dating) may be reported to the Honor Code Office — mostly by the people around them, so more
-often in contracted housing with roommates. The office decides: a warning (most cases), probation (until the end of
+premarital sex, same-sex dating) may be reported to the Honor Code Office. Reports are rare and quiet (an anonymous
+tip, seldom a confrontation; reporters are seen as snitches) and lean toward same-sex romance and alcohol rather than
+coffee; living with roommates in contracted housing raises the odds a little. The office decides: a warning (most cases), probation (until the end of
 the next term without a new report), suspension or, rarely, dismissal. Suspended and dismissed students leave BYU:
 they transfer to UVU or stop studying. After a report many stop the behaviour.
 
-The ecclesiastical endorsement is renewed each fall; a bishop may decline it for members who no longer attend, and
-leaving the Church withdraws it at once. Without one a student can't enroll for the next term.
+The ecclesiastical endorsement is renewed once a year, on each student's own date; a bishop may decline it for
+members who no longer attend, and leaving the Church withdraws it at once. Without one a student can't enroll for the next term.
 
 World switches: `honor_enforcement` (0 = not enforced … 1 = today) and `endorsement_required`. Randomness comes from
 this system's own streams; the decisions and events carry the factors and causes.
@@ -217,22 +218,25 @@ class Honor:
             P.cols["honor_standing"][done] = P.code("honor_standing", "good")
             until[done] = -1
             sim.emit("honor_standing_restored", done, mech="honor.outcome")
-        if not start:
-            return
-        self._sync()
         if not bool(w.env.get("endorsement_required", True)):
             return
         byu = self._byu_students()
-        if start == "Fall":
-            lds = byu & P["lds_member"] & P.is_("endorsement", "current")
+        # yearly renewal on each student's own date (the anniversary of their last interview)
+        due = byu & ((d + (np.arange(P.n, dtype=np.int64) * 2654435761) % 365) % 365 == 0)
+        if due.any():
+            lds = due & P["lds_member"] & P.is_("endorsement", "current")
             dec = np.where(P.is_("activity", "inactive"), p("honor.endorsement.decline_inactive"),
                            np.where(P.is_("activity", "less_active"), p("honor.endorsement.decline_less_active"), 0.0))
             u = sim.u("endorsement_renewal")
             declined = np.flatnonzero(lds & (u < dec))
-            renewed = np.flatnonzero(byu & P.is_("endorsement", "current") & ~np.isin(np.arange(P.n), declined))
+            renewed = np.flatnonzero(due & P.is_("endorsement", "current") & ~np.isin(np.arange(P.n), declined))
             if len(renewed):
                 sim.emit("endorsement_renewed", renewed, mech="honor.endorsement")
             self._withdraw(declined)
+        if not start:
+            return
+        self._sync()
+        byu = self._byu_students()
         # no endorsement, no enrollment (a rare exception on petition)
         out = np.flatnonzero(byu & P.is_("endorsement", "withdrawn"))
         if len(out):

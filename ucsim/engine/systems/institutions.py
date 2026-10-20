@@ -28,6 +28,7 @@ from scipy.special import expit
 
 from ..ledger import STATUS_ID, Table
 from ..provenance import link
+from ucsim.population.structure import ward_name
 
 KINDS = ("club", "team", "institute", "ward", "counseling", "employer", "complex")
 KIND_ID = {k: i for i, k in enumerate(KINDS)}
@@ -83,7 +84,7 @@ class Institutions:
                            weekday=np.where(np.char.find(np.asarray(w.wards["kind"], str), "ysa") >= 0, 0, 2).astype(np.int8),
                            delay=7)
             for k, i in enumerate(ids.tolist()):
-                self.names[i] = f"{str(w.wards['kind'][k]).replace('_', ' ').upper()} ward #{k}"
+                self.names[i] = ward_name(w.wards, k)
         for k, c in enumerate(CENTERS):
             cap = p(f"institutions.counseling.{c['school'].lower()}_sessions") * w.scale
             i = int(T.append(1, kind=KIND_ID["counseling"], ref=k, capacity=max(cap, 1.0), hours=40, delay=1)[0])

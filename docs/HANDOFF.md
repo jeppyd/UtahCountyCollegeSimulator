@@ -152,12 +152,25 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   ask the owner. Never copy them elsewhere or print respondent rows.
 - The CSV exports don't reproduce the committed survey aggregates exactly (some multi-select items, College Life
   completes): don't rebuild existing priors; add new sections only (see `docs/workstreams/survey-followups.md`).
-- Measured 2026-10-20 (after the speed pass): scale 0.15 ≈ 0.4 s per simulated day, full scale ≈ 2.3 s per day per
+- Measured 2026-10-20 (after the speed pass): scale 0.15 ≈ 0.4 s per simulated day, full scale ≈ 1.8 s per day per
   world (one core; a What-if doubles it). Before iteration 6 it was 0.23 / 1.6 s with far fewer systems.
 - LLM features use the owner's own logins (Claude Code CLI, Codex CLI, or a local OpenAI-compatible server such as LM
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-20 (6) — Claude Code (cloud session) — speed budget and occasions
+- **Speed budget**: `ucsim/perf.py` (scale 0.1, seed 3, 2 warm-up + 5 timed days; times divided by a fixed NumPy
+  calibration workload so budgets travel between machines), `config/perf_budget.json`, `scripts/perf.py` (print;
+  `--update "why"` records), `tests/test_speed_budget.py` (a day ≤ 1.5× budget; each system ≤ 2.5× its own or 10% of
+  the day; one retry; `UCSIM_SKIP_SPEED=1` skips). Rule added to docs/workstreams/README.md, AGENTS.md, CLAUDE.md.
+- **Occasions**: `_resolve_open` checks every (person, event) pair of an evening in one `_feasible` call and works on
+  pairs only (audiences are ~0.1% of people × events); the choice noise is now `Streams.keyed_uniform` keyed by
+  (person, event kind·place·start) instead of a P.n × events Gumbel block — paired universes share it pair by pair even
+  when their head-counts differ. Attendance at open events is unchanged within noise (3 seeds, 21 days: 5,911 vs
+  5,904 visits). Occasions 0.60 → 0.23 s/day at full scale; **full scale 2.87 → 1.79 s/day** over the two passes.
+- Budget re-recorded after this. Remaining at full scale (s/day): encounters 0.49, activity 0.30, occasions 0.23,
+  messaging 0.23, recorder 0.15, romance 0.13. Not done: a separate process for the What-if world, numba.
 
 ### 2026-10-20 (5) — Claude Code (cloud session) — speed pass
 - Profiled full scale (73.7k people, one world): 3.15 s/day before → **2.30 s/day** (same 6-day window: 2.87 → 2.30,

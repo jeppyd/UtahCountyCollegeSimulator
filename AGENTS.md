@@ -8,4 +8,4 @@ Several agents take turns on this project. Before doing anything else:
 
 Non-negotiable: survey responses never enter the repository. Raw exports live only in `data/raw/` (gitignored); only aggregates with at least 10 respondents per cell are committed; `tests/test_no_raw_survey_data.py` must pass.
 
-Run `python -m pytest -q` (and `cd web && npm run build` for web changes) before handing off.
+Run `python -m pytest -q` (and `cd web && npm run build` for web changes) before handing off; it includes a speed budget (`python scripts/perf.py` shows timings; see docs/workstreams/README.md).

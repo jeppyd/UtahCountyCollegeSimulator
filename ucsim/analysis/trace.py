@@ -187,8 +187,8 @@ class _Words:
                     return f"a get-together at {self.complex_name(int(w.units.complex_id[pid]))}"
                 return "a get-together"
             if ctx == "ward" and pid >= 0:
-                kind = str(w.wards["kind"][pid]).replace("byu_ysa", "BYU student").replace("ysa", "young single adult")
-                return f"a {kind.replace('_', ' ')} ward"
+                from ..population.structure import ward_name
+                return f"the {ward_name(w.wards, pid)}"
             if ctx == "work" and pid >= 0 and pid < len(w.employers["name"]):
                 return str(w.employers["name"][pid])
             if ctx in ("venue", "gym", "dance", "outdoors") and act is not None and 0 <= pid < len(act.v_name):

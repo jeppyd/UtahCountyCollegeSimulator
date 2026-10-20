@@ -59,3 +59,32 @@ events:
       - {var: mood, mag: -0.02, sd: 0.4, half_life: 7}
     evidence: hypothetical
     desc: "The value is how many days they had waited."
+  recommend_withheld:
+    label: Temple recommend held back
+    story: "{a}'s bishop asked them to hold off on the temple (and, for a while, the sacrament) as they repent"
+    category: religion
+    salience: 0.6
+    effects:
+      - {var: stress, mag: 0.04, sd: 0.5, half_life: 10}
+      - {var: belonging, mag: -0.03, sd: 0.6, half_life: 21, mods: {sexual_shame: 0.5}}
+    evidence: hypothetical
+    desc: "After confessing premarital sex: no temple recommend for a few weeks, often no sacrament too. The value is the number of weeks. Some go to church less while it lasts, so others don't see them pass the sacrament tray."
+  recommend_restored:
+    label: Temple recommend restored
+    story: "{a} can go to the temple again after meeting with their bishop"
+    category: religion
+    salience: 0.45
+    effects:
+      - {var: guilt, mag: -0.06, sd: 0.4, half_life: 21}
+      - {var: belonging, mag: 0.03, sd: 0.5, half_life: 21}
+    evidence: hypothetical
+  bishop_followup:
+    label: Follow-up meeting with the bishop
+    story: "{a} met with their bishop again, as they do about once a month"
+    category: religion
+    salience: 0.3
+    effects:
+      - {var: guilt, mag: -0.03, sd: 0.4, half_life: 14}
+      - {var: stress, mag: 0.01, sd: 0.5, half_life: 5}
+    evidence: hypothetical
+    desc: "Regular check-ins (about monthly) while someone works through an ongoing issue such as pornography, or after a serious confession. The value says what about: 1 pornography, 2 masturbation, 3 premarital sex."

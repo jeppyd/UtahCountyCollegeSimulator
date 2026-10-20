@@ -90,3 +90,26 @@ def test_institutions_are_deterministic():
         out.append((I.q["person"].copy(), I.q["start"].copy(), I.hist["served"].copy(), sim.book.occ["n_came"].copy()))
     for x, y in zip(*out):
         assert np.array_equal(x, y)
+
+
+def test_bishop_counsel_holds_recommend_then_restores():
+    """After a premarital-sex confession the recommend is held for weeks (often the sacrament too), there are
+    follow-ups about monthly, and the recommend comes back when the hold ends."""
+    sim = new_simulation(scale=0.02, seed=4)
+    P, I = sim.w.P, sim.systems["institutions"]
+    x = np.flatnonzero(P["lds_member"] & P["present"].astype(bool) & P.is_("activity", "active"))[:30]
+    P.cols["premarital_sex_current"][x] = False
+    I.counsel(x, "sex")
+    assert not P["temple_recommend"][x].any()
+    until = P.internal["recommend_hold_until"][x]
+    assert (until - sim.w.day >= 7).all() and (until - sim.w.day <= 7 * 12).all()
+    assert P.internal["sacrament_hold"][x].any() and (P.internal["bishop_next"][x] > sim.w.day).all()
+    d0 = sim.w.day
+    for d in range(d0, d0 + 120):
+        sim.w.day = d
+        I._bishop_day(d)
+    assert P["temple_recommend"][x].all() and not P.internal["sacrament_hold"][x].any()
+    L = sim.log
+    t = L.cols["type"][: L.n]
+    assert (t == sim.reg.event_ids["bishop_followup"]).sum() > 0
+    assert (t == sim.reg.event_ids["recommend_restored"]).sum() == len(x)

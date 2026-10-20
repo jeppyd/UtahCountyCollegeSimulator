@@ -9,6 +9,7 @@ import polars as pl
 
 from ..engine.state import CTX_ID, EdgeStore, PersonTable, Tie
 from ..geo import neighborhoods
+from . import ysa_wards
 
 GEO = Path(__file__).resolve().parents[1] / "geo" / "data"
 BYU = (-111.6493, 40.2500)
@@ -37,6 +38,7 @@ class Units:
     kind_src: np.ndarray            # dwelling kind code: 0 house 1 small_multi 2 apartment 3 mobile 4 dorm 5 married
     occupants: list = field(default_factory=list)
     nbhd: np.ndarray | None = None  # official Provo/Orem neighborhood code (0 = other)
+    real_ward: np.ndarray | None = None  # listed YSA ward per unit (index into ysa_wards.real_wards), −1 none
 
     def __len__(self):
         return len(self.lon)
@@ -122,6 +124,14 @@ def build_units(scale: float, rng: np.random.Generator) -> tuple[Units, pl.DataF
                   married_only=married_only, unit_type=utype.astype(np.uint8), complex_id=cid.astype(np.int32),
                   city=city.astype(np.int8), quality=quality, kind_src=k.astype(np.int8),
                   nbhd=neighborhoods.locate(lon, lat))
+    # complexes the map data only knows by address get their name from the ward listing
+    names = cx["name"].to_list()
+    ren = ysa_wards.complex_names(cx["lon"].to_numpy(), cx["lat"].to_numpy(), names)
+    if ren:
+        src = cx["name_src"].to_list()
+        for i, nm in ren.items():
+            names[i], src[i] = nm, "ysa_listing"
+        cx = cx.with_columns(pl.Series("name", names), pl.Series("name_src", src))
     return units, cx
 
 
@@ -243,8 +253,10 @@ def build_wards(P: PersonTable, units: Units, meet_lon, meet_lat, rng, unit_of: 
     hlon = np.where(has_unit, units.lon[np.maximum(unit_of, 0)], P["home_lon"])
     hlat = np.where(has_unit, units.lat[np.maximum(unit_of, 0)], P["home_lat"])
     ward_kind, ward_lon, ward_lat, ward_mh = [], [], [], []
+    ward_name, ward_stake = [], []
     ward_of = np.full(n, -1, dtype=np.int32)
     young = P["age"] < 31
+    counters: dict[str, int] = {}
 
     def chunk(mask, size, kind, campus_meet):
         idx = np.where(mask)[0]
@@ -274,8 +286,43 @@ def build_wards(P: PersonTable, units: Units, meet_lon, meet_lat, rng, unit_of: 
             ward_lon.append(lx)
             ward_lat.append(ly)
             ward_mh.append(mh)
+            counters[kind] = counters.get(kind, 0) + 1
+            ward_name.append(f"{GENERIC_WARD[kind]} {counters[kind]}")
+            ward_stake.append("")
 
-    byu_single = lds & ~married & (school == P.code("school", "BYU")) & student
+    # the real Provo YSA wards (geo/data/ysa_wards.json): singles (and married students in the married-student wards)
+    # living in a listed building belong to its ward; small wards are merged within their stake at small world sizes
+    real_unit = ysa_wards.unit_wards(units.lon, units.lat)
+    keys, _ = ysa_wards.real_wards()
+    real_of = np.where(has_unit, real_unit[np.maximum(unit_of, 0)], -1)
+    married_real = np.array([k[0].upper().startswith("M") for k in keys] + [False], bool)[real_of]
+    in_real = lds & young & (real_of >= 0) & np.where(married_real, married, ~married)
+    real_to_ward = np.full(len(keys), -1, np.int32)
+    if in_real.any():
+        counts = np.bincount(real_of[in_real], minlength=len(keys))
+        for group in ysa_wards.merge_plan(counts, REAL_WARD_MIN):
+            members = np.flatnonzero(in_real & np.isin(real_of, group))
+            wid = len(ward_kind)
+            ward_of[members] = wid
+            real_to_ward[group] = wid
+            byu_share = float((school[members] == P.code("school", "BYU")).mean())
+            kind = "married_student" if married_real[members[0]] else ("byu_ysa" if byu_share >= 0.5 else "ysa")
+            ward_kind.append(kind)
+            stake_name, wname = ysa_wards.group_name(group)
+            ward_name.append(f"{stake_name} · {wname}")
+            ward_stake.append(stake_name)
+            if kind == "byu_ysa":             # BYU YSA wards meet in campus buildings
+                ward_lon.append(BYU[0] + rng.normal(0, 0.0025))
+                ward_lat.append(BYU[1] + rng.normal(0, 0.0025))
+                ward_mh.append(-1)
+            else:
+                cx_, cy_ = float(np.mean(hlon[members])), float(np.mean(hlat[members]))
+                mh = int(np.argmin(km(meet_lon, meet_lat, cx_, cy_)))
+                ward_lon.append(float(meet_lon[mh]))
+                ward_lat.append(float(meet_lat[mh]))
+                ward_mh.append(mh)
+
+    byu_single = lds & ~married & (school == P.code("school", "BYU")) & student & (ward_of < 0)
     chunk(byu_single, 180, "byu_ysa", True)
     ysa = lds & ~married & young & ~byu_single & (ward_of < 0)
     chunk(ysa, 150, "ysa", False)
@@ -284,8 +331,23 @@ def build_wards(P: PersonTable, units: Units, meet_lon, meet_lat, rng, unit_of: 
     fam = lds & (ward_of < 0)
     chunk(fam, 220, "family", False)
     P["ward_id"] = ward_of
+    units.real_ward = real_unit
     return {"kind": np.array(ward_kind), "lon": np.array(ward_lon), "lat": np.array(ward_lat),
-            "meetinghouse": np.array(ward_mh)}
+            "meetinghouse": np.array(ward_mh), "name": np.array(ward_name, dtype=object),
+            "stake": np.array(ward_stake, dtype=object), "real_to_ward": real_to_ward}
+
+
+# Wards outside the listings are numbered by kind.
+GENERIC_WARD = {"byu_ysa": "BYU YSA ward", "ysa": "YSA ward", "married_student": "Married student ward", "family": "Family ward"}
+REAL_WARD_MIN = 60      # members: smaller listed wards are merged with their stake neighbours (small world sizes)
+
+
+def ward_name(wards: dict, k: int) -> str:
+    """A ward's display name ('YSA Stake 3 · 35th Ward', 'Family ward 12')."""
+    names = wards.get("name")
+    if names is not None and 0 <= k < len(names) and names[k]:
+        return str(names[k])
+    return f"{str(wards['kind'][k]).replace('_', ' ').upper()} ward #{k}"
 
 
 def build_fhe_groups(P: PersonTable, unit_of: np.ndarray, ward_kind: np.ndarray, rng) -> np.ndarray:

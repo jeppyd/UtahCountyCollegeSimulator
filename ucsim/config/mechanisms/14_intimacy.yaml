@@ -58,6 +58,16 @@ mechanisms:
       base: {value: -8.5, range: [-10, -6]}
     evidence: calibrated
     refs: ["LDS Sexuality Survey (2025): ~70% of men and ~17% of women have addressed it with a bishop (lifetime)"]
+  intimacy.bishop_masturbation:
+    timescale: weekly
+    label: Talking to a bishop about masturbation
+    target: [talked_to_bishop_sexual, guilt]
+    sources: [masturbation, sexual_shame, religious_identity, porn_use]
+    form: "weekly for members who masturbate and don't use porn (porn users talk about both in their porn talk): h = logistic(base + 2·shame + identity)"
+    params:
+      base: {value: -8.5, range: [-11, -6]}
+    evidence: calibrated
+    refs: ["LDS Sexuality Survey (2025): ~64% of men and ~19% of women have talked to a bishop about masturbation (lifetime), a little less than about pornography"]
   intimacy.reveal:
     timescale: weekly
     label: A partner's past comes to light

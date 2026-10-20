@@ -32,6 +32,7 @@ from scipy.special import expit
 from ..ledger import CHANNEL_ID, Table
 from ..provenance import link
 from ..state import EdgeStore
+from ucsim.population.structure import ward_name
 
 KINDS = ("household", "friends", "club", "team", "ward", "family")
 KIND_ID = {k: i for i, k in enumerate(KINDS)}
@@ -797,7 +798,7 @@ class Messaging:
             if k in ("club", "team"):
                 return f"{w.groups['name'][key]} chat"
             if k == "ward":
-                return f"{str(w.wards['kind'][key]).replace('_', ' ').upper()} ward #{key} chat"
+                return f"{ward_name(w.wards, key)} chat"
         except Exception:  # noqa: BLE001
             pass
         return {"friends": "Friend group chat", "family": "Family chat"}.get(k, f"{k.title()} chat")

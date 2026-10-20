@@ -51,9 +51,16 @@ class Housing:
         wl, wt = w.wards["lon"], w.wards["lat"]
         married = P.is_("rel_status", "married")[ids]
         byu_single = (P["school"][ids] == 1) & ~married & P["enrolled"][ids]
+        real, r2w = w.units.real_ward, w.wards.get("real_to_ward")
         for k, i in enumerate(ids):
             if not P["lds_member"][i]:
                 P.cols["ward_id"][i] = -1
+                continue
+            # the real ward of the building they moved into, when its listed ward exists in this world
+            ru = int(P["unit_id"][i])
+            rw = int(real[ru]) if real is not None and ru >= 0 else -1
+            if rw >= 0 and P["age"][i] < 31 and r2w is not None and r2w[rw] >= 0 and (kinds[r2w[rw]] == "married_student") == bool(married[k]):
+                P.cols["ward_id"][i] = int(r2w[rw])
                 continue
             c = int(P["complex_id"][i])
             if c in self.complex_ward and not married[k]:

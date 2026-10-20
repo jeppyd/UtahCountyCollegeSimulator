@@ -64,3 +64,18 @@ mechanisms:
       budget: {value: 400, range: [0, 3000]}
       cost: {value: 100, range: [20, 400]}
     evidence: hypothetical
+  institutions.bishop:
+    label: What happens after talking to the bishop
+    target: [temple_recommend, attend_rate, bishop_meetings]
+    sources: [premarital_sex_current, porn_use, masturbation, sexual_shame]
+    form: "After a premarital-sex confession: recommend held hold_weeks·U(0.75, 2) weeks (extended 4 weeks while still sexually active), with no sacrament for sacrament_share of them; of those, skip_share go to church less (attendance × skip_attend) while it lasts. Ongoing issues (porn, masturbation, sex) bring a follow-up about every followup_days days until it stops or after max_followups; when the hold ends the recommend comes back."
+    params:
+      hold_weeks: {value: 4, range: [1, 12]}
+      sacrament_share: {value: 0.6, range: [0, 1]}
+      skip_share: {value: 0.3, range: [0, 1]}
+      skip_attend: {value: 0.45, range: [0, 1]}
+      followup_days: {value: 30, range: [14, 60]}
+      max_followups: {value: 6, range: [1, 12]}
+    timescale: daily
+    evidence: hypothetical
+    refs: ["Owner's account (2026): premarital sex usually means a few weeks without a temple recommend and sometimes without the sacrament; ongoing issues mean roughly monthly meetings"]

@@ -1,0 +1,5715 @@
+{
+ "meta": {
+  "source": "Provo YSA Apartment Listing by Ward (2026-27) and On Campus Housing Assignments 2026-2027 (supplied by the owner)",
+  "grid_rmse_m": 43.0,
+  "rows": 569,
+  "unplaced": 33,
+  "wards": 168,
+  "unplaced_examples": [
+   "OAK HILLS 7TH WARD (RESIDENTIAL WARD) \u2014 TREE STREET HOMES, PROVO",
+   "OAK HILLS 2ND WARD (RESIDENTIAL WARD) \u2014 TREE STREET HOMES, PROVO",
+   "OAK HILLS 5TH WARD (RESIDENTIAL WARD) \u2014 TREE STREET HOMES, PROVO",
+   "OAK HILLS 1ST WARD (RESIDENTIAL WARD) \u2014 TREE STREET HOMES, PROVO",
+   "OAK HILLS 4TH WARD (RESIDENTIAL WARD) \u2014 TREE STREET HOMES, PROVO",
+   "OAK HILLS 6TH WARD (RESIDENTIAL WARD) \u2014 TREE STREET HOMES, PROVO",
+   "OAK HILLS 9TH WARD (RESIDENTIAL WARD) \u2014 TREE STREET HOMES, PROVO",
+   "HIGHLAND PARK CONDOS: ALL BUILDINGS \u2014 553-655 N SEVEN PEAKS BLVD PROVO",
+   "ALPINE VILLAGE BLDG. A (304-322) \u2014 1378 FREEDOM BLVD PROVO",
+   "ALPINE VILLAGE BLDG. B (323-326) \u2014 1378 FREEDOM BLVD PROVO",
+   "GRADVIEW VILLAGE \u2014 1611 N GRandVIEW LN PROVO",
+   "WILLOWBROOK CONDOMINIUMS \u2014 1721 N WILLOWBROOK DR PROVO"
+  ]
+ },
+ "rows": [
+  {
+   "stake": "1",
+   "ward": "1",
+   "name": "BELMONT 11-13, 21-38",
+   "address": "600 N 195 E",
+   "lon": -111.655269,
+   "lat": 40.241719,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "1",
+   "name": "CONTINENTAL 5-18",
+   "address": "562 N 200 E",
+   "lon": -111.655175,
+   "lat": 40.241211,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "2",
+   "name": "UP DOWN HOUSE",
+   "address": "731 N 400 E",
+   "lon": -111.651668,
+   "lat": 40.24345,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "2",
+   "name": "MONTICELLO - WHITE BRICK",
+   "address": "735-745 N 400 E",
+   "lon": -111.651669,
+   "lat": 40.243504,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "2",
+   "name": "LINFORD APARTMENTS",
+   "address": "700 N 389 E",
+   "lon": -111.651858,
+   "lat": 40.243037,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "3",
+   "name": "MOON D",
+   "address": "700 N 362 E",
+   "lon": -111.652335,
+   "lat": 40.24304,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "3",
+   "name": "THAT HOUSE",
+   "address": "673-675 N 300 E",
+   "lon": -111.653426,
+   "lat": 40.242685,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "3",
+   "name": "CORNER HOUSE",
+   "address": "695 N 300 E",
+   "lon": -111.653429,
+   "lat": 40.242979,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "3",
+   "name": "MERINGUE HOUSE",
+   "address": "700 N 309 E",
+   "lon": -111.653271,
+   "lat": 40.243045,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "3",
+   "name": "BIG HOUSE",
+   "address": "700 N 329 E",
+   "lon": -111.652918,
+   "lat": 40.243043,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "3",
+   "name": "BROWN HOUSE",
+   "address": "700 N 343 E",
+   "lon": -111.65267,
+   "lat": 40.243042,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "3",
+   "name": "MONTICELLO - FORT APACHE",
+   "address": "769 N 300 E",
+   "lon": -111.653441,
+   "lat": 40.243967,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "3",
+   "name": "MONTICELLO - Y HOUSE",
+   "address": "765 N 300 E",
+   "lon": -111.65344,
+   "lat": 40.243914,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "3",
+   "name": "MONTICELLO - RED BRICK",
+   "address": "800 N 326-392 E",
+   "lon": -111.652987,
+   "lat": 40.244379,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "3",
+   "name": "4 PLEX",
+   "address": "800 N 326-332 E",
+   "lon": -111.652987,
+   "lat": 40.244379,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "3",
+   "name": "MONTICELLO - WHITE HOUSE",
+   "address": "782-786 N 300 E",
+   "lon": -111.653443,
+   "lat": 40.244141,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "4",
+   "name": "PRESIDIO 1-12",
+   "address": "515 N 200 E",
+   "lon": -111.655167,
+   "lat": 40.240584,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "4",
+   "name": "BRITTANY APARTMENTS",
+   "address": "520 N 200 E",
+   "lon": -111.655168,
+   "lat": 40.240651,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "5",
+   "name": "CASA DEA",
+   "address": "660 N 200 E",
+   "lon": -111.65519,
+   "lat": 40.24252,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "5",
+   "name": "KIMBALL 5 - 6",
+   "address": "659 N 300 E",
+   "lon": -111.653424,
+   "lat": 40.242498,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "5",
+   "name": "MOON C",
+   "address": "670 N 300 E",
+   "lon": -111.653425,
+   "lat": 40.242645,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "5",
+   "name": "GRANARY 1-8",
+   "address": "760 N 300 E",
+   "lon": -111.65344,
+   "lat": 40.243847,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "5",
+   "name": "VOORHIS HOUSE",
+   "address": "600 N 281 E",
+   "lon": -111.65375,
+   "lat": 40.241712,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "5",
+   "name": "SLEEPY HOLLOW",
+   "address": "700 N 274 E",
+   "lon": -111.653889,
+   "lat": 40.243048,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "6",
+   "name": "ARETTA GARDENS 1-8 SOUTH",
+   "address": "565 N 300 E",
+   "lon": -111.653409,
+   "lat": 40.241243,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "6",
+   "name": "CONTINENTAL 1 - 4",
+   "address": "562 N 200 E",
+   "lon": -111.655175,
+   "lat": 40.241211,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "6",
+   "name": "VICTORIA PLACE CONDOMINIUMS II",
+   "address": "267 E 500 N",
+   "lon": -111.653981,
+   "lat": 40.240377,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "7",
+   "name": "ENCLAVE VILLAGE",
+   "address": "642 N 200 E",
+   "lon": -111.655188,
+   "lat": 40.24228,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "7",
+   "name": "HALLS",
+   "address": "590 N 200 E",
+   "lon": -111.655179,
+   "lat": 40.241585,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "8",
+   "name": "VICTORIA PLACE CONDOMINIUMS",
+   "address": "284 E 600 N",
+   "lon": -111.653697,
+   "lat": 40.241711,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "8",
+   "name": "ARETTA GARDENS 9 - 16",
+   "address": "565 N 300 E",
+   "lon": -111.653409,
+   "lat": 40.241243,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "8",
+   "name": "SHERWOOD HOUSE",
+   "address": "630 - 632 N 300 E",
+   "lon": -111.653419,
+   "lat": 40.242111,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "8",
+   "name": "MOON HOUSE",
+   "address": "680 N 300 E",
+   "lon": -111.653427,
+   "lat": 40.242778,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "8",
+   "name": "MOON F",
+   "address": "345 E 600 N",
+   "lon": -111.652619,
+   "lat": 40.241706,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "8",
+   "name": "KIMBALL 2 - 3",
+   "address": "659 N 300 E",
+   "lon": -111.653424,
+   "lat": 40.242498,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "9",
+   "name": "WHITE HOUSE",
+   "address": "671 - 675 N 200 E",
+   "lon": -111.655192,
+   "lat": 40.242667,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "9",
+   "name": "BELMONT 14 - 18",
+   "address": "600 N 195 E",
+   "lon": -111.655269,
+   "lat": 40.241719,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "9",
+   "name": "BLUE HOUSE",
+   "address": "653 N 200 E",
+   "lon": -111.655189,
+   "lat": 40.242427,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "9",
+   "name": "UNIVERSITY PARK APARTMENTS",
+   "address": "700 N 225 E",
+   "lon": -111.654755,
+   "lat": 40.243052,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "9",
+   "name": "CAMPUS VIEW SOUTH",
+   "address": "722 N 200 E",
+   "lon": -111.6552,
+   "lat": 40.243348,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "9",
+   "name": "CAMPUS VIEW NORTH",
+   "address": "722 N 200 E",
+   "lon": -111.6552,
+   "lat": 40.243348,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "1",
+   "ward": "10",
+   "name": "THE ISLES",
+   "address": "727 N 300 E",
+   "lon": -111.653434,
+   "lat": 40.243406,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "16",
+   "name": "PROMENADE (NORTH BLDGS)",
+   "address": "900 E 820 N",
+   "lon": -111.642849,
+   "lat": 40.244594,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "16",
+   "name": "ELITE APARTMENT",
+   "address": "813 E 820 N, PROVO",
+   "lon": -111.644386,
+   "lat": 40.244602,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "16",
+   "name": "THE 70S HOUSE",
+   "address": "845 E 820 N PROVO",
+   "lon": -111.64382,
+   "lat": 40.244599,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "16",
+   "name": "THE LITTLE HOUSE",
+   "address": "823 E 820 N PROVO",
+   "lon": -111.644209,
+   "lat": 40.244601,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "18",
+   "name": "WEST CAMBRIDGE",
+   "address": "788 N 700 E PROVO",
+   "lon": -111.646377,
+   "lat": 40.244185,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "18",
+   "name": "REGENCY BLDG 1 (101-112)",
+   "address": "760 E 820 N PROVO",
+   "lon": -111.645322,
+   "lat": 40.244607,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "18",
+   "name": "VARIOUS HOUSE APARTMENTS",
+   "address": "794 E 820 N; 789, 787 & 783 800 E",
+   "lon": -111.644722,
+   "lat": 40.244604,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "19",
+   "name": "CHATHAM TOWNE (NORTH BLDG) (25-44)",
+   "address": "976-992 N 900 E PROVO",
+   "lon": -111.642874,
+   "lat": 40.246677,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "20",
+   "name": "FORNO GAUCHO BASEMENT APARTMENTS",
+   "address": "740 & 742 E 820 N PROVO",
+   "lon": -111.645676,
+   "lat": 40.244608,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "20",
+   "name": "PICKUP PLACE",
+   "address": "748 N 700 E PROVO",
+   "lon": -111.646371,
+   "lat": 40.24365,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "20",
+   "name": "SANTA FE (UNITS 5-8)",
+   "address": "802 N 700 E PROVO",
+   "lon": -111.646379,
+   "lat": 40.244372,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "20",
+   "name": "STONEBRIDGE III (301, 304, 305, 308, 309, 312)",
+   "address": "763 E 820 N PROVO",
+   "lon": -111.645269,
+   "lat": 40.244606,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "20",
+   "name": "STRATFORD COURT",
+   "address": "760 N 800 E PROVO",
+   "lon": -111.644606,
+   "lat": 40.243802,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "21",
+   "name": "STONEBRIDGE III (302, 303, 306, 307, 310, 311)",
+   "address": "763 E 820 N PROVO",
+   "lon": -111.645269,
+   "lat": 40.244606,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "21",
+   "name": "PROMENADE (SOUTH BLDG) (17-20)",
+   "address": "761 N 900 E PROVO",
+   "lon": -111.642839,
+   "lat": 40.243806,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "21",
+   "name": "REGENCY BLDG 3 (301-309)",
+   "address": "760 E 820 N PROVO",
+   "lon": -111.645322,
+   "lat": 40.244607,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "21",
+   "name": "SANTA FE (UNITS 1-4)",
+   "address": "802 N 700 E PROVO",
+   "lon": -111.646379,
+   "lat": 40.244372,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "21",
+   "name": "VARIOUS HOUSE APARTMENTS",
+   "address": "S OF 820 N, E OF 900 E TO 1000 E PROVO",
+   "lon": -111.642849,
+   "lat": 40.244594,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "21",
+   "name": "HOUSE 2",
+   "address": "775 E 820 N PROVO",
+   "lon": -111.645057,
+   "lat": 40.244605,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "22",
+   "name": "JAMESTOWN (13-14, 21-24, 31-34)",
+   "address": "782 N 800 E PROVO",
+   "lon": -111.644609,
+   "lat": 40.244095,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "22",
+   "name": "NANTUCKET (BLDG 1 & 2)",
+   "address": "907-915 E 820 N PROVO",
+   "lon": -111.642725,
+   "lat": 40.244593,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "22",
+   "name": "STONEBRIDGE I (101-112)",
+   "address": "758 E 900 N PROVO",
+   "lon": -111.64537,
+   "lat": 40.245675,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "22",
+   "name": "STONEBRIDGE II (211-236)",
+   "address": "761 E 820 N PROVO",
+   "lon": -111.645305,
+   "lat": 40.244606,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "23",
+   "name": "QUEENS ARMS",
+   "address": "785 E 820 N PROVO",
+   "lon": -111.644881,
+   "lat": 40.244604,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "23",
+   "name": "REGENCY BLDG 2 (201-204)",
+   "address": "760 E 820 N PROVO",
+   "lon": -111.645322,
+   "lat": 40.244607,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "23",
+   "name": "JAMESTOWN (25-28)",
+   "address": "782 N 800 E PROVO",
+   "lon": -111.644609,
+   "lat": 40.244095,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "23",
+   "name": "SINGLE TREE",
+   "address": "832 E 820 N PROVO",
+   "lon": -111.64405,
+   "lat": 40.2446,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "23",
+   "name": "WINDSOR ARMS",
+   "address": "744 E 750 N PROVO",
+   "lon": -111.645594,
+   "lat": 40.243673,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "23",
+   "name": "FLINDERS APARTMENTS",
+   "address": "850 E 820 N PROVO",
+   "lon": -111.643732,
+   "lat": 40.244598,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "24",
+   "name": "CHATHAM TOWNE (SOUTH BLDG) (1-24)",
+   "address": "956-972 N 900 E PROVO",
+   "lon": -111.64287,
+   "lat": 40.24641,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "24",
+   "name": "JAMESTOWN (35-38)",
+   "address": "782 N 800 E PROVO",
+   "lon": -111.644609,
+   "lat": 40.244095,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "24",
+   "name": "REGENCY BLDG 2 (209-212)",
+   "address": "760 E 820 N PROVO",
+   "lon": -111.645322,
+   "lat": 40.244607,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "24",
+   "name": "HOUSE",
+   "address": "752 & 756 E 820 N PROVO",
+   "lon": -111.645464,
+   "lat": 40.244607,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "24",
+   "name": "VARIOUS HOUSE APARTMENTS",
+   "address": "N OF 820 N, E OF 900 E PROVO",
+   "lon": -111.642849,
+   "lat": 40.244594,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "24",
+   "name": "WEBSTER PLACE",
+   "address": "933-937 N 900 E PROVO",
+   "lon": -111.642867,
+   "lat": 40.246103,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "26",
+   "name": "EAST CAMBRIDGE",
+   "address": "765 E 750 N PROVO",
+   "lon": -111.645223,
+   "lat": 40.243671,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "26",
+   "name": "MIDDLE CAMBRIDGE",
+   "address": "737 E 750 N PROVO",
+   "lon": -111.645717,
+   "lat": 40.243674,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "26",
+   "name": "KENSINGTON I (1-4, 5-8, 9-12)",
+   "address": "788 E 750 N PROVO",
+   "lon": -111.644816,
+   "lat": 40.243669,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "27",
+   "name": "700 NORTH APARTMENTS",
+   "address": "706, 815, 821 & 829 E 700 N; 716, 718, 720 & 722 800 E",
+   "lon": -111.644225,
+   "lat": 40.242998,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "27",
+   "name": "CORNERSTONE",
+   "address": "787 E 750 N PROVO",
+   "lon": -111.644834,
+   "lat": 40.243669,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "27",
+   "name": "JAMESTOWN (15-18)",
+   "address": "782 N 800 E PROVO",
+   "lon": -111.644609,
+   "lat": 40.244095,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "27",
+   "name": "REGENCY BLDG 2 (205-208)",
+   "address": "760 E 820 N PROVO",
+   "lon": -111.645322,
+   "lat": 40.244607,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "27",
+   "name": "WELLINGTON I (1-4, 5-8, 9-12)",
+   "address": "855 E 700 N PROVO",
+   "lon": -111.643625,
+   "lat": 40.242995,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "2",
+   "ward": "27",
+   "name": "WELLINGTON II (11-14, 21-24, 31-34)",
+   "address": "732 N 800 E PROVO",
+   "lon": -111.644602,
+   "lat": 40.243428,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "33",
+   "name": "HOUSE",
+   "address": "530 E 600 N PROVO",
+   "lon": -111.649351,
+   "lat": 40.241689,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "33",
+   "name": "HOUSE",
+   "address": "532 E 600 N PROVO",
+   "lon": -111.649315,
+   "lat": 40.241689,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "33",
+   "name": "HOUSE",
+   "address": "544 E 600 N PROVO",
+   "lon": -111.649103,
+   "lat": 40.241688,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "33",
+   "name": "HOUSE",
+   "address": "660 N 500 E PROVO",
+   "lon": -111.64989,
+   "lat": 40.242493,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "33",
+   "name": "HOUSE",
+   "address": "662 N 500 E PROVO",
+   "lon": -111.649891,
+   "lat": 40.24252,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "33",
+   "name": "HOUSE",
+   "address": "676 N 500 E PROVO",
+   "lon": -111.649893,
+   "lat": 40.242707,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "33",
+   "name": "SOUTHRIDGE",
+   "address": "665 N 500 E PROVO",
+   "lon": -111.649891,
+   "lat": 40.24256,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "34",
+   "name": "ARCH HOUSE",
+   "address": "552 N 500 E PROVO",
+   "lon": -111.649873,
+   "lat": 40.241051,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "34",
+   "name": "CROWN APARTMENTS",
+   "address": "455 E 600 N PROVO",
+   "lon": -111.650676,
+   "lat": 40.241696,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "34",
+   "name": "LIBERTY SQUARE JAMESTOWN (15-18, 25-28, 35-38)",
+   "address": "555 N 500 E PROVO",
+   "lon": -111.649874,
+   "lat": 40.241091,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "34",
+   "name": "SWING HOUSE",
+   "address": "566 N 500 E PROVO",
+   "lon": -111.649875,
+   "lat": 40.241238,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "34",
+   "name": "SWING HOUSE",
+   "address": "570 N 500 E PROVO",
+   "lon": -111.649876,
+   "lat": 40.241291,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "35",
+   "name": "LIBERTY SQUARE CONCORD 3-6",
+   "address": "578 N 400 E PROVO",
+   "lon": -111.651644,
+   "lat": 40.241407,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "35",
+   "name": "LIBERTY SQUARE MADISON (1-15)",
+   "address": "566 N 400 E PROVO",
+   "lon": -111.651642,
+   "lat": 40.241247,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "35",
+   "name": "LIBERTY SQUARE WASHINGTON 1",
+   "address": "546 N 400 E PROVO",
+   "lon": -111.651639,
+   "lat": 40.24098,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "35",
+   "name": "LIBERTY SQUARE YORKTOWN",
+   "address": "528 N 400 E PROVO",
+   "lon": -111.651636,
+   "lat": 40.240739,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "36",
+   "name": "LIBERTY SQUARE JEFFERSON (11-18, 21-28, 31-38)",
+   "address": "562 N 400 E PROVO",
+   "lon": -111.651641,
+   "lat": 40.241193,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "36",
+   "name": "LIBERTY SQUARE WASHINGTON 2",
+   "address": "546 N 400 E PROVO",
+   "lon": -111.651639,
+   "lat": 40.24098,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "36",
+   "name": "LIBERTY SQUARE WASHINGTON 3",
+   "address": "546 N 400 E PROVO",
+   "lon": -111.651639,
+   "lat": 40.24098,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "37",
+   "name": "LIBERTY SQUARE JAMESTOWN (11-14, 21-24, 31-34)",
+   "address": "555 N 500 E PROVO",
+   "lon": -111.649874,
+   "lat": 40.241091,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "37",
+   "name": "LIBERTY SQUARE LEXINGTON (11-14, 21-24, 31-34)",
+   "address": "485 E 500 N PROVO",
+   "lon": -111.65013,
+   "lat": 40.240358,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "37",
+   "name": "PILLAR HOUSE",
+   "address": "542 N 500 E PROVO",
+   "lon": -111.649872,
+   "lat": 40.240917,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "37",
+   "name": "STERLING HOUSE",
+   "address": "534 N 500 E PROVO",
+   "lon": -111.64987,
+   "lat": 40.24081,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "37",
+   "name": "YELLOW HOUSE",
+   "address": "520 N 500 E PROVO",
+   "lon": -111.649868,
+   "lat": 40.240623,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "38",
+   "name": "LIBERTY SQUARE ADAMS",
+   "address": "514 N 400 E PROVO",
+   "lon": -111.651634,
+   "lat": 40.240552,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "38",
+   "name": "LIBERTY SQUARE LAFAYETTE",
+   "address": "441 E 500 N PROVO",
+   "lon": -111.650907,
+   "lat": 40.240362,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "38",
+   "name": "LIBERTY SQUARE MARSHALL (1-3)",
+   "address": "485 E 500 N PROVO",
+   "lon": -111.65013,
+   "lat": 40.240358,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "38",
+   "name": "LIBERTY SQUARE MARSHALL (4-6)",
+   "address": "485 E 500 N PROVO",
+   "lon": -111.65013,
+   "lat": 40.240358,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "39",
+   "name": "CAMPUS LANE 580",
+   "address": "580 N 500 E PROVO",
+   "lon": -111.649878,
+   "lat": 40.241425,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "39",
+   "name": "CAMPUS LANE 582-584",
+   "address": "582-84 N 500 E PROVO",
+   "lon": -111.649878,
+   "lat": 40.241451,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "39",
+   "name": "CAMPUS LANE 586-590",
+   "address": "586-590 N 500 E PROVO",
+   "lon": -111.649879,
+   "lat": 40.241505,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "39",
+   "name": "LIBERTY SQUARE MANSION HOUSE",
+   "address": "448 E 600 N PROVO",
+   "lon": -111.650799,
+   "lat": 40.241697,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "39",
+   "name": "LIBERTY SQUARE PLYMOUTH (1-2)",
+   "address": "488 E 600 N PROVO",
+   "lon": -111.650093,
+   "lat": 40.241693,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "39",
+   "name": "LIBERTY SQUARE PLYMOUTH (3-4)",
+   "address": "488 E 600 N PROVO",
+   "lon": -111.650093,
+   "lat": 40.241693,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "42",
+   "name": "LIBERTY SQUARE CONCORD 1-2",
+   "address": "578 N 400 E PROVO",
+   "lon": -111.651644,
+   "lat": 40.241407,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "42",
+   "name": "LIBERTY SQUARE VIRGINIA (1-2)",
+   "address": "420 E 600 N PROVO",
+   "lon": -111.651294,
+   "lat": 40.241699,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "42",
+   "name": "LIBERTY SQUARE VIRGINIA 3-6",
+   "address": "420 E 600 N PROVO",
+   "lon": -111.651294,
+   "lat": 40.241699,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "3",
+   "ward": "42",
+   "name": "PARK PLACE",
+   "address": "460 E 700 N PROVO",
+   "lon": -111.650603,
+   "lat": 40.243031,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "44",
+   "name": "HR 15 (2100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "44",
+   "name": "HR 15 (2200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "44",
+   "name": "HR 16 (2100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "44",
+   "name": "HR 16 (2200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "45",
+   "name": "HR 07 (2100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "45",
+   "name": "HR 07 (2200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "45",
+   "name": "HR 08 (2100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "45",
+   "name": "HR 08 (2200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "47",
+   "name": "HR 12 (2100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "47",
+   "name": "HR 12 (2200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "47",
+   "name": "HR 13 (2100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "47",
+   "name": "HR 13 (2200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "47",
+   "name": "HR 14 (2100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "47",
+   "name": "HR 14 (2200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "50",
+   "name": "HR 09 (2100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "50",
+   "name": "HR 09 (2200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "50",
+   "name": "HR 10 (2100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "50",
+   "name": "HR 10 (2200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "50",
+   "name": "HR 11 (2100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "50",
+   "name": "HR 11 (2200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "51",
+   "name": "HR 04 (4100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "51",
+   "name": "HR 04 (4200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "51",
+   "name": "HR 05 (4100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "51",
+   "name": "HR 05 (4200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "51",
+   "name": "HR 06 (4100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "51",
+   "name": "HR 06 (4200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "52",
+   "name": "HR 02 (4100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "52",
+   "name": "HR 02 (4200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "52",
+   "name": "HR 03 (4100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "52",
+   "name": "HR 03 (4200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "54",
+   "name": "HR 15 (4100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "54",
+   "name": "HR 15 (4200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "54",
+   "name": "HR 16 (4100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "54",
+   "name": "HR 16 (4200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "55",
+   "name": "HR 02 (2100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "55",
+   "name": "HR 02 (2200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "55",
+   "name": "HR 03 (2100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "55",
+   "name": "HR 03 (2200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "73",
+   "name": "HR 12 (4100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "73",
+   "name": "HR 12 (4200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "73",
+   "name": "HR 13 (4100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "73",
+   "name": "HR 13 (4200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "73",
+   "name": "HR 14 (4100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "73",
+   "name": "HR 14 (4200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "74",
+   "name": "HR 07 (4100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "74",
+   "name": "HR 07 (4200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "74",
+   "name": "HR 08 (4100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "74",
+   "name": "HR 08 (4200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "77",
+   "name": "HR 09 (4100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "77",
+   "name": "HR 09 (4200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "77",
+   "name": "HR 10 (4100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "77",
+   "name": "HR 10 (4200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "77",
+   "name": "HR 11 (4100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "77",
+   "name": "HR 11 (4200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "88",
+   "name": "HR 04 (2100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "88",
+   "name": "HR 04 (2200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "88",
+   "name": "HR 05 (2100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "88",
+   "name": "HR 05 (2200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "88",
+   "name": "HR 06 (2100)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "4",
+   "ward": "88",
+   "name": "HR 06 (2200)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "5",
+   "ward": "61",
+   "name": "KING HENRY (APTS 105-107, 205-207, 305-307)",
+   "address": "1130 E 450 N PROVO",
+   "lon": -111.638727,
+   "lat": 40.239632,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "5",
+   "ward": "61",
+   "name": "BELMONT CONDOS (BLDGS 389, 392, 405, 416)",
+   "address": "BELMONT PLACE PROVO",
+   "lon": -111.636754,
+   "lat": 40.238101,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "5",
+   "ward": "62",
+   "name": "KING HENRY (1-30, 43-44, 87-92)",
+   "address": "1131 E 450 N PROVO",
+   "lon": -111.638709,
+   "lat": 40.239632,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "5",
+   "ward": "63",
+   "name": "KING HENRY (45-48, 57-60, 61-86, 108, 208, 308)",
+   "address": "1132 E 450 N PROVO",
+   "lon": -111.638691,
+   "lat": 40.239631,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "5",
+   "ward": "64",
+   "name": "KING HENRY (31-42, 49-56, 109-112, 209-212, 309-312)",
+   "address": "1133 E 450 N PROVO",
+   "lon": -111.638674,
+   "lat": 40.239631,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "5",
+   "ward": "65",
+   "name": "KING HENRY (101-102, 201-202, 301-302)",
+   "address": "1133 E 450 N PROVO",
+   "lon": -111.638674,
+   "lat": 40.239631,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "5",
+   "ward": "65",
+   "name": "BELMONT CONDOS (BLDGS 483, 504, 509, 532)",
+   "address": "BELMONT PLACE PROVO",
+   "lon": -111.636754,
+   "lat": 40.238101,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "5",
+   "ward": "67",
+   "name": "KING HENRY (103-104, 203-204, 303-304)",
+   "address": "1133 E 450 N PROVO",
+   "lon": -111.638674,
+   "lat": 40.239631,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "5",
+   "ward": "67",
+   "name": "BELMONT CONDOS (BLDGS: 437, 432, 421, 455, 476)",
+   "address": "BELMONT PLACE PROVO",
+   "lon": -111.636754,
+   "lat": 40.238101,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "5",
+   "ward": "70",
+   "name": "BELMONT CONDOS (BLDGS: 331, 332, 345, 363, 364)",
+   "address": "BELMONT PLACE PROVO",
+   "lon": -111.636754,
+   "lat": 40.238101,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "5",
+   "ward": "72",
+   "name": "ARLINGTON PLACE: ALL BUILDINGS",
+   "address": "1281 E 670 N PROVO",
+   "lon": -111.636094,
+   "lat": 40.242556,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "6",
+   "ward": "78",
+   "name": "GLENWOOD APTS 25-32, 37-40, 74-81, 86-89",
+   "address": "1565 N UNIVERSITY AVE PROVO",
+   "lon": -111.658867,
+   "lat": 40.254625,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "6",
+   "ward": "79",
+   "name": "GLENWOOD: APTS 33-36, 41-49, 82-85, 90-98",
+   "address": "1565 N UNIVERSITY AVE PROVO",
+   "lon": -111.658867,
+   "lat": 40.254625,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "6",
+   "ward": "80",
+   "name": "GLENWOOD: APTS 1-8, 13-16, 50-57, 62-65",
+   "address": "1565 N UNIVERSITY AVE PROVO",
+   "lon": -111.658867,
+   "lat": 40.254625,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "6",
+   "ward": "81",
+   "name": "GLENWOOD: APTS 9-12, 17-24, 58-61, 66-73",
+   "address": "1565 N UNIVERSITY AVE PROVO",
+   "lon": -111.658867,
+   "lat": 40.254625,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "6",
+   "ward": "82",
+   "name": "GLENWOOD: APTS 123-130, 135-138, 172-179, 184- 187",
+   "address": "1565 N UNIVERSITY AVE PROVO",
+   "lon": -111.658867,
+   "lat": 40.254625,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "6",
+   "ward": "83",
+   "name": "GLENWOOD: APTS 131-134, 139-147, 180-183, 188- 196",
+   "address": "1565 N UNIVERSITY AVE PROVO",
+   "lon": -111.658867,
+   "lat": 40.254625,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "6",
+   "ward": "84",
+   "name": "GLENWOOD: APTS 99-106, 111-114, 148-155, 160- 163",
+   "address": "1565 N UNIVERSITY AVE PROVO",
+   "lon": -111.658867,
+   "lat": 40.254625,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "6",
+   "ward": "85",
+   "name": "GLENWOOD: APTS 107-110, 115-122, 156-159, 164- 171",
+   "address": "1565 N UNIVERSITY AVE PROVO",
+   "lon": -111.658867,
+   "lat": 40.254625,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "6",
+   "ward": "86",
+   "name": "CAMBRIDGE COURT (SINGLES)",
+   "address": "1425 N UNIVERSITY AVE PROVO",
+   "lon": -111.658845,
+   "lat": 40.252755,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "6",
+   "ward": "86",
+   "name": "WINDSOR PARK",
+   "address": "112 W 1230 N PROVO",
+   "lon": -111.660793,
+   "lat": 40.250161,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "7",
+   "ward": "90",
+   "name": "THE VILLAGE (MEN APT 101-119, 128-130; WOMEN APT 101-115, 122-124)",
+   "address": "602 E 600 N PROVO",
+   "lon": -111.648079,
+   "lat": 40.241683,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "7",
+   "ward": "91",
+   "name": "SANTA BARBARA CONDOS",
+   "address": "752 E 560 N PROVO",
+   "lon": -111.645422,
+   "lat": 40.241135,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "7",
+   "ward": "92",
+   "name": "THE GRANGE",
+   "address": "740 N 600 E PROVO",
+   "lon": -111.648136,
+   "lat": 40.243553,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "7",
+   "ward": "92",
+   "name": "NORTH DOWNS",
+   "address": "686 E 700 N PROVO",
+   "lon": -111.646611,
+   "lat": 40.243011,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "7",
+   "ward": "92",
+   "name": "SOUTH DOWNS",
+   "address": "677 N 700 E PROVO",
+   "lon": -111.64636,
+   "lat": 40.242702,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "7",
+   "ward": "94",
+   "name": "CHELSEA II",
+   "address": "619 N 700 E PROVO",
+   "lon": -111.64635,
+   "lat": 40.241928,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "7",
+   "ward": "94",
+   "name": "HAMPTON COURT",
+   "address": "659 N 700 E PROVO",
+   "lon": -111.646357,
+   "lat": 40.242462,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "7",
+   "ward": "95",
+   "name": "COLONY APARTMENTS (NORTH OF POOL)",
+   "address": "403, 409, 431-496 N 750 E PROVO",
+   "lon": -111.645437,
+   "lat": 40.239412,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "7",
+   "ward": "96",
+   "name": "KENSINGTON II",
+   "address": "725 N 800 E PROVO",
+   "lon": -111.6446,
+   "lat": 40.243334,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "7",
+   "ward": "96",
+   "name": "NORTH WOODS CONDOMINIUMS",
+   "address": "737 E 700 N PROVO",
+   "lon": -111.64571,
+   "lat": 40.243006,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "7",
+   "ward": "96",
+   "name": "WINDSOR EAST",
+   "address": "766 E 750 N PROVO",
+   "lon": -111.645205,
+   "lat": 40.243671,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "7",
+   "ward": "97",
+   "name": "BECKSTEAD",
+   "address": "561 E 400 N PROVO",
+   "lon": -111.648771,
+   "lat": 40.239015,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "7",
+   "ward": "97",
+   "name": "HALLADAY (BRICKHAVEN)",
+   "address": "530 E 500 N, PROVO",
+   "lon": -111.649335,
+   "lat": 40.240354,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "7",
+   "ward": "97",
+   "name": "HAMPSTEAD",
+   "address": "655 E 600 N PROVO",
+   "lon": -111.647142,
+   "lat": 40.241678,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "7",
+   "ward": "102",
+   "name": "THE VILLAGE (MEN APT 201-219, 228-230; WOMEN APT 201-215, 222-224)",
+   "address": "602 E 600 N PROVO",
+   "lon": -111.648079,
+   "lat": 40.241683,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "7",
+   "ward": "103",
+   "name": "THE VILLAGE (MEN APT 301-319, 328-330; WOMEN APT 301-315, 322-324)",
+   "address": "602 E 600 N PROVO",
+   "lon": -111.648079,
+   "lat": 40.241683,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "7",
+   "ward": "104",
+   "name": "THE VILLAGE (MEN APT 401-419, 428-430; WOMEN 401-424)",
+   "address": "602 E 600 N PROVO",
+   "lon": -111.648079,
+   "lat": 40.241683,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "7",
+   "ward": "105",
+   "name": "THE VILLAGE (MEN APT 501-518, 529-530; WOMEN APT 501-514, 523-524)",
+   "address": "602 E 600 N PROVO",
+   "lon": -111.648079,
+   "lat": 40.241683,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "7",
+   "ward": "266",
+   "name": "THE VILLAGE (MEN APT 120-127, 220-227, 320-327; WOMEN APT 116-121, 216-221, 316-321)",
+   "address": "602 E 600 N PROVO",
+   "lon": -111.648079,
+   "lat": 40.241683,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "8",
+   "ward": "106",
+   "name": "STOVER 2100 & 2200",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "8",
+   "ward": "106",
+   "name": "BUDGE 2200",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "8",
+   "ward": "107",
+   "name": "TAYLOR 2100 & 2200",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "8",
+   "ward": "107",
+   "name": "BUDGE 2100",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "8",
+   "ward": "109",
+   "name": "STOVER 3100 & 3200",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "8",
+   "ward": "109",
+   "name": "BUDGE 3200",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "8",
+   "ward": "111",
+   "name": "DAVID JOHN 1100",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "8",
+   "ward": "111",
+   "name": "MAY 1200 & 1100",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "8",
+   "ward": "112",
+   "name": "STOVER 1100 & 1200",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "8",
+   "ward": "112",
+   "name": "BUDGE 1200",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "8",
+   "ward": "113",
+   "name": "DAVID JOHN 2100",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "8",
+   "ward": "113",
+   "name": "MAY 2100 & 2200",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "8",
+   "ward": "116",
+   "name": "TAYLOR 1100 & 1200",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "8",
+   "ward": "116",
+   "name": "BUDGE 1100",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "8",
+   "ward": "122",
+   "name": "DAVID JOHN 3100",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "8",
+   "ward": "122",
+   "name": "MAY 3100 & 3200",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "8",
+   "ward": "124",
+   "name": "TAYLOR 3100 & 3200",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "8",
+   "ward": "124",
+   "name": "BUDGE 3100",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "121",
+   "name": "WYVIEW BUILDING 11 (145-156)",
+   "address": "WYVIEW PARK",
+   "lon": -111.660016,
+   "lat": 40.261447,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "121",
+   "name": "WYVIEW BUILDING 4 (49-60)",
+   "address": "WYVIEW PARK",
+   "lon": -111.660016,
+   "lat": 40.261447,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "121",
+   "name": "WYVIEW BUILDING 5 (61-78)",
+   "address": "WYVIEW PARK",
+   "lon": -111.660016,
+   "lat": 40.261447,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "121",
+   "name": "WYVIEW BUILDING 6 (79-84)",
+   "address": "WYVIEW PARK",
+   "lon": -111.660016,
+   "lat": 40.261447,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "121",
+   "name": "WYVIEW BUILDING 8 (103-114)",
+   "address": "WYVIEW PARK",
+   "lon": -111.660016,
+   "lat": 40.261447,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "123",
+   "name": "RIVIERA BLDG. C",
+   "address": "1505 N CANYON RD, PROVO",
+   "lon": -111.657559,
+   "lat": 40.254526,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "123",
+   "name": "RIVIERA BLDG. D",
+   "address": "1505 N CANYON RD, PROVO",
+   "lon": -111.657559,
+   "lat": 40.254526,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "123",
+   "name": "RIVIERA BLDG. G",
+   "address": "1505 N CANYON RD, PROVO",
+   "lon": -111.657559,
+   "lat": 40.254526,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "123",
+   "name": "RIVIERA BLDG. L",
+   "address": "1505 N CANYON RD, PROVO",
+   "lon": -111.657559,
+   "lat": 40.254526,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "126",
+   "name": "RIVIERA BLDG. H",
+   "address": "1505 N CANYON RD., PROVO",
+   "lon": -111.657559,
+   "lat": 40.254526,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "126",
+   "name": "RIVIERA BLDG. I",
+   "address": "1505 N CANYON RD PROVO",
+   "lon": -111.657559,
+   "lat": 40.254526,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "126",
+   "name": "RIVIERA BLDG. J",
+   "address": "1505 N CANYON RD, PROVO",
+   "lon": -111.657559,
+   "lat": 40.254526,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "128",
+   "name": "WYVIEW BUILDING 1 (1-18)",
+   "address": "WYVIEW PARK",
+   "lon": -111.660016,
+   "lat": 40.261447,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "128",
+   "name": "WYVIEW BUILDING 2 (19-30)",
+   "address": "WYVIEW PARK",
+   "lon": -111.660016,
+   "lat": 40.261447,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "128",
+   "name": "WYVIEW BUILDING 3 (31-42)",
+   "address": "WYVIEW PARK",
+   "lon": -111.660016,
+   "lat": 40.261447,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "128",
+   "name": "WYVIEW BUILDING 4 (43-48)",
+   "address": "WYVIEW PARK",
+   "lon": -111.660016,
+   "lat": 40.261447,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "129",
+   "name": "WYVIEW BUILDING 10 (133-144)",
+   "address": "WYVIEW PARK",
+   "lon": -111.660016,
+   "lat": 40.261447,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "129",
+   "name": "WYVIEW BUILDING 6 (85-90)",
+   "address": "WYVIEW PARK",
+   "lon": -111.660016,
+   "lat": 40.261447,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "129",
+   "name": "WYVIEW BUILDING 7 (91-102)",
+   "address": "WYVIEW PARK",
+   "lon": -111.660016,
+   "lat": 40.261447,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "129",
+   "name": "WYVIEW BUILDING 8 (115-120)",
+   "address": "WYVIEW PARK",
+   "lon": -111.660016,
+   "lat": 40.261447,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "129",
+   "name": "WYVIEW BUILDING 9 (121-132)",
+   "address": "WYVIEW PARK",
+   "lon": -111.660016,
+   "lat": 40.261447,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "131",
+   "name": "RIVIERA BLDG. A",
+   "address": "1505 N CANYON RD, PROVO",
+   "lon": -111.657559,
+   "lat": 40.254526,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "131",
+   "name": "RIVIERA BLDG. E",
+   "address": "1505 N CANYON RD, PROVO",
+   "lon": -111.657559,
+   "lat": 40.254526,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "131",
+   "name": "RIVIERA BLDG. K (1st Floor) (120-123)",
+   "address": "1505 N CANYON RD PROVO",
+   "lon": -111.657559,
+   "lat": 40.254526,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "132",
+   "name": "RIVIERA BLDG. B (13-24)",
+   "address": "1505 N CANYON RD, PROVO",
+   "lon": -111.657559,
+   "lat": 40.254526,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "132",
+   "name": "RIVIERA BLDG. F",
+   "address": "1505 N CANYON RD, PROVO",
+   "lon": -111.657559,
+   "lat": 40.254526,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "132",
+   "name": "RIVIERA BLDG. K (2nd and 3rd Floors)(124-131)",
+   "address": "1505 N CANYON RD PROVO",
+   "lon": -111.657559,
+   "lat": 40.254526,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "164",
+   "name": "FREEHAND APARTMENT BUILDING",
+   "address": "1555 N CANYON RD, PROVO",
+   "lon": -111.657559,
+   "lat": 40.254526,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "161",
+   "name": "ALPINE VILLAGE BLDG. A (403-420, 511-514)",
+   "address": "1378 N FREEDOM BLVD PROVO",
+   "lon": -111.662371,
+   "lat": 40.252146,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "161",
+   "name": "ALPINE VILLAGE BLDG. C (429-438)",
+   "address": "1378 N FREEDOM BLVD. PROVO",
+   "lon": -111.662371,
+   "lat": 40.252146,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "161",
+   "name": "ALPINE VILLAGE BLDG. D (439-445)",
+   "address": "1378 N FREEDOM BLVD. PROVO",
+   "lon": -111.662371,
+   "lat": 40.252146,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "162",
+   "name": "ALPINE VILLAGE BLDG. C (327-338)",
+   "address": "1378 N FREEDOM BLVD, PROVO",
+   "lon": -111.662371,
+   "lat": 40.252146,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "162",
+   "name": "ALPINE VILLAGE BLDG. D (339-344)",
+   "address": "1378 N FREEDOM BLVD, PROVO",
+   "lon": -111.662371,
+   "lat": 40.252146,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "163",
+   "name": "ALPINE VILLAGE BLDG. A (204-222)",
+   "address": "1378 N FREEDOM BLVD, PROVO",
+   "lon": -111.662371,
+   "lat": 40.252146,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "163",
+   "name": "ALPINE VILLAGE BLDG. B (226-226)",
+   "address": "1378 N FREEDOM BLVD, PROVO",
+   "lon": -111.662371,
+   "lat": 40.252146,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "163",
+   "name": "ALPINE VILLAGE BLDG. C (227-238)",
+   "address": "1378 N FREEDOM BLVD., PROVO",
+   "lon": -111.662371,
+   "lat": 40.252146,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "163",
+   "name": "ALPINE VILLAGE BLDG. D (239-245)",
+   "address": "1378 N FREEDOM BLVD, PROVO",
+   "lon": -111.662371,
+   "lat": 40.252146,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "164",
+   "name": "ALPINE VILLAGE BLDG. A (100-117,201-203,301-303)",
+   "address": "1378 N FREEDOM BLVD., PROVO",
+   "lon": -111.662371,
+   "lat": 40.252146,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "164",
+   "name": "ALPINE VILLAGE BLDG. B (123-126)",
+   "address": "1378 N FREEDOM BLVD., PROVO",
+   "lon": -111.662371,
+   "lat": 40.252146,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "164",
+   "name": "ALPINE VILLAGE BLDG. C (127-138)",
+   "address": "1378 N FREEDOM BLVD, PROVO",
+   "lon": -111.662371,
+   "lat": 40.252146,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "9",
+   "ward": "164",
+   "name": "ALPINE VILLAGE BLDG. D (139-145)",
+   "address": "1378 N FREEDOM BLVD., PROVO",
+   "lon": -111.662371,
+   "lat": 40.252146,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "10",
+   "ward": "137",
+   "name": "BRANBURY APARTMENTS; BLDG 2; 108-110, 208-210, 308- 310",
+   "address": "425 W 1720 N PROVO",
+   "lon": -111.666401,
+   "lat": 40.256734,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "10",
+   "ward": "137",
+   "name": "BRANBURY APARTMENTS; BLDG 5; 101, 103-109, 201, 203-209, 301, 303-309",
+   "address": "450 W 1768 N PROVO",
+   "lon": -111.66685,
+   "lat": 40.257377,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "10",
+   "ward": "137",
+   "name": "BRANBURY APARTMENTS; BLDG 6; 101, 103-109, 201, 203-209, 301, 303-309",
+   "address": "450 W 1772 N PROVO",
+   "lon": -111.666851,
+   "lat": 40.25743,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "10",
+   "ward": "139",
+   "name": "CINNAMON TREE (30-61)",
+   "address": "1285 N 200 W PROVO",
+   "lon": -111.662357,
+   "lat": 40.250904,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "10",
+   "ward": "140",
+   "name": "BRANBURY APARTMENTS; BLDG 2; 113, 114, 213, 214, 313, 314",
+   "address": "425 W 1720 N PROVO",
+   "lon": -111.666401,
+   "lat": 40.256734,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "10",
+   "ward": "140",
+   "name": "BRANBURY APARTMENTS; BLDG 4; 109-115, 209-215, 309- 315",
+   "address": "450 W 1732 N PROVO",
+   "lon": -111.666844,
+   "lat": 40.256896,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "10",
+   "ward": "140",
+   "name": "BRANBURY APARTMENTS; BLDG 7; 109-115, 209-215, 309- 315",
+   "address": "450 W 1724 N PROVO",
+   "lon": -111.666843,
+   "lat": 40.256789,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "10",
+   "ward": "144",
+   "name": "BRANBURY APARTMENTS; BLDG 2; 105-107, 205-207, 305- 307",
+   "address": "425 W 1720 N PROVO",
+   "lon": -111.666401,
+   "lat": 40.256734,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "10",
+   "ward": "144",
+   "name": "BRANBURY APARTMENTS; BLDG 4; 101-108, 201-208, 301- 308",
+   "address": "450 W 1732 N PROVO",
+   "lon": -111.666844,
+   "lat": 40.256896,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "10",
+   "ward": "144",
+   "name": "BRANBURY APARTMENTS; BLDG 7; 101-108, 201-208, 301- 308",
+   "address": "450 W 1724 N PROVO",
+   "lon": -111.666843,
+   "lat": 40.256789,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "10",
+   "ward": "145",
+   "name": "BRANBURY APARTMENTS; BLDG 1; 109-115, 209-215, 309- 315",
+   "address": "475 W 1720 N PROVO",
+   "lon": -111.667284,
+   "lat": 40.256738,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "10",
+   "ward": "145",
+   "name": "BRANBURY APARTMENTS; BLDG 2; 103, 104, 203, 204, 303, 304",
+   "address": "425 W 1720 N PROVO",
+   "lon": -111.666401,
+   "lat": 40.256734,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "10",
+   "ward": "145",
+   "name": "BRANBURY APARTMENTS; BLDG 3; 108-114, 208-214, 308- 314",
+   "address": "375 W 1720 N PROVO",
+   "lon": -111.665517,
+   "lat": 40.256729,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "10",
+   "ward": "146",
+   "name": "CINNAMON TREE (1-29)",
+   "address": "1285 N 200 W PROVO",
+   "lon": -111.662357,
+   "lat": 40.250904,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "10",
+   "ward": "147",
+   "name": "OLD MILL (113-120, 213-220, 313-320, 121-128, 221-228, 321-328)",
+   "address": "724 W 1720 N PROVO",
+   "lon": -111.671683,
+   "lat": 40.256761,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "166",
+   "name": "BEN-DICK ARMS BLDG 161 (APT 1-15)",
+   "address": "161 E 700 N PROVO",
+   "lon": -111.655886,
+   "lat": 40.243058,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "166",
+   "name": "TOWNSHIP",
+   "address": "747 N 200 E PROVO",
+   "lon": -111.655204,
+   "lat": 40.243682,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "166",
+   "name": "WINTER QUARTERS CONDOMINIUMS",
+   "address": "185 E 800 N, PROVO",
+   "lon": -111.655478,
+   "lat": 40.244391,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "166",
+   "name": "BEN-DICK ARMS BLDG 141 (APT 16-30)",
+   "address": "700 N 141/ 161 E PROVO",
+   "lon": -111.655886,
+   "lat": 40.243058,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "167",
+   "name": "BASEMENT",
+   "address": "890 N 50 E PROVO",
+   "lon": -111.657877,
+   "lat": 40.245606,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "167",
+   "name": "BLUE HOUSE",
+   "address": "99 E 800 N PROVO",
+   "lon": -111.656997,
+   "lat": 40.244399,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "167",
+   "name": "CABIN/CAVE",
+   "address": "870 N 50 E PROVO",
+   "lon": -111.657874,
+   "lat": 40.245339,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "167",
+   "name": "COURTSIDE",
+   "address": "948/958 N 50 E PROVO",
+   "lon": -111.657888,
+   "lat": 40.246514,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "167",
+   "name": "HARMONY SQUARE APARTMENTS (SINGLES)",
+   "address": "915 N 150 E PROVO",
+   "lon": -111.656114,
+   "lat": 40.24593,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "167",
+   "name": "IGLOO",
+   "address": "896 N 50 E PROVO",
+   "lon": -111.657878,
+   "lat": 40.245686,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "167",
+   "name": "MONSTER HOUSE",
+   "address": "918 N 50 E PROVO",
+   "lon": -111.657882,
+   "lat": 40.24598,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "167",
+   "name": "SOMERSET COMDOMINIUMS",
+   "address": "905 N 150 E PROVO",
+   "lon": -111.656113,
+   "lat": 40.245797,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "167",
+   "name": "TREE HOUSE",
+   "address": "902 N 50 E PROVO",
+   "lon": -111.657879,
+   "lat": 40.245766,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "167",
+   "name": "WHITE DUPLEX",
+   "address": "852 N 50 E PROVO",
+   "lon": -111.657871,
+   "lat": 40.245098,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "167",
+   "name": "WHITE GABLES & HOUSE",
+   "address": "897 N 150 E PROVO",
+   "lon": -111.656111,
+   "lat": 40.24569,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "168",
+   "name": "DEVONSHIRE",
+   "address": "34 E 700 N PROVO",
+   "lon": -111.65813,
+   "lat": 40.24307,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "168",
+   "name": "LIBERTY ON EIGHTH (WHITE HOUSE)",
+   "address": "39 E 700 N PROVO",
+   "lon": -111.658041,
+   "lat": 40.243069,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "168",
+   "name": "LIBERTY ON EIGHTH 'B' (NORTH HALL)",
+   "address": "745 N 100 E PROVO",
+   "lon": -111.656971,
+   "lat": 40.243665,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "169",
+   "name": "CHATSWORTH CONDOMINIUMS (NORTH)",
+   "address": "695 N 100 E PROVO",
+   "lon": -111.656963,
+   "lat": 40.242997,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "169",
+   "name": "NO NAME",
+   "address": "25 E 600 N APT 2 PROVO",
+   "lon": -111.658273,
+   "lat": 40.241735,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "169",
+   "name": "POWER HOUSE",
+   "address": "620 N UNIVERSITY AVE PROVO",
+   "lon": -111.658718,
+   "lat": 40.242004,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "169",
+   "name": "OLD ACADEMY- 104-109, 204-209",
+   "address": "600 N UNIVERSITY AVE PROVO",
+   "lon": -111.658714,
+   "lat": 40.241737,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "169",
+   "name": "OLD ACADEMY- 307-309",
+   "address": "600 N UNIVERSITY AVE PROVO",
+   "lon": -111.658714,
+   "lat": 40.241737,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "169",
+   "name": "CHATSWORTH CONDOMINIUMS",
+   "address": "665/681 N 100 E PROVO",
+   "lon": -111.656961,
+   "lat": 40.24281,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "170",
+   "name": "ACADEMY ARMS",
+   "address": "469 N 100 E PROVO",
+   "lon": -111.656927,
+   "lat": 40.239978,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "170",
+   "name": "APARTMENT AT BACK OF THE HOUSE",
+   "address": "441 N 100 E PROVO",
+   "lon": -111.656922,
+   "lat": 40.239605,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "170",
+   "name": "FERNWOOD CONDOS",
+   "address": "551 N 200 E PROVO",
+   "lon": -111.655173,
+   "lat": 40.241065,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "170",
+   "name": "THE LITTLE COVE",
+   "address": "500 N 155 E PROVO",
+   "lon": -111.65596,
+   "lat": 40.240388,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "170",
+   "name": "VORTEX",
+   "address": "520 N 100 E PROVO",
+   "lon": -111.656935,
+   "lat": 40.24066,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "170",
+   "name": "WHITE HOUSE",
+   "address": "89 E 400 N PROVO",
+   "lon": -111.65711,
+   "lat": 40.239058,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "170",
+   "name": "WINCHESTER MANOR",
+   "address": "121 E 500 N PROVO",
+   "lon": -111.656561,
+   "lat": 40.240391,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "171",
+   "name": "AVENUES- EAST",
+   "address": "851 N UNIVERSITY AVE PROVO",
+   "lon": -111.658754,
+   "lat": 40.245089,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "171",
+   "name": "AVENUES- NORTH",
+   "address": "851 N UNIVERSITY AVE PROVO",
+   "lon": -111.658754,
+   "lat": 40.245089,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "171",
+   "name": "AVENUES- SOUTH",
+   "address": "851 N UNIVERSITY AVE PROVO",
+   "lon": -111.658754,
+   "lat": 40.245089,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "171",
+   "name": "AVENUES- WEST",
+   "address": "851 N UNIVERSITY AVE PROVO",
+   "lon": -111.658754,
+   "lat": 40.245089,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "172",
+   "name": "ATWOOD HOUSE",
+   "address": "20 E 900 N PROVO",
+   "lon": -111.658409,
+   "lat": 40.245742,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "172",
+   "name": "BUNGALOW",
+   "address": "900 N UNIVERSITY AVE, PROVO",
+   "lon": -111.658762,
+   "lat": 40.245744,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "172",
+   "name": "CHANDELL CONDOMINIUMS",
+   "address": "883-899 N 50 E PROVO",
+   "lon": -111.657876,
+   "lat": 40.245512,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "172",
+   "name": "CORNER HOUSE",
+   "address": "12 E 900 N PROVO",
+   "lon": -111.65855,
+   "lat": 40.245743,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "172",
+   "name": "CARTER RIDGE",
+   "address": "942 N UNIVERSITY AVE PROVO",
+   "lon": -111.658769,
+   "lat": 40.246305,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "172",
+   "name": "DIAMAR APARTMENTS",
+   "address": "876 N UNIVERSITY AVE PROVO",
+   "lon": -111.658758,
+   "lat": 40.245423,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "172",
+   "name": "OAK KNOLL APARTMENTS",
+   "address": "25 E 900 N PROVO",
+   "lon": -111.65832,
+   "lat": 40.245741,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "172",
+   "name": "AMANDA KNIGHT HALL (L01, 101-103)",
+   "address": "42 E 800 N PROVO",
+   "lon": -111.658004,
+   "lat": 40.244404,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "172",
+   "name": "AMANDA KNIGHT HALL",
+   "address": "42 E 800 N PROVO",
+   "lon": -111.658004,
+   "lat": 40.244404,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "173",
+   "name": "LIBERTY ON EIGHTH 'B' (SOUTH HALL)",
+   "address": "745 N 100 E, PROVO",
+   "lon": -111.656971,
+   "lat": 40.243665,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "173",
+   "name": "LIBERTY ON EIGHTH 'A' (ALL)",
+   "address": "745 N 100 E PROVO",
+   "lon": -111.656971,
+   "lat": 40.243665,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "173",
+   "name": "CAPITOL HOUSE",
+   "address": "30, 35 E 800 N PROVO",
+   "lon": -111.658128,
+   "lat": 40.244405,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "173",
+   "name": "LONDON MANOR",
+   "address": "820 N UNIVERSITY AVE PROVO",
+   "lon": -111.658749,
+   "lat": 40.244675,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "173",
+   "name": "LIBERTY ON EIGHTH 'D' (ALL)",
+   "address": "755 N 100 E PROVO",
+   "lon": -111.656972,
+   "lat": 40.243798,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "173",
+   "name": "HOUSE",
+   "address": "70 E 800 N PROVO",
+   "lon": -111.657509,
+   "lat": 40.244402,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "174",
+   "name": "LIBERTY ON EIGHTH 'C' (ALL)",
+   "address": "755 N 100 E PROVO",
+   "lon": -111.656972,
+   "lat": 40.243798,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "174",
+   "name": "ATRIUM",
+   "address": "770 N UNIVERSITY AVE PROVO",
+   "lon": -111.658741,
+   "lat": 40.244007,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "174",
+   "name": "LA CASA",
+   "address": "706 N UNIVERSITY AVE PROVO",
+   "lon": -111.658731,
+   "lat": 40.243153,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "174",
+   "name": "LIBERTY ON EIGHTH 'W' (ALL)",
+   "address": "745 N 100 E PROVO",
+   "lon": -111.656971,
+   "lat": 40.243665,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "175",
+   "name": "OLD ACADEMY- MEN'S SOUTH",
+   "address": "600 N UNIVERSITY AVE PROVO",
+   "lon": -111.658714,
+   "lat": 40.241737,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "175",
+   "name": "OLD ACADEMY- WOMEN'S EAST (1ST-4TH FLOORS)",
+   "address": "646 N UNIVERSITY AVE, PROVO",
+   "lon": -111.658722,
+   "lat": 40.242351,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "175",
+   "name": "OLD ACADEMY- WOMEN'S NORTH",
+   "address": "600 N UNIVERSITY AVE PROVO",
+   "lon": -111.658714,
+   "lat": 40.241737,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "175",
+   "name": "OLD ACADEMY- WOMEN'S WEST",
+   "address": "600 N UNIVERSITY AVE PROVO",
+   "lon": -111.658714,
+   "lat": 40.241737,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "175",
+   "name": "OLD ACADEMY-MEN'S EAST (3RD/4TH FLOORS)",
+   "address": "600 N 51 E, PROVO",
+   "lon": -111.657813,
+   "lat": 40.241732,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "175",
+   "name": "OLD ACADEMY- 407-409",
+   "address": "600 N UNIVERSITY AVE PROVO",
+   "lon": -111.658714,
+   "lat": 40.241737,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "176",
+   "name": "ACADEMY HOUSE",
+   "address": "560 N 100 E PROVO",
+   "lon": -111.656941,
+   "lat": 40.241194,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "176",
+   "name": "CAMPUS WAY APARTMENTS",
+   "address": "580 N 100 E, PROVO",
+   "lon": -111.656945,
+   "lat": 40.241461,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "177",
+   "name": "NO NAME",
+   "address": "635 N 100 E APT 2 PROVO",
+   "lon": -111.656953,
+   "lat": 40.242195,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "177",
+   "name": "BOSTONIAN",
+   "address": "591 N 200 E PROVO",
+   "lon": -111.65518,
+   "lat": 40.241599,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "177",
+   "name": "IVY HOUSE AND IVY HOUSE BASEMENT",
+   "address": "162 E 600 N PROVO",
+   "lon": -111.655852,
+   "lat": 40.241722,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "177",
+   "name": "BRITTANY",
+   "address": "700 N 190-196 E PROVO",
+   "lon": -111.655374,
+   "lat": 40.243055,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "177",
+   "name": "ALLRED APARTMENTS",
+   "address": "700 N 150 E PROVO",
+   "lon": -111.65608,
+   "lat": 40.243059,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "177",
+   "name": "BROCKBANK",
+   "address": "682, 684 N 100 E PROVO",
+   "lon": -111.656961,
+   "lat": 40.24285,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "177",
+   "name": "CAPRI",
+   "address": "630 N 100 E PROVO",
+   "lon": -111.656952,
+   "lat": 40.242129,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "177",
+   "name": "CORNER HOUSE",
+   "address": "107 E 600 N PROVO",
+   "lon": -111.656824,
+   "lat": 40.241727,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "177",
+   "name": "THE GOV",
+   "address": "645 N 100 E PROVO",
+   "lon": -111.656955,
+   "lat": 40.242329,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "12",
+   "ward": "177",
+   "name": "THE TAJ",
+   "address": "631 N 100 E PROVO",
+   "lon": -111.656953,
+   "lat": 40.242142,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "181",
+   "name": "LIBERTY ON FREEDOM (BLDG. 4, 5, AND EAST HALF OF 8)",
+   "address": "855/865 N 160 W PROVO",
+   "lon": -111.661583,
+   "lat": 40.245291,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "181",
+   "name": "UNIVERSITY STUDIOS",
+   "address": "98 W 880 N PROVO",
+   "lon": -111.66049,
+   "lat": 40.245485,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "182",
+   "name": "CAMPUS VILLA",
+   "address": "182 W 960 N PROVO",
+   "lon": -111.661987,
+   "lat": 40.246561,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "182",
+   "name": "HEATHER HEIGHTS",
+   "address": "72 W 880 N PROVO",
+   "lon": -111.660031,
+   "lat": 40.245483,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "182",
+   "name": "LIBERTY ON FREEDOM (BLDG. 7, AND WEST HALF OF 8)",
+   "address": "855/865 N 160 W PROVO",
+   "lon": -111.661583,
+   "lat": 40.245291,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "182",
+   "name": "PIONEER HOUSE",
+   "address": "880 N 80 W PROVO",
+   "lon": -111.660172,
+   "lat": 40.245484,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "182",
+   "name": "YOUNG HOUSE",
+   "address": "75 W 960 N PROVO",
+   "lon": -111.660097,
+   "lat": 40.246552,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "183",
+   "name": "LA JOLLA",
+   "address": "947/949 N UNIVERSITY AVE PROVO",
+   "lon": -111.65877,
+   "lat": 40.246398,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "183",
+   "name": "LIBERTY ON FREEDOM (BLDG. 1, 6, AND 11)",
+   "address": "855/865 N 160 W PROVO",
+   "lon": -111.661583,
+   "lat": 40.245291,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "184",
+   "name": "LIBERTY ON FREEDOM (BLDG. 2, 3, 9, AND 10)",
+   "address": "855/865 N 160 W PROVO",
+   "lon": -111.661583,
+   "lat": 40.245291,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "185",
+   "name": "BARNETT HOUSE",
+   "address": "62 W 800 N ST PROVO",
+   "lon": -111.659842,
+   "lat": 40.244414,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "185",
+   "name": "BLUE HOUSE",
+   "address": "80 W 800 N ST PROVO",
+   "lon": -111.66016,
+   "lat": 40.244415,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "185",
+   "name": "FOXWOOD I (N AND NW SIDE CONDOS 105-108, 205- 208)",
+   "address": "51 W 880 N PROVO",
+   "lon": -111.65966,
+   "lat": 40.245481,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "185",
+   "name": "FOXWOOD I (NE SIDE)",
+   "address": "25 W 880 N PROVO",
+   "lon": -111.659201,
+   "lat": 40.245479,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "185",
+   "name": "FOXWOOD II",
+   "address": "830/840 N 100 W PROVO",
+   "lon": -111.660519,
+   "lat": 40.244951,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "185",
+   "name": "POOL HOUSE",
+   "address": "90 W 800 N ST PROVO",
+   "lon": -111.660336,
+   "lat": 40.244416,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "186",
+   "name": "GRANDVIEW MANOR (SINGLE)",
+   "address": "1799/1801 N 950 W PROVO",
+   "lon": -111.675689,
+   "lat": 40.257863,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "186",
+   "name": "OLD MILL (101-112, 129-132, 201-212, 229-232, 301- 312, 329-332)",
+   "address": "724/726 W 1720 N PROVO",
+   "lon": -111.671719,
+   "lat": 40.256761,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "187",
+   "name": "CANTERWOOD",
+   "address": "933/935 N UNIVERSITY AVE PROVO",
+   "lon": -111.658768,
+   "lat": 40.246211,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "187",
+   "name": "COLLEGE PLACE WOODLAND",
+   "address": "36 W 880 N UNIVERSITY AVE PROVO",
+   "lon": -111.659395,
+   "lat": 40.24548,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "188",
+   "name": "CARRIAGE COVE (BLDG. 1)",
+   "address": "606 W 1720 N PROVO",
+   "lon": -111.669598,
+   "lat": 40.25675,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "188",
+   "name": "CARRIAGE COVE (BLDG. 10: 137-140, 237-240, 337- 340)",
+   "address": "606 W 1720 N PROVO",
+   "lon": -111.669598,
+   "lat": 40.25675,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "188",
+   "name": "CARRIAGE COVE (BLDG. 2: 105, 106, 205, 206, 305, 306)",
+   "address": "606 W 1720 N PROVO",
+   "lon": -111.669598,
+   "lat": 40.25675,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "188",
+   "name": "CARRIAGE COVE (BLDG. 9: 135, 136, 235, 236, 335, 336)",
+   "address": "606 W 1720 N PROVO",
+   "lon": -111.669598,
+   "lat": 40.25675,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "189",
+   "name": "CAMPUS EDGE",
+   "address": "1305 N CANYON RD PROVO",
+   "lon": -111.657559,
+   "lat": 40.254526,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "189",
+   "name": "TIKI HOUSE",
+   "address": "60 W 800 N PROVO",
+   "lon": -111.659806,
+   "lat": 40.244414,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "190",
+   "name": "CARRIAGE COVE (BLDG. 4, BLDG. 5, BLDG. 6, BLDG. 7)",
+   "address": "606 W 1720 N PROVO",
+   "lon": -111.669598,
+   "lat": 40.25675,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "191",
+   "name": "MOUNTAINWOOD",
+   "address": "36-62 W 700 N PROVO",
+   "lon": -111.659366,
+   "lat": 40.243076,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "191",
+   "name": "HOUSES WITHIN 100 E AND UNIVERSITY, 700 N AND 800 N",
+   "address": "606 W 1720 N PROVO",
+   "lon": -111.669598,
+   "lat": 40.25675,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "13",
+   "ward": "192",
+   "name": "CARRIAGE COVE (BLDG. 3, BLDG. 8, BLDG. 2 EAST, BLDG. 9 EAST)",
+   "address": "606 W 1720 N PROVO",
+   "lon": -111.669598,
+   "lat": 40.25675,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "196",
+   "name": "FLEUR-DE-LIS (201-305)",
+   "address": "275 N 300 E PROVO",
+   "lon": -111.653363,
+   "lat": 40.237369,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "196",
+   "name": "GOLDSTONE CONDOMINIUMS",
+   "address": "261 N 400 E PROVO",
+   "lon": -111.651594,
+   "lat": 40.237173,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "197",
+   "name": "SUMMERHAYS",
+   "address": "620 N 100 W PROVO",
+   "lon": -111.660484,
+   "lat": 40.242013,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "199",
+   "name": "LA CASA GRANDE",
+   "address": "445 N 300 E PROVO",
+   "lon": -111.65339,
+   "lat": 40.23964,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "199",
+   "name": "MELBOURNE SQUARE APTS",
+   "address": "460/470 N 100 E PROVO",
+   "lon": -111.656927,
+   "lat": 40.239992,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "199",
+   "name": "SIERRA",
+   "address": "241/243 E 400 N PROVO",
+   "lon": -111.65439,
+   "lat": 40.239044,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "199",
+   "name": "SUMMERLYN",
+   "address": "239 E 300 N PROVO",
+   "lon": -111.654444,
+   "lat": 40.237709,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "200",
+   "name": "BOUNTIFUL COURT APTS",
+   "address": "185 E 300 N PROVO",
+   "lon": -111.655398,
+   "lat": 40.237714,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "201",
+   "name": "APPLEWOOD",
+   "address": "535 N 400 E PROVO",
+   "lon": -111.651637,
+   "lat": 40.240833,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "201",
+   "name": "BANBRIDGE SQUARE (1,4,5,8,9,12)",
+   "address": "300 E 584 N PROVO",
+   "lon": -111.653412,
+   "lat": 40.241496,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "201",
+   "name": "BANBRIDGE SQUARE (2, 3, 6, 7, 10, 11)",
+   "address": "584 N 300 E, PROVO",
+   "lon": -111.653412,
+   "lat": 40.241496,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "201",
+   "name": "MANAVU MANOR",
+   "address": "585 N 400 E PROVO",
+   "lon": -111.651645,
+   "lat": 40.241501,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "201",
+   "name": "MOON G",
+   "address": "657 N 400 E PROVO",
+   "lon": -111.651657,
+   "lat": 40.242462,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "203",
+   "name": "BRITTANY B (APTS 5B-12B)",
+   "address": "500 N 280 E PROVO",
+   "lon": -111.653752,
+   "lat": 40.240376,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "203",
+   "name": "GLENHAVEN APARTMENTS",
+   "address": "340 E 600 N PROVO",
+   "lon": -111.652708,
+   "lat": 40.241706,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "203",
+   "name": "MONSON (APTS 1, 2, 3, 6, 7, 8, 11, 12, 13)",
+   "address": "345 E 500 N PROVO",
+   "lon": -111.652603,
+   "lat": 40.24037,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "203",
+   "name": "MONSON (APTS 4,5,9,10,14,15)",
+   "address": "345 E 500 N PROVO",
+   "lon": -111.652603,
+   "lat": 40.24037,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "206",
+   "name": "BAY TERRACE",
+   "address": "139 E 400 N PROVO",
+   "lon": -111.656227,
+   "lat": 40.239053,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "206",
+   "name": "NELSON APARTMENTS",
+   "address": "258/284 N 200 E PROVO",
+   "lon": -111.655131,
+   "lat": 40.237499,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "206",
+   "name": "STONEBRIDGE",
+   "address": "151 E 300 N PROVO",
+   "lon": -111.655999,
+   "lat": 40.237717,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "14",
+   "ward": "206",
+   "name": "WINDGATE CONDOMINIUMS",
+   "address": "387 N 200 E PROVO",
+   "lon": -111.655147,
+   "lat": 40.238874,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "93",
+   "name": "PINECREST",
+   "address": "432 N 500 E, Provo, UT 84606",
+   "lon": -111.649854,
+   "lat": 40.239448,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "93",
+   "name": "GREEN GABLES",
+   "address": "488 N 400 E, Provo, UT 84606",
+   "lon": -111.65163,
+   "lat": 40.240205,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "93",
+   "name": "REYNOLD'S CONDOS",
+   "address": "466 N 400 E, Provo, UT 84606",
+   "lon": -111.651626,
+   "lat": 40.239911,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "93",
+   "name": "BROOKVIEW",
+   "address": "442 N 400 E, Provo, UT 84606",
+   "lon": -111.651622,
+   "lat": 40.239591,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "93",
+   "name": "CASTILE",
+   "address": "419 N 500 E, Provo, UT 84606",
+   "lon": -111.649852,
+   "lat": 40.239275,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "93",
+   "name": "MARIN",
+   "address": "442 N 500 E PROVO",
+   "lon": -111.649856,
+   "lat": 40.239582,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "98",
+   "name": "COLONY APARTMENTS (SOUTH OF POOL)",
+   "address": "320-426 N 750 E PROVO",
+   "lon": -111.64542,
+   "lat": 40.23793,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "99",
+   "name": "LA COSTA CONDOS",
+   "address": "621 E 420 N St, Provo, UT 84606",
+   "lon": -111.647715,
+   "lat": 40.239277,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "99",
+   "name": "THE GATSBY HOUSE",
+   "address": "628 E 420 N St, Provo, UT 84606",
+   "lon": -111.647591,
+   "lat": 40.239276,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "99",
+   "name": "THE AMARILLA",
+   "address": "688 E 500 N, Provo, UT 84606",
+   "lon": -111.646543,
+   "lat": 40.240339,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "99",
+   "name": "HEATHER COVE",
+   "address": "645 E 600 N PROVO",
+   "lon": -111.647319,
+   "lat": 40.241679,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "99",
+   "name": "LA VISTA",
+   "address": "611 N 700 E, Provo, UT 84606",
+   "lon": -111.646349,
+   "lat": 40.241821,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "100",
+   "name": "CHALET CHOCOLAT",
+   "address": "519 E 400 N PROVO",
+   "lon": -111.649513,
+   "lat": 40.239019,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "100",
+   "name": "GARRARD",
+   "address": "560 E 400 N, Provo, UT 84606",
+   "lon": -111.648789,
+   "lat": 40.239015,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "100",
+   "name": "EAST POINTE (NORTH)",
+   "address": "274 N 500 E, Provo, UT 84606",
+   "lon": -111.649829,
+   "lat": 40.237338,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "100",
+   "name": "EAST POINTE (SOUTH)",
+   "address": "240 N 500 E PROVO",
+   "lon": -111.649824,
+   "lat": 40.236884,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "227",
+   "name": "MOUNTAIN VISTA",
+   "address": "885 E 350 N, Provo, UT 84606",
+   "lon": -111.643039,
+   "lat": 40.238318,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "228",
+   "name": "HALLADAY APARTMENTS",
+   "address": "800 E Center St, Provo, UT 84606",
+   "lon": -111.644485,
+   "lat": 40.233652,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "228",
+   "name": "EVERGREEN PLACE CONDOS",
+   "address": "45 S 850 E St, Provo, UT 84606",
+   "lon": -111.643595,
+   "lat": 40.233046,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "228",
+   "name": "BRITTANY APARTMENTS",
+   "address": "720 E Center St, Provo, UT 84606",
+   "lon": -111.645899,
+   "lat": 40.233659,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "228",
+   "name": "SOUTH POINTE",
+   "address": "856 E 300 S, Provo, UT 84606",
+   "lon": -111.643448,
+   "lat": 40.22964,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "228",
+   "name": "DEAN CONST RENTALS",
+   "address": "818 E 300 S, Provo, UT 84606",
+   "lon": -111.64412,
+   "lat": 40.229643,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "228",
+   "name": "SIERRA RIDGE",
+   "address": "111 S 1000 E ST PROVO",
+   "lon": -111.640934,
+   "lat": 40.232151,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "228",
+   "name": "VANTAGE POINT WASATCH BEHAVIORAL HEALTH",
+   "address": "1193 E 300 N, Provo, UT 84606",
+   "lon": -111.63759,
+   "lat": 40.237623,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "228",
+   "name": "VISTA RIDGE APARTMENTS",
+   "address": "80 S 900 E PROVO",
+   "lon": -111.642706,
+   "lat": 40.232574,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "228",
+   "name": "APARTMENTS",
+   "address": "1000 E CENTER ST PROVO",
+   "lon": -111.640952,
+   "lat": 40.233633,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "228",
+   "name": "STONECREST AT SEVEN PEAKS",
+   "address": "1020 E CENTER ST PROVO",
+   "lon": -111.640599,
+   "lat": 40.233632,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "228",
+   "name": "THE PEAKS APARTMENTS",
+   "address": "948 E CENTER ST PROVO",
+   "lon": -111.641871,
+   "lat": 40.233638,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "228",
+   "name": "APARTMENTS",
+   "address": "995 E CENTER ST PROVO",
+   "lon": -111.64104,
+   "lat": 40.233634,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "228",
+   "name": "ARLINGTON APARTMENTS",
+   "address": "816 E 300 S PROVO",
+   "lon": -111.644155,
+   "lat": 40.229643,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "228",
+   "name": "APARTMENTS",
+   "address": "828-834 E 300 S PROVO",
+   "lon": -111.643943,
+   "lat": 40.229642,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "228",
+   "name": "APARTMENTS",
+   "address": "350 S 900 E PROVO",
+   "lon": -111.642663,
+   "lat": 40.228968,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "228",
+   "name": "APARTMENTS",
+   "address": "317-357 N 1080 E PROVO",
+   "lon": -111.639589,
+   "lat": 40.23786,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "229",
+   "name": "ROYAL OAK APARTMENTS TWO",
+   "address": "214 N 600 E",
+   "lon": -111.648053,
+   "lat": 40.236528,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "229",
+   "name": "LONE TREE APARTMENTS",
+   "address": "677 E 300 N, Provo, UT 84606",
+   "lon": -111.646706,
+   "lat": 40.237669,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "229",
+   "name": "OAK POINTE CONDOS",
+   "address": "351-399 N 700 E PROVO",
+   "lon": -111.646308,
+   "lat": 40.238348,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "229",
+   "name": "PEAY'S APARTMENTS",
+   "address": "30 N 700 E PROVO",
+   "lon": -111.646257,
+   "lat": 40.234061,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "232",
+   "name": "JODEL APARTMENTS",
+   "address": "1125 E 960 S, Provo, UT 84606",
+   "lon": -111.638591,
+   "lat": 40.220801,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "16",
+   "ward": "232",
+   "name": "SLATE CANYON APARTMENTS",
+   "address": "1125 E 1080 S, Provo, UT 84606",
+   "lon": -111.638572,
+   "lat": 40.219198,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "17",
+   "ward": "241",
+   "name": "BLUE RIDGE (2ND FLOOR)",
+   "address": "450 N 1050 E PROVO",
+   "lon": -111.64014,
+   "lat": 40.239639,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "17",
+   "ward": "241",
+   "name": "CENTENNIAL II",
+   "address": "450 N 1000 E PROVO",
+   "lon": -111.641023,
+   "lat": 40.239643,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "17",
+   "ward": "242",
+   "name": "QUICKSILVER",
+   "address": "602 N 800 E PROVO",
+   "lon": -111.644581,
+   "lat": 40.241691,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "17",
+   "ward": "243",
+   "name": "BLUE RIDGE (1ST FLOOR)",
+   "address": "450 N 1050 E PROVO",
+   "lon": -111.64014,
+   "lat": 40.239639,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "17",
+   "ward": "243",
+   "name": "BROWNSTONE",
+   "address": "450 N 1060 E PROVO",
+   "lon": -111.639963,
+   "lat": 40.239638,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "17",
+   "ward": "244",
+   "name": "COLLEGE PLACE PROVO NORTH TOWER (FLOORS 3,4,5,6)",
+   "address": "737 N 900 E PROVO",
+   "lon": -111.642836,
+   "lat": 40.243485,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "17",
+   "ward": "245",
+   "name": "SPARKS II",
+   "address": "450 N 999 E PROVO",
+   "lon": -111.641041,
+   "lat": 40.239643,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "17",
+   "ward": "246",
+   "name": "CENTENNIAL I (113-117, 119, 125-128, 213-217, 219, 225-228, 315-317, 325-328)",
+   "address": "380 N 1020 E PROVO",
+   "lon": -111.640659,
+   "lat": 40.238707,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "17",
+   "ward": "247",
+   "name": "CENTENNIAL I (101-105, 107, 109, 111, 201-205, 207, 209, 211, 301-305, 307, 309, 311)",
+   "address": "380 N 1020 E PROVO",
+   "lon": -111.640659,
+   "lat": 40.238707,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "17",
+   "ward": "248",
+   "name": "CENTENNIAL I (106, 108, 110, 112, 118, 120, 123, 124, 206, 208, 210, 212, 218, 220-224, 306, 308, 310, 312, 318, 321-324)",
+   "address": "380 N 1020 E PROVO",
+   "lon": -111.640659,
+   "lat": 40.238707,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "17",
+   "ward": "250",
+   "name": "ARCADIA",
+   "address": "450 N 1065 E PROVO",
+   "lon": -111.639875,
+   "lat": 40.239638,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "17",
+   "ward": "250",
+   "name": "BLUE RIDGE (3RD FLOOR)",
+   "address": "450 N 1050 E PROVO",
+   "lon": -111.64014,
+   "lat": 40.239639,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "17",
+   "ward": "251",
+   "name": "LANAI (BLDG A, B, C, H, J, K, L, F1-F3, G2, G3)",
+   "address": "380 N 1020 E PROVO",
+   "lon": -111.640659,
+   "lat": 40.238707,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "17",
+   "ward": "265",
+   "name": "COLLEGE PLACE PROVO SOUTH TOWER (FLOORS 3,4,5,6)",
+   "address": "737 N 900 E PROVO",
+   "lon": -111.642836,
+   "lat": 40.243485,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "17",
+   "ward": "265",
+   "name": "LANAI (BLDG D, E, F4)",
+   "address": "838 E 700 N PROVO",
+   "lon": -111.643925,
+   "lat": 40.242997,
+   "geocode": "grid",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "43",
+   "name": "HR 02 (1101, 1102, 1103)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "43",
+   "name": "HR 02 (1202, 1204, 1217)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "43",
+   "name": "HR 02 (3102, 3103, 3104, 3105)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "43",
+   "name": "HR 02 (3202, 3204, 3215, 3217)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "43",
+   "name": "HR 03 (1101, 1102, 1103, 1104)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "43",
+   "name": "HR 03 (1202, 1204, 1206, 1217, 1219)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "46",
+   "name": "HR 03 (3101, 3102, 3103, 3104, 3105)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "46",
+   "name": "HR 03 (3202, 3204, 3206, 3215, 3217, 3219)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "46",
+   "name": "HR 05 (1101, 1102, 1103, 1104)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "46",
+   "name": "HR 05 (1202, 1204, 1217)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "46",
+   "name": "HR 16 (1101, 1102, 1103, 1104)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "46",
+   "name": "HR 16 (1202, 1204, 1206, 1219)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "48",
+   "name": "HR 04 (1101, 1102, 1103, 1104)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "48",
+   "name": "HR 04 (1202, 1204, 1206, 1217, 1219)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "48",
+   "name": "HR 07 (1102, 1103, 1104)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "48",
+   "name": "HR 07 (1202, 1204, 1206, 1217, 1219)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "48",
+   "name": "HR 09 (1202, 1204, 1217)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "48",
+   "name": "HR 10 (1101, 11012, 1103, 1104)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "48",
+   "name": "HR 10 (1202, 1204, 1217)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "49",
+   "name": "HR 04 (3101, 3102, 3103, 3104, 3105)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "49",
+   "name": "HR 04 (3202, 3204, 3206, 3215, 3217, 3219)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "49",
+   "name": "HR 06 (1101, 1102, 1103, 1104, 1105)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "49",
+   "name": "HR 06 (1202, 1204, 1206)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "49",
+   "name": "HR 12 (1102, 1103, 1104, 1105, 1106)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "53",
+   "name": "HR 05 (3101, 3102, 3103, 3104)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "53",
+   "name": "HR 05, 3202, 3204, 3215, 3217)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "53",
+   "name": "HR 08 (1101, 1102, 1103, 1104)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "53",
+   "name": "HR 08 (1202, 1204, 1206, 1217, 1219)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "53",
+   "name": "HR 10 (3101, 3102, 3103, 3104, 3105)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "56",
+   "name": "HR 08 (3102, 3103, 3104, 3105)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "56",
+   "name": "HR 08 (3202, 3204, 3206, 3217, 3219)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "56",
+   "name": "HR 13 (1202, 1204, 1206, 1217, 1219)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "56",
+   "name": "HR 13 (3101, 3102, 3103, 3104, 3105)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "56",
+   "name": "HR 13 (3202, 3204, 3206, 3217, 3219)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "57",
+   "name": "HR 09 (1101, 1102, 1103, 1104)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "57",
+   "name": "HR 09 (3102, 3103, 3104, 3105)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "57",
+   "name": "HR 09 (3202, 3204, 3217)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "57",
+   "name": "HR 13 (1102, 1103, 1104)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "57",
+   "name": "HR 16 (3101, 3102, 3103, 3104, 3105)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "57",
+   "name": "HR 16 (3202, 3204, 3206, 3215, 3217, 3219)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "58",
+   "name": "HR 12 (1202, 1204, 1217)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "58",
+   "name": "HR 12 (3101, 3102, 3103, 3104, 3105, 3106, 3107)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "58",
+   "name": "HR 12 (3202, 3204, 3215, 3217)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "58",
+   "name": "HR 14 (1101, 1102, 1103, 1104, 1105)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "58",
+   "name": "HR 14 (1202, 1204, 1206, 1217, 1219)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "59",
+   "name": "HR 06 (3101, 3102, 3103, 3104, 3105)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "59",
+   "name": "HR 06 (3202, 3204, 3206, 3215, 3217, 3219)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "59",
+   "name": "HR 11 (3202, 3204, 3215, 3217)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "59",
+   "name": "HR 14 (3101, 3102, 3103, 3104, 3105)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "59",
+   "name": "HR 14 (3202, 3204, 3206, 3217, 3219)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "60",
+   "name": "HR 07 (3101, 3102, 3103, 3104, 3105)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "60",
+   "name": "HR 07 (3202, 3204, 3206, 3215, 3217, 3219)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "60",
+   "name": "HR 10 (3202, 3204, 3217)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "60",
+   "name": "HR 15 (1101, 1102, 1103, 1104)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "60",
+   "name": "HR 15 (1202, 1204, 1206, 1217, 1219)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "76",
+   "name": "HR 11 (1101, 1102, 1103, 1104)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "76",
+   "name": "HR 11 (1202, 1204, 1217)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "76",
+   "name": "HR 11 (3101, 3102, 3103, 3104, 3105)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "76",
+   "name": "HR 15 (3101, 3102, 3103, 3104, 3105)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "20",
+   "ward": "76",
+   "name": "HR 15 (3202, 3204, 3206, 3217, 3219)",
+   "address": "HERITAGE HALLS",
+   "lon": -111.64483,
+   "lat": 40.252713,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "108",
+   "name": "HINCKLEY HALL (3100)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "108",
+   "name": "HINCKLEY HALL (3200)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "108",
+   "name": "MERRILL HALL (3200)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "110",
+   "name": "HINCKLEY HALL (2002,2010)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "110",
+   "name": "HINCKLEY HALL (2100)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "110",
+   "name": "HINCKLEY HALL (2200)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "110",
+   "name": "MERRILL HALL (2200)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "114",
+   "name": "MERRILL HALL (1100)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "114",
+   "name": "CHIPMAN HALL (1100)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "114",
+   "name": "CHIPMAN HALL (1200)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "115",
+   "name": "MERRILL HALL (1200)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "115",
+   "name": "DAVID JOHN HALL (1200)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "115",
+   "name": "HINCKLEY HALL (1100)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "117",
+   "name": "MERRILL HALL (2002,2010)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "117",
+   "name": "MERRILL HALL (2100)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "117",
+   "name": "CHIPMAN HALL (2002,2010)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "117",
+   "name": "CHIPMAN HALL (2100)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "117",
+   "name": "CHIPMAN HALL (2200)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "118",
+   "name": "HELAMAN J (2002-2009) BLDG 9",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "118",
+   "name": "HELAMAN J (2100) BLDG 9",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "118",
+   "name": "HELAMAN J (2200) BLDG 9",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "118",
+   "name": "DAVID JOHN HALL (2200)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "119",
+   "name": "HELAMAN J (1100) BLDG 9",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "119",
+   "name": "HELAMAN J (1200) BLDG 9",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "119",
+   "name": "HINCKLEY HALL (1200)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "120",
+   "name": "DAVID JOHN HALL (3200)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "120",
+   "name": "HELAMAN J (3002-3009) BLDG 9",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "120",
+   "name": "HELAMAN J (3100) BLDG 9",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "120",
+   "name": "HELAMAN J (3200) BLDG 9",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "125",
+   "name": "MERRILL HALL (3100)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "125",
+   "name": "CHIPMAN HALL (3100)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "21",
+   "ward": "125",
+   "name": "CHIPMAN HALL (3200)",
+   "address": "HELAMAN HALLS",
+   "lon": -111.653714,
+   "lat": 40.252617,
+   "geocode": "name",
+   "married": false
+  },
+  {
+   "stake": "M4",
+   "ward": "M17",
+   "name": "WYVIEW BUILDING 18, 19, 20, 28, 29, 30",
+   "address": "WYVIEW PARK",
+   "lon": -111.660016,
+   "lat": 40.261447,
+   "geocode": "name",
+   "married": true
+  },
+  {
+   "stake": "M4",
+   "ward": "M24",
+   "name": "WYVIEW BUILDING 23,24,25,26,27",
+   "address": "WYVIEW PARK",
+   "lon": -111.660016,
+   "lat": 40.261447,
+   "geocode": "name",
+   "married": true
+  }
+ ]
+}

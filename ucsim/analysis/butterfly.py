@@ -13,6 +13,7 @@ import numpy as np
 from ..engine.state import CTX, Tie
 from .explain import event_chain, event_record
 from .person import headline, synthetic_name
+from ucsim.population.structure import ward_name
 
 SKIP = {"birth_day", "arrival_day", "departure_day", "loc_lon", "loc_lat", "home_lon", "home_lat"}
 # states whose change marks a visibly different life (label, weight)
@@ -361,7 +362,7 @@ def compare_places(base, alt, kind: str, var: str, min_n: int = 3) -> list[dict]
         if kind == "complex":
             g, names = P["complex_id"][:n], list(w.complexes["name"])
         elif kind == "ward":
-            g, names = P["ward_id"][:n], [f"{str(k).replace('_', ' ').upper()} ward #{j}" for j, k in enumerate(w.wards["kind"])]
+            g, names = P["ward_id"][:n], [ward_name(w.wards, j) for j in range(len(w.wards["kind"]))]
         elif kind == "neighborhood":
             g, names = P["neighborhood"][:n].astype(np.int64), list(P.specs["neighborhood"].categories)
         elif kind == "school":

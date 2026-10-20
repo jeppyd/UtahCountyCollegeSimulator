@@ -11,6 +11,7 @@ import re
 import numpy as np
 
 from ..analysis.person import FIRST_F, FIRST_M, LAST, headline
+from ucsim.population.structure import ward_name
 
 PLACE_KINDS = ("complex", "venue", "venue_type", "ward", "employer", "club", "team", "institute", "congregation", "major",
                "neighborhood", "city", "school")
@@ -101,7 +102,7 @@ class EntityIndex:
             if wn[i] == 0:
                 continue
             on = " (meets on campus)" if int(w.wards["meetinghouse"][i]) < 0 else ""
-            rows.append({"kind": "ward", "id": i, "label": f"{str(wk[i]).replace('_', ' ').upper() if str(wk[i]) in ('ysa', 'byu_ysa') else str(wk[i]).replace('_', ' ')} ward #{i}",
+            rows.append({"kind": "ward", "id": i, "label": ward_name(w.wards, i),
                          "sub": f"LDS ward{on} · {int(wn[i])} members", "n": int(wn[i]), "who": {"var": "ward_id", "op": "eq", "value": i}})
         E = w.employers
         en = self._counts("employer_id", len(E["type"]))

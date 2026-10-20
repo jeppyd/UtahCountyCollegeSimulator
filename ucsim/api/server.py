@@ -32,6 +32,7 @@ from ..engine import runner
 from ..engine.interventions import load_presets
 from ..engine.state import CTX, Tie
 from ..registry import get_registry
+from ucsim.population.structure import ward_name
 
 ROOT = Path(__file__).resolve().parents[2]
 WEB_DIST = ROOT / "web" / "dist"
@@ -1333,7 +1334,7 @@ def complexes(var: str = "loneliness", u: str = "base", min_n: int = 3):
         out = []
         for k in np.where(n >= min_n)[0]:
             row = {"id": int(k), "name": cx["name"][int(k)], "lon": float(cx["lon"][int(k)]), "lat": float(cx["lat"][int(k)]),
-                   "n": int(n[k]), "mean": float(s[k] / n[k]), "kind": cx["kind"][int(k)],
+                   "name": ward_name(w.wards, k), "n": int(n[k]), "mean": float(s[k] / n[k]), "kind": cx["kind"][int(k)],
                    "contracted": bool(cx["contracted"][int(k)])}
             C = w.meta.get("culture")
             if C is not None:
@@ -1368,7 +1369,7 @@ def wards(var: str = "attend_rate", u: str = "base"):
         n = np.bincount(wid, minlength=nw)
         s = np.bincount(wid, weights=np.nan_to_num(P[var][pres].astype(float)), minlength=nw)
         return jresp([{"id": k, "kind": str(w.wards["kind"][k]), "lon": float(w.wards["lon"][k]), "lat": float(w.wards["lat"][k]),
-                       "n": int(n[k]), "mean": float(s[k] / max(n[k], 1))} for k in range(nw) if n[k] > 0])
+                       "name": ward_name(w.wards, k), "n": int(n[k]), "mean": float(s[k] / max(n[k], 1))} for k in range(nw) if n[k] > 0])
 
 
 INSTITUTION_VARS = ["age", "mood", "loneliness", "stress", "belonging", "faith_belief", "attend_rate", "n_friends",
@@ -1385,7 +1386,7 @@ def institution(kind: str, iid: int, u: str = "base"):
             name = w.complexes["name"][iid]
         elif kind == "ward":
             mask = P["ward_id"] == iid
-            name = f"{w.wards['kind'][iid].replace('_', ' ').upper()} ward #{iid}"
+            name = ward_name(w.wards, iid)
         elif kind == "employer":
             mask = P["employer_id"] == iid
             name = str(w.employers["name"][iid])

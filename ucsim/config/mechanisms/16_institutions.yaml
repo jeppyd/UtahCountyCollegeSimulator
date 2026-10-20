@@ -18,7 +18,7 @@ mechanisms:
     label: Ward activities and the bishop's interview hours
     target: [social_events_month, bishop_meetings]
     sources: [attend_rate, ward_activity_rate]
-    form: "a monthly activity (with food while the budget lasts) and a quarterly service project; the bishop has bishop_hours × 3 twenty-minute slots a week, other_interviews of them taken by temple-recommend, calling and youth interviews; the rest go first come first served"
+    form: "a monthly activity (with food while the budget lasts) and a quarterly service project; members who ask to meet the bishop are seen that week (no queue: bishops make time); bishop_hours and other_interviews are kept for reference only"
     params:
       budget: {value: 400, range: [0, 3000]}
       activity_cost: {value: 80, range: [20, 300]}

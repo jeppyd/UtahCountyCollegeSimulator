@@ -33,6 +33,7 @@ from ..ledger import CHANNEL_ID, Table
 from ..provenance import link
 from ..state import EdgeStore
 from ucsim.population.structure import ward_name
+from .. import fast
 
 KINDS = ("household", "friends", "club", "team", "ward", "family")
 KIND_ID = {k: i for i, k in enumerate(KINDS)}
@@ -619,16 +620,7 @@ class Messaging:
         wt = E["closeness"][eidx[: len(src)]].astype(float)
         ok = pres[src] & pres[dst]
         src, dst, wt = src[ok], dst[ok], wt[ok]
-        for _ in range(6):
-            s = np.r_[src, np.arange(n)]
-            l_ = np.r_[lab[dst], lab]
-            ww = np.r_[wt, np.full(n, 0.5)]
-            key, inv = np.unique(s * n + l_, return_inverse=True)
-            tot = np.bincount(inv.ravel(), weights=ww)
-            node, cand = key // n, key % n
-            order = np.lexsort((cand, -tot, node))
-            first = np.unique(node[order], return_index=True)[1]
-            lab[node[order][first]] = cand[order][first]
+        lab = fast.label_propagation(n, src, dst, wt, lab, iters=6, self_w=0.5)
         lab[~pres | (np.diff(indptr)[:n] < 2)] = -1
         return lab
 

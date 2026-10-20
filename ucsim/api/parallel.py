@@ -14,6 +14,8 @@ from __future__ import annotations
 import multiprocessing as mp
 import os
 import pickle
+import queue
+import threading
 import time
 import traceback
 
@@ -76,14 +78,20 @@ def _serve(conn):
 
 
 class AltWorker:
-    """A persistent worker process for the What-if world (started on first use, reused across runs)."""
+    """A persistent worker process for the What-if world (started on first use, reused across runs).
+
+    Messages go out through a sender thread (a large world never blocks the caller while the worker reads it);
+    replies are read under `self.lock`, so the run loop and a request that takes the What-if back can both use it."""
 
     def __init__(self):
         self.proc = None
         self.conn = None
-        self.busy = False          # a step was sent and not yet collected
-        self.pending = 0           # replies to collect before the next step's (an asynchronous load)
+        self.lock = threading.Lock()
+        self.busy = False          # a step was sent and its reply not yet read
+        self.pending = 0           # replies to read before that one (an asynchronous load)
+        self.last = None           # the last step's reply, for a caller whose step someone else collected
         self.last_handover_s = None
+        self._q = None
 
     def _ensure(self):
         if self.proc is not None and self.proc.is_alive():
@@ -93,6 +101,22 @@ class AltWorker:
         self.proc = ctx.Process(target=_serve, args=(b,), name="ucsim-whatif", daemon=True)
         self.proc.start()
         self.conn = a
+        self._q = queue.Queue()
+        threading.Thread(target=self._sender, args=(a, self._q), daemon=True).start()
+
+    @staticmethod
+    def _sender(conn, q):
+        while True:
+            kind, item = q.get()
+            if kind == "stop":
+                return
+            try:
+                conn.send_bytes(item) if kind == "bytes" else conn.send(item)
+            except Exception:  # noqa: BLE001  (the worker is gone: the reader sees it)
+                return
+
+    def _send(self, msg):
+        self._q.put(("obj", msg))
 
     def _reply(self):
         r = self.conn.recv()
@@ -100,57 +124,67 @@ class AltWorker:
             raise RuntimeError(f"the What-if worker failed: {r[1]}\n{r[2]}")
         return r[1]
 
+    def _collect(self):
+        """Read outstanding replies (under self.lock)."""
+        while self.pending:
+            self.pending -= 1
+            self._reply()
+        if self.busy:
+            self.last = self._reply()
+            self.busy = False
+
     def load(self, sim, wait: bool = True) -> None:
         """Send the world to the worker. With wait=False the worker unpacks it while this process gets on with the
         Original's day; the next `wait()` collects both replies."""
-        self._ensure()
-        t = time.perf_counter()
-        blob = pickle.dumps(sim, protocol=pickle.HIGHEST_PROTOCOL)
-        self.conn.send(("load",))
-        self.conn.send_bytes(blob)
-        del blob
-        if wait:
-            self._reply()
-        else:
+        with self.lock:
+            self._ensure()
+            blob = pickle.dumps(sim, protocol=pickle.HIGHEST_PROTOCOL)
+            self._send(("load",))
+            self._q.put(("bytes", blob))
+            del blob
             self.pending += 1
-        self._sent_s = time.perf_counter() - t
+            if wait:
+                self._collect()
 
     def step_async(self, target_day: int) -> None:
-        self.conn.send(("step", int(target_day)))
-        self.busy = True
+        with self.lock:
+            self._send(("step", int(target_day)))
+            self.busy = True
 
     def wait(self) -> tuple[int, float]:
         """(the What-if's day, seconds its step took) once the step sent by `step_async` is done."""
-        try:
-            while self.pending:
-                self.pending -= 1
-                self._reply()
-            return self._reply()
-        finally:
-            self.busy = False
+        with self.lock:
+            self._collect()
+            return self.last
 
     def fetch(self):
-        """A copy of the worker's world as it is now (the worker keeps going with its own)."""
-        t = time.perf_counter()
-        self.conn.send(("dump",))
-        self._reply()
-        sim = pickle.loads(self.conn.recv_bytes())
-        self.last_handover_s = time.perf_counter() - t
-        return sim
+        """A copy of the worker's world as it is now (after any step in flight; the worker keeps its own)."""
+        with self.lock:
+            self._collect()
+            t = time.perf_counter()
+            self._send(("dump",))
+            self._reply()
+            sim = pickle.loads(self.conn.recv_bytes())
+            self.last_handover_s = time.perf_counter() - t
+            return sim
 
     def drop(self) -> None:
-        if self.proc is not None and self.proc.is_alive():
-            self.conn.send(("drop",))
-            self._reply()
+        with self.lock:
+            if self.proc is not None and self.proc.is_alive():
+                self._collect()
+                self._send(("drop",))
+                self._reply()
 
     def close(self) -> None:
-        if self.proc is not None and self.proc.is_alive():
-            try:
-                self.conn.send(("quit",))
-                self.conn.recv()
-            except Exception:  # noqa: BLE001
-                pass
-            self.proc.join(timeout=5)
-            if self.proc.is_alive():
-                self.proc.terminate()
-        self.proc = None
+        with self.lock:
+            if self.proc is not None and self.proc.is_alive():
+                try:
+                    self._send(("quit",))
+                    self.proc.join(timeout=5)
+                except Exception:  # noqa: BLE001
+                    pass
+                if self.proc.is_alive():
+                    self.proc.terminate()
+            if self._q is not None:
+                self._q.put(("stop", None))
+            self.proc = None

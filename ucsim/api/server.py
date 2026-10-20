@@ -156,7 +156,7 @@ class Workspace:
         if self._par_on:                  # replaced (a new What-if, or none): the worker's copy is no longer needed
             self._par_on = False
             self._par.drop()
-            self._par_cool = parallel.COOLDOWN_DAYS
+        self._par_cool = 0                # a new What-if gets a fresh chance at the second core
         self._alt = sim
 
     @property
@@ -178,7 +178,12 @@ class Workspace:
     def _par_start(self):
         if self._par is None:
             self._par = parallel.AltWorker()
-        self._par.load(self._alt, wait=False)       # unpacked there while this process steps the Original
+        try:
+            self._par.load(self._alt, wait=False)   # unpacked there while this process steps the Original
+        except Exception:  # noqa: BLE001  (something in the What-if can't be copied: stay in one process)
+            traceback.print_exc()
+            self._par_cool = 10 ** 9
+            return
         self._par_on = True
         self._par_wanted = False
         self._par_copy_t = time.time()
@@ -263,17 +268,10 @@ class Workspace:
                         world = "What-if"
                         self._par_start()               # hand the What-if to the second core for this run
                         world = "Original"
-                    if self._par_on:
+                    par_step = self._par_on
+                    if par_step:
                         self._par.step_async(self.base.w.day + 1)
                         self.base.step_day()
-                        world = "What-if"
-                        _, a_s = self._par.wait()
-                        self._alt_day_s = a_s if self._alt_day_s is None else 0.7 * self._alt_day_s + 0.3 * a_s
-                        # refresh the pages' copy when someone is looking, at most every few seconds (and never so often
-                        # that copying takes more than a fifth of the time)
-                        gap = max(8.0, 5 * (self._par.last_handover_s or 1.0))
-                        if self._par_wanted and time.time() - self._par_copy_t >= gap:
-                            self._par_refresh()
                         self.compare_cache = None
                         alt = None
                     else:
@@ -290,6 +288,19 @@ class Workspace:
                         if self.base.w.day % 3 == 0 or days <= 14:
                             self.divergence.append(runner.divergence(self.base, alt))
                     self.compare_cache = None
+                if par_step:
+                    # the What-if finishes its day on the second core; pages are answered meanwhile (they read the
+                    # Original's finished day and the pages' copy of the What-if)
+                    world = "What-if"
+                    _, a_s = self._par.wait()
+                    self._alt_day_s = a_s if self._alt_day_s is None else 0.7 * self._alt_day_s + 0.3 * a_s
+                    with self.lock:
+                        # refresh the pages' copy when someone is looking, at most every few seconds (and never so
+                        # often that copying takes more than a fifth of the time)
+                        gap = max(8.0, 5 * (self._par.last_handover_s or 1.0))
+                        if self._par_on and self._par_wanted and time.time() - self._par_copy_t >= gap:
+                            self._par_refresh()
+                        self.compare_cache = None
                 self.job.update(progress=k + 1, updated=time.time(), day_seconds=round(time.time() - t_day, 2))
                 # the pace can change while time runs (the speed buttons): read it fresh every day
                 pace = float(self.job.get("pace", pace) or 0.0)

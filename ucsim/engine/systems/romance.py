@@ -333,18 +333,20 @@ class Romance:
         P = sim.w.P
         rng = sim.streams.gen("date_type", sim.w.day)
         winter = sim.w.env["temp_f"] < 45
-        out = []
-        cols = [f"fd_{t}" if f"fd_{t}" in P.cols else None for t in DATE_TYPES]
-        for x, y in zip(a, b):
-            sc = []
-            for t, c in zip(DATE_TYPES, cols):
-                v = (P[c][x] + P[c][y]) / 2 if c else 2.5
-                if winter and t in ("hike", "picnic", "stargazing", "pickleball"):
-                    v -= 1.5
-                sc.append(v)
-            sc = np.array(sc) + rng.gumbel(size=len(sc)) * 0.8
-            out.append(DATE_TYPES[int(np.argmax(sc))])
-        return out
+        a, b = np.asarray(a, np.int64), np.asarray(b, np.int64)
+        if not len(a):
+            return []
+        # each pair's mean preference for every date type (2.5 where there is no survey item), cold weather counting
+        # against outdoor ones, plus Gumbel noise drawn in the same order as one pair at a time
+        sc = np.empty((len(a), len(DATE_TYPES)))
+        for k, t in enumerate(DATE_TYPES):
+            c = f"fd_{t}"
+            v = (P[c][a] + P[c][b]) / 2 if c in P.cols else np.full(len(a), 2.5)   # float32 like the columns
+            if winter and t in ("hike", "picnic", "stargazing", "pickleball"):
+                v = v - 1.5
+            sc[:, k] = v
+        sc += rng.gumbel(size=sc.shape) * 0.8
+        return [DATE_TYPES[i] for i in sc.argmax(axis=1).tolist()]
 
     def _app(self, wd: int):
         """Dating apps create opportunity beyond physical propinquity."""

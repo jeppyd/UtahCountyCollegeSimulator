@@ -152,11 +152,24 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   ask the owner. Never copy them elsewhere or print respondent rows.
 - The CSV exports don't reproduce the committed survey aggregates exactly (some multi-select items, College Life
   completes): don't rebuild existing priors; add new sections only (see `docs/workstreams/survey-followups.md`).
-- Measured before iteration 6: scale 0.15 ≈ 0.23 s per simulated day, full scale ≈ 1.6 s per day (one core).
+- Measured 2026-10-20 (after the speed pass): scale 0.15 ≈ 0.4 s per simulated day, full scale ≈ 2.3 s per day per
+  world (one core; a What-if doubles it). Before iteration 6 it was 0.23 / 1.6 s with far fewer systems.
 - LLM features use the owner's own logins (Claude Code CLI, Codex CLI, or a local OpenAI-compatible server such as LM
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-20 (5) — Claude Code (cloud session) — speed pass
+- Profiled full scale (73.7k people, one world): 3.15 s/day before → **2.30 s/day** (same 6-day window: 2.87 → 2.30,
+  −20%). Changes: `EdgeStore` rows are append-only with a separate sorted key index (`_sorted`, `_perm`), so adding
+  ties no longer moves every column of 640k edges (`find`/`upsert` unchanged; `remove` rebuilds the index; row order is
+  no longer key order — tests updated); `sim.z` keeps trait z-scores for the day (read-only arrays); `plans._resolve`
+  cached per day; the recorder computes every group's means with one matrix product per field (identical to 1e-6).
+  Results are deterministic but not bit-identical to before (edge row order changed).
+- Where the rest goes (full scale, s/day): occasions 0.72 (≈350 small feasibility/commitment/travel calls a day),
+  encounters 0.50, activity 0.32, messaging 0.21 (weekly community detection 0.6 s), recorder 0.15, romance 0.13.
+- Options reported to the owner (not done): run the What-if world in its own process (≈2× when comparing), batch the
+  per-occasion calls, numba for the remaining Python loops, a per-day speed budget test.
 
 ### 2026-10-20 (4) — Claude Code (cloud session) — travel
 - `scripts/build_travel.py` → `ucsim/geo/data/travel.npz` (0.15 MB): 73 zones (57 official neighborhoods, BYU and UVU

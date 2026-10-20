@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| Claude Code (cloud) | 2026-10-20 | campus policies (owner request) | BYU Honor Code, endorsement, housing rules; UVU Student Code; on `wip/policies`. |
+| — | — | — | Nobody. Campus policies merged 2026-10-20; next is travel (or survey-followups once the raw CSVs are here). |
 
 ## The goal in one paragraph
 
@@ -157,6 +157,26 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-20 — Claude Code (cloud session)
+- **Campus policies** (owner request): researched BYU's and UVU's published policies and wrote them, with sources and
+  versions, to `config/policies/campus.yaml` (CES Honor Code, Honor Code investigation process, amnesty, ecclesiastical
+  endorsement, dress and grooming, two-semester housing rule, sex-separated housing, visiting hours; UVU Student Code
+  of Conduct (Policy 541), drug-free campus, The Green first-year housing). Each says whether the model uses it.
+- New system `engine/systems/honor.py`: weekly reports to the Honor Code Office for the behaviours the model simulates
+  (coffee/tea, alcohol, premarital sex, same-sex dating; more often with roommates in contracted housing), the
+  office's decision (warning / probation until the end of the next term / suspension / dismissal; `honor_outcome`
+  decisions), many quit after a report; suspended students leave BYU (`after_byu`: transfer to UVU or stop). The
+  endorsement: renewed each fall (bishops may decline for inactive members), withdrawn at once on resigned membership;
+  no endorsement → no enrollment next term (rare exceptions). Variables honor_standing, endorsement, honor_reports;
+  events 80_policy; mechanisms 19_policy; world switches honor_enforcement and endorsement_required; presets
+  honor_code_not_enforced, honor_code_stricter, no_endorsement_requirement. `/api/policies`; Policies workbench tool
+  (docs/img/policies.png). Calibration (scale 0.15, one year): 1.7% of BYU students reported a year (published
+  1.5–3.5%); 71% warning, 25% probation, 3% suspension (>95% stay enrolled, as published); ~0.7% of BYU students a year
+  lose their endorsement (no published number: hypothetical). Honor adds ~0.001 s/day. 234 tests pass; web build
+  passes.
+- Not modelled (no simulated behaviour to attach to): honesty, language, dress and grooming, the visiting-hours limit
+  (the simulated day ends before midnight), the sexual-misconduct amnesty, UVU conduct cases.
 
 ### 2026-10-19 — Claude Code (cloud session)
 - **AI setup** (owner request, outside the workstream list): checked the LLM wiring (What-if compiler with Claude Code,

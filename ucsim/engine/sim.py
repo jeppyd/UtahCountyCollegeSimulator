@@ -29,7 +29,7 @@ class Simulation:
     def __init__(self, world: World, interventions: list | None = None, name: str = "baseline",
                  record: bool = True):
         from .systems import (academics, activity, economy, emotion, encounters, environment, faith, groups, housing,
-                              history, institutions, intimacy, lifecourse, messaging, mind, coping, culture, network,
+                              family, history, institutions, intimacy, lifecourse, messaging, mind, coping, culture, network,
                               norms, occasions, plans, recorder, romance, routine)
         self.w = world
         self.name = name
@@ -72,6 +72,7 @@ class Simulation:
             "occasions": occasions.Occasions(self),
             "messaging": messaging.Messaging(self),
             "institutions": institutions.Institutions(self),
+            "family": family.Family(self),
             "housing": housing.Housing(self),
             "recorder": recorder.Recorder(self),
             "history": history.History(self),
@@ -80,7 +81,7 @@ class Simulation:
         self._zcache: dict[str, tuple[float, float]] = {}
         for name in ("environment", "housing", "activity", "groups", "network", "academics", "encounters", "economy",
                      "romance", "intimacy", "faith", "norms", "mind", "coping", "plans", "routine", "emotion", "culture", "occasions",
-                     "institutions", "messaging", "lifecourse", "recorder"):
+                     "institutions", "family", "messaging", "lifecourse", "recorder"):
             sysobj = self.systems[name]
             if hasattr(sysobj, "init"):
                 sysobj.init()
@@ -224,6 +225,7 @@ class Simulation:
         if phase == "start":
             self._run("environment", S["environment"].daily)
             self._run("lifecourse", S["lifecourse"].daily)
+            self._run("family", S["family"].daily)
             self._run("academics", S["academics"].daily)
             self._run("groups", S["groups"].daily)
             self._run("faith", S["faith"].daily)

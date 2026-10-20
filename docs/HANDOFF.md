@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| Claude Code (cloud session) | 2026-10-19 | family-homes | Messaging and institutions merged. WIP on `wip/family-homes`. |
+| — | — | — | Nobody. Messaging, institutions and family-homes merged 2026-10-19; next is travel (or survey-followups once the raw CSVs are here). |
 
 ## The goal in one paragraph
 
@@ -69,9 +69,9 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [calendar-weather](workstreams/calendar-weather.md) | **done, merged** | working branch | open issues below |
 | [talk](workstreams/talk.md) (Ask + interviews) | **done, merged** | working branch | open issues below |
 | [travel](workstreams/travel.md) | not started | — | next (keeps `ucsim/geo/travel.py`'s interface) |
-| [messaging](workstreams/messaging.md) (wave 2) | **done, merged** | working branch | family chats when family-homes lands; open issues below |
+| [messaging](workstreams/messaging.md) (wave 2) | **done, merged** | working branch | open issues below |
 | [institutions](workstreams/institutions.md) (wave 2) | **done, merged** | working branch | open issues below |
-| [family-homes](workstreams/family-homes.md) (wave 2) | **in progress** | `wip/family-homes` | next |
+| [family-homes](workstreams/family-homes.md) (wave 2) | **done, merged** | working branch | open issues below |
 | [survey-followups](workstreams/survey-followups.md) | audits designed, interrupted | — | needs the raw survey files in `data/raw/` |
 | [integration](workstreams/integration.md) | ongoing | — | after each merge |
 
@@ -127,7 +127,17 @@ institutions, family-homes) can start now too, but coordinate: they touch the sa
   "if attendance falls below X then…" intervention atom, employer hiring as an employer-side decision, splitting
   overcrowded clubs (they cap instead), temple-recommend interviews as their own queue (they're a fixed share of the
   bishop's slots). A swapped shift is dropped from occasions' feasibility, but activity still places the person at
-  work during it. Bishop waits are rare at current confession rates.
+  work during it. Bishop waits are rare at current confession rates. Member-only events (clubs, wards, complexes)
+  raised occasions' cost: scale 0.15 is ~0.43 s/day with everything on (was ~0.39 before institutions).
+- Family: trip rates, kin hazards and costs are hypothetical, tuned to plausible shares (a given Saturday ~3–4% of
+  students are home; Thanksgiving ~60%, Christmas ~74%); people whose family is in Utah County never "travel". While
+  on a trip `present` is off and the internal `trip_away` is on — code that loops over present people skips them,
+  messaging keeps their chats; the What-if `_scope` (interventions.py) evaluates over present people only (the
+  practice-share test now compares people who are here). Home states use ProvoStats' origin-state shares within
+  each origin region (no published enrollment-by-state figures were sourced). Not done from the spec: childcare help
+  from local grandparents, money from home beyond the existing parental_support, a "trip" chip kind (trips open
+  their went_home event). The US map is SVG from us-atlas' Albers states (public-domain Census outlines) in
+  web/public/geo/us_states.json.
 
 ## Open questions for the owner
 
@@ -147,6 +157,39 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-19 — Claude Code (cloud session)
+- **AI setup** (owner request, outside the workstream list): checked the LLM wiring (What-if compiler with Claude Code,
+  Codex and LM Studio/Ollama backends; tests pass) and made it easy to connect: a guided **Connect an AI** dialog
+  (`web/src/kit/AiSetup.tsx`; top-bar pill, Settings menu, What-if panel) with Choose → Connect → Test. New backends
+  `anthropic` (Claude API key, official `anthropic` SDK, refusal fallback, cached system prompt, structured output) and
+  `openai_api` (OpenAI API key through the existing OpenAI-compatible loop). Keys are saved only in `~/.ucsim/llm.json`
+  and never returned by the API. `POST /api/whatif/llm/test` does a one-word round trip and says what to fix. The old
+  inline setup in Ask.tsx is replaced by the dialog. `anthropic` added to dependencies and the PyInstaller spec; package
+  data now includes config/**/*.json and *.csv (the weather CSV was missing from pip installs). docs/AI_SETUP_GUIDE.md
+  updated. Ask the world and Interviews (talk) also accept the two API-key backends. The real CLIs and API keys can't be exercised in the cloud container (tests use stand-ins). 228 tests pass;
+  web build passes.
+- Next: sexuality-survey once the owner supplies the xlsx.
+
+### 2026-10-19 (5) — Claude Code (cloud session)
+- Built and merged **family-homes**. `engine/systems/family.py`: home state and metro from origin_region and
+  ProvoStats' origin-state table (Utah split by county; family_local → Utah County), drive hours (fly beyond 12 h),
+  family closeness; kin records (parents, siblings — more in LDS families — and grandparents) with weekly life events
+  (sibling weddings, missions and homecomings, new nieces/nephews, a parent's illness, a grandparent's death — which
+  replaces lifecourse's random death_in_family) that pull close family home; trips (`trip_home` decisions: weekends
+  within 5 h, Thanksgiving and Christmas from the calendar's travel days, family events; closeness, distance, cost,
+  homesickness, shifts/exams, married couples alternate families) with a trip ledger; away = present off +
+  `trip_away`; time with family on arrival, homesickness after; Friendsgiving for people who stay; family visits to
+  Provo (more on game days and graduation). Messaging: family chats (news from home posted there), and people away
+  keep their apartment chats. New variables (`12_family.yaml`: home_state, home_drive_hours, family_closeness,
+  n_siblings, trips_home), mechanisms 17_family.yaml, occasion friendsgiving, decisions/events 70_family.yaml. API
+  routes_family.py (/api/family/person/{i}, /states, /state/{name}); workbench tool USMap.tsx (states shaded by where
+  people are from or who is home now; click a state to select its people; a person's family and trips) with
+  web/public/geo/us_states.json; guide entry; screenshot docs/img/us-map.png. tests/test_family.py; adjusted three
+  tests for trips and shift swaps (test_occasions date test pins a local family and firm shifts; test_whatif_llm
+  practice share compares people present; test_intimacy threshold 0.7). 225 tests pass; web build passes.
+- Next: travel; survey-followups needs the other surveys' raw CSVs in data/raw/; integration (re-run
+  scripts/validate.py end to end, check full-scale speed).
 
 ### 2026-10-19 (4) — Claude Code (cloud session)
 - Built and merged **institutions**. `engine/systems/institutions.py`: an institution table (clubs/teams/institute

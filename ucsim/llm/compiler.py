@@ -27,8 +27,13 @@ HOME = Path(os.environ.get("UCSIM_HOME", Path.home() / ".ucsim"))
 SETTINGS_FILE = HOME / "llm.json"
 DEFAULTS = {"backend": "claude", "claude_model": "", "claude_effort": "", "codex_model": "", "codex_effort": "",
             "openai_url": "http://localhost:1234/v1", "openai_model": "", "openai_key": "lm-studio",
-            "use_subscription": True, "use_tools": True, "max_turns": 40, "timeout": 600}
-BACKENDS = ("claude", "codex", "openai")
+            "use_subscription": True, "use_tools": True, "max_turns": 40, "timeout": 600,
+            # paste-a-key options (no install; billed by the provider per use)
+            "anthropic_key": "", "anthropic_model": "claude-opus-5-5", "anthropic_effort": "",
+            "openai_api_key": "", "openai_api_model": ""}
+BACKENDS = ("claude", "codex", "openai", "anthropic", "openai_api")
+SECRET_KEYS = ("openai_key", "anthropic_key", "openai_api_key")
+OPENAI_API_URL = "https://api.openai.com/v1"
 # where the CLIs live, when they aren't on PATH: read from llm.json only (never set over HTTP, since they name a program to run)
 PATH_KEYS = ("claude_path", "codex_path")
 
@@ -61,6 +66,15 @@ def save_settings(new: dict) -> dict:
             continue
     if s["backend"] not in BACKENDS:
         s["backend"] = "claude"
+    for k in ("anthropic_key", "openai_api_key"):
+        s[k] = s[k].strip()
+        if s[k] and not re.match(r"^[\w.\-]{10,300}$", s[k]):
+            s[k] = ""
+    if s["anthropic_effort"] not in ("", *backends.ANTHROPIC_EFFORTS):
+        s["anthropic_effort"] = ""
+    for k in ("anthropic_model", "openai_api_model"):
+        if s[k] and not backends.SAFE_TOKEN.match(s[k]):
+            s[k] = DEFAULTS[k]
     for k in ("claude_model", "codex_model", "openai_model"):
         if s[k] and not backends.SAFE_TOKEN.match(s[k]) and not (k == "openai_model" and re.match(r"^[\w./:@-]{1,120}$", s[k])):
             s[k] = ""
@@ -90,11 +104,21 @@ def status(fresh: bool = False) -> dict:
         has_mcp = True
     except Exception:  # noqa: BLE001
         has_mcp = False
-    ready = {"claude": bool(claude_v), "codex": bool(codex_v), "openai": bool(models)}
-    shown = {k: v for k, v in s.items() if k != "openai_key"}
+    api_models = []
+    if s["backend"] == "openai_api" and s["openai_api_key"]:
+        try:
+            api_models = sorted(m for m in backends.openai_models(OPENAI_API_URL, s["openai_api_key"]) if re.match(r"^(gpt|o\d|chatgpt)", m))
+        except Exception:  # noqa: BLE001
+            api_models = []
+    ready = {"claude": bool(claude_v), "codex": bool(codex_v), "openai": bool(models), "anthropic": bool(s["anthropic_key"]),
+             "openai_api": bool(s["openai_api_key"])}
+    shown = {k: v for k, v in s.items() if k not in SECRET_KEYS}
+    shown["has_anthropic_key"] = bool(s["anthropic_key"])
+    shown["has_openai_api_key"] = bool(s["openai_api_key"])
     return {"settings": shown, "claude": claude_v, "codex": codex_v, "openai_models": models, "mcp": has_mcp,
             "ready": ready[s["backend"]], "api_key_in_env": bool(os.environ.get("ANTHROPIC_API_KEY")),
-            "claude_note": notes["claude"], "codex_note": notes["codex"], "codex_models": cx_models, "desktop": bool(getattr(sys, "frozen", False)),
+            "claude_note": notes["claude"], "codex_note": notes["codex"], "codex_models": cx_models, "openai_api_models": api_models,
+            "anthropic_models": [{"id": m, "label": l} for m, l in backends.ANTHROPIC_MODELS], "desktop": bool(getattr(sys, "frozen", False)),
             "windows": backends.WINDOWS}
 
 
@@ -328,7 +352,8 @@ def _run(job: Job, ws, index_fn, server_url: str):
             prompt = build_prompt(ws, index_fn(job.mode), job.text, job.mentions, job.history, job.mode)
         pack = pack_dir()
         job.step("start", {"claude": "Sending your idea to Claude (your subscription)", "codex": "Sending your idea to Codex (your ChatGPT plan)",
-                           "openai": "Sending your idea to your local model"}[s["backend"]])
+                           "openai": "Sending your idea to your local model", "anthropic": "Sending your idea to Claude (API key)",
+                           "openai_api": "Sending your idea to ChatGPT (API key)"}[s["backend"]])
         res = _ask(job, ws, index_fn, s, pack, prompt, server_url)
         attempts = 1
         best, best_err = None, None          # keep the most usable plan seen, in case a repair attempt fails
@@ -416,5 +441,20 @@ def _ask(job: Job, ws, index_fn, s: dict, pack: Path, prompt: str, server_url: s
     def tool_fn(name, args):
         with ws.lock:
             return run_tool(ws, index_fn(job.mode), name, args, job.mode)
-    return backends.run_openai(compact_system(job.text), prompt, strict_schema(), s, job.step, job.cancel,
-                               tool_fn if s.get("use_tools", True) else None)
+    tools = tool_fn if s.get("use_tools", True) else None
+    if s["backend"] == "anthropic":
+        return backends.run_anthropic((pack / "system.md").read_text(encoding="utf-8"), prompt, strict_schema(), s, job.step, job.cancel, tools)
+    if s["backend"] == "openai_api":
+        return backends.run_openai((pack / "system.md").read_text(encoding="utf-8"), prompt, strict_schema(), api_settings(s), job.step, job.cancel, tools)
+    return backends.run_openai(compact_system(job.text), prompt, strict_schema(), s, job.step, job.cancel, tools)
+
+
+def api_settings(s: dict) -> dict:
+    """The OpenAI-API option as the local-server code path sees it: OpenAI's address, its key and model."""
+    return {**s, "openai_url": OPENAI_API_URL, "openai_key": s["openai_api_key"], "openai_model": s["openai_api_model"]}
+
+
+def test_connection() -> dict:
+    """A one-word round trip with the chosen model (does the sign-in or key really work?)."""
+    s = load_settings()
+    return backends.test_connection(s["backend"], api_settings(s) if s["backend"] == "openai_api" else s)

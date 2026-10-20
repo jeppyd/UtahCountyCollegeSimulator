@@ -1,6 +1,7 @@
 // Ask the world: a question in plain words, answered only from facts the simulator looks up (who matches, which
 // places rank highest, how many events, why a feeling is what it is). Every sentence is checked against those
 // facts; people, places and events in the answer are chips you can click. Uses your own model login.
+import { useAiSetup } from '../../kit/AiSetup'
 import { useState } from 'react'
 import { talkApi, type TalkStatus } from '../../api'
 import { useAsync } from '../../game'
@@ -13,7 +14,8 @@ import { selPeople } from '../sel'
 
 const EXAMPLES = ['Which apartment complexes are loneliest?', 'How many breakups happened this month?',
   'Why are UVU students stressed?', 'Who are the loneliest BYU freshmen?']
-export const BACKENDS: [string, string][] = [['auto', 'Automatic'], ['claude', 'Claude'], ['codex', 'Codex'], ['openai', 'Model on this computer']]
+export const BACKENDS: [string, string][] = [['auto', 'Automatic'], ['claude', 'Claude (subscription)'], ['anthropic', 'Claude (API key)'],
+  ['codex', 'ChatGPT (subscription)'], ['openai_api', 'ChatGPT (API key)'], ['openai', 'Model on this computer']]
 
 export function BackendPick({ feature }: { feature: 'ask' | 'interview' }) {
   const [v, setV] = useState(0)
@@ -23,8 +25,9 @@ export function BackendPick({ feature }: { feature: 'ask' | 'interview' }) {
   const key = feature === 'ask' ? 'ask_backend' : 'interview_backend'
   return (
     <select style={{ maxWidth: 130 }} value={s.settings[key]} title={`Now using: ${s.using[feature]} (recommended: ${s.recommended[feature] === 'openai' ? 'a model on this computer' : 'Claude'})`}
-      onChange={e => talkApi.settings({ [key]: e.target.value }).then(() => setV(v + 1))}>
+      onChange={e => e.target.value === '__setup' ? useAiSetup.getState().show() : talkApi.settings({ [key]: e.target.value }).then(() => setV(v + 1))}>
       {BACKENDS.map(([k, w]) => <option key={k} value={k} disabled={k !== 'auto' && !s.available[k]}>{w}{k !== 'auto' && !s.available[k] ? ' (not set up)' : ''}</option>)}
+      <option value="__setup">Connect an AI…</option>
     </select>
   )
 }

@@ -550,6 +550,8 @@ class LifeCourse:
         for etype, rate, mask in (("family_crisis", p("lifecourse.events.family_crisis"), pres),
                                   ("death_in_family", p("lifecourse.events.death"), pres),
                                   ("car_accident", p("lifecourse.events.car_accident"), pres & P["owns_car"])):
+            if etype == "death_in_family" and "family" in sim.systems:
+                continue                     # kin records die of old age instead (systems/family.py)
             hit = mask & (sim.u(etype) < rate)
             if hit.any():
                 ids = np.where(hit)[0]

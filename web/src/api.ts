@@ -147,6 +147,19 @@ export const instApi = {
   find: (kind: string, ref: number, u: Universe = 'base'): Promise<{ id: number }> => j(`/api/institutions/find?kind=${kind}&ref=${ref}&u=${u}`),
 }
 
+// ---------------------------------------------------------------- family and home states (routes_family.py)
+export type FamState = { state: string; from: number; in_provo: number; at_home: number }
+export type FamPerson = { person: number; home_state: string; drive_hours: number; flies: boolean; closeness: number; away: boolean; returns: number
+  kin: { rel: string; age: number; alive: boolean; married: boolean; closeness: number; on_mission: boolean; ill: boolean }[]
+  trips: { depart: number; return: number; reason: string; fly: boolean; decision: number; event: number; with_partner: number | null }[] }
+export const famApi = {
+  states: (u: Universe = 'base'): Promise<{ day: number; date: string; states: FamState[]; away: number; total: number }> => j(`/api/family/states?u=${u}`),
+  state: (name: string, u: Universe = 'base', where = 'all'): Promise<{ state: string; people: number[]; n: number }> =>
+    j(`/api/family/state/${encodeURIComponent(name)}?u=${u}&where=${where}`),
+  person: (i: number, u: Universe = 'base'): Promise<FamPerson> => j(`/api/family/person/${i}?u=${u}`),
+  geo: (): Promise<{ width: number; height: number; source: string; states: { name: string; abbr: string; d: string; cx: number; cy: number }[] }> => j(STATIC ? './geo/us_states.json' : '/geo/us_states.json'),
+}
+
 export const benchApi = {
   async events(s: BenchSel & { cats?: string[]; types?: string[]; q?: string; minSalience?: number; place?: number; limit?: number; offset?: number; order?: 'new' | 'old' }, u: Universe = 'base'):
     Promise<{ total: number; events: BenchEvent[]; today: number; start_date: string; n_people: number | null }> {
@@ -436,6 +449,7 @@ export const api = {
   async llmModels(url: string) { return j(`/api/whatif/llm/models?url=${encodeURIComponent(url)}`, undefined, 15000) },
   async llmStatus(refresh = false) { return STATIC ? { ready: false, settings: {} } : j(`/api/whatif/llm/status${refresh ? '?refresh=1' : ''}`, undefined, 60000) },
   async llmSettings(body: any) { return post('/api/whatif/llm/settings', body) },
+  async llmTest() { return post('/api/whatif/llm/test', {}) },
   async whatifCompile(body: any) { return post('/api/whatif/compile', body) },
   async whatifJob(id: string) { return j(`/api/whatif/compile/${id}`, undefined, 30000) },
   async whatifCancel(id: string) { return post(`/api/whatif/compile/${id}/cancel`, {}) },

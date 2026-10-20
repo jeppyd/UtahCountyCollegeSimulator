@@ -99,11 +99,22 @@ Follow this guide literally. It describes this exact app; don't substitute gener
 Ask the person:
 1. Do you pay for **Claude Pro or Max**? Then use `claude`. Stop asking.
 2. Otherwise, do you pay for **ChatGPT Plus**? Then use `codex`.
-3. Otherwise, or if they want it free and offline, use `openai` with LM Studio. Check their graphics card first
+3. If they don't want to install anything and are happy to pay per use, use an API key: `anthropic` (Claude API key
+   from console.anthropic.com) or `openai_api` (OpenAI API key from platform.openai.com). The app's own guided setup
+   (top bar → **Connect an AI**) handles these completely: the person pastes the key and presses Test.
+4. Otherwise, or if they want it free and offline, use `openai` with LM Studio. Check their graphics card first
    (see [Choosing a local model](#choosing-a-local-model)); with less than about 8 GB of video memory, or 16 GB of
    unified memory on a Mac, warn them that plans will often fail the checks.
 
 Also ask: Windows or Mac? The installed app, or running from source?
+
+### The in-app guided setup
+
+Point the person to it first: the **Connect an AI** pill in the top bar (also Settings ⚙ → Connect an AI…, and the
+What-if panel). It walks through Choose → Connect → Test for all five backends, watches for an install to finish,
+saves keys only on this computer (`~/.ucsim/llm.json`, never shown back by the API) and ends with a one-word test
+(`POST {app}/api/whatif/llm/test` → `{ok, reply, seconds, error, hint}`). Help with the parts it can't do for them
+(opening a terminal, signing in, buying credit).
 
 ### Step 2A: Claude (`backend: "claude"`)
 
@@ -211,14 +222,16 @@ written to the person's `~/.codex/config.toml`.
    | `mcp` | whether the lookup tools are available (from source this needs `pip install -e .`) |
    | `api_key_in_env` | `true` means `ANTHROPIC_API_KEY` is set; see ground rule 1 |
    | `desktop` | `true` for the installed app |
-2. **A real test.**
+2. **A one-word test:** `POST {app}/api/whatif/llm/test` (or the Test step of the in-app setup). `ok: true` means the
+   sign-in or key works; otherwise `error` and `hint` say what to do.
+3. **A real test.**
    - Have the person open the **What-if** tab. The pill at the top of the Describe box should read
-     **● Claude Code**, **● Codex** or **● Local model**, not "set up".
+     the AI in use (e.g. **● Claude (subscription)**, **● ChatGPT (API key)**, **● Local model**), not "Connect an AI".
    - Have them type `What if a snowstorm closes campus for two days?` and press Enter.
    - Steps should appear within seconds. Within about a minute (several minutes on a slow local model), a plan
      card with changes should appear. With tools on, the steps include lines like "Counting people" and
      "Draft checks out".
-3. Tell the person it's done and what they're using.
+4. Tell the person it's done and what they're using.
 
 ### Troubleshooting
 

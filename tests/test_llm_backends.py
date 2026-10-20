@@ -119,3 +119,64 @@ def test_codex_models_and_reasoning(monkeypatch, tmp_path):
     monkeypatch.setattr(compiler, "SETTINGS_FILE", tmp_path / "llm.json")
     assert compiler.save_settings({"codex_effort": "high"})["codex_effort"] == "high"
     assert compiler.save_settings({"codex_effort": "ultra; rm -rf"})["codex_effort"] == ""
+
+
+# ---------------------------------------------------------------------- paste-a-key options and the connection test
+def test_api_keys_are_saved_but_never_shown(monkeypatch, tmp_path):
+    monkeypatch.setattr(compiler, "HOME", tmp_path)
+    monkeypatch.setattr(compiler, "SETTINGS_FILE", tmp_path / "llm.json")
+    s = compiler.save_settings({"backend": "anthropic", "anthropic_key": "  sk-ant-api03-abcdefghijklmnop  ", "anthropic_model": "claude-sonnet-5-5"})
+    assert s["anthropic_key"] == "sk-ant-api03-abcdefghijklmnop" and s["backend"] == "anthropic"
+    st = compiler.status()
+    assert st["ready"] and st["settings"]["has_anthropic_key"] and "anthropic_key" not in st["settings"]
+    assert "sk-ant" not in json.dumps(st)
+    # a later save without the key keeps it; shell-ish text is refused
+    assert compiler.save_settings({"anthropic_effort": "high"})["anthropic_key"].startswith("sk-ant")
+    assert compiler.save_settings({"anthropic_key": "$(rm -rf ~)"})["anthropic_key"] == ""
+
+
+class _Block:
+    def __init__(self, **kw):
+        self.__dict__.update(kw)
+
+
+def test_claude_api_tool_loop_then_structured_plan(monkeypatch):
+    calls = []
+
+    class Msgs:
+        def create(self, **kw):
+            calls.append(kw)
+            if len(calls) == 1:
+                return _Block(stop_reason="tool_use", content=[_Block(type="tool_use", id="t1", name="count_people", input={"who": {}})])
+            if len(calls) == 2:
+                return _Block(stop_reason="end_turn", content=[_Block(type="text", text="I have what I need.")])
+            return _Block(stop_reason="end_turn", content=[_Block(type="text", text='{"title": "x"}')])
+    client = _Block(beta=_Block(messages=Msgs()))
+    monkeypatch.setattr(backends, "_anthropic_client", lambda key, timeout: client)
+    steps = []
+    res = backends.run_anthropic("guide", "idea", {"type": "object"}, {"anthropic_key": "sk-ant-xxxxxxxxxxxx"},
+                                 lambda k, t: steps.append(k), threading.Event(), lambda name, args: {"n": 5})
+    assert res["error"] is None and res["plan"] == {"title": "x"}
+    assert calls[0]["model"] == "claude-opus-5-5" and calls[0]["system"][0]["cache_control"]["type"] == "ephemeral"
+    assert calls[0]["fallbacks"] == "default"
+    assert calls[1]["messages"][2]["content"][0]["type"] == "tool_result"
+    assert calls[-1]["output_config"]["format"]["type"] == "json_schema" and calls[-1]["tool_choice"] == {"type": "none"}
+    assert "tool" in steps
+    assert backends.run_anthropic("g", "i", {}, {}, lambda *a: None, threading.Event(), None)["error"].startswith("Paste")
+
+
+def test_connection_test_local_server_and_plain_errors(fake_server, monkeypatch):
+    routes, url = fake_server
+    routes["/v1/models"] = {"data": [{"id": "m1"}]}
+    routes[("POST", "/v1/chat/completions")] = lambda body: {"choices": [{"message": {"content": "ready"}}]}
+    r = backends.test_connection("openai", {"openai_url": url})
+    assert r["ok"] and r["reply"] == "ready"
+    r = backends.test_connection("openai", {"openai_url": "http://127.0.0.1:9/v1", "openai_model": "m"}, timeout=3)
+    assert not r["ok"] and "LM Studio" in r["hint"]
+    assert not backends.test_connection("anthropic", {})["ok"]
+    monkeypatch.setattr(backends, "resolve_cli", lambda name, override=None: (None, None))
+    assert "install" in backends.test_connection("claude", {})["hint"]
+
+    class E(Exception):
+        code = 401
+    assert "API key" in backends._http_words(E(), "OpenAI")

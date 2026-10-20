@@ -975,10 +975,16 @@ class Occasions:
                ORG_ID["complex"]: ("complex_id",)}.get(org_kind)
         if col is None or org_id < 0:
             return True
-        m = np.zeros(P.n, bool)
-        for c in col:
-            m |= P[c][: P.n] == org_id
-        return m
+        key = (org_kind, org_id, self.sim.w.day, P.n)
+        cache = self.__dict__.setdefault("_org_cache", {})
+        if key not in cache:
+            if len(cache) > 256:
+                cache.clear()
+            m = np.zeros(P.n, bool)
+            for c in col:
+                m |= P[c][: P.n] == org_id
+            cache[key] = m
+        return cache[key]
 
     def _interest(self, kind_code: int, people: np.ndarray) -> np.ndarray:
         sim = self.sim

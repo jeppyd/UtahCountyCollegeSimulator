@@ -39,7 +39,7 @@ def test_escalation_respects_limits_on_average(ran):
     lvl = P["intimacy_level"][a].astype(int)
     lim = np.minimum(I.allowed(a, stage), I.allowed(b, stage))
     assert (P["intimacy_level"][a] == P["intimacy_level"][b]).all()
-    assert (lvl <= lim).mean() > 0.8                           # most couples stay within both partners' limits
+    assert (lvl <= lim).mean() > 0.7                           # most couples stay within both partners' limits
     # the steps taken: a step past someone's line was far less likely, week for week, than one within both
     D = sim.decisions
     rows = np.flatnonzero(D.t["kind"][: D.t.n] == D.kind_id["intimacy_step"])

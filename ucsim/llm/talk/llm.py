@@ -16,7 +16,7 @@ from ..compiler import HOME, load_settings
 
 TALK_FILE = HOME / "talk.json"
 FEATURES = ("ask", "interview")
-CHOICES = ("auto", "claude", "codex", "openai")
+CHOICES = ("auto", "claude", "codex", "openai", "anthropic", "openai_api")
 DEFAULTS = {"ask_backend": "auto", "interview_backend": "auto", "sensitive": False}
 FAKE = None          # tests: FAKE(feature, stage, system, prompt, schema) -> dict
 PROMPTS = Path(__file__).resolve().parents[1] / "prompts"
@@ -66,7 +66,8 @@ def status() -> dict:
     from ..compiler import status as cstatus
     st = cstatus()
     return {"settings": ts, "using": {f: resolve(f, ts, cs) for f in FEATURES},
-            "available": {"claude": bool(st["claude"]), "codex": bool(st["codex"]), "openai": bool(st["openai_models"]) or _local_ready(cs)},
+            "available": {"claude": bool(st["claude"]), "codex": bool(st["codex"]), "openai": bool(st["openai_models"]) or _local_ready(cs),
+                          "anthropic": bool(cs.get("anthropic_key")), "openai_api": bool(cs.get("openai_api_key"))},
             "local_model": cs.get("openai_model") or (st["openai_models"] or [None])[0], "recommended": {"ask": "claude", "interview": "openai"}}
 
 
@@ -92,6 +93,11 @@ def complete(feature: str, stage: str, system: str, prompt: str, schema: dict, o
         res = backends.run_claude(prompt, schema, _pack(feature, system), s, on_step, cancel, None)
     elif which == "codex":
         res = backends.run_codex(prompt, schema, _pack(feature, system), s, on_step, cancel, None)
+    elif which == "anthropic":      # a Claude API key
+        res = backends.run_anthropic(system, prompt, schema, s, on_step, cancel, None)
+    elif which == "openai_api":     # an OpenAI API key
+        from ..compiler import api_settings
+        res = backends.run_openai(system, prompt, schema, api_settings(s), on_step, cancel, None)
     else:
         res = _openai(system, prompt, schema, s, on_step, cancel)
     return res.get("plan"), res.get("error"), which

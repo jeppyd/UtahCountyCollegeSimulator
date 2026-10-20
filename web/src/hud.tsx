@@ -18,8 +18,20 @@ export function useOutside(ref: React.RefObject<HTMLElement>, fn: () => void) {
   }, [ref, fn])
 }
 
-/** Start, stop or change the speed of time. Shared by the HUD buttons and keyboard shortcuts. */
+/** Start, stop or change the speed of time. Shared by the HUD buttons and keyboard shortcuts.
+ *  Clicks are handled one at a time in order (a quick double click never races itself), a speed change while time
+ *  runs only changes the pace (no stop and restart), and a pause shows at once while the day in progress finishes. */
 type TimeCtl = { speed: number; waitIdle: () => Promise<void>; play: (speed?: number) => Promise<void>; pause: () => Promise<void>; step: (body: any) => Promise<void>; toggle: () => Promise<void> }
+let chain: Promise<unknown> = Promise.resolve()
+const queued = <T,>(fn: () => Promise<T>): Promise<T> => {
+  const next = chain.then(fn, fn)
+  chain = next.catch(() => {})
+  return next
+}
+const markPausing = () => {
+  const st = useStore.getState().status
+  if (st?.job?.state === 'running') useStore.setState({ status: { ...st, job: { ...st.job, cancel: true } } })
+}
 export const timeCtl: TimeCtl = {
   speed: (() => { try { return Number(localStorage.getItem('ucsim-speed') ?? '0') } catch { return 0 } })(),
   // A pause takes effect when the day in progress ends, which can take several seconds in a full-size world.
@@ -32,25 +44,36 @@ export const timeCtl: TimeCtl = {
     }
     throw new Error('Time is still finishing the current day; try again in a moment.')
   },
-  async play(speed = timeCtl.speed) {
+  play(speed = timeCtl.speed) {
     timeCtl.speed = speed
     try { localStorage.setItem('ucsim-speed', String(speed)) } catch { /* private mode */ }
-    const st = useStore.getState().status
-    if (st?.job?.state === 'running') { await api.cancel(); await timeCtl.waitIdle() }
-    await api.step({ days: 3650, pace: SPEEDS[speed][0] })
-    await useStore.getState().refreshStatus().catch(() => {})
+    return queued(async () => {
+      const st = useStore.getState().status
+      if (st?.job?.state === 'running' && !st.job.cancel && (st.job.total ?? 0) >= 3000) {
+        const r = await api.pace(SPEEDS[speed][0]).catch(() => ({ ok: false }))
+        if (r.ok) { await useStore.getState().refreshStatus().catch(() => {}); return }
+      }
+      if (st?.job?.state === 'running') { await api.cancel(); await timeCtl.waitIdle() }
+      await api.step({ days: 3650, pace: SPEEDS[speed][0] })
+      await useStore.getState().refreshStatus().catch(() => {})
+    })
   },
-  async pause() { await api.cancel(); await useStore.getState().refreshStatus().catch(() => {}) },
-  async step(body: any) {
-    const st = useStore.getState().status
-    if (st?.job?.state === 'building') throw new Error('A new world is still being built.')
-    if (st?.job?.state === 'running') { await api.cancel(); await timeCtl.waitIdle() }
-    await api.step(body)
-    await useStore.getState().refreshStatus().catch(() => {})
+  pause() {
+    markPausing()
+    return queued(async () => { await api.cancel(); await useStore.getState().refreshStatus().catch(() => {}) })
+  },
+  step(body: any) {
+    return queued(async () => {
+      const st = useStore.getState().status
+      if (st?.job?.state === 'building') throw new Error('A new world is still being built.')
+      if (st?.job?.state === 'running') { await api.cancel(); await timeCtl.waitIdle() }
+      await api.step(body)
+      await useStore.getState().refreshStatus().catch(() => {})
+    })
   },
   toggle() {
     const st = useStore.getState().status
-    return st?.job?.state === 'running' ? timeCtl.pause() : timeCtl.play()
+    return st?.job?.state === 'running' && !st.job.cancel ? timeCtl.pause() : timeCtl.play()
   },
 }
 
@@ -58,7 +81,8 @@ export function Hud() {
   const { status, setRoute, setPalette } = useStore()
   const job = status?.job ?? {}
   const running = job.state === 'running'
-  const playing = running && (job.total ?? 0) >= 3000
+  const pausing = running && !!job.cancel
+  const playing = running && !pausing && (job.total ?? 0) >= 3000
   const building = job.state === 'building'
   const [err, setErr] = useState('')
   const wrap = (p: Promise<any>) => p.catch(e => setErr(String(e?.message ?? e)))
@@ -78,13 +102,13 @@ export function Hud() {
         <span className="sky-icon">{tod === 'night' ? G.moon : G.sun}</span>
         <div className="sky-text">
           <b className="tabular">{date ? date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '—'}<span className="sky-hour"> · {hh}</span></b>
-          <span>{running ? <span className="live-dot">{playing ? `time is running · +${job.progress ?? 0} days` : `running ${job.progress ?? 0}/${job.total} days`}</span> : status.season ?? ''}</span>
+          <span>{pausing ? 'pausing after this day…' : running ? <span className="live-dot">{playing ? `time is running · +${job.progress ?? 0} days` : `running ${job.progress ?? 0}/${job.total} days`}</span> : status.season ?? ''}</span>
         </div>
       </div>
 
       {STATIC ? <span className="pill">Read-only snapshot · install the app to run time</span> : (
         <div className="speed" role="group" aria-label="Time speed">
-          <button className={`sp pause ${!running ? 'on' : ''}`} onClick={() => wrap(timeCtl.pause())} disabled={!running} title="Pause (Space)">{G.pause}</button>
+          <button className={`sp pause ${!running || pausing ? 'on' : ''}`} onClick={() => wrap(timeCtl.pause())} disabled={!running || pausing} title="Pause (Space)">{G.pause}</button>
           {SPEEDS.map(([, t, l], k) => (
             <button key={k} className={`sp ${activeSpeed === k ? 'on' : ''}`} onClick={() => wrap(timeCtl.play(k))} disabled={building} title={`${t} (Space plays at the last speed)`}>{l}</button>
           ))}

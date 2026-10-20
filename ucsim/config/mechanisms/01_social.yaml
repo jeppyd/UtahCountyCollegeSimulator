@@ -9,9 +9,11 @@ mechanisms:
       home: {value: 0.0, range: [-0.5, 0.5]}
       withdraw: {value: 2.5, range: [1.0, 4.0]}
       approach: {value: 1.8, range: [0.8, 3.0]}
+      sunday_out: {value: -1.2, range: [-3.0, 0.0]}
+      sunday_hangout: {value: 0.6, range: [0.0, 1.5]}
     timescale: block
     evidence: calibrated
-    desc: Daily/weekly spatial activity patterns built from obligations plus discretionary choice; the source of spatial opportunity.
+    desc: "Daily/weekly spatial activity patterns built from obligations plus discretionary choice; the source of spatial opportunity. Sundays are social but quieter for church-going members (weighted by how often they attend): less eating out and going out (sunday_out), more time at friends' apartments and around the complex (sunday_hangout)." 
   activity.loneliness_response:
     label: Loneliness → approach vs. withdrawal
     target: activity_now

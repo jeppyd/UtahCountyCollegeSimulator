@@ -398,6 +398,7 @@ export const api = {
   async cohortServer(filter: any, u: Universe = 'base') { return post('/api/cohort/count', { filter, u, max_ids: 1e9 }) },
   async step(body: any) { return post('/api/step', body) },
   async cancel() { return post('/api/cancel', {}) },
+  async pace(pace: number): Promise<{ ok: boolean }> { return post('/api/pace', { pace }) },
   async validation() { return STATIC ? j(`${D}/validation.json`) : j('/api/validation') },
   async calendar() { return STATIC ? j(`${D}/calendar.json`) : j('/api/calendar') },
   async dayFrames(u: Universe = 'base') { return STATIC ? bin(`${D}/day_frames_${u}.bin`) : bin(`/api/positions/day?u=${u}`) },

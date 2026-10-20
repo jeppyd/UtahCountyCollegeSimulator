@@ -206,8 +206,11 @@ class Workspace:
                             self.divergence.append(runner.divergence(self.base, alt))
                     self.compare_cache = None
                 self.job.update(progress=k + 1, updated=time.time(), day_seconds=round(time.time() - t_day, 2))
+                # the pace can change while time runs (the speed buttons): read it fresh every day
+                pace = float(self.job.get("pace", pace) or 0.0)
                 while pace and time.time() - t_day < pace and not self.job.get("cancel"):
                     time.sleep(0.05)
+                    pace = float(self.job.get("pace", pace) or 0.0)
             self.finish_job("run", "paused" if self.job.get("cancel") and self.job.get("progress", 0) < days else "done")
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
@@ -388,6 +391,16 @@ async def cancel():
     """Pause: the current run stops after the day in progress.  On the event loop, so it is never stuck in a queue."""
     WS.job["cancel"] = True
     return {"ok": True, "state": WS.job.get("state")}
+
+
+@app.post("/api/pace")
+async def set_pace(body: dict = Body(default={})):
+    """Change the speed of a run in progress without stopping it (takes effect at once)."""
+    pace = max(0.0, min(float(body.get("pace", 0.0)), 10.0))
+    if WS.job.get("state") != "running" or WS.job.get("cancel"):
+        return {"ok": False, "state": WS.job.get("state")}
+    WS.job["pace"] = pace
+    return {"ok": True, "pace": pace}
 
 
 @app.get("/api/interventions/presets")

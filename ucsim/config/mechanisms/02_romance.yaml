@@ -89,11 +89,12 @@ mechanisms:
     label: Date quality and attraction update
     target: [attraction_lh, attraction_hl]
     sources: [spark, first-date preferences, social_skill, mood]
-    form: "q = βs·spark + βp·mean(date-type preference) + 0.25·skill + 0.3·(mood sum−1) + ε; attraction += η·(q + 0.3·directed spark)"
+    form: "q = βs·spark + βp·mean(date-type preference) + 0.25·skill + 0.3·(mood sum−1) + ε; attraction += η·(q + 0.3·directed spark). A date that would fall on a Sunday stays there with probability sunday_keep, else moves to Monday."
     params:
       spark: {value: 0.45, range: [0.2, 0.7]}
       preference: {value: 0.3, range: [0.0, 0.6]}
       attraction_update: {value: 0.07, range: [0.03, 0.15]}
+      sunday_keep: {value: 0.35, range: [0.0, 1.0]}
     evidence: empirical
     refs: ["Dating survey: ratings of 32 first-date types (ice cream best, gym workout worst)"]
   romance.kiss:
@@ -111,9 +112,11 @@ mechanisms:
     label: Non-committal make-outs
     target: n_ncmo
     sources: [ncmo_interest, sensation_seeking, chastity_commitment, attraction]
-    form: "At gatherings/dances among mutually attracted singles: P = logistic(base + βi·interest + 0.5·SS − βc·(chastity−0.5) + 2·attraction + 0.4·dance)"
+    form: "Mostly through dating apps: app users looking for something casual (daily hazard app_rate · hours/7 · logistic(app_base + βi·(interest − 1.5) + 0.5·SS − βc·(chastity−0.5))) match with another such user and meet up within 0–3 days (a parked car, an apartment, a quiet spot). Less often at gatherings/dances among mutually attracted singles: P = logistic(base + βi·interest + 0.5·SS − βc·(chastity−0.5) + 2·attraction + 0.4·dance)"
     params:
-      base: {value: -1.6, range: [-3.5, 0]}
+      base: {value: -3.4, range: [-5, 0]}
+      app_base: {value: -1.0, range: [-4, 1]}
+      app_rate: {value: 0.3, range: [0, 1]}
       interest: {value: 0.9, range: [0.3, 1.5]}
       chastity: {value: 3.0, range: [1.0, 5.0]}
     evidence: empirical

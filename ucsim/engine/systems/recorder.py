@@ -40,22 +40,21 @@ class Recorder:
             return
         F["days"].append(int(label_day))
         groups = self._groups()
-        for g, m in groups.items():
-            G = F["groups"].setdefault(g, {"n": []})
-            k = int(m.sum())
-            G["n"].append(k)
-            for v in self.field_vars:
-                spec = P.specs[v]
-                x = P[v][m]
-                if spec.dtype == "cat":
-                    val = (np.bincount(x, minlength=len(spec.categories))[: len(spec.categories)] / k).round(5).tolist() if k else None
-                elif spec.dtype == "bool":
-                    val = round(float(x.mean()), 5) if k else None
-                else:
-                    xf = x.astype(np.float64)
-                    ok = np.isfinite(xf)
-                    val = round(float(xf[ok].mean()), 5) if ok.any() else None
-                G.setdefault(v, []).append(val)
+        names = list(groups)
+        M = self._group_matrix(groups)
+        ks = M.sum(axis=0)
+        for gi, g in enumerate(names):
+            F["groups"].setdefault(g, {"n": []})["n"].append(int(ks[gi]))
+        for v in self.field_vars:
+            spec = P.specs[v]
+            vals = self._group_stats(P[v], spec, M, ks)
+            for gi, g in enumerate(names):
+                val = vals[gi]
+                if isinstance(val, np.ndarray):
+                    val = val.round(5).tolist()
+                elif val is not None:
+                    val = round(float(val), 5)
+                F["groups"][g].setdefault(v, []).append(val)
         m = groups["all"]
         for v in self.field_vars:
             spec = P.specs[v]
@@ -78,43 +77,72 @@ class Recorder:
             "married": pres & P.is_("rel_status", "married"),
         }
 
+    @staticmethod
+    def _group_matrix(groups: dict) -> np.ndarray:
+        """People × groups (0/1, float64): one matrix product then gives every group's sum at once."""
+        return np.stack([m.astype(np.float64) for m in groups.values()], axis=1)
+
+    @staticmethod
+    def _group_stats(x: np.ndarray, spec, M: np.ndarray, ks: np.ndarray) -> list:
+        """Per group: category shares (cat), the share true (bool) or the mean of finite values; None if empty."""
+        G = M.shape[1]
+        if spec.dtype == "cat":
+            nc = len(spec.categories)
+            oh = np.zeros((len(x), nc))
+            ok = (x >= 0) & (x < nc)
+            oh[np.flatnonzero(ok), x[ok].astype(np.int64)] = 1.0
+            cnt = oh.T @ M                                          # categories × groups
+            return [cnt[:, g] / ks[g] if ks[g] else None for g in range(G)]
+        if spec.dtype == "bool":
+            s_ = x.astype(np.float64) @ M
+            return [s_[g] / ks[g] if ks[g] else None for g in range(G)]
+        xf = x.astype(np.float64)
+        fin = np.isfinite(xf)
+        s_ = np.where(fin, xf, 0.0) @ M
+        n_ = fin.astype(np.float64) @ M
+        return [s_[g] / n_[g] if n_[g] else None for g in range(G)]
+
     def daily(self):
         sim, w = self.sim, self.sim.w
         P = w.P
         day = w.day
         groups = self._groups()
-        for g, m in groups.items():
-            k = int(m.sum())
-            row = {"day": day, "group": g, "n": k}
-            if k:
-                for v in self.vars:
-                    x = P[v][m]
-                    spec = P.specs[v]
-                    if spec.dtype == "cat":
-                        cats = spec.categories
-                        cnt = np.bincount(x, minlength=len(cats)) / k
-                        for c, val in zip(cats, cnt):
-                            row[f"{v}={c}"] = float(val)
-                    else:
-                        xf = x.astype(np.float64)
-                        ok = np.isfinite(xf)
-                        row[v] = float(xf[ok].mean()) if ok.any() else None
-            self.rows.append(row)
+        names = list(groups)
+        M = self._group_matrix(groups)
+        ks = M.sum(axis=0)
+        rows = [{"day": day, "group": g, "n": int(ks[gi])} for gi, g in enumerate(names)]
+        for v in self.vars:
+            spec = P.specs[v]
+            vals = self._group_stats(P[v], spec, M, ks)
+            for gi in range(len(names)):
+                if not ks[gi]:
+                    continue
+                val = vals[gi]
+                if spec.dtype == "cat":
+                    for c, cv in zip(spec.categories, val):
+                        rows[gi][f"{v}={c}"] = float(cv)
+                else:
+                    rows[gi][v] = None if val is None else float(val)
+        self.rows.extend(rows)
         # mechanism-term means (all present + by school) for population-level attribution
         emo = sim.systems["emotion"]
-        for g in ("all", "BYU", "UVU", "single", "married"):
-            m = groups[g]
-            if not m.any():
-                continue
-            row = {"day": day, "group": g}
-            for s, terms in emo.contrib.items():
-                for t, arr in terms.items():
-                    if len(arr) == len(m):
-                        row[f"{s}.{t}"] = float(arr[m].mean())
-                tr = emo.transient.get(s)
-                if tr is not None and len(tr) == len(m):
-                    row[f"{s}.events"] = float(tr[m].mean())
-            self.term_rows.append(row)
+        tg = [names.index(g) for g in ("all", "BYU", "UVU", "single", "married")]
+        Mt, kt = M[:, tg], ks[tg]
+        trows = [{"day": day, "group": names[g]} for g in tg]
+        for s, terms in emo.contrib.items():
+            for t, arr in terms.items():
+                if len(arr) == len(M):
+                    sums = np.asarray(arr, np.float64) @ Mt
+                    for j, r in enumerate(trows):
+                        if kt[j]:
+                            r[f"{s}.{t}"] = float(sums[j] / kt[j])
+            tr = emo.transient.get(s)
+            if tr is not None and len(tr) == len(M):
+                sums = np.asarray(tr, np.float64) @ Mt
+                for j, r in enumerate(trows):
+                    if kt[j]:
+                        r[f"{s}.events"] = float(sums[j] / kt[j])
+        self.term_rows.extend(r for j, r in enumerate(trows) if kt[j])
         # event counts for today
         log = sim.log
         if log.n > self._ev_cursor:

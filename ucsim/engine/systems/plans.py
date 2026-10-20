@@ -87,7 +87,12 @@ class Plans:
     def _resolve(self) -> np.ndarray:
         """Per-agent follow-through strength: how reliably intentions turn into action (0.4–1)."""
         sim = self.sim
-        return expit(0.4 + 0.5 * sim.z("conscientiousness") + 0.4 * sim.z("self_control"))
+        key = (sim.w.day, sim.w.P.n)
+        if getattr(self, "_res_key", None) != key:          # traits only: the same all day
+            self._res = expit(0.4 + 0.5 * sim.z("conscientiousness") + 0.4 * sim.z("self_control"))
+            self._res.flags.writeable = False
+            self._res_key = key
+        return self._res
 
     def _target(self) -> np.ndarray:
         P = self.sim.w.P

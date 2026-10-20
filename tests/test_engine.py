@@ -77,9 +77,11 @@ def test_population_and_relationship_invariants(ran):
     idx = E.find(E.make_keys(i, pid[i]))
     assert (idx >= 0).all()
     assert ((E["flags"][idx] & (Tie.ROMANTIC | Tie.SPOUSE)) > 0).all()
-    # edge keys are unique and sorted (binary-search invariant)
+    # edge keys are unique; the sorted index (binary search) is sorted and points at each key's row
     k = E.key_array
-    assert (np.diff(k) > 0).all()
+    assert len(np.unique(k)) == len(k)
+    assert (np.diff(E._sorted) > 0).all() and (k[E._perm] == E._sorted).all()
+    assert (E.find(k) == np.arange(len(k))).all()
     # no self-loops, endpoints in range
     lo, hi = E.endpoints()
     assert (lo < hi).all() and hi.max() < P.n

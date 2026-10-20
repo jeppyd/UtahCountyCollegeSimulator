@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| — | — | — | Nobody. Messaging, institutions and family-homes merged 2026-10-19; next is travel (or survey-followups once the raw CSVs are here). |
+| Claude Code (cloud) | 2026-10-20 | campus policies (owner request) | BYU Honor Code, endorsement, housing rules; UVU Student Code; on `wip/policies`. |
 
 ## The goal in one paragraph
 

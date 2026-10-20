@@ -1,0 +1,19 @@
+# BYU Honor Code decisions (engine/systems/honor.py). Field meanings: config/decisions/00_core.yaml.
+decisions:
+  honor_outcome:
+    label: What the Honor Code Office decided
+    units: logit
+    outcomes: [warning, probation, suspension, dismissal]
+    factors:
+      base:      {label: "how cases like this usually end", more: "", less: "most cases end with a warning"}
+      repeat:    {label: "earlier reports", more: "has been reported before", less: ""}
+      on_probation: {label: "already on probation", more: "already on probation", less: ""}
+      kind:      {label: "what it was for", more: "a serious violation", less: "a lesser violation"}
+  after_byu:
+    label: What to do after leaving BYU
+    units: logit
+    outcomes: [transferred_to_uvu, stopped]
+    factors:
+      base:      {label: "how many keep studying elsewhere", more: "most keep studying", less: ""}
+      ambition:  {label: "how much school matters to them", more: "wants a degree", less: "school isn't a priority"}
+      money:     {label: "money worries", more: "", less: "money is tight"}

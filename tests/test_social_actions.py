@@ -157,6 +157,7 @@ def test_moving_a_dinner_later_lets_a_working_student_come(world):
     day = sim.w.day + 2
     wd = sim.cal.weekday(day)
     P.cols["employed"][w] = True
+    P.cols["owns_car"][w] = True          # drives from work (their job may be across town)
     P.internal["shift_start"][w, wd], P.internal["shift_end"][w, wd] = 15 * 60, 19 * 60
     oid = int(sim.book.plan("dinner", day, 18 * 60, 90, organizer=h, place=int(P["unit_id"][h]),
                             lon=float(sim.w.units.lon[P["unit_id"][h]]), lat=float(sim.w.units.lat[P["unit_id"][h]]),

@@ -10,7 +10,9 @@ A trip keeps its own end points: the straight-line distance between them times t
 door at the destination (longer at BYU and UVU). Transit is the zone pair's door-to-door time, when UTA runs then.
 
 Labelled assumptions (not data): who bikes (BIKER_SHARE of people without a car, fixed per person), parking minutes,
-snow slowing walking, biking and driving (and pushing bikers to walk). Without travel.npz it falls back to
+the parking hassle that weighs on choosing to drive (CHOICE_PENALTY, highest at BYU) and the wait on choosing
+transit (TRANSIT_PENALTY; no bus under TRANSIT_MIN_KM), snow slowing walking, biking and
+driving (and pushing bikers to walk). Without travel.npz it falls back to
 straight-line estimates and says so (`TravelModel.source`).
 """
 from __future__ import annotations
@@ -31,6 +33,12 @@ BINS = (480, 750, 1050, 1230)
 PARK_MIN = {"BYU campus": 9.0, "UVU campus": 6.0, "Downtown (Provo)": 3.0}
 PARK_DEFAULT = 1.5
 CAR_OUT = 1.0          # from the door to the car at home
+# when choosing a mode, driving counts these extra minutes (permits, cost, hunting for a spot) — choice only, not time.
+# BYU: ~7,000 Y-lot spaces for ~33,000 students (Daily Universe 2017) keeps most students who live near campus on foot.
+CHOICE_PENALTY = {"BYU campus": 12.0, "UVU campus": 4.0, "Downtown (Provo)": 4.0}
+CHOICE_DEFAULT = 2.0
+TRANSIT_PENALTY = 6.0  # choice only: the wait feels longer than it is, and the schedule has to fit
+TRANSIT_MIN_KM = 1.2   # nobody rides the bus for a walk across a few blocks
 BIKER_SHARE = 0.12     # of people without a car (no survey item on bikes)
 
 
@@ -78,6 +86,7 @@ class TravelModel:
             np.fill_diagonal(self.car_min_km[k], 60 / 30)       # within a zone: ~30 km/h on local streets
         self.transit = d["transit"].astype(np.float32)          # (day, bin, from, to) minutes, NaN = no service
         self.park = np.array([PARK_MIN.get(n, PARK_DEFAULT) for n in self.names], np.float32)
+        self.hassle = np.array([CHOICE_PENALTY.get(n, CHOICE_DEFAULT) for n in self.names], np.float32)
         self.meta = json.loads(str(d["meta"]))
         t = self.meta.get("transit", {})
         self.source = (f"street network (UGRC) and UTA GTFS {t.get('feed_version', '')} "
@@ -153,11 +162,18 @@ class TravelModel:
         snow = float(self.w.env.get("snow_in", 0.0) or 0.0)
         bike_ok = ~car_ok & self.bikes(people) & (snow < 2.0)          # most bikers walk or ride the bus in snow
         INF = np.float64(1e9)
-        cand = np.stack([m["walk"],
-                         np.where(bike_ok, m["bike"], INF),
-                         np.where(car_ok, m["car"], INF),
-                         np.where(np.isfinite(m["transit"]), m["transit"], INF),
-                         np.where(ride_ok & ~car_ok, m["car"], INF)], axis=1)
-        mode = cand.argmin(axis=1)
-        best = cand[np.arange(len(people)), mode]
+        times = np.stack([m["walk"],
+                          np.where(bike_ok, m["bike"], INF),
+                          np.where(car_ok, m["car"], INF),
+                          np.where(np.isfinite(m["transit"]), m["transit"], INF),
+                          np.where(ride_ok & ~car_ok, m["car"], INF)], axis=1)
+        cost = times.copy()
+        if self.ok:                       # parking hassle weighs on choosing to drive (not on the minutes)
+            cost[:, MODE_ID["car"]] += self.hassle[self.zone_of(dlon, dlat)]
+            cost[:, MODE_ID["transit"]] += TRANSIT_PENALTY
+            short = km_between(olon, olat, dlon, dlat) < TRANSIT_MIN_KM
+            cost[short, MODE_ID["transit"]] = INF
+            times[short, MODE_ID["transit"]] = INF
+        mode = cost.argmin(axis=1)
+        best = times[np.arange(len(people)), mode]
         return best.astype(np.float32), mode.astype(np.int8)

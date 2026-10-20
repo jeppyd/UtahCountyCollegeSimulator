@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| — | — | — | Nobody. Storytelling (Story/Why/Ripple) merged 2026-10-20; next: travel, survey-followups. |
+| — | — | — | Nobody. Travel merged 2026-10-20; next: survey-followups (needs the raw CSVs), integration. |
 
 ## The goal in one paragraph
 
@@ -68,7 +68,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [sexuality-survey](workstreams/sexuality-survey.md) (+ dealbreakers) | **done, merged** | working branch | open issues below |
 | [calendar-weather](workstreams/calendar-weather.md) | **done, merged** | working branch | open issues below |
 | [talk](workstreams/talk.md) (Ask + interviews) | **done, merged** | working branch | open issues below |
-| [travel](workstreams/travel.md) | not started | — | next (keeps `ucsim/geo/travel.py`'s interface) |
+| [travel](workstreams/travel.md) | **done** | working branch | merged 2026-10-20 (wip/travel) |
 | [messaging](workstreams/messaging.md) (wave 2) | **done, merged** | working branch | open issues below |
 | [institutions](workstreams/institutions.md) (wave 2) | **done, merged** | working branch | open issues below |
 | [family-homes](workstreams/family-homes.md) (wave 2) | **done, merged** | working branch | open issues below |
@@ -157,6 +157,25 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-20 (4) — Claude Code (cloud session) — travel
+- `scripts/build_travel.py` → `ucsim/geo/data/travel.npz` (0.15 MB): 73 zones (57 official neighborhoods, BYU and UVU
+  campus, 14 outer areas where people live or go) with a ~170 m raster; the UGRC street graph (new
+  `fetch_geodata.py roads_net` layer with speed limits and one-ways; Dijkstra from dwelling-weighted zone centroids)
+  for walking/biking km and driving minutes off-peak and at the 5:30 pm peak; UTA GTFS (feed 2026 AUG_20261008) on a
+  weekday, Saturday and Sunday at 8:00/12:30/17:30/20:30 by a connection scan from six departure times in the hour
+  (waiting included), walk ≤ 800 m to stops, ≤ 400 m transfers. UVX runs weekdays and Saturdays, not Sundays; on
+  Sundays only routes 850 and 871 serve the area. The feed is not committed (NOTICE.md; UTA's terms URL no longer
+  resolves).
+- `geo/travel.py` keeps its interface (`trip()` → minutes, mode) and adds `zone_of`, `matrix`, `modes`: a trip keeps
+  its own end points (straight km × the zone pair's street detour, the pair's driving minutes per km), plus parking at
+  the destination (BYU 9 min, UVU 6, downtown 3); choice-only penalties for parking hassle (BYU 12) and transit waits
+  (6; no bus under 1.2 km); 12% of people without a car bike; snow slows every mode. Tuesday 8:00 to campus: BYU 45%
+  walk / 30% transit / 22% drive, UVU 75% drive. Occasion trips over 3 weeks: transit 8% (was 0), attendance and
+  lateness ~unchanged; ~+0.04 s/day at scale 0.05. Falls back to the straight-line estimate without travel.npz.
+- `/api/travel/zones`, `/api/travel/trip`; tests/test_travel.py; 250 tests pass. Fixed two tests whose assumptions the new times broke
+  (test_butterfly cohort count now includes people away in the Original; test_social_actions' working student drives).
+- Not done: a map layer of zones or isochrones in the web app; rides from friends still use car times.
 
 ### 2026-10-20 (3) — Claude Code (cloud session) — storytelling (Story, Why, Ripple)
 - Owner asked for a plain-language storytelling layer over the recorded causes (no AI prose; "share of the push").

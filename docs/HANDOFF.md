@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| — | — | — | Nobody. Campus policies merged 2026-10-20; next is travel (or survey-followups once the raw CSVs are here). |
+| — | — | — | Nobody. LDS tuning merged 2026-10-20; next: storytelling layer audit (owner asked), travel, survey-followups. |
 
 ## The goal in one paragraph
 
@@ -157,6 +157,38 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-20 (2) — Claude Code (cloud session) — LDS tuning (owner's answers to the LDS audit)
+- **Real Provo YSA wards** from the owner's PDFs (Provo YSA Apartment Listing by Ward 2026-27, On Campus Housing
+  Assignments 2026-27; PDFs not committed — they list buildings, not people): `scripts/build_ysa_wards.py` geocodes
+  the listed addresses on Provo's grid (fit to our complexes, RMSE 43 m) → `geo/data/ysa_wards.json` (569 rows, 168
+  wards; 33 rows unplaced, mostly Oak Hills houses). `population/ysa_wards.py`: units near a listed building get its
+  ward; at small scales neighbouring wards of one stake merge (≥ 60 members, `REAL_WARD_MIN`); names like
+  "YSA Stake 3 · 35th Ward". Other wards get readable generic names ("Family ward 12"). `structure.ward_name()` is
+  used everywhere a ward is named; movers join the real ward of their new building (housing._assign_ward). 66
+  complexes known only by address now carry their listing name (name_src "ysa_listing").
+- **Honor Code**: reports are rarer and quieter (owner: reporting is rare, anonymous, "snitching"), weighted toward
+  same-sex romance and alcohol over coffee; ~0.4% of BYU students a year (the published 1.5–3.5% also covers
+  cheating, dress etc.). The **endorsement** renews yearly on each student's own date (rates still hypothetical).
+- **Bishops** (`institutions.counsel`, mechanism institutions.bishop): after a premarital-sex confession the temple
+  recommend is held a few weeks (longer while still sexually active), often the sacrament too; some of those go to
+  church less meanwhile. Ongoing issues (porn, masturbation, sex) get roughly monthly follow-ups (max 6). New
+  masturbation talks (intimacy.bishop_masturbation; survey: 64% M / 19% F lifetime vs porn 71% / 17%). Events
+  recommend_withheld, recommend_restored, bishop_followup, bishop_masturbation_talk.
+- **Engagement length**: no survey item covers engagement → wedding (surveys have months dated before engagement,
+  median 8, and ideal months to engagement, median 9–10). Active LDS couples now marry after 4–7 months (median ≈
+  5½), one in five after ~3 (owner's judgment).
+- **Sundays**: members (weighted by attendance) eat out and go out less, spend more time at friends' apartments and
+  around the complex (activity.choice.sunday_out / sunday_hangout); a date that lands on Sunday moves to Monday 65% of
+  the time (romance.date.sunday_keep).
+- **NCMOs** now mostly start on apps (romance.ncmo app_rate/app_base: casual-minded app users match and meet in a
+  parked car, an apartment or a quiet spot; event value = place); party/dance base lowered. Total ≈ unchanged
+  (~2/3 via apps).
+- **Speed buttons**: a speed change while time runs now just changes the pace (`POST /api/pace`, read every day)
+  instead of stop-wait-restart; pause shows "pausing after this day…" at once; clicks are queued in order.
+- Fixed: a marriage ending during world build left sexual_satisfaction set (romance._end now clears it).
+- New `docs/BRAINSTORM_GUIDE.md` (owner request): every kind of building block in plain words plus an idea template.
+- 240 tests pass; web build passes.
 
 ### 2026-10-20 — Claude Code (cloud session)
 - **Campus policies** (owner request): researched BYU's and UVU's published policies and wrote them, with sources and

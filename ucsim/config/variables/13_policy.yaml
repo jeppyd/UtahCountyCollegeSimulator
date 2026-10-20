@@ -1,0 +1,21 @@
+# Campus policy standing (engine/systems/honor.py): where a BYU student stands with the Honor Code Office and their
+# ecclesiastical endorsement. "n/a" for everyone the Honor Code doesn't cover in the model (non-BYU people).
+entity: person
+defaults: {domain: academics_work, kind: state, dtype: cat, update: weekly, evidence: hypothetical, flags: [filter, chart]}
+variables:
+  honor_standing:
+    label: Honor Code standing
+    categories: [n/a, good, warned, probation, suspended, dismissed]
+    desc: "BYU students: good standing; warned (a warning or counselling — still in good standing); on probation (lost good standing until the term ends with no new violation); suspended or dismissed (left BYU)."
+    init: "good for BYU students"
+  endorsement:
+    label: Ecclesiastical endorsement
+    categories: [n/a, current, withdrawn]
+    desc: "BYU students need a current endorsement, renewed yearly with their bishop (or their own faith's leader or the BYU chaplain). Withdrawn: a bishop declined or withdrew it, or they left the Church — they can't enroll for the next term."
+    init: "current for BYU students"
+  honor_reports:
+    label: Honor Code reports
+    dtype: u1
+    kind: counter
+    range: [0, 20]
+    desc: "How many times they have been reported to the Honor Code Office."

@@ -1,0 +1,74 @@
+# Events from engine/systems/honor.py (BYU Honor Code and ecclesiastical endorsement). Magnitudes hypothetical.
+events:
+  honor_reported:
+    label: Reported to the Honor Code Office
+    story: "{a} was reported to the Honor Code Office"
+    category: religion
+    salience: 0.6
+    effects:
+      - {var: anxiety, mag: 0.10, sd: 0.4, half_life: 14}
+      - {var: stress, mag: 0.08, sd: 0.4, half_life: 14}
+    evidence: hypothetical
+    desc: "The value says what for: 1 coffee or tea, 2 alcohol, 3 premarital sex, 4 same-sex dating."
+  honor_warning:
+    label: Honor Code warning
+    story: "{a} got a warning from the Honor Code Office"
+    category: religion
+    salience: 0.45
+    effects:
+      - {var: guilt, mag: 0.05, sd: 0.6, half_life: 14, mods: {faith_belief: 0.6}}
+    evidence: hypothetical
+  honor_probation:
+    label: Put on Honor Code probation
+    story: "{a} was put on Honor Code probation"
+    category: religion
+    salience: 0.7
+    effects:
+      - {var: stress, mag: 0.10, sd: 0.4, half_life: 30}
+      - {var: belonging, mag: -0.06, sd: 0.5, half_life: 30}
+      - {var: guilt, mag: 0.06, sd: 0.6, half_life: 21, mods: {faith_belief: 0.6}}
+    evidence: hypothetical
+  honor_suspended:
+    label: Suspended from BYU
+    story: "{a} was suspended from BYU under the Honor Code"
+    category: academics
+    salience: 0.9
+    effects:
+      - {var: mood, mag: -0.12, sd: 0.4, half_life: 45}
+      - {var: belonging, mag: -0.12, sd: 0.4, half_life: 60}
+      - {var: stress, mag: 0.12, sd: 0.4, half_life: 30}
+    evidence: hypothetical
+  honor_standing_restored:
+    label: Back in good Honor Code standing
+    story: "{a} finished probation and is back in good standing"
+    category: religion
+    salience: 0.35
+    effects:
+      - {var: stress, mag: -0.04, sd: 0.4, half_life: 14}
+    evidence: hypothetical
+  endorsement_renewed:
+    label: Renewed ecclesiastical endorsement
+    story: "{a} renewed their ecclesiastical endorsement"
+    category: religion
+    salience: 0.15
+    effects: []
+    evidence: hypothetical
+  endorsement_withdrawn:
+    label: Ecclesiastical endorsement withdrawn
+    story: "{a} lost their ecclesiastical endorsement and can't enroll at BYU next term"
+    category: religion
+    salience: 0.85
+    effects:
+      - {var: stress, mag: 0.14, sd: 0.4, half_life: 30}
+      - {var: anxiety, mag: 0.10, sd: 0.4, half_life: 30}
+      - {var: belonging, mag: -0.10, sd: 0.4, half_life: 45}
+    evidence: hypothetical
+  left_byu:
+    label: Left BYU (Honor Code or endorsement)
+    story: "{a} left BYU"
+    category: academics
+    salience: 0.8
+    effects:
+      - {var: belonging, mag: -0.08, sd: 0.4, half_life: 45}
+    evidence: hypothetical
+    desc: "The value says where they went: 1 transferred to UVU, 0 stopped studying."

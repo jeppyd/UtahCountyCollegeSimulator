@@ -1,0 +1,49 @@
+system: honor
+# BYU Honor Code enforcement and the ecclesiastical endorsement (engine/systems/honor.py), from the published policies
+# in config/policies/campus.yaml. The rules are real; how often violations come to light and how cases end are fitted
+# to the few published numbers (about 1.5–3.5% of students contacted a year; >95% of cases end enrolled) and are
+# otherwise hypothetical.
+mechanisms:
+  honor.report:
+    label: Violations coming to light
+    target: honor_standing
+    sources: [coffee, alcohol, premarital_sex_current, orientation, rel_status, living, conscientiousness]
+    form: "weekly P(reported) = 1 − exp(−enforcement · rate · Σ violations · (1 + roommates·[contracted housing]) · (1.3 − 0.6·conscientiousness_z₊)), violations: coffee or tea (≥ weekly), alcohol (any), premarital sex (current), same-sex dating; enforcement = world honor_enforcement"
+    params:
+      rate_coffee: {value: 0.0016, range: [0.0005, 0.01]}
+      rate_alcohol: {value: 0.004, range: [0.001, 0.02]}
+      rate_sex: {value: 0.003, range: [0.001, 0.015]}
+      rate_same_sex: {value: 0.003, range: [0.001, 0.015]}
+      roommates: {value: 0.6, range: [0, 1.5]}
+      quit_after: {value: 0.55, range: [0.2, 0.9]}
+    timescale: weekly
+    evidence: hypothetical
+    desc: "Most reports come from people close by (roommates, friends, neighbours in contracted housing); careful people are caught less. After a report many stop (quit_after) — coffee and alcohol are dropped, or a dating couple slows down."
+    refs: ["Slate 2011: 1.5–3.5% of BYU students contacted by the Honor Code Office each year", "Daily Universe 1996: freshmen are the most frequent offenders"]
+  honor.outcome:
+    label: How Honor Code cases end
+    target: honor_standing
+    sources: [honor_reports, honor_standing]
+    form: "Gumbel-max over warning / probation / suspension / dismissal with base log-odds (0, base_probation, base_suspension, base_dismissal) + repeat·(earlier reports) + on_probation (to suspension and dismissal) + kind (premarital sex and same-sex dating weigh toward probation). Probation lasts until the end of the next term with no new report."
+    params:
+      base_probation: {value: -1.0, range: [-2, 0.5]}
+      base_suspension: {value: -3.4, range: [-5, -1.5]}
+      base_dismissal: {value: -6.0, range: [-8, -4]}
+      repeat: {value: 0.8, range: [0.2, 1.5]}
+      on_probation: {value: 2.2, range: [1, 3.5]}
+      kind_serious: {value: 0.7, range: [0, 1.5]}
+      transfer_uvu: {value: 0.6, range: [-1, 2]}
+    timescale: weekly
+    evidence: hypothetical
+    desc: "Calibrated so that most cases end in a warning or counselling, about a quarter in probation, a few percent in suspension and almost none in dismissal (>95% stay enrolled)."
+  honor.endorsement:
+    label: Ecclesiastical endorsement
+    target: endorsement
+    sources: [lds_member, activity, faith_belief]
+    form: "Leaving the Church (resigned membership) withdraws the endorsement at once; at the yearly renewal (the start of fall semester) a bishop declines it with probability decline_inactive for inactive members and decline_less_active for less-active ones. Withdrawn: no enrollment from the next term (rare exception: exception_rate); they transfer to UVU or stop (honor.outcome transfer_uvu)."
+    params:
+      decline_inactive: {value: 0.35, range: [0.05, 0.8]}
+      decline_less_active: {value: 0.04, range: [0, 0.2]}
+      exception_rate: {value: 0.05, range: [0, 0.3]}
+    timescale: weekly
+    evidence: hypothetical

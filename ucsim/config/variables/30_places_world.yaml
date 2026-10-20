@@ -36,6 +36,8 @@ sections:
       alcohol_permitted: {label: Alcohol permitted by church, dtype: bool, desc: "Word of Wisdom alcohol switch (hypothetical): removes the alcohol prohibition from adoption, guilt, quitting and temple-recommend eligibility.", evidence: hypothetical}
       contracted_housing_required: {label: BYU contracted-housing requirement, dtype: bool, desc: "Single first-year BYU undergraduates must live on campus or in BYU-contracted housing (BYU policy since fall 2022: first two semesters only)."}
       interfaith_welcome: {label: Interfaith welcome initiative, desc: "0-1: how actively campuses and wards welcome people of other faiths and none (lowers the religious-outsider feeling).", evidence: hypothetical}
+      honor_enforcement: {label: Honor Code enforcement, desc: "Multiplier on how often Honor Code violations are reported and acted on (1 = today; 0 = not enforced). See config/policies/campus.yaml.", evidence: hypothetical}
+      endorsement_required: {label: BYU ecclesiastical endorsement required, dtype: bool, desc: "When true (today's rule), BYU students need a current ecclesiastical endorsement to enroll; losing it ends their studies at BYU."}
       contracted_housing_all_years: {label: Contracted housing for all years (pre-2022 rule), dtype: bool, desc: "When true, the requirement covers every single BYU undergraduate, as it did before fall 2022.", evidence: hypothetical}
       mission_norm: {label: Mission participation norm, desc: "Multiplier on mission-departure hazard."}
       men_initiate_norm: {label: Men-ask norm strength, desc: "How strongly dating initiation is expected of men."}

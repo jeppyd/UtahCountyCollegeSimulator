@@ -9,8 +9,8 @@ Design notes (parameters in config/mechanisms/16_institutions.yaml; occasion kin
   low three socials running, the officers adapt — add food while the budget lasts, move to another night, or recruit —
   and when a social overflows its room they cap it. Each is an institution decision and an event.
 * Wards: an activities committee plans a monthly activity (with food while the budget lasts) and a service project
-  every quarter. The bishop has a few interview hours a week, so meetings to repent or talk about pornography queue
-  up (romance._confessions and intimacy ask `bishop_gate`); waits are visible and recorded.
+  every quarter. Members who want to talk with their bishop (to repent, or about pornography) are seen that week —
+  bishops make time for them (romance._confessions and intimacy ask `bishop_gate`); the meetings are counted.
 * Counseling (BYU CAPS, UVU Student Health Services' counseling): enrolled students in a depressive episode or under
   heavy strain may seek help (decision `seek_counseling`); sessions per week are limited, the waitlist is ordered by
   crisis first and then by wait; people seen get weekly sessions for a few weeks (relief through the coping system);
@@ -286,8 +286,8 @@ class Institutions:
 
     # ------------------------------------------------------------------ bishops
     def bishop_gate(self, people: np.ndarray, why: str = "confession") -> np.ndarray:
-        """Who gets an interview with their bishop today (a few slots per ward per week, first come first served);
-        the rest wait. Returns a bool mask over `people`."""
+        """Who meets their bishop: everyone who asks. A bishop makes time for members who want to talk (after church or
+        an evening that week), so there is no queue; the ward's row counts the meetings. Returns a bool mask."""
         sim, w = self.sim, self.sim.w
         P = w.P
         people = np.asarray(people, np.int64)
@@ -297,40 +297,17 @@ class Institutions:
         if day // 7 != self._bishop_week:
             self._bishop_week, self._bishop_used = day // 7, {}
         ward = P["ward_id"][people].astype(np.int64)
-        since = P.internal["bishop_wait_since"][people]
-        first_ask = since < 0
-        P.internal["bishop_wait_since"][people[first_ask]] = day
-        since = np.where(first_ask, day, since)
-        order = np.lexsort((people, since))
-        ok = np.zeros(len(people), bool)
+        P.internal["bishop_wait_since"][people] = -1
         T = self.T
-        for k in order.tolist():
-            wd_ = int(ward[k])
-            if wd_ < 0:
-                ok[k] = True
-                continue
-            j = self.row("ward", wd_)
-            slots = int(T["capacity"][j]) if j >= 0 else 9
-            if self._bishop_used.get(wd_, 0) < slots:
-                self._bishop_used[wd_] = self._bishop_used.get(wd_, 0) + 1
-                ok[k] = True
-        seen = people[ok]
-        waited = day - P.internal["bishop_wait_since"][seen]
-        P.internal["bishop_wait_since"][seen] = -1
-        wait_new = people[~ok & first_ask]
-        if len(wait_new):
-            ev = sim.emit("waiting_for_bishop", wait_new, mech="institutions.ward")
-            wi = np.array([int(T.ids[self.row("ward", int(x))]) if self.row("ward", int(x)) >= 0 else -1 for x in P["ward_id"][wait_new]])
-            link(sim, ev, "institution", wi, 1.0, "organization")
-        for wd_ in np.unique(ward[ok]).tolist():
-            j = self.row("ward", wd_)
+        for wd_, k in zip(*np.unique(ward[ward >= 0], return_counts=True)):
+            self._bishop_used[int(wd_)] = self._bishop_used.get(int(wd_), 0) + int(k)
+            j = self.row("ward", int(wd_))
             if j >= 0:
-                T.cols["served"][j] = self._bishop_used.get(wd_, 0)
-                T.cols["demand"][j] = self._bishop_used.get(wd_, 0) + int((~ok & (ward == wd_)).sum())
-                T.cols["waitlist"][j] = int((~ok & (ward == wd_)).sum())
-                T.cols["utilization"][j] = self._bishop_used.get(wd_, 0) / max(T["capacity"][j], 1)
-        del waited
-        return ok
+                T.cols["served"][j] = self._bishop_used[int(wd_)]
+                T.cols["demand"][j] = self._bishop_used[int(wd_)]
+                T.cols["waitlist"][j] = 0
+                T.cols["utilization"][j] = 0.0
+        return np.ones(len(people), bool)
 
     # ------------------------------------------------------------------ counseling
     def _counseling(self, day: int):

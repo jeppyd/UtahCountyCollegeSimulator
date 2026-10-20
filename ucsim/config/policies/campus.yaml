@@ -1,0 +1,148 @@
+# Campus policies at BYU and UVU, as published (retrieved 2026-10-20). Each entry: what the rule says in plain words,
+# the official source and version, and how the model uses it — `modelled` (with the mechanism or world switch that
+# carries it), `data` (shown to users, no behavioural effect yet) or `not_binding` (true but never changes anything in
+# the model, with why). engine/systems/honor.py and the existing world switches read the numbers; /api/policies serves
+# this file with live counts. Paraphrases, not quotations; follow the source for the binding text.
+policies:
+  # ------------------------------------------------------------------------------------------------ BYU
+  - id: byu_honor_code
+    school: BYU
+    title: CES Honor Code
+    version: "approved 2023-08-30, revised 2025-12-05 (prior version 2020-02-12)"
+    source: https://policy.byu.edu/view/church-educational-system-honor-code
+    rules:
+      - Maintain an ecclesiastical endorsement.
+      - Be honest.
+      - Live a chaste and virtuous life — no sexual relations outside marriage between a man and a woman, and no same-sex romantic behavior.
+      - Abstain from alcohol, tobacco, tea, coffee, vaping, marijuana and other substance abuse.
+      - Participate regularly in Church services.
+      - Respect others; avoid profane and vulgar language.
+      - Obey the law and follow campus policies, including the dress and grooming standards.
+      - Encourage others to keep the Honor Code.
+    applies_to: every BYU student, faculty and staff member (agreed to on admission or appointment)
+    status: modelled
+    modelled_by: [honor.report, honor.outcome]
+    notes: "The model tracks the behaviours it already simulates: coffee, alcohol, premarital sex, same-sex dating and church attendance (through the endorsement). Honesty, language, dress and grooming are not simulated."
+
+  - id: byu_honor_process
+    school: BYU
+    title: Honor Code investigation and administrative review
+    version: "approved 2019-10-28, revised 2024-12-26"
+    source: https://policy.byu.edu/view/honor-code-investigation-and-administrative-review-process
+    rules:
+      - Anyone may report a student to the Honor Code Office, for conduct on or off campus; anonymous reports are generally not investigated.
+      - The office investigates when there is sufficient, reasonable and credible information, interviews the student and decides on a preponderance of the information.
+      - "Outcomes: no action, counsel and education, referral, warning (all keep good standing); probation, suspension withheld, suspension, dismissal (lose good standing until resolved)."
+      - Probation needs the office director's approval; suspension and dismissal also the associate dean of students. The student may ask for review within five business days.
+    status: modelled
+    modelled_by: [honor.outcome]
+    calibration:
+      - "About 1.5–3.5% of BYU students were contacted by the Honor Code Office each year in the 2000s (BYU, via Slate 2011): https://www.slate.com/articles/news_and_politics/explainer/2011/03/premarital_sex_at_byu.html"
+      - "Over 95% of cases end with the student still enrolled; about five expulsions a year (Honor Code Office listing, undated)."
+      - "1995–96: about 1% of students a semester were called in; 28% of those cases ended in withdrawal (Daily Universe 1996): https://universe.byu.edu/1996/12/13/honor-code-stats-say-freshmen-worst-offenders"
+
+  - id: byu_amnesty
+    school: BYU
+    title: Amnesty for reporting sexual misconduct
+    version: "adopted 2016–2017"
+    source: https://www.fox13now.com/2017/06/24/brigham-young-university-changes-policy-for-handling-sex-assaults
+    rules:
+      - Being a victim of sexual misconduct is never an Honor Code violation.
+      - People who report sexual misconduct, as victims or witnesses, are not disciplined for related Honor Code violations at or near the time (such as drinking), unless someone's health or safety is at risk.
+      - The Title IX office does not share victims' identities with the Honor Code Office without consent.
+    status: not_binding
+    notes: "The model does not simulate sexual misconduct, so the amnesty never applies. A 2017 BYU survey found 21% of students who didn't report unwanted sexual contact feared Honor Code discipline."
+
+  - id: byu_endorsement
+    school: BYU
+    title: Ecclesiastical endorsement
+    version: "renewal rules effective 2026-07-01"
+    source: https://honorcode.byu.edu/withdrawn-or-denied-ecclesiastical-endorsements
+    rules:
+      - Every student needs a current ecclesiastical endorsement, valid for 12 months; Latter-day Saint students renew it in an interview with their bishop (a stake presidency interview too if it has lapsed). Students of other faiths are endorsed through their own religious leader or the BYU chaplain.
+      - A leader may withdraw an endorsement at any time; that ends good Honor Code standing, and the student may not enroll for further terms or graduate.
+      - Leaving the Church (having one's name removed from its records) automatically withdraws the endorsement; former members can't be endorsed.
+      - Withdrawals are appealed only through ecclesiastical leaders; the Dean of Students may grant a rare exception on petition.
+    status: modelled
+    modelled_by: [honor.endorsement]
+
+  - id: byu_dress_grooming
+    school: BYU
+    title: CES Dress and Grooming Principles and Expectations
+    version: "2023-08-30"
+    source: https://policy.byu.edu/view/church-educational-system-dress-and-grooming-principles-and-expectations
+    rules:
+      - Dress modestly, neatly and cleanly; covering the temple garment is a good guideline; nothing sloppy, ragged or extreme.
+      - Men are clean-shaven (neatly trimmed moustaches allowed); beards only with a religious or medical exemption.
+    status: data
+    notes: "Appearance is not simulated."
+
+  - id: byu_housing_first_year
+    school: BYU
+    title: Two-semester housing requirement
+    version: "approved 2022-08-29, revised 2026-03-02 (prior version 2020-06-29)"
+    source: https://policy.byu.edu/view/student-housing-policy
+    rules:
+      - Single undergraduates, including transfer students, live in BYU on-campus housing, BYU-contracted off-campus housing, or with qualifying family for their first two semesters (spring plus summer count as one).
+      - After that they may live anywhere; before fall 2022 the requirement covered every single undergraduate.
+      - Exceptions only in writing from the Off-Campus Housing Office.
+    status: modelled
+    modelled_by: [world.contracted_housing_required, world.contracted_housing_all_years]
+    notes: "The model applies it to single first-year BYU students (class standing 'freshman')."
+
+  - id: byu_housing_same_sex
+    school: BYU
+    title: Sex-separated housing
+    version: "same policy"
+    source: https://policy.byu.edu/view/student-housing-policy
+    rules:
+      - Single students not living with qualifying family live only with people of their own sex — in BYU, contracted and community housing alike.
+    status: modelled
+    modelled_by: [housing.choice]
+    notes: "Housing assignment never puts single students in mixed-sex units."
+
+  - id: byu_visiting_hours
+    school: BYU
+    title: Visiting hours and rooms
+    version: "same policy"
+    source: https://policy.byu.edu/view/student-housing-policy
+    rules:
+      - Opposite-sex visitors may be in living rooms and kitchens, not bedrooms or private hallways (Helaman Halls has set open-house times instead).
+      - Visiting hours run 9:00 a.m. to midnight, until 1:30 a.m. on Friday nights; contracted landlords may set shorter hours.
+      - Violations can lead to eviction and loss of eligibility for BYU and contracted housing.
+    status: not_binding
+    notes: "The simulated day ends by 11:30 p.m., so midnight never cuts a get-together short in the model."
+
+  # ------------------------------------------------------------------------------------------------ UVU
+  - id: uvu_code_of_conduct
+    school: UVU
+    title: Student Code of Conduct (Policy 541)
+    version: "2026–27 catalog edition"
+    source: https://catalog.uvu.edu/student-code-conduct/
+    rules:
+      - Covers students on campus, at university activities, and off campus when the conduct harms the university community (decided case by case).
+      - "Prohibited: academic dishonesty, alcohol and drugs (including misused prescriptions) on university property or activities, tobacco and vaping, harm to persons (threats, hazing, bullying), theft, weapons and others."
+      - "Sanctions: warning, probation, suspension, expulsion, plus no-contact orders, fines, restitution, housing sanctions."
+      - Amnesty from conduct action for minor violations (including alcohol or drug use) for students who report or witness an incident, unless they endangered someone; safe harbour for students who self-report addiction.
+    status: data
+    notes: "UVU has no religious code: adults 21+ may drink off campus legally. The model's UVU students drink and drink coffee at their own rates; on-campus drinking is not simulated, so the code never triggers."
+
+  - id: uvu_drug_free
+    school: UVU
+    title: Alcohol- and drug-free campus (Policy 155)
+    version: "biennial review 2023–2025"
+    source: https://www.uvu.edu/wellness/drug-and-alcohol-prevention/index.html
+    rules:
+      - Unlawful possession, use or distribution of drugs and alcohol on UVU property or in UVU activities is prohibited, with sanctions up to expulsion and referral for prosecution.
+    status: data
+
+  - id: uvu_first_year_housing
+    school: UVU
+    title: First-year housing partnership (The Green on Campus Drive)
+    version: "announced 2024-03"
+    source: https://www.ksl.com/article/50946961/new-partnership-establishes-first-on-campus-housing-option-for-uvu-freshmen
+    rules:
+      - UVU's first on-campus option for first-year students — 500 beds in a private complex across the street from the Orem campus, with UVU student community leaders; conduct is handled by the complex.
+      - Optional: UVU has no live-on requirement.
+    status: data
+    notes: "UVU students choose housing like anyone else in the model."

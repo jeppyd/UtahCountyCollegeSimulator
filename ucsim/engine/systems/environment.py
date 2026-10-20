@@ -27,6 +27,9 @@ class Environment:
             "contracted_housing_required": True,
             # Since fall 2022 the rule covers only single undergrads' first two semesters (freshmen); before, all years.
             "contracted_housing_all_years": False,
+            # BYU Honor Code (engine/systems/honor.py): how strongly it is enforced, and whether an endorsement is required
+            "honor_enforcement": 1.0,
+            "endorsement_required": True,
             "interfaith_welcome": 0.0,
             "mission_norm": 1.0,
             "men_initiate_norm": 1.0,

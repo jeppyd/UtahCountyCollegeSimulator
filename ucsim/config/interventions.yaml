@@ -88,6 +88,30 @@ interventions:
     target: contracted_housing_all_years
     op: set
     value: true
+  honor_code_not_enforced:
+    name: BYU stops enforcing the Honor Code
+    description: The Honor Code stays on paper but nobody is reported or disciplined for coffee, alcohol, premarital sex or same-sex dating — no probations, no suspensions (the endorsement rule still applies).
+    confidence: speculative
+    target_type: world
+    target: honor_enforcement
+    op: set
+    value: 0.0
+  honor_code_stricter:
+    name: BYU enforces the Honor Code twice as strictly
+    description: Violations come to light twice as often (more reporting, closer checks) — more warnings, probations and suspensions.
+    confidence: speculative
+    target_type: world
+    target: honor_enforcement
+    op: set
+    value: 2.0
+  no_endorsement_requirement:
+    name: BYU drops the ecclesiastical endorsement requirement
+    description: Students who stop attending or leave the Church can keep studying at BYU — no withdrawals at the yearly renewal and no forced transfers.
+    confidence: speculative
+    target_type: world
+    target: endorsement_required
+    op: set
+    value: false
   missionary_outreach:
     name: More missionary outreach to students
     description: Missionaries and members invite non-member friends twice as often — more lessons, some more baptisms, and more people feeling pressured.

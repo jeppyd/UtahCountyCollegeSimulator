@@ -29,7 +29,7 @@ class Simulation:
     def __init__(self, world: World, interventions: list | None = None, name: str = "baseline",
                  record: bool = True):
         from .systems import (academics, activity, economy, emotion, encounters, environment, faith, groups, housing,
-                              family, history, institutions, intimacy, lifecourse, messaging, mind, coping, culture, network,
+                              family, history, honor, institutions, intimacy, lifecourse, messaging, mind, coping, culture, network,
                               norms, occasions, plans, recorder, romance, routine)
         self.w = world
         self.name = name
@@ -73,6 +73,7 @@ class Simulation:
             "messaging": messaging.Messaging(self),
             "institutions": institutions.Institutions(self),
             "family": family.Family(self),
+            "honor": honor.Honor(self),
             "housing": housing.Housing(self),
             "recorder": recorder.Recorder(self),
             "history": history.History(self),
@@ -81,7 +82,7 @@ class Simulation:
         self._zcache: dict[str, tuple[float, float]] = {}
         for name in ("environment", "housing", "activity", "groups", "network", "academics", "encounters", "economy",
                      "romance", "intimacy", "faith", "norms", "mind", "coping", "plans", "routine", "emotion", "culture", "occasions",
-                     "institutions", "family", "messaging", "lifecourse", "recorder"):
+                     "institutions", "family", "honor", "messaging", "lifecourse", "recorder"):
             sysobj = self.systems[name]
             if hasattr(sysobj, "init"):
                 sysobj.init()
@@ -226,6 +227,7 @@ class Simulation:
             self._run("environment", S["environment"].daily)
             self._run("lifecourse", S["lifecourse"].daily)
             self._run("family", S["family"].daily)
+            self._run("honor", S["honor"].daily)
             self._run("academics", S["academics"].daily)
             self._run("groups", S["groups"].daily)
             self._run("faith", S["faith"].daily)
@@ -265,6 +267,7 @@ class Simulation:
             self._run("norms", S["norms"].weekly)
             self._run("romance", S["romance"].weekly)
             self._run("intimacy", S["intimacy"].weekly)
+            self._run("honor", S["honor"].weekly)
             self._run("plans", S["plans"].weekly)
             self._run("routine", S["routine"].weekly)
             self._run("academics", S["academics"].weekly)

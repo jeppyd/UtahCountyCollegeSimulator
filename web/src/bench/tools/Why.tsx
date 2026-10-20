@@ -34,12 +34,21 @@ function WhyTool({ sel, setSel }: PanelProps) {
       <div className="bk-why">
         <b>{w.title}</b>
         <div className="bx-note">
-          {w.date}{w.outcome ? ` · decided: ${w.outcome}` : ''}{w.chance != null ? ` · the chance it had: ${pct(w.chance)}` : ''}
+          {w.date}{w.by ? ` · ${w.by}'s choice` : ''}{w.outcome ? ` · decided: ${w.outcome}` : ''}{w.chance != null ? ` · the chance it had: ${pct(w.chance)}` : ''}
         </div>
       </div>
+      {(w.after?.length ?? 0) > 0 && (
+        <div className="bk-why">It followed from: {w.after!.map((a, k) => (
+          <span key={k} className="click" style={{ textDecoration: 'underline dotted' }}
+            onClick={() => pickRef(setSel, { label: a.label, words: a.label, share: 0, value: 0, ref: a.ref, ref_label: a.label }, u)}>{k ? '; ' : ''}{a.label}</span>
+        ))}</div>
+      )}
       {w.constraint
         ? <div className="bk-why"><b>It couldn't go otherwise:</b> {w.constraint.words}</div>
-        : <ShareBar toward={w.toward} against={w.against} onPick={x => pickRef(setSel, x, u)} />}
+        : !w.toward.length && w.against.length > 0 && w.chance != null
+          ? <div className="bk-why">Nothing recorded pushed toward this: it happened against the odds (the model gave it {pct(w.chance)}). What pushed the other way:</div>
+          : null}
+      {!w.constraint && Boolean(w.toward.length || w.against.length || !w.after?.length) && <ShareBar toward={w.toward} against={w.against} onPick={x => pickRef(setSel, x, u)} />}
       <div className="bx-note">
         {w.note ?? 'Each reason\'s share is its part of the total push the model recorded for this choice; the base rate (how often anyone does this) is left out.'}
         {' '}These are the reasons inside this simulated world, not proof of real-world cause.

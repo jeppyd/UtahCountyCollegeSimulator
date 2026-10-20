@@ -160,13 +160,13 @@ export const famApi = {
   geo: (): Promise<{ width: number; height: number; source: string; states: { name: string; abbr: string; d: string; cx: number; cy: number }[] }> => j(STATIC ? './geo/us_states.json' : '/geo/us_states.json'),
 }
 
-export type StoryReason = { words: string; share: number }
-export type StoryLine = { event: number; day: number; date: string; type: string; category: string; text: string; reasons: StoryReason[]
+export type StoryReason = { words: string; share: number | null }
+export type StoryLine = { after: string[]; by?: string | null; event: number; day: number; date: string; type: string; category: string; text: string; reasons: StoryReason[]
   because: string; chance: number | null; other: number | null; times: number; last_day: number; salience: number }
 export type StoryResp = { person: number; name: string; chapters: { title: string; start: number; end: number; date: string; lines: StoryLine[] }[]; n_events: number; note: string }
 export type WhyItem = { label: string; words: string; share: number; value: number; ref?: any; ref_label?: string }
 export type WhyResp = { kind: string; ref: string; title: string; outcome?: string; chance: number | null; units: string; day: number | null; date: string | null
-  toward: WhyItem[]; against: WhyItem[]; base?: number; constraint?: { label: string; words: string }; note?: string; decision?: number; other_name?: string }
+  toward: WhyItem[]; against: WhyItem[]; after?: { label: string; ref?: any; day?: number }[]; base?: number; constraint?: { label: string; words: string }; note?: string; decision?: number; other_name?: string; by?: string }
 export type RippleStep = { key: string; kind: string; text: string; day: number | null; date: string | null; parent: string | null; level: number; via: string; people: number[] }
 export type RippleResp = { root: string; steps: RippleStep[]; longest: number; notes: string[]; cut: any }
 

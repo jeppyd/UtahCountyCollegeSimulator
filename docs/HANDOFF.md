@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| — | — | — | Nobody. LDS tuning merged 2026-10-20; next: storytelling layer audit (owner asked), travel, survey-followups. |
+| — | — | — | Nobody. Storytelling (Story/Why/Ripple) merged 2026-10-20; next: travel, survey-followups. |
 
 ## The goal in one paragraph
 
@@ -157,6 +157,23 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-20 (3) — Claude Code (cloud session) — storytelling (Story, Why, Ripple)
+- Owner asked for a plain-language storytelling layer over the recorded causes (no AI prose; "share of the push").
+  New `analysis/story.py` + `api/routes_story.py` (`/api/story/person/{i}`, `/api/story/why`, `/api/story/ripple`),
+  read-only over the same ledgers Trace walks:
+  - **why**: for a recorded choice, each factor's share of the total push (|term| / Σ|terms|, base rate left out),
+    split toward / against what happened, with the chance; for an event with no choice of its own, the weights of its
+    recorded causes (tie, place, feeling); a sequence it simply followed (the ask before a date, the occasion) is
+    listed as "after", not as a share; someone else's choice (an answer) gives that person's reasons; everything
+    pushing the other way reads "against the odds".
+  - **story**: chapters by month and turning point (move, relationship, engagement…), one sentence per notable event
+    (salience ≥ 0.3) with its top reasons, repeats with the same person folded ("4 times").
+  - **ripple**: the forward trace as a tree, each moment under the latest earlier moment it came from; ties reached
+    by met_at/introduced become "X and Y met" lines, answers "X said yes"; an event at an occasion also follows the
+    occasion (who met there and what that led to).
+- Workbench tools Story (people), Why and Ripple (trace) — docs/img/story.png. `_Words.place` names wards with
+  `ward_name`. 247 tests pass; web build passes.
 
 ### 2026-10-20 (2) — Claude Code (cloud session) — LDS tuning (owner's answers to the LDS audit)
 - **Real Provo YSA wards** from the owner's PDFs (Provo YSA Apartment Listing by Ward 2026-27, On Campus Housing

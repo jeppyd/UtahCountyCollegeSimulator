@@ -31,7 +31,7 @@ function StoryTool({ sel, setSel, opts, setOpts }: PanelProps) {
       </PanelOptions>
       <div className="bk-why"><b>{s.name}</b> <span className="bx-note">{s.n_events.toLocaleString()} notable moments{sel.time ? ' in the chosen window' : ''}</span></div>
       {!s.chapters.length && <Empty title="Nothing notable yet">Run time forward, or widen the time window.</Empty>}
-      {[...s.chapters].reverse().map(c => {
+      {s.chapters.map(c => {
         const k = `${c.start}:${c.title}`
         const closed = shut[k] ?? false
         return (
@@ -44,9 +44,10 @@ function StoryTool({ sel, setSel, opts, setOpts }: PanelProps) {
                 <CatDot c={l.category} />
                 <span>
                   {l.text}{l.times > 1 ? ` (${l.times} times)` : ''}.
+                  {reasons && l.after.length > 0 && <span className="story-why"> After: {l.after.join('; ')}.</span>}
                   {reasons && l.reasons.length > 0 && (
-                    <span className="story-why"> Mostly {l.reasons.map((r, j) => (
-                      <span key={j}>{j ? (j === l.reasons.length - 1 ? ' and ' : ', ') : ''}{r.words} <b>{pct(r.share)}</b></span>
+                    <span className="story-why"> {l.reasons[0]?.share == null ? '' : l.by && !l.text.startsWith(l.by) ? `${l.by}'s reasons: mostly ` : 'Mostly '}{l.reasons.map((r, j) => (
+                      <span key={j}>{j ? (j === l.reasons.length - 1 ? ' and ' : ', ') : ''}{r.words}{r.share != null && <b> {pct(r.share)}</b>}</span>
                     ))}{l.chance != null ? <span className="bx-note"> · chance {pct(l.chance)}</span> : null}</span>
                   )}
                 </span>

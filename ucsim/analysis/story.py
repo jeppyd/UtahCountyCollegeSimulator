@@ -27,6 +27,7 @@ TURNING = {"moved", "relationship_started", "breakup_received", "breakup_initiat
 MIN_SHARE = 0.08          # reasons below this share are left out of a sentence (still listed by `why`)
 MIRROR = "the same moment, for the other person"
 GENERIC = {"led to this", "the choice behind it", ""}
+STEPS = {"caused", "led_to", "attended", "decided_by"}     # link kinds that are a sequence, not a weighted push
 
 
 def _sign_toward(D, d: dict) -> float:
@@ -105,6 +106,23 @@ def why(sim, ref) -> dict:
         out = why(sim, first)
         out.update(ref=g["root"], title=nodes[g["root"]].get("label", out["title"]))
         return out
+    # what it simply followed from (the ask before a date, the trip before time at home) is not a share of a push
+    after, other_choice = [], None
+    for L in links:
+        src = nodes.get(L["source"], {})
+        if L["kind"] in STEPS or src.get("kind") == "occasion":
+            if src.get("kind") == "decision" and other_choice is None:
+                other_choice = int(src["ref"]["id"])
+            elif src.get("kind") in ("event", "occasion"):
+                after.append({"label": src.get("label", L["source"]), "ref": src.get("ref"), "day": src.get("day")})
+    links = [L for L in links if L["kind"] not in STEPS and nodes.get(L["source"], {}).get("kind") != "occasion"]
+    if not links and other_choice is not None:
+        # it came from someone else's choice (an answer, an invitation): their reasons
+        out = _decision_why(sim, other_choice)
+        if out is not None:
+            out.update(kind=kind, ref=g["root"], title=root.get("label", str(ref)), decision=other_choice, after=after,
+                       by=T._Words(sim).name(sim.decisions.get(other_choice)["agent"]))
+            return out
     total = sum(abs(L["weight"]) for L in links) or 1.0
     toward, against = [], []
     for L in links:
@@ -127,13 +145,17 @@ def why(sim, ref) -> dict:
     against.sort(key=lambda x: -x["share"])
     return {"kind": kind, "ref": g["root"], "title": root.get("label", str(ref)), "day": root.get("day"),
             "date": str(sim.cal.date(int(root["day"]))) if root.get("day") is not None else None,
-            "toward": toward, "against": against, "chance": None, "units": "weight",
-            "note": "No recorded choice behind this; the shares are the weights of what it is recorded to come from."}
+            "toward": toward, "against": against, "after": after, "chance": None, "units": "weight",
+            "note": "No recorded choice behind this; the shares are the weights of what it is recorded to come from."
+            + (" It followed from the moments listed under 'after'." if after else "")}
 
 
 def _reasons(w: dict, k: int = 3) -> list[dict]:
     if w.get("constraint"):
         return [{"words": f"couldn't: {w['constraint']['words']}", "share": 1.0}]
+    if not w.get("toward") and w.get("against") and w.get("chance") is not None:
+        # everything recorded pushed the other way: it happened against the odds
+        return [{"words": f"against the odds (the model gave it {round(100 * w['chance'])}%)", "share": None}]
     return [{"words": r["words"] if r.get("named") else T.lc(r["words"]), "share": r["share"]}
             for r in w["toward"][:k] if r["share"] >= MIN_SHARE and r["words"]]
 
@@ -141,7 +163,7 @@ def _reasons(w: dict, k: int = 3) -> list[dict]:
 def reason_text(reasons: list[dict]) -> str:
     if not reasons:
         return ""
-    parts = [f"{r['words']} ({round(100 * r['share'])}%)" for r in reasons]
+    parts = [r["words"] if r["share"] is None else f"{r['words']} ({round(100 * r['share'])}%)" for r in reasons]
     return parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]
 
 
@@ -188,8 +210,10 @@ def story(sim, i: int, since: int | None = None, until: int | None = None, min_s
             rs = _reasons(w)
             chance = w.get("chance")
         except Exception:  # noqa: BLE001  (an older event whose details were thinned)
-            rs, chance = [], None
-        line = {"event": int(e), "day": day, "date": str(date), "type": typ, "category": sim.reg.events[typ].category,
+            w, rs, chance = {}, [], None
+        aft = w.get("after", [])
+        evs = [a for a in aft if (a.get("ref") or {}).get("kind") == "event"]
+        line = {"after": [a["label"] for a in (evs or aft)][:2], "by": w.get("by"),"event": int(e), "day": day, "date": str(date), "type": typ, "category": sim.reg.events[typ].category,
                 "text": W.event_line(e), "reasons": rs, "because": reason_text(rs), "chance": chance,
                 "other": b if b >= 0 else None, "times": 1, "last_day": day, "salience": float(sal[log["type"][e]])}
         cur["_seen"][key] = line
@@ -203,61 +227,97 @@ def story(sim, i: int, since: int | None = None, until: int | None = None, min_s
 
 
 def ripple(sim, ref, depth: int = 6, max_nodes: int = 160) -> dict:
-    """What one moment led to, as a tree of sentences (see the module docstring)."""
+    """What one moment led to, as a tree of sentences (see the module docstring). Each moment hangs under the latest
+    earlier moment it is recorded to come from, so a chain reads in order (met → asked out → first date)."""
     g = T.trace(sim, ref, dir="fwd", depth=depth, max_nodes=max_nodes)
     nodes = {n["key"]: n for n in g["nodes"]}
+    links = list(g["links"])
     root = g["root"]
-    kids: dict[str, list] = {}
-    for L in g["links"]:
-        if L["source"] in nodes and L["target"] in nodes and nodes[L["target"]]["kind"] != "state":
-            kids.setdefault(L["source"], []).append(L)
-    # the other person's copy of a two-person event is the same moment: fold it into its first copy
+    # an event at a get-together, a date, an activity: what happened at that occasion follows from it too
+    if root.startswith("event:"):
+        back = T.trace(sim, root, dir="back", depth=1, max_nodes=30)
+        for n in back["nodes"]:
+            if n["kind"] == "occasion" and n.get("day") == nodes[root].get("day"):
+                fw = T.trace(sim, n["key"], dir="fwd", depth=max(depth - 1, 1), max_nodes=max_nodes)
+                for m in fw["nodes"]:
+                    nodes.setdefault(m["key"], m)
+                links += fw["links"] + [{"source": root, "target": n["key"], "kind": "attended", "words": "at", "weight": None}]
     log = sim.log
-    mirror = {L["target"] for L in g["links"] if L["words"] == MIRROR}
-    shown_ev: list[int] = []
+    W = T._Words(sim)
+    # which nodes become sentences; ties become "met" lines when people met at or through something
+    met = {L["target"]: L["kind"] for L in links if L["kind"] in ("met_at", "introduced") and L["target"] in nodes}
+    answers = {L["target"] for L in links if "answer" in (L.get("words") or "")}
 
-    def is_copy(key: str) -> bool:
-        if key in mirror:
-            return True
-        if not key.startswith("event:"):
-            return False
-        e = int(key.split(":")[1])
-        return any(T._is_mirror(log, f, e) for f in shown_ev)
+    def shown(k: str) -> bool:
+        n = nodes[k]
+        return k == root or n["kind"] in ("event", "occasion") or (n["kind"] == "tie" and k in met) \
+            or (n["kind"] == "decision" and k in answers)
 
-    out, seen = [], {root}
-    queue = [(root, None, 0, "")]
-    while queue:
-        key, parent, lvl, via = queue.pop(0)
-        n = nodes[key]
-        here_parent, here_lvl = parent, lvl
-        show = n["kind"] in ("event", "occasion") or (n["kind"] == "decision" and "answer" in via)
-        if (show and not is_copy(key)) or key == root:
-            if key.startswith("event:"):
-                shown_ev.append(int(key.split(":")[1]))
-            out.append({"key": key, "kind": n["kind"], "text": n.get("label", key), "day": n.get("day"),
-                        "date": str(sim.cal.date(int(n["day"]))) if n.get("day") is not None else None,
-                        "parent": parent, "level": lvl, "via": via, "people": n.get("people", [])})
-            here_parent, here_lvl = key, lvl + 1
-            via = ""
-        for L in sorted(kids.get(key, []), key=lambda L: (nodes[L["target"]].get("day") or 0)):
-            t = L["target"]
-            if t in seen:
+    def text(k: str) -> str:
+        n = nodes[k]
+        if k == root:
+            return n.get("label", k)
+        if n["kind"] == "tie":
+            who = n.get("label", "").split(":")[0]
+            return f"{who} {'were introduced' if met[k] == 'introduced' else 'met'}"
+        if n["kind"] == "decision":
+            d = sim.decisions.get(int(n["ref"]["id"]))
+            if d:
+                return f"{W.name(d['agent'])} said {str(d['outcome']).replace('_', ' ')}"
+        return n.get("label", k)
+
+    # the other person's copy of a two-person moment is the same moment
+    mirror = {L["target"] for L in links if L.get("words") == MIRROR}
+    ev = sorted(int(k.split(":")[1]) for k in nodes if k.startswith("event:") and k not in mirror)
+    for k in list(nodes):
+        if k.startswith("event:") and k != root and k not in mirror:
+            e = int(k.split(":")[1])
+            if any(T._is_mirror(log, f, e) for f in ev if f < e):
+                mirror.add(k)
+    keep = {k for k in nodes if shown(k) and k not in mirror and nodes[k]["kind"] != "state"}
+    # incoming links (through bridges: places, people, plain ties) → candidate parents among the kept nodes
+    inc: dict[str, list] = {}
+    for L in links:
+        if L["source"] in nodes and L["target"] in nodes:
+            inc.setdefault(L["target"], []).append(L)
+
+    def kept_sources(k: str, seen: set) -> list[tuple[str, str]]:
+        out = []
+        for L in inc.get(k, []):
+            s_ = L["source"]
+            if s_ in seen:
                 continue
-            seen.add(t)
-            words = "" if L["words"] in GENERIC or L["words"] == MIRROR else L["words"]
-            queue.append((t, here_parent, here_lvl, "; ".join(x for x in (via, words) if x)))
-    out.sort(key=lambda s: (s["level"], s["day"] or 0))
-    order = {s["key"]: k for k, s in enumerate(out)}
-    # a readable tree: children after their parent, in time order
-    by_parent: dict = {}
-    for s in out:
-        by_parent.setdefault(s["parent"], []).append(s)
-    tree = []
+            seen.add(s_)
+            words = "" if (L.get("words") or "") in GENERIC or L.get("words") == MIRROR else L["words"]
+            if s_ in keep:
+                out.append((s_, words))
+            elif nodes[s_]["kind"] != "state":
+                out += [(a, words or w_) for a, w_ in kept_sources(s_, seen)]
+        return out
 
-    def walk(p):
-        for s in sorted(by_parent.get(p, []), key=lambda s: (s["day"] or 0, order[s["key"]])):
-            tree.append(s)
-            walk(s["key"])
-    walk(None)
-    return {"root": root, "steps": tree, "cut": g["cut"], "notes": g["notes"],
-            "longest": max((s["level"] for s in tree), default=0)}
+    day = lambda k: nodes[k].get("day") if nodes[k].get("day") is not None else -1   # noqa: E731
+    parent: dict[str, tuple] = {}
+    for k in keep - {root}:
+        cands = [(a, w_) for a, w_ in kept_sources(k, {k}) if a != k and day(a) <= day(k)]
+        if not cands:
+            continue
+        parent[k] = max(cands, key=lambda c: (day(c[0]), c[0] != root))
+    # keep only what hangs from the root
+    kids: dict[str, list] = {}
+    for k, (pa, _w) in parent.items():
+        kids.setdefault(pa, []).append(k)
+    steps = []
+
+    def walk(k: str, lvl: int, via: str, seen: set):
+        n = nodes[k]
+        steps.append({"key": k, "kind": n["kind"], "text": text(k), "day": n.get("day"),
+                      "date": str(sim.cal.date(int(n["day"]))) if n.get("day") is not None else None,
+                      "parent": parent[k][0] if k in parent else None, "level": lvl, "via": via,
+                      "people": n.get("people", [])})
+        for c in sorted(kids.get(k, []), key=lambda c: (day(c), c)):
+            if c not in seen:
+                seen.add(c)
+                walk(c, lvl + 1, parent[c][1], seen)
+    walk(root, 0, "", {root})
+    return {"root": root, "steps": steps, "cut": g["cut"], "notes": g["notes"],
+            "longest": max((s["level"] for s in steps), default=0)}

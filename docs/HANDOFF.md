@@ -159,6 +159,26 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
 
 ## Session log (newest first)
 
+### 2026-10-20 (7) — Claude Code (cloud session) — What-if on a second core, numba kernels
+- **Second core** (`api/parallel.py`): during a run with a What-if, a persistent spawned worker steps the What-if
+  while this process steps the Original, in lockstep; the shared lock is released while waiting, so pages answer
+  mid-run. Pages read a copy of the What-if (`Workspace.alt` property), refreshed when someone asks for it (at most
+  every max(8 s, 5 × hand-over)) and always when the run ends or pauses (divergence measured then). Changes to the
+  What-if mid-run call `WS.take_alt()` first (fork/add, applying a plan in add mode, social actions); replacing it
+  (`WS.alt = …`) drops the worker's copy. Hand-over only when it pays off (`parallel.worth_it`: days × measured
+  What-if day ≥ 2.5 × two hand-overs; long runs only until measured); a world that can't be pickled stays in one
+  process. `UCSIM_PARALLEL=0|1|force`. Results are bit-identical to one process (tests/test_parallel.py). Measured in
+  this VM (memory first-touch is slow, two processes contend for memory bandwidth): stepping 1.4× faster at full scale,
+  1.7× at scale 0.3; hand-overs 4–10 s here (expected well under that on a desktop), so 30-day full-scale runs gained
+  ~12% end-to-end here and long "play" runs gain the most.
+- Copies and pickles of PersonTable, EdgeStore, EventLog and ledger Tables carry used rows plus headroom
+  (`__getstate__`): a full-scale world pickles to 302 MB (was 378), a fork takes ~0.4 s.
+- **numba** (optional: `pip install .[fast]`, not in the Windows app yet — llvmlite adds ~50–80 MB): `engine/fast.py`
+  label propagation for messaging's weekly friend-group detection (messaging 0.24 → 0.10 s/day at full scale), with a
+  NumPy fallback giving identical labels (`UCSIM_NUMBA=0`; tests/test_fast.py). `romance._date_type` vectorized in
+  NumPy with the same Gumbel draws (identical picks). Whole runs are bit-identical with and without numba.
+- 258 tests pass.
+
 ### 2026-10-20 (6) — Claude Code (cloud session) — speed budget and occasions
 - **Speed budget**: `ucsim/perf.py` (scale 0.1, seed 3, 2 warm-up + 5 timed days; times divided by a fixed NumPy
   calibration workload so budgets travel between machines), `config/perf_budget.json`, `scripts/perf.py` (print;

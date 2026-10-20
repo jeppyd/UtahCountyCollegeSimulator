@@ -12,7 +12,21 @@ import numpy as np
 from ..registry import Registry, VarSpec
 
 
+def _headroom(n: int, cap: int) -> int:
+    """Rows to keep when copying or pickling a growable table: the used ones plus some room to grow."""
+    return min(cap, n + max(1024, n // 8))
+
+
 class PersonTable:
+    def __getstate__(self):
+        """Copies and pickles (forks, the What-if worker) carry the used rows plus headroom, not all the capacity."""
+        keep = _headroom(self.n, self.cap)
+        st = dict(self.__dict__)
+        st["cols"] = {k: v[:keep] for k, v in self.cols.items()}
+        st["internal"] = {k: v[:keep] for k, v in self.internal.items()}
+        st["cap"] = keep
+        return st
+
     def __init__(self, registry: Registry, capacity: int = 1024):
         self.reg = registry
         self.specs: dict[str, VarSpec] = {v.id: v for v in registry.person_vars()}
@@ -106,6 +120,14 @@ class EdgeStore:
                 # (top_ctx, its latest place, top_h) and a runner-up (alt_ctx, alt_h) — for tracing, never read by behavior
                 "top_ctx": np.uint8, "top_place": np.int32, "alt_ctx": np.uint8}
     NEG_ONE = ("introducer", "origin_place", "top_place")     # integer columns whose "none" is −1
+
+    def __getstate__(self):
+        keep = _headroom(self.n, self.cap)
+        st = dict(self.__dict__)
+        st["cols"] = {k: v[:keep] for k, v in self.cols.items()}
+        st["_keys_buf"] = self._keys_buf[:keep]
+        st["cap"] = keep
+        return st
 
     def __init__(self, capacity: int = 1 << 16):
         self.n = 0

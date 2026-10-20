@@ -29,6 +29,7 @@ from ..analysis.inner import inner_life
 from ..analysis.person import headline, profile, synthetic_name
 from ..analysis.query import describe_filter, evaluate_filter
 from ..engine import runner
+from . import parallel
 from ..engine.interventions import load_presets
 from ..engine.state import CTX, Tie
 from ..registry import get_registry
@@ -121,7 +122,13 @@ class Workspace:
         self.lock = FairLock()
         self.job_lock = threading.Lock()   # makes "is anything running? then start" atomic
         self.base = None
-        self.alt = None
+        self._alt = None
+        self._par = None              # parallel.AltWorker while a run steps the What-if on a second core
+        self._par_on = False          # the worker holds the live What-if (self._alt is the pages' copy)
+        self._par_wanted = False      # a page asked for the What-if since the last copy
+        self._par_copy_t = 0.0        # when the pages' copy was last refreshed
+        self._par_cool = 0            # days to stay in one process after the What-if was taken back
+        self._alt_day_s = None        # how long a What-if day takes here (decides whether the hand-over pays off)
         self.divergence: list[dict] = []
         self.job = {"state": "idle"}
         self.last_job: dict | None = None   # how the previous run or build ended (shown in the HUD)
@@ -134,6 +141,64 @@ class Workspace:
         self.plans: dict[str, dict] = {}   # compiled What-if plans by id (natural-language What-ifs)
         self._index = None
         self.registry = get_registry()
+
+    # ------------------------------------------------------------------ the What-if (maybe on a second core)
+    @property
+    def alt(self):
+        """The What-if world. While a run steps it on a second core this is the pages' copy (at most a few seconds
+        old); code that changes the What-if must call `take_alt()` first."""
+        if self._par_on:
+            self._par_wanted = True
+        return self._alt
+
+    @alt.setter
+    def alt(self, sim):
+        if self._par_on:                  # replaced (a new What-if, or none): the worker's copy is no longer needed
+            self._par_on = False
+            self._par.drop()
+        self._par_cool = 0                # a new What-if gets a fresh chance at the second core
+        self._alt = sim
+
+    @property
+    def alt_now(self):
+        """The What-if without asking for a fresh copy (for the status poll)."""
+        return self._alt
+
+    def take_alt(self):
+        """Bring the live What-if back before changing it mid-run; the run carries on in one process."""
+        if self._par_on:
+            self._alt = self._par.fetch()
+            self._par_on = False
+            self._par.drop()
+            self._par_cool = parallel.COOLDOWN_DAYS
+            self.compare_cache = None
+            self._index = None
+        return self._alt
+
+    def _par_start(self):
+        if self._par is None:
+            self._par = parallel.AltWorker()
+        try:
+            self._par.load(self._alt, wait=False)   # unpacked there while this process steps the Original
+        except Exception:  # noqa: BLE001  (something in the What-if can't be copied: stay in one process)
+            traceback.print_exc()
+            self._par_cool = 10 ** 9
+            return
+        self._par_on = True
+        self._par_wanted = False
+        self._par_copy_t = time.time()
+
+    def _par_refresh(self, final: bool = False):
+        """Refresh the pages' copy from the worker (at the end of a run the copy becomes the live What-if again)."""
+        self._alt = self._par.fetch()
+        self._par_wanted = False
+        self._par_copy_t = time.time()
+        self.compare_cache = None
+        self._index = None
+        if final:
+            self._par_on = False
+            self._par.drop()
+        self.divergence.append(runner.divergence(self.base, self._alt))
 
     def sim(self, u: str):
         s = self.alt if u == "alt" else self.base
@@ -195,25 +260,67 @@ class Workspace:
                 t_day = time.time()
                 with self.lock:
                     world = "Original"
-                    self.base.step_day()
-                    alt = self.alt
+                    if self._par_cool:
+                        self._par_cool -= 1
+                    if (not self._par_on and self._alt is not None and not self._par_cool and parallel.enabled()
+                            and parallel.worth_it(days - k, self._alt_day_s,
+                                                  self._par.last_handover_s if self._par is not None else None)):
+                        world = "What-if"
+                        self._par_start()               # hand the What-if to the second core for this run
+                        world = "Original"
+                    par_step = self._par_on
+                    if par_step:
+                        self._par.step_async(self.base.w.day + 1)
+                        self.base.step_day()
+                        self.compare_cache = None
+                        alt = None
+                    else:
+                        self.base.step_day()
+                        alt = self._alt
                     if alt is not None:
                         world = "What-if"
+                        t_alt = time.time()
                         alt.step_day()
+                        a_s = time.time() - t_alt
+                        self._alt_day_s = a_s if self._alt_day_s is None else 0.7 * self._alt_day_s + 0.3 * a_s
                         while alt.w.day < self.base.w.day:   # catch up if an earlier error left the What-if behind
                             alt.step_day()
                         if self.base.w.day % 3 == 0 or days <= 14:
                             self.divergence.append(runner.divergence(self.base, alt))
                     self.compare_cache = None
+                if par_step:
+                    # the What-if finishes its day on the second core; pages are answered meanwhile (they read the
+                    # Original's finished day and the pages' copy of the What-if)
+                    world = "What-if"
+                    _, a_s = self._par.wait()
+                    self._alt_day_s = a_s if self._alt_day_s is None else 0.7 * self._alt_day_s + 0.3 * a_s
+                    with self.lock:
+                        # refresh the pages' copy when someone is looking, at most every few seconds (and never so
+                        # often that copying takes more than a fifth of the time)
+                        gap = max(8.0, 5 * (self._par.last_handover_s or 1.0))
+                        if self._par_on and self._par_wanted and time.time() - self._par_copy_t >= gap:
+                            self._par_refresh()
+                        self.compare_cache = None
                 self.job.update(progress=k + 1, updated=time.time(), day_seconds=round(time.time() - t_day, 2))
                 # the pace can change while time runs (the speed buttons): read it fresh every day
                 pace = float(self.job.get("pace", pace) or 0.0)
                 while pace and time.time() - t_day < pace and not self.job.get("cancel"):
                     time.sleep(0.05)
                     pace = float(self.job.get("pace", pace) or 0.0)
+            if self._par_on:
+                with self.lock:
+                    world = "What-if"
+                    self._par_refresh(final=True)       # the What-if is back in this process when time stops
             self.finish_job("run", "paused" if self.job.get("cancel") and self.job.get("progress", 0) < days else "done")
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
+            if self._par_on:            # an error: drop the worker's copy and keep the last one here
+                self._par_on = False
+                try:
+                    self._par.close()
+                except Exception:  # noqa: BLE001
+                    pass
+                self._par = None
             self.finish_job("run", "error", error=f"the {world} world hit an error on day {self.base.w.day}: {e!r}")
 
 
@@ -232,7 +339,7 @@ def registry():
 async def status():
     """The clock, the job and headline counts.  Runs on the event loop (never queues behind other requests or the
     workspace lock) and reads without locking, so the clock and the pause button keep working during a long run."""
-    b, alt = WS.base, WS.alt
+    b, alt = WS.base, WS.alt_now
     out = {"job": dict(WS.job), "last_job": WS.last_job, "has_alt": alt is not None, "has_world": b is not None,
            "world_id": WS.world_id, "scale_agents_per_unit": 60000}
     if b is None:
@@ -330,7 +437,7 @@ def calendar():
     last = (end - cal.start).days
     if cur <= last:
         full.append({"label": "Late-summer break", "kind": "break", "start": cur, "end": last})
-    fork_day = getattr(WS.alt, "meta_fork_day", None) if WS.alt is not None else None
+    fork_day = getattr(WS.alt_now, "meta_fork_day", None) if WS.alt_now is not None else None
     return jresp({"year": f"{y0}-{str(y0 + 1)[2:]}", "start": (start - cal.start).days, "end": last, "today": day,
                   "fork_day": fork_day, "segments": full, "start_date": str(cal.start)})
 
@@ -931,7 +1038,7 @@ def fork_add(body: dict = Body(...)):
     _need_alt()
     from ..engine.interventions import expand
     with WS.lock:
-        alt = WS.alt
+        alt = WS.take_alt()                  # mid-run the live What-if may be on the second core
         man = alt.systems["environment"].manager
         added = []
         for spec in body.get("interventions", []):
@@ -1171,7 +1278,7 @@ def whatif_apply(request: Request, body: dict = Body(...)):
             WS._index = None
             WS.divergence = [runner.divergence(WS.base, WS.alt)]
         else:
-            alt = WS.alt
+            alt = WS.take_alt()
             man = alt.systems["environment"].manager
             for a in atoms:
                 a["start_day"] = max(int(a["start_day"]), alt.w.day + (1 if getattr(alt, "_phases_done", 0) else 0))

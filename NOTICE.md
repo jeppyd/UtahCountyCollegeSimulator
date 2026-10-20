@@ -10,6 +10,9 @@
 - **Utah Geospatial Resource Center (UGRC / SGID)**: parcels (Utah County LIR), building footprints, address
   points, places of worship, parks, roads, municipal boundaries, campuses and trailheads; public data from the
   State of Utah.
+- **Utah Transit Authority (UTA)**: travel times by transit are derived from UTA's public GTFS schedule feed
+  (https://gtfsfeed.rideuta.com/GTFS.zip). The feed itself is not included in this repository. UTA's terms of use
+  were listed at http://developer.rideuta.com/TermsOfUse.aspx (no longer reachable when checked on 2026-10-20).
 - **Provo City and Orem City GIS** open data where noted in `docs/DATA_SOURCES.md`.
 - **Basemap tiles** (optional, in the browser): OpenFreeMap, © OpenStreetMap contributors.
 

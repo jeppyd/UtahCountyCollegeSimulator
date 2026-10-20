@@ -123,8 +123,10 @@ def test_game_endpoints(client, paired):
     filt = {"and": [{"var": "loneliness", "op": "quantile_ge", "value": 0.8}]}
     own = client.post("/api/cohort_timeline", json={"filter": filt, "vars": ["loneliness"], "u": "alt"}).json()
     same = client.post("/api/cohort_timeline", json={"filter": filt, "vars": ["loneliness"], "u": "alt", "filter_world": "base"}).json()
-    base_n = client.post("/api/cohort/count", json={"filter": filt, "u": "base"}).json()["n"]
-    assert same["n"][-1] <= base_n and own["n"][-1] > 0          # the same people as picked in the Original
+    # the same people as picked in the Original (picked there whether or not they were in town that day)
+    from ucsim.analysis.query import evaluate_filter
+    base_n = int(evaluate_filter(base.w, filt, base, include_absent=True).sum())
+    assert same["n"][-1] <= base_n and own["n"][-1] > 0
     n0 = len(alt.systems["environment"].manager.items)
     assert client.post("/api/fork/add", json={"interventions": [{"preset": "coffee_permitted"}]}).json()["added"] >= 1
     assert len(alt.systems["environment"].manager.items) > n0

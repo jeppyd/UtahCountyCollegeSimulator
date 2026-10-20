@@ -705,7 +705,11 @@ class Romance:
             for x in (a_, b_):
                 P.cols["rel_status"][x] = P.code("rel_status", "engaged")
                 P.cols["engaged_day"][x] = day
-            lead = np.where(both_active[eng], rng.uniform(70, 140, eng.sum()), rng.uniform(120, 300, eng.sum())).astype(int)
+            # active LDS couples: usually 4–7 months (median ≈ 5½), about one in five a quick ~3 months
+            k = eng.sum()
+            quick = rng.random(k) < 0.2
+            lds_lead = np.where(quick, rng.uniform(75, 110, k), rng.triangular(110, 165, 260, k))
+            lead = np.where(both_active[eng], lds_lead, rng.uniform(120, 300, k)).astype(int)
             # student couples usually marry between semesters: move the date to the next break if one starts soon after
             students = P["enrolled"][a_] | P["enrolled"][b_]
             wed = self._break_date(day + lead, students, rng.random(eng.sum()))
@@ -825,19 +829,21 @@ class Romance:
         if len(due) == 0:
             return
         inst = sim.systems.get("institutions")
-        if inst is not None:      # the bishop has a few interview slots a week; the rest wait a day and ask again
+        if inst is not None:      # bishops make time for everyone who asks
             ok = inst.bishop_gate(due)
             P.internal["confess_day"][due[~ok]] = w.day + 1
             due = due[ok]
             if len(due) == 0:
                 return
         exp_pos = P["institutional_trust"][due] - 0.4
-        sim.emit("bishop_confession", due, cause=P.internal["rel_event"][due], mech="romance.confession",
-                 ev={"experience": exp_pos})
+        ev = sim.emit("bishop_confession", due, cause=P.internal["rel_event"][due], mech="romance.confession",
+                      ev={"experience": exp_pos})
         P.cols["bishop_meetings"][due] = np.minimum(P["bishop_meetings"][due] + 1, 10)
         P.cols["temple_recommend"][due] = False
         P.cols["chastity_commitment"][due] = np.clip(P["chastity_commitment"][due] + 0.08, 0, 1)
         P.cols["institutional_trust"][due] = np.clip(P["institutional_trust"][due] + 0.04 * np.sign(exp_pos), 0, 1)
+        if inst is not None:      # recommend held for a few weeks, often the sacrament too; monthly follow-ups
+            inst.counsel(due, "sex", ev)
 
     def _end(self, a, b, att_a, att_b, kind="breakup", married=None, why=None, decide=None):
         """End a relationship; the less-attracted partner initiates.
@@ -890,6 +896,7 @@ class Romance:
             P.cols["rel_status"][x] = np.where(is_married, P.code("rel_status", "divorced"), P.code("rel_status", "single"))
             P.cols["partner_id"][x] = -1
             P.cols["premarital_sex_current"][x] = False
+            P.cols["sexual_satisfaction"][x] = 0.0            # a married-life measure; none once it ends
             P.cols["relationship_satisfaction"][x] = np.nan
             P.internal["wedding_planned"][x] = -1
             P.cols["waiting_for_missionary"][x] = False

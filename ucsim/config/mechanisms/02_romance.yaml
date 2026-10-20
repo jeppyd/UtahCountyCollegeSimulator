@@ -175,14 +175,14 @@ mechanisms:
     label: Engagement & wedding timing
     target: [rel_status, age_at_marriage]
     sources: [relationship_commitment, ideal_months_engaged, activity, age, financial_stress, mission_status]
-    form: "weekly h = logistic(base + βc·commitment + βt·clip((months − ideal)/4) + βa·both active LDS·marriage_norm + age term − 1.8·[man under 20] − 1.2·[LDS man under 21.5 who has not served] − 0.8·financial stress − 1.2·mismatch − 3·[same-sex couple with an active member]); wedding 2.5–4.5 months later for active LDS couples"
+    form: "weekly h = logistic(base + βc·commitment + βt·clip((months − ideal)/4) + βa·both active LDS·marriage_norm + age term − 1.8·[man under 20] − 1.2·[LDS man under 21.5 who has not served] − 0.8·financial stress − 1.2·mismatch − 3·[same-sex couple with an active member]); wedding usually 4–7 months later for active LDS couples (median ≈ 5½; one in five after about 3 months), 4–10 months for others"
     params:
       base: {value: -5.8, range: [-8.0, -4.5]}
       commitment: {value: 3.0, range: [1.5, 4.5]}
       timing: {value: 0.8, range: [0.3, 1.5]}
       active_lds: {value: 1.2, range: [0.4, 2.0]}
     evidence: empirical
-    refs: ["Dating & Culture surveys: months dated before engagement (median ≈ 6–8), age at marriage (median ≈ 22)"]
+    refs: ["Dating & Culture surveys: months dated before engagement (median ≈ 6–8), age at marriage (median ≈ 22)", "Engagement length: no survey item; owner's judgment (about 6 months typical, 3 not uncommon)"]
   romance.sex:
     label: Premarital sexual activity
     target: n_sex_partners

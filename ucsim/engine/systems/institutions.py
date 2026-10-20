@@ -11,6 +11,8 @@ Design notes (parameters in config/mechanisms/16_institutions.yaml; occasion kin
 * Wards: an activities committee plans a monthly activity (with food while the budget lasts) and a service project
   every quarter. Members who want to talk with their bishop (to repent, or about pornography) are seen that week —
   bishops make time for them (romance._confessions and intimacy ask `bishop_gate`); the meetings are counted.
+  Afterwards (`counsel`): premarital sex means a few weeks without a temple recommend (often without the sacrament,
+  and some stay away from church meanwhile); ongoing issues mean a follow-up about once a month.
 * Counseling (BYU CAPS, UVU Student Health Services' counseling): enrolled students in a depressive episode or under
   heavy strain may seek help (decision `seek_counseling`); sessions per week are limited, the waitlist is ordered by
   crisis first and then by wait; people seen get weekly sessions for a few weeks (relief through the coping system);
@@ -67,6 +69,10 @@ class Institutions:
         sim, w = self.sim, self.sim.w
         P, p = w.P, sim.p
         P.add_internal("bishop_wait_since", np.int32, -1)
+        for c, dt, f in (("recommend_hold_until", np.int32, -1), ("sacrament_hold", np.bool_, False),
+                         ("church_shy", np.bool_, False), ("bishop_next", np.int32, -1), ("bishop_issue", np.int8, 0),
+                         ("bishop_followups", np.int16, 0)):
+            P.add_internal(c, dt, f)
         T = self.T
         G = w.groups
         ng = len(G["kind"])
@@ -113,6 +119,7 @@ class Institutions:
     def plan_day(self):
         sim, w = self.sim, self.sim.w
         day = w.day
+        self._bishop_day(day)
         book = getattr(sim, "book", None)
         if book is None:
             return
@@ -309,6 +316,82 @@ class Institutions:
                 T.cols["waitlist"][j] = 0
                 T.cols["utilization"][j] = 0.0
         return np.ones(len(people), bool)
+
+    ISSUES = {"porn": 1, "masturbation": 2, "sex": 3}
+
+    def in_followup(self, n: int) -> np.ndarray:
+        """Who is already meeting their bishop regularly (they don't need to ask again)."""
+        return self.sim.w.P.internal["bishop_next"][:n] >= 0
+
+    def counsel(self, ids: np.ndarray, issue: str, cause=None):
+        """What follows a talk with the bishop (institutions.bishop): after premarital sex the temple recommend is
+        held for a few weeks, often the sacrament too, and some go to church less meanwhile; every ongoing issue gets
+        roughly monthly follow-ups."""
+        sim, w = self.sim, self.sim.w
+        P, p = w.P, sim.p
+        ids = np.asarray(ids, np.int64)
+        if not len(ids):
+            return
+        day = w.day
+        I = P.internal
+        code = self.ISSUES[issue]
+        I["bishop_issue"][ids] = np.maximum(I["bishop_issue"][ids], code)
+        I["bishop_followups"][ids] = 0
+        I["bishop_next"][ids] = day + self._gap(ids, "bishop_gap")
+        if issue != "sex":
+            return
+        weeks = np.round(p("institutions.bishop.hold_weeks") * (0.75 + 1.25 * sim.u("recommend_hold")[ids])).astype(int)
+        weeks = np.maximum(weeks, 1)
+        I["recommend_hold_until"][ids] = np.maximum(I["recommend_hold_until"][ids], day + 7 * weeks)
+        sac = sim.u("sacrament_hold")[ids] < p("institutions.bishop.sacrament_share")
+        I["sacrament_hold"][ids[sac]] = True
+        I["church_shy"][ids[sac]] = sim.u("church_shy")[ids[sac]] < p("institutions.bishop.skip_share")
+        P.cols["temple_recommend"][ids] = False
+        sim.emit("recommend_withheld", ids, value=weeks.astype(float), cause=cause, mech="institutions.bishop")
+
+    def _gap(self, ids: np.ndarray, stream: str) -> np.ndarray:
+        g = self.sim.p("institutions.bishop.followup_days")
+        return np.round(g * (0.75 + 0.5 * self.sim.u(stream)[ids])).astype(np.int32)
+
+    def _bishop_day(self, day: int):
+        """Holds that run out and the follow-up meetings that fall due today."""
+        sim, w = self.sim, self.sim.w
+        P, p = w.P, sim.p
+        n = P.n
+        I = P.internal
+        hold = I["recommend_hold_until"][:n]
+        done = np.flatnonzero((hold >= 0) & (hold <= day))
+        if len(done):
+            still = P["premarital_sex_current"][done].astype(bool)
+            hold[done[still]] = day + 28                      # still sexually active: the hold goes on
+            ok = done[~still]
+            hold[ok] = -1
+            I["sacrament_hold"][ok] = False
+            I["church_shy"][ok] = False
+            back = ok[P["lds_member"][ok] & (P["activity"][ok] == 3) & P["present"][ok]]
+            if len(back):
+                P.cols["temple_recommend"][back] = True
+                sim.emit("recommend_restored", back, mech="institutions.bishop")
+        due = np.flatnonzero((I["bishop_next"][:n] >= 0) & (I["bishop_next"][:n] <= day))
+        if not len(due):
+            return
+        iss = I["bishop_issue"][due]
+        ongoing = np.select([iss == 1, iss == 2, iss == 3],
+                            [P["porn_use"][due] >= 1, P["masturbation"][due] >= 1, P["premarital_sex_current"][due].astype(bool)],
+                            False)
+        ongoing |= (iss == 3) & (hold[due] >= 0)                  # check in until the recommend is back
+        go = P["present"][due] & P["lds_member"][due] & (I["bishop_followups"][due] < p("institutions.bishop.max_followups"))
+        stop = due[~(go & ongoing)]
+        I["bishop_next"][stop] = -1
+        I["bishop_issue"][stop] = 0
+        meet = due[go & ongoing]
+        if not len(meet):
+            return
+        self.bishop_gate(meet, "followup")
+        sim.emit("bishop_followup", meet, value=I["bishop_issue"][meet].astype(float), mech="institutions.bishop")
+        I["bishop_followups"][meet] += 1
+        P.cols["bishop_meetings"][meet] = np.minimum(P["bishop_meetings"][meet] + 1, 10)
+        I["bishop_next"][meet] = day + self._gap(meet, "bishop_gap2")
 
     # ------------------------------------------------------------------ counseling
     def _counseling(self, day: int):

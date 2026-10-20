@@ -173,7 +173,7 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
     by met_at/introduced become "X and Y met" lines, answers "X said yes"; an event at an occasion also follows the
     occasion (who met there and what that led to).
 - Workbench tools Story (people), Why and Ripple (trace) — docs/img/story.png. `_Words.place` names wards with
-  `ward_name`. 247 tests pass; web build passes.
+  `ward_name`. 242 tests pass; web build passes.
 
 ### 2026-10-20 (2) — Claude Code (cloud session) — LDS tuning (owner's answers to the LDS audit)
 - **Real Provo YSA wards** from the owner's PDFs (Provo YSA Apartment Listing by Ward 2026-27, On Campus Housing

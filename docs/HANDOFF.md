@@ -160,6 +160,22 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
 
 ## Session log (newest first)
 
+### 2026-10-21 (3) — Claude Code (cloud session) — bedroom-mates, snapshot dropped, map polish
+- Owner decisions: bedroom-mates matter (done: `housing.bedroom` in config/mechanisms/20_rooms.yaml, hypothetical:
+  nightly lights-out talks at 0.6, friction only for clear tidiness/sleep mismatches; 40 days, scale 0.15, two seeds:
+  matched bedroom-mates become close friends ~45% more often than apartment-mates, mismatched pairs sour); the
+  read-only snapshot is **dropped** (export script and build mode removed; old `STATIC` branches in web code are inert,
+  remove in a cleanup); the classic Map page stays as "Flat map (backup)"; polish before shops/errands. Helaman's
+  men's/women's halls stay a guess; Wyview south = single, north = family (owner-confirmed). LISR: owner will send
+  maps. Owner is collecting BYU floor-plan PDFs (to be uploaded as a zip into data/external/, never committed).
+  Remind the owner later about 5–10 off-campus complexes to model exactly.
+- Map polish: groups sharing a place point get their own table (no two people on one spot, even at full scale);
+  homes without a footprint spread on a grid; person card: why they came (the decision's factors in words, how they
+  were invited, travel and lateness), date details (which date, who asked, where they stand), Follow; opened
+  buildings shade bedrooms by occupancy and label floors; light by time of day (warm evening, dark night with
+  occupied buildings glowing). Full scale (73,667 people): placement 0.02–0.07 s, 1.2 MB per update, card 0.04 s.
+- 269 tests pass.
+
 ### 2026-10-21 (2) — Claude Code (cloud session) — the living map
 - Geography: `scripts/fetch_overture.py` (Overture buildings + places, public S3 through pyarrow) →
   `python -m ucsim.geo.buildings` (footprints, heights, floors, kinds, oriented boxes; web `buildings3d.bin` and

@@ -34,6 +34,7 @@ export type LivingOpts = {
   labels?: boolean
   basemap?: boolean
   pins?: boolean            // occasions happening now, as pins
+  daylight?: boolean        // light by the time of day (evening glow, dark night with lit homes)
 }
 export type LivingProps = {
   u: Universe
@@ -66,6 +67,17 @@ function kindColor(kind: number, base: [number, number, number], dark: boolean):
   return [0, 1, 2].map(j => Math.round(base[j] * (1 - a) + c[j] * a)) as [number, number, number]
 }
 
+type Tone = 'day' | 'evening' | 'night'
+/** A color under the light of the moment: unchanged by day, warmer in the evening, dark blue at night (and a warm glow
+ *  for a building with people inside at night). */
+function shade(c: [number, number, number], tone: Tone, glow: boolean): [number, number, number] {
+  if (tone === 'day') return c
+  const mix = (a: number[], b: number[], t: number) => a.map((x, j) => Math.round(x * (1 - t) + b[j] * t)) as [number, number, number]
+  if (tone === 'evening') return mix(c, [236, 170, 110], 0.14)
+  if (glow) return mix(c, [255, 196, 110], 0.55)
+  return mix(c, [24, 32, 52], 0.62)
+}
+
 export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, onOccasion, onHover, children, mapRef, onFrame }: LivingProps) {
   const status = useStore(s => s.status)
   const theme = useStore(s => s.theme)
@@ -74,6 +86,7 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
   const view3d = opts.view3d ?? true, xray = opts.xray ?? true, refresh: Refresh = opts.refresh ?? 'auto'
   const when = opts.when ?? 'now', labels = opts.labels ?? true, pins = opts.pins ?? true
   const [card, setCard] = useState<number | null>(null)              // the person whose card is open
+  const [follow, setFollow] = useState<number | null>(null)          // the person the camera stays on
   const [occs, setOccs] = useState<NowOccasions | null>(null)
   const [list, setList] = useState(false)                            // the 'right now' list
   const el = useRef<HTMLDivElement>(null)
@@ -113,7 +126,22 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
     loadNames().then(setNames)
     return () => { ro.disconnect(); m.remove(); map.current = null; overlay.current = null; if (mapRef) mapRef.current = null }
   }, [])
-  useEffect(() => { if (ready) map.current?.setPaintProperty('bg', 'background-color', cssVar('--map-bg')) }, [theme, ready])
+  // light by the time of day shown: a warm evening, a dark night with homes lit from within
+  const daylight = opts.daylight ?? true
+  const shownBlock = glide ?? prec?.block ?? -1        // glide is set only while gliding
+  const tone: Tone = !daylight ? 'day' : shownBlock === 2 ? 'evening' : shownBlock >= 3 ? 'night' : 'day'
+  const lit = useMemo(() => {
+    if (tone !== 'night' || !prec) return null
+    const s2 = new Set<number>()
+    for (let i = 0; i < prec.n; i++) if (prec.building[i] >= 0) s2.add(prec.building[i])
+    return s2
+  }, [tone, prec])
+  useEffect(() => {
+    if (!ready) return
+    const bg = hexRgb(cssVar('--map-bg'))
+    const c = tone === 'day' ? bg : shade(bg, tone, false)
+    map.current?.setPaintProperty('bg', 'background-color', `rgb(${c.join(',')})`)
+  }, [theme, ready, tone])
   useEffect(() => {
     const m = map.current
     if (!m || !ready) return
@@ -152,6 +180,11 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
     return () => { alive = false; timers.forEach(t => window.clearTimeout(t)) }
   }, [gliding, status?.perf?.day, u])
   useEffect(() => { onFrame?.(prec) }, [prec])
+  // following someone: the camera glides to them whenever the positions change
+  useEffect(() => {
+    if (follow === null || !prec || !map.current || follow >= prec.n || Number.isNaN(prec.lon[follow])) return
+    map.current.easeTo({ center: [prec.lon[follow], prec.lat[follow]], zoom: Math.max(map.current.getZoom(), 17.5), duration: 800 })
+  }, [follow, prec])
   useEffect(() => { loadCore(u, dataVersion).then(setCore) }, [u, dataVersion])
   // occasions happening at the moment shown (pins, the 'right now' list)
   useEffect(() => {
@@ -218,14 +251,14 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
         getElevation: (k: number) => (k === openK ? 0 : bld.height[k]),
         getFillColor: (k: number) => {
           if (k === openK) return [0, 0, 0, 0]
-          const c = kindColor(bld.kind[k], base, dark)
-          return [c[0], c[1], c[2], view3d && xray ? 120 : 235]
+          const c = shade(kindColor(bld.kind[k], base, dark), tone, lit?.has(bld.ids[k]) ?? false)
+          return [c[0], c[1], c[2], view3d && xray ? (tone === 'night' && lit?.has(bld.ids[k]) ? 170 : 120) : 235]
         },
         material: { ambient: 0.6, diffuse: 0.55, shininess: 6, specularColor: [40, 40, 40] },
         parameters: view3d && xray ? { depthWriteEnabled: false } : {},
         pickable: true, autoHighlight: true, highlightColor: [...accent, 70],
         onClick: (info: any) => { if (info.object !== undefined && info.object !== null) openBuilding(bld.ids[info.object]) },
-        updateTriggers: { getFillColor: [view3d, xray, dark, openK], getElevation: [openK] },
+        updateTriggers: { getFillColor: [view3d, xray, dark, openK, tone, lit], getElevation: [openK] },
       }))
     }
     // the opened building: its floors, apartments and bedrooms
@@ -247,6 +280,19 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
           rects.push({ path: [...r.shape.corners, r.shape.corners[0]].map(c => [...ll(c), zr + 0.06]), kind: 'room', n: r.people.length, beds: r.beds })
         }
       }
+      // bedrooms tinted by who sleeps there (empty rooms plain; a crowded room warmer)
+      const accent2 = hexRgb(cssVar('--s1')), warm = hexRgb(cssVar('--s2'))
+      layers.push(new SolidPolygonLayer({
+        id: 'room-fill', data: rects.filter(r => r.kind === 'room'), getPolygon: (d: any) => d.path.slice(0, 4) as any, extruded: false,
+        getFillColor: (d: any) => (d.n === 0 ? [...muted, 25] : d.n > d.beds ? [...warm, 90] : [...accent2, 30 + 25 * Math.min(d.n, 3)]),
+        parameters: { depthWriteEnabled: false },
+      }))
+      if (ring) layers.push(new TextLayer({
+        id: 'floor-labels', data: floors, getText: (f: number) => (f === 0 ? 'Ground' : `Floor ${f + 1}`),
+        getPosition: (f: number) => [ring[0][0], ring[0][1], f * (inside.storey_m + GAP) + 0.4], getSize: 12, getColor: [...text, 230],
+        fontFamily: 'system-ui, sans-serif', fontWeight: 650, billboard: true, background: true, getBackgroundColor: [...surf, 220], backgroundPadding: [4, 2],
+        getTextAnchor: 'end', getPixelOffset: [-8, 0], parameters: { depthCompare: 'always' },
+      }))
       layers.push(new PathLayer({
         id: 'rooms', data: rects, getPath: (d: any) => d.path, widthUnits: 'pixels',
         getWidth: (d: any) => (d.kind === 'home' ? 1.8 : 1), getColor: (d: any) => (d.kind === 'home' ? [...text, 200] : [...muted, d.n > d.beds ? 255 : 170]),
@@ -307,7 +353,7 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
       }))
     }
     overlay.current.setProps({ layers })
-  }, [occs, pins, geo, bld, bCore, bFlat, prec, pIdx, colorOf, chosen, focus, view3d, xray, dark, inside, openK, zoom, labels, names, gliding, pace])
+  }, [tone, lit, occs, pins, geo, bld, bCore, bFlat, prec, pIdx, colorOf, chosen, focus, view3d, xray, dark, inside, openK, zoom, labels, names, gliding, pace])
 
   const shown = gliding && glide !== null ? `${BLOCK_NAMES[glide]} (playing the day as time runs)` : prec ? (prec.block >= 0 && prec.block < 5 ? BLOCK_NAMES[prec.block] : '') : ''
   return (
@@ -325,10 +371,12 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
         </select>
         <button className={`btn small ${list ? 'primary' : ''}`} onClick={() => setList(!list)} disabled={!occs} title="Everything happening at this moment: dates, dinners, parties, games…">Right now{occs ? ` · ${occs.occasions.length}` : ''}</button>
         <label className="inline small lm-chk"><input type="checkbox" checked={pins} onChange={e => setOpts({ ...opts, pins: e.target.checked })} />pins</label>
+        <label className="inline small lm-chk" title="Light by the time of day: a warm evening, a dark night with homes lit from within"><input type="checkbox" checked={daylight} onChange={e => setOpts({ ...opts, daylight: e.target.checked })} />light</label>
         {children}
       </div>
       {open !== null && <BuildingCard d={inside} onClose={() => setOpen(null)} onPerson={pickPerson} />}
-      {card !== null && <NowCard i={card} u={u} k={`${prec?.day}:${prec?.block}`} onClose={() => setCard(null)} onPerson={pickPerson} onOccasion={onOccasion}
+      {card !== null && <NowCard i={card} u={u} k={`${prec?.day}:${prec?.block}`} onClose={() => { setCard(null); setFollow(null) }} onPerson={pickPerson} onOccasion={onOccasion}
+        following={follow === card} onFollow={() => setFollow(follow === card ? null : card)}
         onBuilding={b => openBuilding(b)} />}
       {list && occs && <RightNow d={occs} onClose={() => setList(false)} onPick={o => { flyTo(o.lon, o.lat); onOccasion?.(o.id, o.name ?? o.label) }} />}
       <div className="lm-when">{prec ? <>{new Date(prec.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}{shown ? ` · ${shown}` : ''}{running && refresh !== 'live' && !gliding ? ' · updates ' + (refreshKey(refresh, status).startsWith('d:') ? 'once a day' : 'when paused') : ''}</> : null}</div>
@@ -383,8 +431,27 @@ function BuildingCard({ d, onClose, onPerson }: { d: BuildingInside | null; onCl
 
 /** One person at this moment: what they are doing and where, the occasion and why they came, who they're with and
  *  how they know them, and what's on their mind (every line from the model's own state). */
-function NowCard({ i, u, k, onClose, onPerson, onOccasion, onBuilding }: { i: number; u: Universe; k: string; onClose: () => void
-  onPerson: (i: number) => void; onOccasion?: (id: number, label: string) => void; onBuilding: (b: number) => void }) {
+const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`
+const pct = (p: number) => `${Math.round(100 * p)}%`
+const TRIP: Record<string, string> = { walk: 'Walked', bike: 'Biked', car: 'Drove', transit: 'Took the bus', ride: 'Got a ride' }
+
+/** How they were invited, what pulled them there and what held them back (the decision's own factors), how they got
+ *  there. */
+function WhyCame({ me, onPerson }: { me: NonNullable<NonNullable<NowPerson['occasion']>['me']>; onPerson: (i: number) => void }) {
+  const close = me.prob !== null && me.prob > 0.35 && me.prob < 0.65
+  return (
+    <div className="lm-why small">
+      {me.inviter && <div>{me.role === 'walked in' ? 'Walked in' : <>Invited by <button className="lm-link" onClick={() => onPerson(me.inviter!.id)}>{me.inviter.name}</button>{me.channel ? ` (${me.channel})` : ''}</>}</div>}
+      {me.for.length > 0 && <div><span className="lm-pro">Why they came:</span> {me.for.join(', ')}</div>}
+      {me.against.length > 0 && <div><span className="lm-con">Almost didn't:</span> {me.against.join(', ')}{close ? ` — a close call (${pct(me.prob!)} likely)` : ''}</div>}
+      {(me.trip_minutes !== null || me.arrive) && <div className="muted">{me.trip_mode ? `${TRIP[me.trip_mode] ?? `Came by ${me.trip_mode}`}${me.trip_minutes ? ` ${me.trip_minutes} min` : ''}` : ''}{me.ride ? `, a ride from ${me.ride}` : ''}{me.arrive ? ` · arrived ${me.arrive}${me.late_minutes && me.late_minutes >= 5 ? ` (${me.late_minutes} min late)` : ''}` : ''}</div>}
+    </div>
+  )
+}
+
+function NowCard({ i, u, k, onClose, onPerson, onOccasion, onBuilding, following, onFollow }: { i: number; u: Universe; k: string; onClose: () => void
+  onPerson: (i: number) => void; onOccasion?: (id: number, label: string) => void; onBuilding: (b: number) => void
+  following: boolean; onFollow: () => void }) {
   const [d, setD] = useState<NowPerson | null>(null)
   const [err, setErr] = useState('')
   useEffect(() => {
@@ -409,7 +476,9 @@ function NowCard({ i, u, k, onClose, onPerson, onOccasion, onBuilding }: { i: nu
               <button className="lm-link" onClick={() => onOccasion?.(d.occasion!.id, d.occasion!.name ?? d.occasion!.kind_label)}><b>{d.occasion.name ?? d.occasion.kind_label}</b></button>
               <small> · {d.occasion.time} · {d.occasion.n_people} {d.occasion.n_people === 1 ? 'person' : 'people'}</small>
               {d.occasion.organizer && <div className="small muted">{d.occasion.organizer.id === d.id ? 'They organized it' : <>Organized by <button className="lm-link" onClick={() => onPerson(d.occasion!.organizer!.id)}>{d.occasion.organizer.name}</button></>}{d.occasion.how ? ` (${d.occasion.how})` : ''}</div>}
-              {d.occasion.me?.why && <div className="small muted">Why they came: {String(d.occasion.me.why)}</div>}
+              {d.date_info && <div className="small" style={{ marginTop: 3 }}>With <button className="lm-link" onClick={() => onPerson(d.date_info!.with.id)}>{d.date_info.with.name}</button>
+                {' · '}{d.date_info.nth === 1 ? 'their first date' : `their ${ordinal(d.date_info.nth)} date`}{d.date_info.asked_by ? ` · ${d.date_info.asked_by}` : ''} · {d.date_info.status}</div>}
+              {d.occasion.me && d.occasion.me.role !== 'organizer' && <WhyCame me={d.occasion.me} onPerson={onPerson} />}
             </div>
           )}
           {d.n_with > 0 && <><div className="bx-h">With {d.n_with} {d.n_with === 1 ? 'person' : 'people'}{d.n_with > 1 ? `, ${d.n_known} they know` : ''}</div>
@@ -417,6 +486,9 @@ function NowCard({ i, u, k, onClose, onPerson, onOccasion, onBuilding }: { i: nu
               {d.n_with > d.with.length && <span className="small muted">and {d.n_with - d.with.length} more</span>}</div></>}
           {d.mind.length > 0 && <><div className="bx-h">On their mind</div>
             <ul className="lm-mind">{d.mind.map((m, k2) => <li key={k2} title={`From: ${m.from}`}>{m.text}</li>)}</ul></>}
+          <div className="row" style={{ gap: 6, marginTop: 8 }}>
+            <button className={`btn small ${following ? 'primary' : ''}`} onClick={onFollow} title="Keep the map on this person as time runs">{following ? 'Following' : 'Follow'}</button>
+          </div>
           <p className="bx-note">Every line comes from the simulation's own state for this person at this moment; nothing here is written by an AI.</p>
         </>}
       </div>

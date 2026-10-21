@@ -125,7 +125,10 @@ export function loadCore(u: Universe, version: number): Promise<Set<number>> {
 export type NowPerson = {
   id: number; name: string; headline: string; doing: string; activity: string; present: boolean; date: string; block: number
   place: { kind: string; building: number | null; building_name: string | null; floor: number; words: string }
-  occasion?: { id: number; kind: string; kind_label: string; name: string | null; time: string; n_people: number; organizer: { id: number; name: string } | null; how: string; me?: any }
+  occasion?: { id: number; kind: string; kind_label: string; name: string | null; time: string; n_people: number; organizer: { id: number; name: string } | null; how: string
+    me?: { role: string; inviter: { id: number; name: string } | null; channel: string | null; for: string[]; against: string[]; prob: number | null
+      arrive: string | null; late_minutes: number | null; ride: string | null; trip_minutes: number | null; trip_mode: string | null } }
+  date_info?: { with: { id: number; name: string }; nth: number; asked_by: string | null; status: string; liking: number | null }
   n_with: number; n_known: number; with: { id: number; name: string; tie: string }[]
   mind: { text: string; from: string }[]
 }

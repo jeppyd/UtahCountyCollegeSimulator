@@ -201,3 +201,6 @@
 .lm-kinds button:hover, .lm-occ-row:hover { background: var(--surface-2); }
 .lm-kinds small, .lm-occ-row small { color: var(--text-muted); margin-left: auto; white-space: nowrap; }
 .lm-occ-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lm-why { margin-top: 5px; display: grid; gap: 2px; color: var(--text-secondary); }
+.lm-pro { color: color-mix(in srgb, var(--good) 75%, var(--text-primary)); font-weight: 600; }
+.lm-con { color: color-mix(in srgb, var(--serious) 80%, var(--text-primary)); font-weight: 600; }

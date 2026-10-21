@@ -125,6 +125,47 @@ def mind_sentences(sim, i: int) -> list[dict]:
     return out[:6]
 
 
+def _why_came(me: dict) -> dict:
+    """How a guest was invited, why they said yes (the decision's factors, strongest first) and how they got there."""
+    dec = me.get("decision") or {}
+    fac = [f for f in dec.get("factors", []) if not f.get("constraint") and f.get("words")]
+    pro = [f["words"] for f in sorted(fac, key=lambda f: -f["value"]) if f["value"] > 0.05][:3]
+    con = [f["words"] for f in sorted(fac, key=lambda f: f["value"]) if f["value"] < -0.05][:2]
+    trip = me.get("trip") or {}
+    return {"role": me.get("role"), "inviter": me.get("inviter"), "channel": me.get("channel_words"),
+            "for": pro, "against": con, "prob": dec.get("prob"), "arrive": me.get("arrive"), "late_minutes": me.get("late_minutes"),
+            "ride": (me.get("ride") or {}).get("name"), "trip_minutes": trip.get("minutes"), "trip_mode": trip.get("mode")}
+
+
+def _date_words(sim, i: int, sc: dict) -> dict:
+    """The other person on a date, how many dates the two have been on, who asked, and where they stand."""
+    w = sim.w
+    others = [p["person"]["id"] for p in sc.get("people", []) if p.get("came") and p["person"]["id"] != i]
+    if not others:
+        return {}
+    j = int(others[0])
+    book = sim.book
+    inv, occ = book.inv, book.occ
+    n = inv.n
+    per, att, oc = inv.cols["person"][:n], inv.cols["attended"][:n], inv.cols["occ"][:n]
+    mine = set(oc[(per == i) & att].tolist())
+    theirs = set(oc[(per == j) & att].tolist())
+    both = np.array(sorted(mine & theirs), np.int64)
+    kd = book.kind_id.get("date", -1)
+    if len(both):
+        pos = occ.pos(both)
+        ok = pos >= 0
+        both = both[ok][occ.cols["kind"][pos[ok]] == kd]
+    nth = int((both <= int(sc["id"])).sum()) if len(both) else 1
+    org = (sc.get("organizer") or {}).get("id")
+    E = w.E
+    k = E.find(E.make_keys(np.array([i]), np.array([j])))[0] if E.n else -1
+    status = _tie_words(w, i, j)
+    return {"with": {"id": j, "name": synthetic_name(w.P, j)}, "nth": max(nth, 1),
+            "asked_by": "they asked" if org == i else f"{synthetic_name(w.P, j)} asked" if org == j else None,
+            "status": status, "liking": round(float(E["liking"][k]), 2) if k >= 0 else None}
+
+
 def person_now(sim, i: int, f: dict | None = None) -> dict:
     w = sim.w
     P = w.P
@@ -142,12 +183,14 @@ def person_now(sim, i: int, f: dict | None = None) -> dict:
     if ct in (CTX_ID["occasion"], CTX_ID["date"]) and cid >= 0:
         from .scenes import scene
         sc = scene(sim, cid) or {}
-        me = next((p for p in sc.get("people", []) if p.get("id") == i or p.get("person") == i), None)
+        me = next((p for p in sc.get("people", []) if (p.get("person") or {}).get("id") == i), None)
         out["occasion"] = {k: sc.get(k) for k in ("id", "kind", "kind_label", "name", "time", "date", "n_people", "organizer", "how", "note")}
         if sc.get("kind_label"):        # the occasion names what they're doing ("Game night", "Date")
             out["doing"] = "on a date" if sc.get("kind") == "date" else sc["kind_label"]
         if me:
-            out["occasion"]["me"] = {k: me.get(k) for k in ("role", "invited_by", "channel", "response", "why", "reasons", "arrive", "ride")}
+            out["occasion"]["me"] = _why_came(me)
+        if sc.get("kind") == "date":
+            out["date_info"] = _date_words(sim, i, sc)
         if out["place"]["words"] == "":
             out["place"]["words"] = sc.get("place") if isinstance(sc.get("place"), str) else (sc.get("place") or {}).get("name", "") if isinstance(sc.get("place"), dict) else ""
     # who they are with: everyone sharing the same place and moment

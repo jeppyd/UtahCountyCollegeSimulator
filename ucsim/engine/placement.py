@@ -101,6 +101,19 @@ class Layout:
             self.ux[ids], self.uy[ids] = ca, sa
             self.hl[ids], self.hw[ids] = np.maximum(cell_l / 2 * 0.92, 1.0), np.maximum(cell_w / 2 * 0.92, 1.0)
             self.z0[ids] = fl[ids] * STOREY
+        # homes with no footprint (a few address points): several at one point are spread 9 m apart on a grid
+        nob = np.flatnonzero(~has)
+        if len(nob):
+            key = np.round(self.cx[nob], 1) * 1e7 + np.round(self.cy[nob], 1)
+            order = np.lexsort((nob, key))
+            k_s = key[order]
+            start = np.r_[0, np.flatnonzero(np.diff(k_s)) + 1]
+            cnt = np.diff(np.r_[start, len(k_s)])
+            rank = np.arange(len(k_s)) - np.repeat(start, cnt)
+            side = np.ceil(np.sqrt(np.repeat(cnt, cnt)))
+            uu = nob[order]
+            self.cx[uu] += (rank % side - (side - 1) / 2) * 9.0
+            self.cy[uu] += (rank // side - (side - 1) / 2) * 9.0
         # a home alone in a house with upper floors: bedrooms upstairs, living room on the ground floor
         self.upstairs = np.zeros(m, np.int16)
         if has.any():
@@ -183,6 +196,33 @@ def seat_offsets(rank: np.ndarray, size: np.ndarray, spacing: float = 0.8):
     aa = rank[big] * 2.39996323
     ox[big], oy[big] = rr * np.cos(aa), rr * np.sin(aa)
     return ox, oy
+
+
+def table_offsets(px: np.ndarray, py: np.ndarray, gkey: np.ndarray, size: np.ndarray):
+    """Where each group's table is when several groups share one place point: the groups (in key order) on a
+    sunflower around the point, spaced by the size of the biggest group there. One group: the point itself."""
+    k = len(px)
+    tx, ty = np.zeros(k), np.zeros(k)
+    if not k:
+        return tx, ty
+    pk = np.round(px, 1) * 1e7 + np.round(py, 1)
+    order = np.lexsort((gkey, pk))
+    p_s, g_s = pk[order], gkey[order]
+    new_pt = np.r_[True, p_s[1:] != p_s[:-1]]
+    new_g = new_pt | np.r_[True, g_s[1:] != g_s[:-1]]
+    gnum = np.cumsum(new_g) - 1                        # running group number
+    first_g = np.maximum.accumulate(np.where(new_pt, gnum, 0))
+    t = gnum - first_g                                 # the group's table number at its point
+    pt_id = np.cumsum(new_pt) - 1
+    n_tab = np.bincount(pt_id, weights=new_g.astype(float))[pt_id]
+    big = np.zeros(pt_id.max() + 1)
+    np.maximum.at(big, pt_id, size[order].astype(float))
+    radius = 0.8 * big[pt_id] / (2 * np.pi) + 1.2    # a table's reach
+    multi = n_tab > 1
+    r = np.where(multi, 2.1 * radius * np.sqrt(t + 0.5), 0.0)
+    a = t * 2.39996323
+    tx[order], ty[order] = r * np.cos(a), r * np.sin(a)
+    return tx, ty
 
 
 def group_rank(ctype: np.ndarray, cid: np.ndarray, ids: np.ndarray):
@@ -333,6 +373,8 @@ def place(sim, f: dict) -> dict:
         spacing = np.where(size > 200, 0.55, 0.8)
         ox, oy = seat_offsets(rank, size, 0.8)
         ox, oy = ox * spacing / 0.8, oy * spacing / 0.8
-        x[ii], y[ii] = px + ox, py + oy
+        # several groups at one spot (two couples at a restaurant, two wards in a meetinghouse): each its own table
+        tx, ty = table_offsets(px, py, ctype[ii].astype(np.int64) * (1 << 40) + gkey + 1, size)
+        x[ii], y[ii] = px + tx + ox, py + ty + oy
         z[ii] = np.where(z[ii] > 0, z[ii], EYE)
     return {"x": x.astype(np.float32), "y": y.astype(np.float32), "z": z.astype(np.float32), "building": bld, "floor": flo}

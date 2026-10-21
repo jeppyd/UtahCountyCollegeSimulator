@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| — | — | — | Nobody right now. survey-followups is half done: pick it up with docs/survey_audit/NEXT_AGENT_PROMPT.md. |
+| — | — | — | Nobody. Travel merged 2026-10-20; next: survey-followups (needs the raw CSVs), integration. |
 
 ## The goal in one paragraph
 
@@ -72,7 +72,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [messaging](workstreams/messaging.md) (wave 2) | **done, merged** | working branch | open issues below |
 | [institutions](workstreams/institutions.md) (wave 2) | **done, merged** | working branch | open issues below |
 | [family-homes](workstreams/family-homes.md) (wave 2) | **done, merged** | working branch | open issues below |
-| [survey-followups](workstreams/survey-followups.md) | **in progress** (step 1 done) | working branch | step 2: judge the never-read questions in docs/survey_audit/inventory.md |
+| [survey-followups](workstreams/survey-followups.md) | audits designed, interrupted | — | needs the raw survey files in `data/raw/` |
 | [integration](workstreams/integration.md) | ongoing | — | after each merge |
 
 Time-occasions and provenance-trace are merged, so everything in wave 1 can proceed. Wave 2 (messaging,
@@ -158,16 +158,6 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
-
-### 2026-10-21 — Claude Code (cloud session) — survey-followups started
-- The owner uploaded the four Qualtrics CSV exports (June 29, 2025). They were copied to `data/raw/` **in that cloud
-  container only** (gitignored; never committed): `provostats.csv`, `college-life.csv`, `dating.csv`,
-  `culture-lifestyle.csv` (named so `ucsim/ingest/surveys.raw_path` finds them). A new session will NOT have them:
-  ask the owner to upload them again and copy them to those names.
-- Step 1 done: `scripts/survey_inventory.py` → `docs/survey_audit/inventory.md` (question wording and counts only):
-  ProvoStats 2,101 completed / 10 substantive columns never read; College Life 589 / 50; Dating 765 / 41;
-  Culture & Lifestyle 841 / 31. Next: step 2 in `docs/survey_audit/NEXT_AGENT_PROMPT.md`.
-- The owner deferred the 1.0 checklist (validation re-run, saving worlds, scope list) until after this audit.
 
 ### 2026-10-20 (7) — Claude Code (cloud session) — What-if on a second core, numba kernels
 - **Second core** (`api/parallel.py`): during a run with a What-if, a persistent spawned worker steps the What-if

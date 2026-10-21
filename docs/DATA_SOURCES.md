@@ -58,6 +58,16 @@ reads `data/raw/lds-sexuality_2025-06-29.xlsx` in place and adds only its own se
   keeps 18–35); mostly Utah and mostly active members, so less-active and inactive cells are small (10–29 or 30–99)
   and non-members are extrapolated. About a quarter of respondents stop before the attitude and dealbreaker pages.
 
+### The Psych 308 class survey (BYU, 2020) — checks only
+- 947 BYU students in Psych 308 (statistics for psychology), March 17 – December 14, 2020: 98% Latter-day Saints,
+  64% women, a third freshmen, 37% psychology majors, median age 21. Raw export `data/raw/psych308_2020.xlsx` (never
+  committed); `python -m ucsim.ingest.psych308` writes aggregates only (cells ≥ 10; no free text, ids or timestamps)
+  to `ucsim/config/sources/psych308_2020.json`; `ucsim/analysis/psych308_check.py` compares the model (validate.py).
+- Every response came during the COVID-19 pandemic. Stable measures (family background, missions, marriage age,
+  attitudes, religiosity) are held-out checks; 2020 levels of dating, sleep, screen time, work, GPA and life
+  satisfaction are diagnostics only; within-person associations (Spearman) are pattern checks of mechanisms.
+- Not used for starting values (yet): nothing in the model was tuned to it.
+
 ## Institutional & market figures (`ucsim/config/world.yaml`)
 
 Fall 2025 headcounts: BYU 37,337 (modeled 35,000 daytime, in-residence) and UVU 48,670 (16,000 in scope).

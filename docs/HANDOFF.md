@@ -160,6 +160,19 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
 
 ## Session log (newest first)
 
+### 2026-10-21 (4) — Claude Code (cloud session) — a new survey: Psych 308 (BYU, 2020)
+- The owner supplied a BYU class survey (947 students, all during COVID-19) and left inclusion to judgment. Used as
+  checks, not inputs: `ucsim/ingest/psych308.py` (aggregates → config/sources/psych308_2020.json),
+  `ucsim/analysis/psych308_check.py` (rows in validate.py: holdout levels, 2020 diagnostics, 16 associations),
+  tests/test_psych308.py. 60 days at scale 0.15: family background, missions, marriage age, drinking, liberal share,
+  singles' dates, sleep, GPA and 9 associations match; mismatches: loneliness far too tightly tied to close friends,
+  dates and life satisfaction (and neuroticism to mood) — real students vary more; study hours → GPA too strong
+  (+0.30 vs −0.06); extraversion → dates too weak; life satisfaction low (6.1 vs 7.2); conservative share and SSM
+  attitudes disagree with ProvoStats/College Life (time and wording differences). Fixes proposed to the owner, not
+  made (they touch calibrated mechanisms).
+- Owner is downloading BYU floor-plan PDFs (pf.byu.edu, behind BYU login: the owner downloads; never share
+  credentials; PDFs stay in data/external/).
+
 ### 2026-10-21 (3) — Claude Code (cloud session) — bedroom-mates, snapshot dropped, map polish
 - Owner decisions: bedroom-mates matter (done: `housing.bedroom` in config/mechanisms/20_rooms.yaml, hypothetical:
   nightly lights-out talks at 0.6, friction only for clear tidiness/sleep mismatches; 40 days, scale 0.15, two seeds:

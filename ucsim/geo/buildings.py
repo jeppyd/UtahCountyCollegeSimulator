@@ -5,6 +5,7 @@ Input  data/external/overture/buildings.parquet (scripts/fetch_overture.py; Open
        Microsoft footprints, heights mostly from lidar) and data/external/ugrc/parcels.json (county floor counts).
 Output ucsim/geo/data/buildings.parquet   one row per building (rings as flat lon/lat lists)
        web/public/geo/buildings3d.bin     the same footprints with heights, compact, for the map
+       web/public/geo/building_names.json the named buildings' labels
 
     python -m ucsim.geo.buildings
 
@@ -25,6 +26,7 @@ ROOT = Path(__file__).resolve().parents[2]
 EXT = ROOT / "data" / "external"
 OUT = Path(__file__).resolve().parent / "data" / "buildings.parquet"
 WEB = ROOT / "web" / "public" / "geo" / "buildings3d.bin"
+NAMES = ROOT / "web" / "public" / "geo" / "building_names.json"
 STOREY_M = 3.2
 LON0, LAT0 = -111.70, 40.26                                   # rings are stored as 1e-6° offsets from here
 KX, KY = 111_320 * np.cos(np.radians(40.26)), 111_320.0     # metres per degree here
@@ -94,6 +96,23 @@ def centroid(ring: np.ndarray) -> tuple[float, float]:
     return float(((x + x1) * c).sum() / (6 * a)), float(((y + y1) * c).sum() / (6 * a))
 
 
+def box(ring: np.ndarray) -> tuple[float, float, float, float, float]:
+    """The footprint's oriented box: centre (lon, lat), long-axis angle (radians from east), half length and half
+    width (m). The long axis is the principal direction of the outline's vertices."""
+    x, y = ring[:, 0] * KX, ring[:, 1] * KY
+    mx, my = x.mean(), y.mean()
+    x, y = x - mx, y - my
+    c = np.cov(np.c_[x, y].T) if len(x) > 2 else np.eye(2)
+    _, vecs = np.linalg.eigh(c)
+    a = float(np.arctan2(vecs[1, 1], vecs[0, 1]))
+    u = x * np.cos(a) + y * np.sin(a)
+    v = -x * np.sin(a) + y * np.cos(a)
+    du, dv = (u.max() + u.min()) / 2, (v.max() + v.min()) / 2
+    bx = (mx + du * np.cos(a) - dv * np.sin(a)) / KX
+    by = (my + du * np.sin(a) + dv * np.cos(a)) / KY
+    return float(bx), float(by), a, float((u.max() - u.min()) / 2), float((v.max() - v.min()) / 2)
+
+
 def inside(px: np.ndarray, py: np.ndarray, ring: np.ndarray) -> np.ndarray:
     """Points inside one ring (ray casting)."""
     res = np.zeros(len(px), bool)
@@ -153,7 +172,9 @@ def build():
         floors = int(min(max(floors, 1), 30))
         if not h:
             h, h_src = floors * STOREY_M + (1.0 if kind in ("house", "townhouse") else 0.0), "floors"
+        bx, by, ang, hl, hw = box(ring)
         rows.append({"ov_id": r["id"], "name": name, "kind": kind, "cls": r["class"], "lon": cx, "lat": cy,
+                     "box_lon": bx, "box_lat": by, "angle": round(ang, 4), "half_len_m": round(hl, 2), "half_wid_m": round(hw, 2),
                      "floors": floors, "floors_src": f_src, "height_m": round(float(h), 1), "height_src": h_src,
                      "area_m2": round(a, 1),
                      "ring": np.round((ring - (LON0, LAT0)) * 1e6).astype(np.int32).ravel().tolist()})
@@ -187,6 +208,12 @@ def write_web(df: pl.DataFrame):
         buf += d.astype("<i2").tobytes()
     WEB.parent.mkdir(parents=True, exist_ok=True)
     WEB.write_bytes(bytes(buf))
+    # names of the named buildings (halls, campus buildings, churches, shops) for the map's labels
+    named = df.filter(pl.col("name").is_not_null() & (pl.col("kind") != "minor") & (pl.col("area_m2") >= 150))
+    rows = [[int(i), n, round(lo, 6), round(la, 6), k, int(f)] for i, n, lo, la, k, f in
+            named.select("building_id", "name", "box_lon", "box_lat", "kind", "floors").iter_rows()]
+    NAMES.write_text(json.dumps({"columns": ["id", "name", "lon", "lat", "kind", "floors"], "rows": rows},
+                                ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
 
 def load() -> pl.DataFrame:

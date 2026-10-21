@@ -281,6 +281,20 @@ def build():
     fl = flagship_rosters(fp, addr)
     fl.write_parquet(GEO / "flagship_units.parquet", compression="zstd")
     print(f"flagship_units.parquet: {fl.height} units")
+    pb = place_buildings(fp)
+    pb.write_parquet(GEO / "place_buildings.parquet", compression="zstd")
+    print(f"place_buildings.parquet: {pb.height} buildings people go to (venues, churches, workplaces)")
+
+
+def place_buildings(fp: Footprints) -> pl.DataFrame:
+    """The buildings the simulation's places are in: venues, meetinghouses and work sites (by their points)."""
+    rows = []
+    for name, what in (("venues", "venue"), ("meetinghouses", "church"), ("work_sites", "work")):
+        d = pl.read_parquet(GEO / f"{name}.parquet")
+        r = fp.locate(d["lon"].to_numpy().astype(float), d["lat"].to_numpy().astype(float), snap_m=20)
+        rows += [(int(fp.ids[j]), what) for j in r if j >= 0]
+    df = pl.DataFrame(rows, schema=["building_id", "what"], orient="row")
+    return df.unique("building_id", keep="first").sort("building_id")
 
 
 if __name__ == "__main__":

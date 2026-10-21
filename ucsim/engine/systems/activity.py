@@ -373,13 +373,23 @@ class Activity:
         self._locate(ctype, cid, act)
         self._keep_frame(b)
 
-    def _keep_frame(self, b: int):
-        """Positions at each block of the day (and at night), kept for the map's day replay."""
+    def _keep_frame(self, b: int, ctype=None, cid=None):
+        """Positions at each block of the day (and at night), kept for the map's day replay; and the latest block's
+        full snapshot (contexts, homes, rooms) for precise placement (engine/placement.py), which pages read without
+        waiting for the day in progress."""
         P = self.sim.w.P
         if not hasattr(self, "frames_today"):
             self.frames_today, self.day_frames = {}, {}
         self.frames_today[b] = (P["loc_lon"].astype(np.float32), P["loc_lat"].astype(np.float32),
                                 P["activity_now"].astype(np.uint8))
+        from .. import placement
+        snap = {**placement.frame(self.sim, self.ctype if ctype is None else ctype, self.cid if cid is None else cid), "block": b}
+        self.snapshot = snap                            # replaced whole, never edited: safe to read while time runs
+        if not hasattr(self, "snaps_today") or b == 0:
+            self.snaps_today = {}
+        self.snaps_today[b] = snap
+        if b == clock.N_BLOCKS and len(self.snaps_today) == clock.N_BLOCKS + 1:
+            self.day_snaps = self.snaps_today            # the last full day, part by part (the map's live glide)
 
     def night(self):
         """End of day: everyone present goes home to sleep (keeps the map honest between days)."""
@@ -393,7 +403,7 @@ class Activity:
         ctype[home], cid[home], act[home] = CTX_ID["unit"], unit[home], A["home"]
         P["activity_now"] = act
         self._locate(ctype, cid, act)
-        self._keep_frame(clock.N_BLOCKS)
+        self._keep_frame(clock.N_BLOCKS, ctype, cid)
         if len(self.frames_today) == clock.N_BLOCKS + 1:
             self.day_frames = {"day": self.sim.w.day, **self.frames_today}
         self.frames_today = {}
@@ -684,6 +694,6 @@ class Activity:
             O = sim.book.occ
             pos = np.maximum(O.pos(cid[m]), 0)
             lon[m], lat[m] = O.cols["lon"][pos], O.cols["lat"][pos]
-        jit = sim.streams.normal("locjit", w.day, n * 2, block=int(act.sum() % 7)).reshape(2, n) * 0.00025
-        P["loc_lon"] = np.where(np.isfinite(lon), lon + jit[0], np.nan)
-        P["loc_lat"] = np.where(np.isfinite(lat), lat + jit[1], np.nan)
+        # the place's own point (people sharing it are seated around it for the map: engine/placement.py)
+        P["loc_lon"] = lon
+        P["loc_lat"] = lat

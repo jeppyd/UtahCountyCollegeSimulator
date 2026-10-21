@@ -466,6 +466,11 @@ export const api = {
   async updateCheck(force = false) { return STATIC ? null : j(`/api/update/check${force ? '?force=1' : ''}`, undefined, 20000) },
   async updateStatus() { return j('/api/update/status') },
   async updateInstall() { return post('/api/update/install', {}) },
+  // speed and logs (routes_perf.py)
+  async perf(sinceDay?: number) { return j<PerfReply>(`/api/perf${sinceDay !== undefined ? `?since_day=${sinceDay}` : ''}`, undefined, 20000) },
+  async perfEstimate(scale: number) { return STATIC ? { measured: false } : j<PerfEstimate>(`/api/perf/estimate?scale=${scale}`, undefined, 10000) },
+  async logs(since = -1, level = 'info') { return j<{ lines: LogLine[]; next: number }>(`/api/logs?since=${since}&level=${level}`, undefined, 20000) },
+  debugBundleUrl: '/api/debug-bundle',
   async llmLoad(body: { url: string; model: string; context_length?: number; unload_others?: boolean }) { return j('/api/whatif/llm/load', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, 900000) },   // loading a big model takes a while
   async llmModels(url: string) { return j(`/api/whatif/llm/models?url=${encodeURIComponent(url)}`, undefined, 15000) },
   async llmStatus(refresh = false) { return STATIC ? { ready: false, settings: {} } : j(`/api/whatif/llm/status${refresh ? '?refresh=1' : ''}`, undefined, 60000) },
@@ -487,3 +492,16 @@ export const api = {
   async save(notes: string) { return post('/api/save', { notes }) },
   geo(name: string) { return STATIC ? `./geo/${name}` : `/geo/${name}` },
 }
+
+// ---------------------------------------------------------------- speed and logs (routes_perf.py, ucsim/telemetry.py)
+export type PerfDay = {
+  day: number; date: string; weekday: string; wall_s: number; base_s: number; alt_s: number | null; parallel: boolean
+  cpu_pct: number | null; rss_mb: number | null; people: number; systems: Record<string, number>
+  alt_systems: Record<string, number> | null; periodic: string[]; pace: number; t: number
+}
+export type PerfSummary = {
+  n: number; world: any; last?: Partial<PerfDay>; mean7_s?: number; days_per_min?: number | null; why_last?: string; trend?: number
+}
+export type PerfReply = { summary: PerfSummary; days: PerfDay[]; system_words: Record<string, string>; periodic_words: Record<string, string>; has_alt: boolean; running: boolean }
+export type PerfEstimate = { measured: boolean; from_scale?: number; updated?: string; early_s?: number; later_s?: number; build_s?: number }
+export type LogLine = { id: number; t: number; level: string; source: string; msg: string }

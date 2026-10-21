@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| — | — | — | Nobody. Travel merged 2026-10-20; next: survey-followups (needs the raw CSVs), integration. |
+| Claude Code (cloud session, branch `claude/clever-wright-3fh95g`) | 2026-10-21 | living-map (speed/logs done; map phases next) | Owner-directed: precise places, rooms, 3D buildings, click-to-inspect. Spec coming in docs/workstreams/living-map.md. |
 
 ## The goal in one paragraph
 
@@ -158,6 +158,28 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-21 (1) — Claude Code (cloud session) — speed tracker, logs, a messaging slowdown
+- **Branch note:** this session works on `claude/clever-wright-3fh95g` (the session's assigned branch). Merging
+  `claude/festive-archimedes-1llpw1` brought in commit 7c319cd (survey audit inventory), which **fails
+  tests/test_no_raw_survey_data.py** (column names like `ResponseId`, `IPAddress`, `Q_RecaptchaScore` in
+  docs/survey_audit/inventory.md and scripts/survey_inventory.py; I saw no respondent values). It was reverted here
+  (e6a0fbb) and left for the owner to decide; fix the guard hits on that branch before merging it anywhere.
+- **Speed and logs** (`ucsim/telemetry.py`, `ucsim/api/routes_perf.py`): every simulated day is timed (overall, per
+  system, per world, CPU share, memory) and kept (last 4,000 days); slow days say why (Sunday night's weekly updates,
+  the end of a month, the two-weekly snapshot, or a system much slower than usual). `/api/perf`, `/api/perf/estimate`
+  (per-computer history in `<data home>/speed_history.json` → the world-setup estimate), `/api/logs`,
+  `/api/debug-bundle` (zip: versions, settings, timings, logs; no people). The `ucsim` logger goes to an in-memory
+  logbook and, in the app or `python -m ucsim.api.server`, `<data home>/logs/ucsim.log` (2 MB × 3). Logged: worlds
+  built, runs stopped, slow days, failed or slow (> 3 s) requests, errors with tracebacks. Web: a speed meter in the
+  HUD (click: details, Speed tool, Logs, bundle), bench tools **Speed** and **Logs**. The HUD's z-index rose 6 → 12
+  (its menus opened under the bench's sticky selection bar).
+- **Messaging slowdown fixed**: `KnowledgeStore.add` re-sorted every who-knows-what key on each call (`np.union1d`);
+  at scale 0.15 messaging grew 0.010 → 0.273 s/day over 140 days (nearly all of the "days get slower" drift). Now a
+  sorted insert; bit-identical (60-day fingerprint matched). Scale 0.15 week means after the fix: 0.37 → 0.40–0.54 s
+  (before: 0.40 → 0.75). The weekly Sunday-night day is ~2× a normal day (network/mind/culture weekly + messaging's
+  friend-group detection).
+- 263 tests pass (5 new in tests/test_telemetry.py).
 
 ### 2026-10-20 (7) — Claude Code (cloud session) — What-if on a second core, numba kernels
 - **Second core** (`api/parallel.py`): during a run with a What-if, a persistent spawned worker steps the What-if

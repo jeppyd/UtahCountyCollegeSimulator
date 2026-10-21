@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
-import { api } from '../api'
+import { api, type PerfEstimate } from '../api'
 import { G } from '../game'
 import { useStore } from '../store'
 
 // Starting population at scale 1 ≈ 60k (students, spouses, young adults, faculty/staff, community).
 const PER_UNIT = 60000
-// Rough single-core cost; real speed depends on the machine and grows a little as relationships accumulate.
+// Rule of thumb before this computer has run a world: single-core seconds per day at full scale early on, and how much
+// slower days get once the world's records fill up (measured over a semester; see the Speed tool for this computer).
 const SEC_PER_DAY_PER_UNIT = 1.8
+const LATER_FACTOR = 1.3
 
 const PRESETS: { scale: number; label: string; hint: string }[] = [
   { scale: 0.05, label: 'Quick', hint: 'try things out' },
@@ -15,12 +17,20 @@ const PRESETS: { scale: number; label: string; hint: string }[] = [
   { scale: 1.0, label: 'Full', hint: 'real population size' },
 ]
 
-function estimate(scale: number, warmup: number) {
+/** Time estimates: measured on this computer when a world of a similar size ran here before, else a rule of thumb. */
+function estimate(scale: number, warmup: number, m?: PerfEstimate | null) {
   const people = Math.round((scale * PER_UNIT) / 100) * 100
-  const perDay = scale * SEC_PER_DAY_PER_UNIT
-  const build = 2 + 12 * scale + warmup * perDay
-  const fmtS = (s: number) => (s < 90 ? `${Math.max(1, Math.round(s))} s` : `${Math.round(s / 60)} min`)
-  return { people, perDay: perDay < 1 ? `${perDay.toFixed(2)} s` : fmtS(perDay), build: fmtS(build), year: fmtS(365 * perDay) }
+  const measured = !!m?.measured && !!m.early_s
+  const early = measured ? m!.early_s! : scale * SEC_PER_DAY_PER_UNIT
+  const later = measured && m!.later_s ? m!.later_s : early * LATER_FACTOR
+  const build = (measured && m!.build_s ? m!.build_s : 2 + 12 * scale) + warmup * early
+  const fmtS = (s: number) => (s < 90 ? `${Math.max(1, Math.round(s))} s` : s < 5400 ? `${Math.round(s / 60)} min` : `${(s / 3600).toFixed(1)} h`)
+  const fmtD = (s: number) => (s < 1 ? s.toFixed(2) : s < 10 ? s.toFixed(1) : String(Math.round(s)))
+  return {
+    people, measured, from: m?.from_scale,
+    perDay: Math.abs(later - early) / early < 0.15 ? `${fmtD(early)} s` : `${fmtD(early)}–${fmtD(later)} s`,
+    build: fmtS(build), year: fmtS(365 * (early + later) / 2),
+  }
 }
 
 export function WorldForm({ onDone, compact }: { onDone?: () => void; compact?: boolean }) {
@@ -30,7 +40,13 @@ export function WorldForm({ onDone, compact }: { onDone?: () => void; compact?: 
   const [warmup, setWarmup] = useState(14)
   const [err, setErr] = useState('')
   const [confirm, setConfirm] = useState(false)
-  const e = estimate(scale, warmup)
+  const [measured, setMeasured] = useState<PerfEstimate | null>(null)
+  useEffect(() => {
+    let alive = true
+    const t = window.setTimeout(() => api.perfEstimate(scale).then(m => { if (alive) setMeasured(m) }).catch(() => {}), 150)
+    return () => { alive = false; window.clearTimeout(t) }
+  }, [scale])
+  const e = estimate(scale, warmup, measured)
   const hasWorld = !!status?.has_world
   const busy = status?.job?.state === 'running' || status?.job?.state === 'building'
 
@@ -67,6 +83,9 @@ export function WorldForm({ onDone, compact }: { onDone?: () => void; compact?: 
         <div className="tile"><div className="small muted">One simulated year</div><div className="value tabular">≈{e.year}</div></div>
         <div className="tile"><div className="small muted">Ready in</div><div className="value tabular">≈{e.build}</div></div>
       </div>
+      <p className="hint" style={{ marginTop: -4 }}>{e.measured
+        ? `Measured on this computer (from a world of scale ${e.from} that ran here). Days take longer later in a world's life, and about twice as long with a What-if world beside it.`
+        : 'A rule of thumb until this computer has run a world; after that, these numbers come from how fast it actually ran. A What-if world beside it roughly doubles the time.'}</p>
       <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>
         <label className="inline small" htmlFor="world-seed">World number
           <input id="world-seed" type="number" value={seed} onChange={x => setSeed(Math.max(0, Math.floor(Number(x.target.value) || 0)))} style={{ width: 90 }} />

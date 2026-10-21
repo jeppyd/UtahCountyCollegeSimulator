@@ -79,7 +79,9 @@ class KnowledgeStore:
         src = np.broadcast_to(np.asarray(source, np.int64), person.shape)[sel]
         ch = np.broadcast_to(np.asarray(channel, np.int8), person.shape)[sel]
         self.t.append(len(sel), person=person[sel], event=event[sel], source=src, day=day, channel=ch)
-        self._keys = np.union1d(self._keys, k[new])
+        # k is sorted (np.unique), so inserting keeps _keys sorted in one pass; union1d re-sorted everything (it grew to
+        # most of a day's cost after a few months)
+        self._keys = np.insert(self._keys, np.searchsorted(self._keys, k[new]), k[new])
         return sel
 
     def about(self, event: int) -> dict:

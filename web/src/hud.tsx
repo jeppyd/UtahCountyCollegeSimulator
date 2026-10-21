@@ -6,6 +6,8 @@ import { DivergenceMeter, G, LensSwitch, timeOfDay } from './game'
 import { useStore } from './store'
 import { WorldDialog } from './views/WorldSetup'
 import { AiPill, useAiSetup } from './kit/AiSetup'
+import { useLayout } from './bench/layout'
+import { secs } from './bench/tools/Speed'
 
 // seconds per simulated day at each speed (the server waits at least this long per day)
 const SPEEDS: [number, string, string][] = [[1.4, 'Speed 1: about a day per second and a half', '▶'], [0.45, 'Speed 2: about two days per second', '▶▶'], [0, 'Speed 3: as fast as the computer allows', '▶▶▶']]
@@ -130,6 +132,7 @@ export function Hud() {
         {G.search}<span>Search anything</span><kbd>Ctrl K</kbd>
       </button>
       <span className="hud-pop small tabular" title="People living in Provo/Orem right now">{G.people}{status.present?.toLocaleString()}</span>
+      {!STATIC && <SpeedMeter />}
       <UpdatePill />
       <AiPill />
       <Settings />
@@ -277,4 +280,44 @@ function UpdateRow() {
     <button onClick={() => { setOpen(!open); if (!open) checkUpdate(true) }}>Check for updates <span className="muted">{u?.current ? `v${u.current}` : ''}{u?.available ? ' · update ready' : ''}</span></button>
     {open && <div style={{ padding: '4px 9px 8px', maxWidth: 300 }}><UpdatePanel u={u} /></div>}
   </>
+}
+
+// ------------------------------------------------------------------ speed meter
+/** Seconds per simulated day: the last day and a small bar per recent day; click for the details. */
+function SpeedMeter() {
+  const perf = useStore(s => s.status?.perf)
+  const running = useStore(s => s.status?.job?.state === 'running')
+  const setRoute = useStore(s => s.setRoute)
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useOutside(ref, () => setOpen(false))
+  if (!perf) return null
+  const spark: number[] = perf.spark ?? []
+  const hi = Math.max(...spark, 0.001)
+  const slow = perf.last_s > 1.6 * (perf.mean7_s || perf.last_s)
+  const openTool = (t: string) => { setOpen(false); setRoute(['bench']); setTimeout(() => useLayout.getState().ensure(t), 50) }
+  return (
+    <div className="menu-wrap" ref={ref}>
+      <button className={`hud-speed ${running ? 'live' : ''}`} onClick={() => setOpen(!open)} aria-expanded={open}
+        title={`The last simulated day took ${secs(perf.last_s)} on this computer (usual: ${secs(perf.mean7_s)}). Click for details.`}>
+        <svg width="34" height="16" aria-hidden="true">{spark.map((v, k) => {
+          const h = Math.max(1.5, (v / hi) * 14)
+          return <rect key={k} x={k * (34 / Math.max(spark.length, 12))} y={16 - h} width={Math.max(1, 34 / Math.max(spark.length, 12) - 0.8)} height={h} rx={0.6} />
+        })}</svg>
+        <b className="tabular">{secs(perf.last_s)}</b><small>/day</small>
+      </button>
+      {open && (
+        <div className="menu right hud-speed-pop">
+          <div className="small"><b>{secs(perf.last_s)}</b> for the last simulated day{slow ? ' (slower than usual)' : ''}; usually <b>{secs(perf.mean7_s)}</b>
+            {perf.mean7_s ? <> · about <b>{Math.round(60 / perf.mean7_s)}</b> days a minute</> : null}.</div>
+          {perf.periodic?.length > 0 && <div className="small muted" style={{ marginTop: 4 }}>{perf.periodic.includes('weekly') ? 'That was a Sunday night: the weekly updates ran. ' : ''}{perf.periodic.includes('monthly') ? 'End of the month: rent, jobs and moves. ' : ''}{perf.periodic.includes('snapshot') ? 'A two-weekly life-history snapshot.' : ''}</div>}
+          <div className="small muted" style={{ marginTop: 4 }}>Memory {perf.rss_mb ? (perf.rss_mb >= 1024 ? `${(perf.rss_mb / 1024).toFixed(1)} GB` : `${Math.round(perf.rss_mb)} MB`) : '—'}{perf.cpu_pct !== null && perf.cpu_pct !== undefined ? ` · ${Math.round(perf.cpu_pct)}% of one core` : ''}</div>
+          <div className="menu-sep" />
+          <button onClick={() => openTool('speed')}>Open the Speed tool <span className="muted">where the time goes, day by day</span></button>
+          <button onClick={() => openTool('logs')}>Open the Logs <span className="muted">runs, slow days, errors</span></button>
+          <a className="menu-a" href={api.debugBundleUrl} download onClick={() => setOpen(false)}>Save a debug bundle <span className="muted">to attach to a bug report</span></a>
+        </div>
+      )}
+    </div>
+  )
 }

@@ -130,3 +130,29 @@
 .ripple-step { font-size: 13px; padding: 3px 4px; border-radius: 4px; }
 .ripple-step.root { font-weight: 600; }
 .ripple-via { color: var(--text-muted); font-size: 11.5px; }
+
+/* Speed */
+.bsp-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 4px; }
+.bsp-tiles > div { display: flex; flex-direction: column; gap: 1px; padding: 7px 9px; border-radius: 8px; background: var(--surface-2); min-width: 0; }
+.bsp-tiles small { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); font-weight: 650; }
+.bsp-tiles b { font-size: 18px; font-weight: 650; color: var(--text-primary); }
+.bsp-tiles span { font-size: 11.5px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bsp-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.bsp-table td { padding: 3px 6px 3px 0; color: var(--text-secondary); vertical-align: middle; }
+.bsp-table td:first-child { color: var(--text-primary); }
+.bsp-table td small { color: var(--text-muted); font-size: 10.5px; }
+.bsp-bar { width: 32%; }
+.bsp-bar i { display: block; height: 7px; border-radius: 0 4px 4px 0; background: var(--s1); min-width: 2px; }
+/* Logs */
+.blg { min-height: 0; height: 100%; }
+.blg-list { flex: 1 1 auto; min-height: 80px; overflow: auto; font-size: 12px; line-height: 1.45; border: 1px solid var(--border); border-radius: 8px; padding: 4px 0; background: var(--surface-1); }
+.blg-row { display: grid; grid-template-columns: 72px 58px 1fr; gap: 6px; padding: 2px 8px; }
+.blg-row:hover { background: var(--surface-2); }
+.blg-row time { color: var(--text-muted); font-size: 11px; }
+.blg-lv { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; font-weight: 650; color: var(--text-muted); }
+.blg-row.warning .blg-lv { color: color-mix(in srgb, var(--warning) 55%, var(--text-primary)); }
+.blg-row.error .blg-lv, .blg-row.critical .blg-lv { color: var(--critical); }
+.blg-msg { color: var(--text-primary); overflow-wrap: anywhere; }
+.blg-msg small { color: var(--text-muted); }
+.blg-msg pre { margin: 4px 0; font-size: 11px; white-space: pre-wrap; color: var(--text-secondary); background: var(--surface-2); border-radius: 6px; padding: 6px 8px; max-height: 240px; overflow: auto; }
+.blg-more { border: 0; background: none; color: var(--accent); cursor: pointer; font: inherit; font-size: 11px; margin-left: 6px; padding: 0; }

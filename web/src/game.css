@@ -22,7 +22,7 @@
 /* ---------- shell */
 .game { display: grid; grid-template-columns: 196px minmax(0, 1fr); grid-template-rows: var(--hud-h) auto minmax(0, 1fr); height: 100vh; }
 .game .timebar { grid-column: 1 / 3; }
-.hud { grid-column: 1 / 3; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: var(--surface-1); border-bottom: 1px solid var(--border); z-index: 6; min-width: 0; }
+.hud { grid-column: 1 / 3; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: var(--surface-1); border-bottom: 1px solid var(--border); z-index: 12; min-width: 0; }   /* above the bench's sticky selection bar (8), so HUD menus open over it */
 .hud-brand { display: flex; align-items: center; gap: 9px; border: 0; background: none; cursor: pointer; padding: 0; color: inherit; font: inherit; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; }
 .hud-brand span { display: flex; flex-direction: column; line-height: 1.05; font-size: 14px; }
 .hud-brand small { font-weight: 500; color: var(--text-muted); font-size: 11px; }
@@ -96,6 +96,15 @@
 kbd { font-family: ui-monospace, monospace; font-size: 10px; padding: 1px 5px; border-radius: 5px; border: 1px solid var(--border-strong); background: var(--surface-1); color: var(--text-muted); }
 .hud-pop { display: inline-flex; align-items: center; gap: 5px; color: var(--text-secondary); white-space: nowrap; }
 .hud-pop svg { width: 15px; height: 15px; }
+.hud-speed { display: inline-flex; align-items: center; gap: 5px; border: 1px solid transparent; background: none; border-radius: 9px; padding: 4px 7px; cursor: pointer; color: var(--text-secondary); font: inherit; font-size: 12px; white-space: nowrap; }
+.hud-speed:hover { background: var(--surface-2); border-color: var(--border); }
+.hud-speed svg rect { fill: var(--text-muted); }
+.hud-speed.live svg rect:last-child { fill: var(--accent); }
+.hud-speed b { color: var(--text-primary); font-weight: 600; }
+.hud-speed small { color: var(--text-muted); font-size: 10.5px; margin-left: -3px; }
+.hud-speed-pop { width: 300px; padding: 10px; }
+.menu-a { display: flex; justify-content: space-between; gap: 12px; padding: 7px 9px; border-radius: 7px; color: inherit; text-decoration: none; }
+.menu-a:hover { background: var(--surface-2); }
 .hud-icon { border: 1px solid transparent; background: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; cursor: pointer; color: var(--text-secondary); }
 .hud-icon:hover { background: var(--surface-2); color: var(--text-primary); }
 .hud-icon svg { width: 18px; height: 18px; }

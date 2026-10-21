@@ -39,9 +39,78 @@ class Units:
     occupants: list = field(default_factory=list)
     nbhd: np.ndarray | None = None  # official Provo/Orem neighborhood code (0 = other)
     real_ward: np.ndarray | None = None  # listed YSA ward per unit (index into ysa_wards.real_wards), −1 none
+    building_id: np.ndarray | None = None  # row of ucsim/geo/data/buildings.parquet the home is in, −1 unknown
+    floor: np.ndarray | None = None        # 0 = ground floor
+    label: list | None = None              # apartment label from the county's address ("Bldg 13 Apt 3102"), or ""
+    # bedrooms: unit u has rooms room0[u] … room0[u] + n_rooms[u] − 1; room_cap = beds in each, room_unit = its unit
+    room0: np.ndarray | None = None
+    n_rooms: np.ndarray | None = None
+    room_cap: np.ndarray | None = None
+    room_unit: np.ndarray | None = None
 
     def __len__(self):
         return len(self.lon)
+
+    def set_rooms(self, rooms: list):
+        """Bedrooms per unit, as a list (one per unit) of beds per room; capacity becomes their sum."""
+        n = np.array([len(r) for r in rooms], np.int32)
+        self.n_rooms = n.astype(np.uint8)
+        self.room0 = np.r_[0, np.cumsum(n)[:-1]].astype(np.int32)
+        self.room_cap = np.array([b for r in rooms for b in r], np.uint8)
+        self.room_unit = np.repeat(np.arange(len(rooms), dtype=np.int32), n)
+        self.capacity = np.array([sum(r) for r in rooms], np.uint8)
+
+    def add_unit(self, rooms: list[int], **cols):
+        """Append one unit (interventions that build housing); `cols` gives its other fields (scalars)."""
+        for f in ("lon", "lat", "rent_total", "contracted", "sex_restriction", "married_only", "unit_type", "complex_id",
+                  "city", "quality", "kind_src", "nbhd", "real_ward", "building_id", "floor"):
+            arr = getattr(self, f)
+            if arr is not None:
+                default = {"building_id": -1, "real_ward": -1}.get(f, 0)
+                setattr(self, f, np.append(arr, np.asarray(cols.get(f, default), arr.dtype)))
+        if self.label is not None:
+            self.label.append(cols.get("label", ""))
+        self.capacity = np.append(self.capacity, np.uint8(sum(rooms)))
+        self.room0 = np.append(self.room0, np.int32(len(self.room_cap)))
+        self.n_rooms = np.append(self.n_rooms, np.uint8(len(rooms)))
+        self.room_cap = np.append(self.room_cap, np.asarray(rooms, np.uint8))
+        self.room_unit = np.append(self.room_unit, np.full(len(rooms), len(self.lon) - 1, np.int32))
+        return len(self.lon) - 1
+
+
+def default_bedrooms(kind: int, capacity: int, contracted: bool) -> list[int]:
+    """Bedrooms for a home whose layout isn't published (beds per room, summing to capacity). Dwelling kinds:
+    0 house, 1 small multi-unit, 2 apartment, 3 mobile home. BYU-contracted apartments share rooms two to a room
+    (the usual layout of approved housing); other apartments and shared houses mostly have private rooms, with one
+    shared room once there are four or more; family houses keep a two-bed main bedroom. Hypothetical where not
+    published."""
+    c = max(1, int(capacity))
+    if kind == 2 and contracted:
+        return [2] * (c // 2) + ([1] if c % 2 else [])
+    if kind == 0 or kind == 3:
+        return [2] + [1] * (c - 2) if c >= 2 else [1]
+    if c >= 4:
+        return [2] + [1] * (c - 2)
+    return [1] * c
+
+
+def complex_layouts(cx: pl.DataFrame) -> dict[int, list[list[int]]]:
+    """Published bedroom layouts for ordinary complexes (flagship.yaml entries with units_from: dwellings), as
+    {complex_id: a fixed, even sequence of layouts in their shares}."""
+    import yaml
+    spec = yaml.safe_load((Path(__file__).resolve().parents[1] / "config" / "places" / "flagship.yaml").read_text(encoding="utf-8"))
+    out = {}
+    names = cx["name"].to_list()
+    ids = cx["complex_id"].to_list()
+    for s in spec["flagship"].values():
+        if s.get("units_from") != "dwellings" or s["complex"] not in names:
+            continue
+        lay = s["layouts"]
+        cum = np.cumsum([x["share"] for x in lay]) / sum(x["share"] for x in lay)
+        seq = [list(lay[min(int(np.searchsorted(cum, (k * 0.6180339887) % 1.0, side="right")), len(lay) - 1)]["bedrooms"])
+               for k in range(64)]
+        out[int(ids[names.index(s["complex"])])] = seq
+    return out
 
 
 UNIT_TYPES = ["dorm", "apartment", "house_room", "married_apartment", "family_home"]
@@ -82,17 +151,39 @@ def build_units(scale: float, rng: np.random.Generator) -> tuple[Units, pl.DataF
     cap = np.where(k == 2, np.where(contracted, rng.choice([4, 6], n, p=[0.45, 0.55]), rng.choice([2, 3, 4], n, p=[0.3, 0.35, 0.35])),
                    np.where(k == 1, rng.choice([2, 3, 4, 5], n), np.where(k == 0, rng.choice([4, 5, 6, 7, 8], n), 3)))
     utype = np.where(k == 2, 1, np.where(k == 1, 2, np.where(k == 0, 4, 4)))
-    # BYU halls & married complexes from the special complex rows
+    # where each kept dwelling is: building, floor, apartment label (ucsim/geo/homes.py)
+    homes = pl.read_parquet(GEO / "homes.parquet").filter(pl.Series(keep))
+    bldg = homes["building_id"].to_numpy().astype(np.int32)
+    floor = homes["floor"].to_numpy().astype(np.int8)
+    labels = homes["label"].to_list()
+    rooms = [default_bedrooms(int(k_), int(c_), bool(ct)) for k_, c_, ct in zip(k, cap, contracted)]
+    # complexes whose real layouts are known (flagship.yaml, units_from: dwellings): their bedrooms, BYU-owned
+    for cid_, lay in complex_layouts(cx).items():
+        ii = np.flatnonzero(cid == cid_)
+        for t, i in enumerate(ii):
+            rooms[i] = lay[t % len(lay)]
+            cap[i] = sum(rooms[i])
+            contracted[i] = True
+    # BYU halls & family housing: units from the flagship rosters (real buildings, floors, apartment numbers and
+    # bedrooms; ucsim/config/places/flagship.yaml), thinned to the world's scale evenly over every building
     extra = []
-    for row in cx.filter(pl.col("kind").is_in(["byu_dorm", "married"])).iter_rows(named=True):
-        n_units = max(1, int(round(row["units"] * scale)))
-        bpu = 2 if row["name"].startswith("Helaman") else (6 if row["name"].startswith("Heritage") else 2)
-        ang = rng.uniform(0, 2 * np.pi, n_units)
-        rad = np.sqrt(rng.uniform(0, 1, n_units)) * 0.0022
-        for i in range(n_units):
-            extra.append((row["lon"] + rad[i] * np.cos(ang[i]) * 1.3, row["lat"] + rad[i] * np.sin(ang[i]),
-                          bpu if row["kind"] == "byu_dorm" else 4, row["kind"] == "byu_dorm", row["kind"] == "married",
-                          0 if row["kind"] == "byu_dorm" else 3, row["complex_id"], 4 if row["kind"] == "byu_dorm" else 5))
+    by_name = {r["name"]: r for r in cx.filter(pl.col("kind").is_in(["byu_dorm", "married"])).iter_rows(named=True)}
+    roster = pl.read_parquet(GEO / "flagship_units.parquet")
+    B = pl.read_parquet(GEO / "buildings.parquet", columns=["building_id", "lon", "lat"])
+    blon, blat = B["lon"].to_numpy(), B["lat"].to_numpy()
+    for (name, comm), g in roster.group_by(["complex", "community"], maintain_order=True):
+        row = by_name.get(name)
+        if row is None:
+            continue
+        n_units = min(g.height, max(1, int(round(g.height * min(1.0, scale * 1.15)))))
+        take = np.unique(np.round(np.linspace(0, g.height - 1, n_units)).astype(int))
+        hall = row["kind"] == "byu_dorm"
+        family = comm == "family"
+        for r in g[take].iter_rows(named=True):
+            bi = int(r["building_id"])
+            extra.append((blon[bi], blat[bi], int(sum(r["bedrooms"])), not family, family,
+                          3 if family else (0 if hall else 1), row["complex_id"], 5 if family else 4,
+                          bi, int(r["floor"]), r["label"], list(r["bedrooms"]), {"F": 1, "M": 2}.get(r["sex"], 0)))
     # named complexes whose outline holds more apartments than county address points show (OSM footprint × floors)
     if "extra_units" in cx.columns:
         for row in cx.filter(pl.col("extra_units") > 0).iter_rows(named=True):
@@ -101,9 +192,10 @@ def build_units(scale: float, rng: np.random.Generator) -> tuple[Units, pl.DataF
             ang = rng.uniform(0, 2 * np.pi, n_units)
             rad = np.sqrt(rng.uniform(0, 1, n_units)) * 0.0007
             for i in range(n_units):
+                c_ = int(rng.choice([4, 6]) if row["contracted"] else rng.choice([2, 3, 4]))
                 extra.append((row["lon"] + rad[i] * np.cos(ang[i]) * 1.3, row["lat"] + rad[i] * np.sin(ang[i]),
-                              int(rng.choice([4, 6]) if row["contracted"] else rng.choice([2, 3, 4])), bool(row["contracted"]), False,
-                              1, row["complex_id"], 2))
+                              c_, bool(row["contracted"]), False, 1, row["complex_id"], 2,
+                              -1, 0, "", default_bedrooms(2, c_, bool(row["contracted"])), 0))
     if extra:
         ex = np.array(extra, dtype=object)
         lon = np.concatenate([lon, ex[:, 0].astype(float)])
@@ -116,14 +208,21 @@ def build_units(scale: float, rng: np.random.Generator) -> tuple[Units, pl.DataF
         k = np.concatenate([k, ex[:, 7].astype(int)])
         quality = np.concatenate([quality, np.full(len(ex), 0.45, np.float32)])
         city = np.concatenate([city, np.zeros(len(ex), np.int8)])
+        bldg = np.concatenate([bldg, ex[:, 8].astype(np.int32)])
+        floor = np.concatenate([floor, ex[:, 9].astype(np.int8)])
+        labels = labels + [str(x) for x in ex[:, 10]]
+        rooms = rooms + [list(x) for x in ex[:, 11]]
+        sexr = np.concatenate([np.zeros(n, np.uint8), ex[:, 12].astype(np.uint8)])
     else:
         married_only = np.zeros(n, bool)
+        sexr = np.zeros(n, np.uint8)
     m = len(lon)
     units = Units(lon=lon, lat=lat, capacity=cap.astype(np.uint8), rent_total=np.zeros(m, np.float32),
-                  contracted=contracted.astype(bool), sex_restriction=np.zeros(m, np.uint8),
+                  contracted=contracted.astype(bool), sex_restriction=sexr,
                   married_only=married_only, unit_type=utype.astype(np.uint8), complex_id=cid.astype(np.int32),
                   city=city.astype(np.int8), quality=quality, kind_src=k.astype(np.int8),
-                  nbhd=neighborhoods.locate(lon, lat))
+                  nbhd=neighborhoods.locate(lon, lat), building_id=bldg, floor=floor, label=labels)
+    units.set_rooms(rooms)
     # complexes the map data only knows by address get their name from the ward listing
     names = cx["name"].to_list()
     ren = ysa_wards.complex_names(cx["lon"].to_numpy(), cx["lat"].to_numpy(), names)

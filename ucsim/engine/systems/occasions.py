@@ -1025,32 +1025,37 @@ class Occasions:
             cur_end = max(cur_end, en[j])
         pres = P["present"] & ~P["ill"]
         plans_b = sim.systems["plans"]
+        meet_intent = 0.8 * plans_b._active("meet_people") * plans_b._resolve()      # the same for every event today
+        late_draw = sim.streams.gen("occ_late", day, 1).exponential(1.0, P.n)         # the same stream as before
         for gi in range(g + 1):
             J = np.where(grp == gi)[0]
-            aud = np.zeros((P.n, len(J)), bool)
-            for c_i, j in enumerate(J):
-                aud[:, c_i] = self._audience(int(oc["kind"][j])) & pres & self._org_members(int(oc["org_kind"][j]), int(oc["org_id"][j]))
-            people = np.where(aud.any(axis=1))[0]
-            if not len(people):
+            # each event's audience is small (a few hundred at most), so work on (person, event) pairs only
+            auds = [np.flatnonzero(self._audience(int(oc["kind"][j])) & pres
+                                   & self._org_members(int(oc["org_kind"][j]), int(oc["org_id"][j]))) for j in J]
+            seg = np.r_[0, np.cumsum([len(a) for a in auds])]
+            if not seg[-1]:
                 continue
-            Ug = np.full((len(people), len(J) + 1), -np.inf)
-            Ug[:, 0] = 0.0
+            all_p = np.concatenate(auds).astype(np.int64)
+            rep = lambda col: np.repeat(np.asarray(col)[J], np.diff(seg))   # noqa: E731
+            all_o = rep(ids)
+            # every pair of this evening in one feasibility check (rows are independent)
+            all_rd = self._ride_driver(all_o, all_p)
+            F = self._feasible(all_p, day, rep(oc["start"]), rep(oc["dur"]), rep(oc["lon"]), rep(oc["lat"]), occ=all_o,
+                               ride=all_rd != -1)
+            F["ride_by"] = all_rd
+            U = np.full(len(all_p), -np.inf)
             terms = []
-            feas = []
             for c_i, j in enumerate(J):
                 kc = int(oc["kind"][j])
-                sel = aud[people, c_i]
-                pp = people[sel]
-                rd = self._ride_driver(np.full(len(pp), ids[j]), pp)
-                f = self._feasible(pp, day, oc["start"][j], oc["dur"][j], oc["lon"][j], oc["lat"][j], occ=np.full(len(pp), ids[j]),
-                                   ride=rd != -1)
-                f["ride_by"] = rd
+                sl = slice(seg[c_i], seg[c_i + 1])
+                pp = all_p[sl]
+                f = {k_: v[sl] for k_, v in F.items()}
                 spec = self.book.vocab[self.book.kinds[kc]]
                 T = {"base": np.full(len(pp), float(spec.get("base", -3.0))), "interest": self._interest(kc, pp),
                      "travel": -p("occasions.attend.travel") * np.maximum(f["travel"] - 10, 0) / 15.0,
                      "late": -p("occasions.attend.late") * f["late"] / 30.0,
                      "weather": -float(w.env.get("weather_penalty", 0.0)) * (f["travel"] > 5)}
-                intent = 0.8 * plans_b._active("meet_people")[pp] * plans_b._resolve()[pp] * self.k_social[kc]
+                intent = meet_intent[pp] * self.k_social[kc]
                 if self.k_act[kc] == ACT_CODE["venue"] and self.k_social[kc]:
                     wb = sim.whatif.choice_bias(pp)
                     if not np.isscalar(wb):
@@ -1061,31 +1066,42 @@ class Occasions:
                 cost = self.k_cost[kc]
                 if cost > 0:
                     T["money"] = -1.0 * P["financial_stress"][pp] * min(cost / 10.0, 2.0)
-                u = sum(T.values())
-                u = np.where(f["ok"], u, -np.inf)
-                Ug[np.where(sel)[0], c_i + 1] = u
-                terms.append((sel, T, f))
-            key = int(sum(int(oc["kind"][j]) * 1009 + int(oc["place"][j]) % 100003 + int(st[j]) for j in J)) % 2_000_000_000
-            G = sim.streams.gen("open_attend", day, key).gumbel(size=(P.n, len(J) + 1))[people]
-            ch = np.argmax(Ug + G, axis=1)
-            fin = np.isfinite(Ug)
-            ex = np.where(fin, np.exp(np.where(fin, Ug, 0) - np.where(fin, Ug, -np.inf).max(axis=1, keepdims=True)), 0.0)
-            prob = ex / ex.sum(axis=1, keepdims=True)
+                U[sl] = np.where(f["ok"], sum(T.values()), -np.inf)
+                terms.append((sl, T, f))
+            # Gumbel-max choice per person among their events and staying in (utility 0). The noise is keyed by
+            # (person, event) — the event by its kind, place and start — so paired universes share it pair by pair
+            ekey = np.array([int(oc["kind"][j]) * 1009 + int(oc["place"][j]) % 100003 + int(st[j]) * 7 + 1 for j in J], np.int64)
+            gum = lambda u: -np.log(-np.log(u))   # noqa: E731
+            V = U + gum(sim.streams.keyed_uniform("open_attend", day, all_p, np.repeat(ekey, np.diff(seg))))
+            people, pinv = np.unique(all_p, return_inverse=True)
+            V0 = gum(sim.streams.keyed_uniform("open_attend", day, people, 0))
+            order = np.lexsort((-V, pinv))                         # each person's best event first
+            first = np.r_[True, pinv[order][1:] != pinv[order][:-1]]
+            best = order[first]
+            went_pair = np.zeros(len(all_p), bool)
+            win = best[np.isfinite(U[best]) & (V[best] > V0[pinv[best]])]
+            went_pair[win] = True
+            # the model's chance of each option (softmax over staying in and the feasible events)
+            fin = np.isfinite(U)
+            mx = np.zeros(len(people))
+            np.maximum.at(mx, pinv[fin], U[fin])
+            den = np.exp(-mx)
+            np.add.at(den, pinv[fin], np.exp(U[fin] - mx[pinv[fin]]))
+            prob = np.where(fin, np.exp(np.where(fin, U, 0.0) - mx[pinv]) / den[pinv], 0.0)
             for c_i, j in enumerate(J):
-                sel, T, f = terms[c_i]
-                loc = np.where(sel)[0]
-                went = ch[loc] == c_i + 1
+                sl, T, f = terms[c_i]
+                went = went_pair[sl]
                 if not went.any():
                     continue
-                pp = people[loc][went]
+                pp = all_p[sl][went]
                 cap = int(oc["capacity"][j])
-                margin = (Ug + G)[loc[went], c_i + 1]
+                margin = V[sl][went]
                 full = np.zeros(len(pp), bool)
                 if 0 <= cap < len(pp):
                     full[np.argsort(-margin, kind="stable")[cap:]] = True
                 Tw = {k_: v[went] for k_, v in T.items()}
                 did = sim.decisions.record("attend_occasion", day, pp, np.where(full, "no", "yes").tolist(), Tw,
-                                           prob=np.where(full, 1.0, prob[loc[went], c_i + 1]), occasion=np.full(len(pp), ids[j]),
+                                           prob=np.where(full, 1.0, prob[sl][went]), occasion=np.full(len(pp), ids[j]),
                                            constraints={"full": full}, block=0)
                 go = ~full
                 pg = pp[go]
@@ -1097,7 +1113,7 @@ class Occasions:
                 fw = {k_: v[went][go] for k_, v in f.items()}
                 self._note_trips(inv, fw)
                 lat_mean = p("occasions.lateness.base_minutes") * np.exp(-0.3 * sim.z("conscientiousness")[pg])
-                extra = (sim.streams.gen("occ_late", day, 1).exponential(1.0, P.n)[pg] * lat_mean).astype(np.int32)
+                extra = (late_draw[pg] * lat_mean).astype(np.int32)
                 arrive = np.minimum(fw["arrive"] + extra, fw["leave"] - 15)
                 self._add_rows(pg, np.full(len(pg), ids[j]), arrive, fw["leave"], inv, ride_by=fw["ride_by"], travel=fw["travel"],
                                mode=fw["mode"])

@@ -488,6 +488,14 @@ class Activity:
             add("approach", "wants company", 7, 0.5 * appr, m)
             add("culture", "a social complex", 7, p("culture.feedback.reputation") * sim.systems["culture"].complex_social_z(P["complex_id"][idx]), m)
             add("partner", "evenings with their partner", 7, -couple, m)
+        if wd == 6 and b >= 1:
+            # the Sabbath: members who go to church keep Sunday quieter — fewer restaurants and outings, more apartments
+            keep = P["lds_member"][idx] * np.clip(P.internal["attend_prob"][idx], 0, 1)
+            add("sunday", "keeping the Sabbath", 3, p("activity.choice.sunday_out") * keep)
+            add("sunday", "keeping the Sabbath", 4, 0.5 * p("activity.choice.sunday_out") * keep)
+            add("sunday", "Sunday at friends' places", 6, p("activity.choice.sunday_hangout") * keep, has_f)
+            if b >= 2:
+                add("sunday", "Sunday at friends' places", 7, p("activity.choice.sunday_hangout") * keep, P["complex_id"][idx] >= 0)
         # dances are planned events now (open occasions in systems/occasions.py), not a free-time option
         for name, label, bias in (("routine", "habit (what they usually do then)", "routine"), ("coping", "coping with a hard stretch", "coping"),
                                   ("intention", "an intention (meeting people)", "plans")):

@@ -77,9 +77,11 @@ def test_population_and_relationship_invariants(ran):
     idx = E.find(E.make_keys(i, pid[i]))
     assert (idx >= 0).all()
     assert ((E["flags"][idx] & (Tie.ROMANTIC | Tie.SPOUSE)) > 0).all()
-    # edge keys are unique and sorted (binary-search invariant)
+    # edge keys are unique; the sorted index (binary search) is sorted and points at each key's row
     k = E.key_array
-    assert (np.diff(k) > 0).all()
+    assert len(np.unique(k)) == len(k)
+    assert (np.diff(E._sorted) > 0).all() and (k[E._perm] == E._sorted).all()
+    assert (E.find(k) == np.arange(len(k))).all()
     # no self-loops, endpoints in range
     lo, hi = E.endpoints()
     assert (lo < hi).all() and hi.max() < P.n
@@ -164,3 +166,15 @@ def test_population_grows_with_cohort_and_never_loses_rows(days, fresh):
     n0 = sim.w.P.n
     sim.run_days(days)
     assert sim.w.P.n >= n0
+
+
+def test_keyed_uniform_is_per_pair():
+    """Draws keyed by (person, event) don't depend on which other pairs are drawn or how many agents exist."""
+    from ucsim.engine.core import Streams
+    S = Streams(9)
+    a = S.keyed_uniform("open_attend", 4, np.arange(1000), 77)
+    b = S.keyed_uniform("open_attend", 4, np.array([5, 999, 3]), np.array([77, 77, 77]))
+    assert np.array_equal(b, a[[5, 999, 3]])
+    assert 0 < a.min() and a.max() < 1 and abs(a.mean() - 0.5) < 0.05
+    assert not np.array_equal(a, S.keyed_uniform("open_attend", 5, np.arange(1000), 77))
+    assert not np.array_equal(a, Streams(10).keyed_uniform("open_attend", 4, np.arange(1000), 77))

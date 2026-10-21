@@ -176,7 +176,7 @@ def test_cross_lagged_recovers_direction():
     assert r["x_to_y"] > 0.2 and abs(r["y_to_x"]) < 0.1
 
 
-def test_edge_store_merge_insert_keeps_order_and_values():
+def test_edge_store_append_insert_keeps_rows_and_index():
     rng = np.random.default_rng(0)
     E = EdgeStore(capacity=32)
     ref = {}
@@ -187,8 +187,15 @@ def test_edge_store_merge_insert_keeps_order_and_values():
         idx = E.upsert(k)                     # upsert may grow (replace) the column arrays: index after it
         E.cols["liking"][idx] = (k % 89).astype(np.float32)
         ref.update({int(x): float(x % 89) for x in k})
-    assert np.all(np.diff(E.key_array) > 0) and len(E) == len(ref)
+    # rows keep their values where they were added; the sorted index finds every key
+    assert len(E) == len(ref) and len(np.unique(E.key_array)) == len(ref)
+    assert np.all(np.diff(E._sorted) > 0) and (E.find(E.key_array) == np.arange(len(E))).all()
     assert np.allclose(E["liking"], [ref[int(x)] for x in E.key_array])
+    gone = np.zeros(len(E), bool)
+    gone[::3] = True
+    keep = E.key_array[~gone].copy()
+    E.remove(gone)                            # compaction rebuilds the index
+    assert (E.key_array == keep).all() and (E.find(keep) == np.arange(len(keep))).all()
 
 
 def test_attribution_threshold_tightens_with_more_parameters_and_loosens_with_draws():

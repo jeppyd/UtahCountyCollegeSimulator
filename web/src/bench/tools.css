@@ -109,3 +109,24 @@
 .bsc-row.on { background: var(--accent-soft); }
 .bsc-name { display: flex; flex-direction: column; min-width: 0; font-size: 12.5px; }
 .bsc-name small { color: var(--text-muted); font-size: 11px; }
+
+/* Story, Why and Ripple */
+.sh { display: flex; flex-direction: column; gap: 6px; margin: 6px 0; }
+.sh-bar { display: flex; height: 14px; border-radius: 4px; overflow: hidden; background: var(--grid); }
+.sh-bar i { display: block; height: 100%; }
+.sh-bar i.sh-vs, .sh-list i.sh-vs { background: repeating-linear-gradient(45deg, var(--text-muted) 0 3px, transparent 3px 6px); }
+.sh-list { list-style: none; margin: 0; padding: 0; font-size: 12.5px; }
+.sh-list li { display: flex; align-items: baseline; gap: 6px; padding: 2px 0; }
+.sh-list li i { width: 9px; height: 9px; border-radius: 2px; flex: none; display: inline-block; }
+.sh-list li b { min-width: 34px; font-variant-numeric: tabular-nums; }
+.sh-list li.sh-against { color: var(--text-secondary); }
+.sh-list li.click, .story-line.click, .ripple-step.click { cursor: pointer; }
+.story-ch h4 { margin: 10px 0 4px; font-size: 13px; }
+.story-line { margin: 0; padding: 3px 4px; display: flex; gap: 6px; align-items: baseline; font-size: 13px; line-height: 1.45; border-radius: 4px; }
+.story-line:hover, .ripple-step:hover { background: var(--grid); }
+.story-line.on { outline: 1px solid var(--u-base); }
+.story-line .when, .ripple-step .when { color: var(--text-muted); font-size: 11.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.story-why { color: var(--text-secondary); }
+.ripple-step { font-size: 13px; padding: 3px 4px; border-radius: 4px; }
+.ripple-step.root { font-weight: 600; }
+.ripple-via { color: var(--text-muted); font-size: 11.5px; }

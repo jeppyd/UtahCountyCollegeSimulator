@@ -90,6 +90,22 @@ containing the parcels, and survey geocodes; plus Helaman & Heritage Halls, Wymo
 meetinghouses and 712 venues (restaurants, cafés, soda & dessert shops, parks, gyms, theaters, trailheads,
 dance venues…). Web layers (roads, city outlines, building footprints) are committed under `web/public/geo/`.
 
+### Travel times (`scripts/build_travel.py` → `ucsim/geo/data/travel.npz`)
+
+| Source | Used for | License / terms |
+|---|---|---|
+| UGRC UtahRoads (SGID), all drivable classes with speed limits and one-ways (`scripts/fetch_geodata.py roads_net`) | the street graph: walking/biking km (no freeways or ramps), driving minutes off-peak and at the evening peak | public / open |
+| Utah Transit Authority GTFS feed (https://gtfsfeed.rideuta.com/GTFS.zip; feed version 2026 AUG_20261008, 2026-08-16 to 2026-12-05, downloaded 2026-10-20) | door-to-door transit minutes between zones on a weekday, Saturday and Sunday at 8:00, 12:30, 17:30 and 20:30 | UTA's terms: the Mobility Database lists http://developer.rideuta.com/TermsOfUse.aspx, which no longer resolves; the feed is not redistributed here, only derived minutes, with attribution |
+| Daily Universe (2017, 2021) | BYU parking: ~7,049 Y-lot spaces, lots 10+ minutes' walk from the heart of campus, 15–20 minutes hunting for a spot on bad days | news (cited for the labelled parking assumptions) |
+
+73 zones: the 57 official Provo/Orem neighborhoods, BYU and UVU campus, and 14 outer areas where people live or go;
+a ~170 m raster maps any point to its zone. In the feed, UVX (830X) runs weekdays and Saturdays and not on Sundays;
+on Sundays only routes 850 (State Street) and 871 serve the area. Labelled assumptions (not data): driving speed =
+limit × a class factor for signals and turns, evening-peak factors, parking minutes at the destination (BYU 9,
+UVU 6, downtown 3, else 1.5), a parking hassle and a transit-wait penalty that only affect the mode choice, 12% of
+people without a car bike, and snow slowing every mode. With them, on a Tuesday at 8:00 about 45% of BYU students
+walk to campus, 30% ride transit and 22% drive; at UVU 75% drive.
+
 ## Literature
 
 Mechanism forms and starting parameter values cite published work in each mechanism's `refs`

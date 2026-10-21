@@ -33,6 +33,9 @@ LAYERS = {
     "parks": dict(service="UtahParksLocal", fields="NAME,CITY,ACRES,TYPE", geometry="centroid"),
     "roads": dict(service="UtahRoads", fields="FULLNAME,CARTOCODE", geometry="polyline", offset=0.00008,
                   where="CARTOCODE IN ('1','2','3','4','5','7','8','9','10','11')"),
+    # the street network for travel times (scripts/build_travel.py): every drivable class, with speed limits and one-ways
+    "roads_net": dict(service="UtahRoads", fields="FULLNAME,CARTOCODE,SPEED_LMT,ONEWAY,DOT_FCLASS", geometry="polyline",
+                      where="CARTOCODE IN ('1','2','3','4','5','6','7','8','9','10','11','16','18')"),
     "municipalities": dict(service="UtahMunicipalBoundaries", fields="NAME,POPLASTESTIMATE", geometry="polygon", offset=0.0003,
                            where="NAME IN ('Provo','Orem')"),
     "higher_ed": dict(service="Schools_HigherEducation", fields="SchoolName,SchoolType,CampusType,City", geometry="point"),

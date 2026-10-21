@@ -80,6 +80,7 @@ class Simulation:
         }
         self._zcache_day = -999
         self._zcache: dict[str, tuple[float, float]] = {}
+        self._zarr: dict[str, tuple] = {}
         for name in ("environment", "housing", "activity", "groups", "network", "academics", "encounters", "economy",
                      "romance", "intimacy", "faith", "norms", "mind", "coping", "plans", "routine", "emotion", "culture", "occasions",
                      "institutions", "family", "honor", "messaging", "lifecourse", "recorder"):
@@ -120,8 +121,19 @@ class Simulation:
             mu, sd = (float(xs.mean()), float(xs.std()) or 1.0) if len(xs) else (0.0, 1.0)
             self._zcache[var] = (mu, sd)
         mu, sd = self._zcache[var]
+        # traits (personality) don't change within a day: keep their z-scores for the day (read-only, so a caller that
+        # tried to change the shared array would fail loudly instead of corrupting it)
+        static = getattr(P.specs.get(var), "kind", None) == "trait"
+        if static:
+            hit = self._zarr.get(var)
+            if hit is not None and hit[0] == (self.w.day, P.n, mu, sd):
+                return hit[1]
         x = P[var].astype(np.float64)
-        return np.where(np.isfinite(x), (x - mu) / sd, 0.0)
+        z = np.where(np.isfinite(x), (x - mu) / sd, 0.0)
+        if static:
+            z.flags.writeable = False
+            self._zarr[var] = ((self.w.day, P.n, mu, sd), z)
+        return z
 
     @property
     def whatif(self):

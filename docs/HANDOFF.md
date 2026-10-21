@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| — | — | — | Nobody. Campus policies merged 2026-10-20; next is travel (or survey-followups once the raw CSVs are here). |
+| — | — | — | Nobody. Travel merged 2026-10-20; next: survey-followups (needs the raw CSVs), integration. |
 
 ## The goal in one paragraph
 
@@ -68,7 +68,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [sexuality-survey](workstreams/sexuality-survey.md) (+ dealbreakers) | **done, merged** | working branch | open issues below |
 | [calendar-weather](workstreams/calendar-weather.md) | **done, merged** | working branch | open issues below |
 | [talk](workstreams/talk.md) (Ask + interviews) | **done, merged** | working branch | open issues below |
-| [travel](workstreams/travel.md) | not started | — | next (keeps `ucsim/geo/travel.py`'s interface) |
+| [travel](workstreams/travel.md) | **done** | working branch | merged 2026-10-20 (wip/travel) |
 | [messaging](workstreams/messaging.md) (wave 2) | **done, merged** | working branch | open issues below |
 | [institutions](workstreams/institutions.md) (wave 2) | **done, merged** | working branch | open issues below |
 | [family-homes](workstreams/family-homes.md) (wave 2) | **done, merged** | working branch | open issues below |
@@ -152,11 +152,125 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   ask the owner. Never copy them elsewhere or print respondent rows.
 - The CSV exports don't reproduce the committed survey aggregates exactly (some multi-select items, College Life
   completes): don't rebuild existing priors; add new sections only (see `docs/workstreams/survey-followups.md`).
-- Measured before iteration 6: scale 0.15 ≈ 0.23 s per simulated day, full scale ≈ 1.6 s per day (one core).
+- Measured 2026-10-20 (after the speed pass): scale 0.15 ≈ 0.4 s per simulated day, full scale ≈ 1.8 s per day per
+  world (one core; a What-if doubles it). Before iteration 6 it was 0.23 / 1.6 s with far fewer systems.
 - LLM features use the owner's own logins (Claude Code CLI, Codex CLI, or a local OpenAI-compatible server such as LM
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-20 (7) — Claude Code (cloud session) — What-if on a second core, numba kernels
+- **Second core** (`api/parallel.py`): during a run with a What-if, a persistent spawned worker steps the What-if
+  while this process steps the Original, in lockstep; the shared lock is released while waiting, so pages answer
+  mid-run. Pages read a copy of the What-if (`Workspace.alt` property), refreshed when someone asks for it (at most
+  every max(8 s, 5 × hand-over)) and always when the run ends or pauses (divergence measured then). Changes to the
+  What-if mid-run call `WS.take_alt()` first (fork/add, applying a plan in add mode, social actions); replacing it
+  (`WS.alt = …`) drops the worker's copy. Hand-over only when it pays off (`parallel.worth_it`: days × measured
+  What-if day ≥ 2.5 × two hand-overs; long runs only until measured); a world that can't be pickled stays in one
+  process. `UCSIM_PARALLEL=0|1|force`. Results are bit-identical to one process (tests/test_parallel.py). Measured in
+  this VM (memory first-touch is slow, two processes contend for memory bandwidth): stepping 1.4× faster at full scale,
+  1.7× at scale 0.3; hand-overs 4–10 s here (expected well under that on a desktop), so 30-day full-scale runs gained
+  ~12% end-to-end here and long "play" runs gain the most.
+- Copies and pickles of PersonTable, EdgeStore, EventLog and ledger Tables carry used rows plus headroom
+  (`__getstate__`): a full-scale world pickles to 302 MB (was 378), a fork takes ~0.4 s.
+- **numba** (optional: `pip install .[fast]`, not in the Windows app yet — llvmlite adds ~50–80 MB): `engine/fast.py`
+  label propagation for messaging's weekly friend-group detection (messaging 0.24 → 0.10 s/day at full scale), with a
+  NumPy fallback giving identical labels (`UCSIM_NUMBA=0`; tests/test_fast.py). `romance._date_type` vectorized in
+  NumPy with the same Gumbel draws (identical picks). Whole runs are bit-identical with and without numba.
+- 258 tests pass.
+
+### 2026-10-20 (6) — Claude Code (cloud session) — speed budget and occasions
+- **Speed budget**: `ucsim/perf.py` (scale 0.1, seed 3, 2 warm-up + 5 timed days; times divided by a fixed NumPy
+  calibration workload so budgets travel between machines), `config/perf_budget.json`, `scripts/perf.py` (print;
+  `--update "why"` records), `tests/test_speed_budget.py` (a day ≤ 1.5× budget; each system ≤ 2.5× its own or 10% of
+  the day; one retry; `UCSIM_SKIP_SPEED=1` skips). Rule added to docs/workstreams/README.md, AGENTS.md, CLAUDE.md.
+- **Occasions**: `_resolve_open` checks every (person, event) pair of an evening in one `_feasible` call and works on
+  pairs only (audiences are ~0.1% of people × events); the choice noise is now `Streams.keyed_uniform` keyed by
+  (person, event kind·place·start) instead of a P.n × events Gumbel block — paired universes share it pair by pair even
+  when their head-counts differ. Attendance at open events is unchanged within noise (3 seeds, 21 days: 5,911 vs
+  5,904 visits). Occasions 0.60 → 0.23 s/day at full scale; **full scale 2.87 → 1.79 s/day** over the two passes.
+- Budget re-recorded after this. Remaining at full scale (s/day): encounters 0.49, activity 0.30, occasions 0.23,
+  messaging 0.23, recorder 0.15, romance 0.13. Not done: a separate process for the What-if world, numba.
+
+### 2026-10-20 (5) — Claude Code (cloud session) — speed pass
+- Profiled full scale (73.7k people, one world): 3.15 s/day before → **2.30 s/day** (same 6-day window: 2.87 → 2.30,
+  −20%). Changes: `EdgeStore` rows are append-only with a separate sorted key index (`_sorted`, `_perm`), so adding
+  ties no longer moves every column of 640k edges (`find`/`upsert` unchanged; `remove` rebuilds the index; row order is
+  no longer key order — tests updated); `sim.z` keeps trait z-scores for the day (read-only arrays); `plans._resolve`
+  cached per day; the recorder computes every group's means with one matrix product per field (identical to 1e-6).
+  Results are deterministic but not bit-identical to before (edge row order changed).
+- Where the rest goes (full scale, s/day): occasions 0.72 (≈350 small feasibility/commitment/travel calls a day),
+  encounters 0.50, activity 0.32, messaging 0.21 (weekly community detection 0.6 s), recorder 0.15, romance 0.13.
+- Options reported to the owner (not done): run the What-if world in its own process (≈2× when comparing), batch the
+  per-occasion calls, numba for the remaining Python loops, a per-day speed budget test.
+
+### 2026-10-20 (4) — Claude Code (cloud session) — travel
+- `scripts/build_travel.py` → `ucsim/geo/data/travel.npz` (0.15 MB): 73 zones (57 official neighborhoods, BYU and UVU
+  campus, 14 outer areas where people live or go) with a ~170 m raster; the UGRC street graph (new
+  `fetch_geodata.py roads_net` layer with speed limits and one-ways; Dijkstra from dwelling-weighted zone centroids)
+  for walking/biking km and driving minutes off-peak and at the 5:30 pm peak; UTA GTFS (feed 2026 AUG_20261008) on a
+  weekday, Saturday and Sunday at 8:00/12:30/17:30/20:30 by a connection scan from six departure times in the hour
+  (waiting included), walk ≤ 800 m to stops, ≤ 400 m transfers. UVX runs weekdays and Saturdays, not Sundays; on
+  Sundays only routes 850 and 871 serve the area. The feed is not committed (NOTICE.md; UTA's terms URL no longer
+  resolves).
+- `geo/travel.py` keeps its interface (`trip()` → minutes, mode) and adds `zone_of`, `matrix`, `modes`: a trip keeps
+  its own end points (straight km × the zone pair's street detour, the pair's driving minutes per km), plus parking at
+  the destination (BYU 9 min, UVU 6, downtown 3); choice-only penalties for parking hassle (BYU 12) and transit waits
+  (6; no bus under 1.2 km); 12% of people without a car bike; snow slows every mode. Tuesday 8:00 to campus: BYU 45%
+  walk / 30% transit / 22% drive, UVU 75% drive. Occasion trips over 3 weeks: transit 8% (was 0), attendance and
+  lateness ~unchanged; ~+0.04 s/day at scale 0.05. Falls back to the straight-line estimate without travel.npz.
+- `/api/travel/zones`, `/api/travel/trip`; tests/test_travel.py; 250 tests pass. Fixed two tests whose assumptions the new times broke
+  (test_butterfly cohort count now includes people away in the Original; test_social_actions' working student drives).
+- Not done: a map layer of zones or isochrones in the web app; rides from friends still use car times.
+
+### 2026-10-20 (3) — Claude Code (cloud session) — storytelling (Story, Why, Ripple)
+- Owner asked for a plain-language storytelling layer over the recorded causes (no AI prose; "share of the push").
+  New `analysis/story.py` + `api/routes_story.py` (`/api/story/person/{i}`, `/api/story/why`, `/api/story/ripple`),
+  read-only over the same ledgers Trace walks:
+  - **why**: for a recorded choice, each factor's share of the total push (|term| / Σ|terms|, base rate left out),
+    split toward / against what happened, with the chance; for an event with no choice of its own, the weights of its
+    recorded causes (tie, place, feeling); a sequence it simply followed (the ask before a date, the occasion) is
+    listed as "after", not as a share; someone else's choice (an answer) gives that person's reasons; everything
+    pushing the other way reads "against the odds".
+  - **story**: chapters by month and turning point (move, relationship, engagement…), one sentence per notable event
+    (salience ≥ 0.3) with its top reasons, repeats with the same person folded ("4 times").
+  - **ripple**: the forward trace as a tree, each moment under the latest earlier moment it came from; ties reached
+    by met_at/introduced become "X and Y met" lines, answers "X said yes"; an event at an occasion also follows the
+    occasion (who met there and what that led to).
+- Workbench tools Story (people), Why and Ripple (trace) — docs/img/story.png. `_Words.place` names wards with
+  `ward_name`. 242 tests pass; web build passes.
+
+### 2026-10-20 (2) — Claude Code (cloud session) — LDS tuning (owner's answers to the LDS audit)
+- **Real Provo YSA wards** from the owner's PDFs (Provo YSA Apartment Listing by Ward 2026-27, On Campus Housing
+  Assignments 2026-27; PDFs not committed — they list buildings, not people): `scripts/build_ysa_wards.py` geocodes
+  the listed addresses on Provo's grid (fit to our complexes, RMSE 43 m) → `geo/data/ysa_wards.json` (569 rows, 168
+  wards; 33 rows unplaced, mostly Oak Hills houses). `population/ysa_wards.py`: units near a listed building get its
+  ward; at small scales neighbouring wards of one stake merge (≥ 60 members, `REAL_WARD_MIN`); names like
+  "YSA Stake 3 · 35th Ward". Other wards get readable generic names ("Family ward 12"). `structure.ward_name()` is
+  used everywhere a ward is named; movers join the real ward of their new building (housing._assign_ward). 66
+  complexes known only by address now carry their listing name (name_src "ysa_listing").
+- **Honor Code**: reports are rarer and quieter (owner: reporting is rare, anonymous, "snitching"), weighted toward
+  same-sex romance and alcohol over coffee; ~0.4% of BYU students a year (the published 1.5–3.5% also covers
+  cheating, dress etc.). The **endorsement** renews yearly on each student's own date (rates still hypothetical).
+- **Bishops** (`institutions.counsel`, mechanism institutions.bishop): after a premarital-sex confession the temple
+  recommend is held a few weeks (longer while still sexually active), often the sacrament too; some of those go to
+  church less meanwhile. Ongoing issues (porn, masturbation, sex) get roughly monthly follow-ups (max 6). New
+  masturbation talks (intimacy.bishop_masturbation; survey: 64% M / 19% F lifetime vs porn 71% / 17%). Events
+  recommend_withheld, recommend_restored, bishop_followup, bishop_masturbation_talk.
+- **Engagement length**: no survey item covers engagement → wedding (surveys have months dated before engagement,
+  median 8, and ideal months to engagement, median 9–10). Active LDS couples now marry after 4–7 months (median ≈
+  5½), one in five after ~3 (owner's judgment).
+- **Sundays**: members (weighted by attendance) eat out and go out less, spend more time at friends' apartments and
+  around the complex (activity.choice.sunday_out / sunday_hangout); a date that lands on Sunday moves to Monday 65% of
+  the time (romance.date.sunday_keep).
+- **NCMOs** now mostly start on apps (romance.ncmo app_rate/app_base: casual-minded app users match and meet in a
+  parked car, an apartment or a quiet spot; event value = place); party/dance base lowered. Total ≈ unchanged
+  (~2/3 via apps).
+- **Speed buttons**: a speed change while time runs now just changes the pace (`POST /api/pace`, read every day)
+  instead of stop-wait-restart; pause shows "pausing after this day…" at once; clicks are queued in order.
+- Fixed: a marriage ending during world build left sexual_satisfaction set (romance._end now clears it).
+- New `docs/BRAINSTORM_GUIDE.md` (owner request): every kind of building block in plain words plus an idea template.
+- 240 tests pass; web build passes.
 
 ### 2026-10-20 — Claude Code (cloud session)
 - **Campus policies** (owner request): researched BYU's and UVU's published policies and wrote them, with sources and

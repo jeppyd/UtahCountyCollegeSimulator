@@ -34,6 +34,16 @@ class Streams:
             key = self._cache[name] = _h(name)
         return np.random.default_rng([self.seed, key & 0xFFFFFFFF, key >> 32, day + 100000, block])
 
+    def keyed_uniform(self, name: str, day: int, a: np.ndarray, b) -> np.ndarray:
+        """A uniform in (0, 1) per (a, b) key pair — e.g. (person, event) — for this seed, stream and day. Unlike
+        `uniform` it doesn't depend on how many agents exist or on which other pairs are drawn, so paired universes
+        share it pair by pair, and it costs only as many draws as there are pairs."""
+        base = np.uint64((_h(f"{self.seed}:{name}:{day}")) & 0xFFFFFFFFFFFFFFFF)
+        with np.errstate(over="ignore"):
+            x = splitmix64(np.asarray(a, np.int64).astype(np.uint64) ^ base)
+            x = splitmix64(x ^ (np.asarray(b, np.int64).astype(np.uint64) * np.uint64(0x9E3779B97F4A7C15)))
+        return ((x >> np.uint64(11)).astype(np.float64) + 0.5) / float(1 << 53)
+
     def uniform(self, name: str, day: int, n: int, block: int = 0) -> np.ndarray:
         return self.gen(name, day, block).random(n)
 
@@ -157,6 +167,15 @@ class EventLog:
 
     COLS = {"day": np.int32, "block": np.int8, "type": np.int16, "a": np.int32, "b": np.int32, "place": np.int32,
             "value": np.float32, "cause": np.int64, "mech": np.int16, "decision": np.int64}
+
+    def __getstate__(self):
+        """Copies and pickles carry the used rows plus headroom (see state.PersonTable)."""
+        from .state import _headroom
+        keep = _headroom(self.n, self.cap)
+        st = dict(self.__dict__)
+        st["cols"] = {k: v[:keep] for k, v in self.cols.items()}
+        st["cap"] = keep
+        return st
 
     def __init__(self, registry: Registry, capacity: int = 1 << 16):
         self.reg = registry

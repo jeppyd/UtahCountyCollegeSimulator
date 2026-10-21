@@ -12,7 +12,21 @@ import numpy as np
 from ..registry import Registry, VarSpec
 
 
+def _headroom(n: int, cap: int) -> int:
+    """Rows to keep when copying or pickling a growable table: the used ones plus some room to grow."""
+    return min(cap, n + max(1024, n // 8))
+
+
 class PersonTable:
+    def __getstate__(self):
+        """Copies and pickles (forks, the What-if worker) carry the used rows plus headroom, not all the capacity."""
+        keep = _headroom(self.n, self.cap)
+        st = dict(self.__dict__)
+        st["cols"] = {k: v[:keep] for k, v in self.cols.items()}
+        st["internal"] = {k: v[:keep] for k, v in self.internal.items()}
+        st["cap"] = keep
+        return st
+
     def __init__(self, registry: Registry, capacity: int = 1024):
         self.reg = registry
         self.specs: dict[str, VarSpec] = {v.id: v for v in registry.person_vars()}
@@ -107,6 +121,14 @@ class EdgeStore:
                 "top_ctx": np.uint8, "top_place": np.int32, "alt_ctx": np.uint8}
     NEG_ONE = ("introducer", "origin_place", "top_place")     # integer columns whose "none" is −1
 
+    def __getstate__(self):
+        keep = _headroom(self.n, self.cap)
+        st = dict(self.__dict__)
+        st["cols"] = {k: v[:keep] for k, v in self.cols.items()}
+        st["_keys_buf"] = self._keys_buf[:keep]
+        st["cap"] = keep
+        return st
+
     def __init__(self, capacity: int = 1 << 16):
         self.n = 0
         self.cap = capacity
@@ -118,7 +140,9 @@ class EdgeStore:
             self.cols[c] = np.zeros(capacity, dtype=dt)
         for c in self.NEG_ONE:
             self.cols[c][:] = -1
-        self._keys_buf = np.zeros(capacity, dtype=np.int64)
+        self._keys_buf = np.zeros(capacity, dtype=np.int64)   # each row's key (rows stay where they were added)
+        self._sorted = np.zeros(0, dtype=np.int64)            # the keys in order, and the row holding each
+        self._perm = np.zeros(0, dtype=np.int64)
 
     @staticmethod
     def make_keys(a: np.ndarray, b: np.ndarray) -> np.ndarray:
@@ -140,11 +164,11 @@ class EdgeStore:
         """Index of each key, or -1."""
         if self.n == 0 or len(keys) == 0:
             return np.full(len(keys), -1, dtype=np.int64)
-        k = self._keys_buf[: self.n]
+        k = self._sorted
         pos = np.searchsorted(k, keys)
         pos_c = np.minimum(pos, self.n - 1)
         hit = k[pos_c] == keys
-        return np.where(hit, pos_c, -1)
+        return np.where(hit, self._perm[pos_c], -1)
 
     def upsert(self, keys: np.ndarray, init: dict | None = None) -> np.ndarray:
         """Ensure keys exist (inserting new ones with `init` values); return their indices."""
@@ -173,21 +197,23 @@ class EdgeStore:
             kb[: self.cap] = self._keys_buf
             self._keys_buf = kb
             self.cap = new_cap
-        # both runs are sorted, so merge in O(n): new key j lands at searchsorted(old, key_j) + j
-        old = self._keys_buf[: self.n]
-        total = self.n + m
-        pos_new = np.searchsorted(old, new_keys) + np.arange(m)
+        # rows are appended (no column moves); only the sorted key index is merged, in O(n): new key j lands at
+        # searchsorted(old, key_j) + j
+        n0 = self.n
+        total = n0 + m
+        self._keys_buf[n0:total] = new_keys
+        for c, arr in self.cols.items():
+            arr[n0:total] = init[c] if c in init else (-1 if c in self.NEG_ONE else 0)
+        pos_new = np.searchsorted(self._sorted, new_keys) + np.arange(m)
         is_new = np.zeros(total, bool)
         is_new[pos_new] = True
-        keys = np.empty(total, np.int64)
-        keys[pos_new] = new_keys
-        keys[~is_new] = old
-        self._keys_buf[:total] = keys
-        # shift the old rows in place (numpy buffers the overlapping source), then fill the new ones
-        src = np.flatnonzero(~is_new)
-        for c, arr in self.cols.items():
-            arr[src] = arr[: self.n]
-            arr[pos_new] = init[c] if c in init else (-1 if c in self.NEG_ONE else 0)
+        srt = np.empty(total, np.int64)
+        perm = np.empty(total, np.int64)
+        srt[pos_new] = new_keys
+        perm[pos_new] = np.arange(n0, total)
+        srt[~is_new] = self._sorted
+        perm[~is_new] = self._perm
+        self._sorted, self._perm = srt, perm
         self.n = total
 
     def remove(self, mask_remove: np.ndarray):
@@ -197,6 +223,12 @@ class EdgeStore:
         for c, arr in self.cols.items():
             arr[:k] = arr[: self.n][keep]
         self.n = k
+        self._reindex()
+
+    def _reindex(self):
+        keys = self._keys_buf[: self.n]
+        self._perm = np.argsort(keys, kind="stable")
+        self._sorted = keys[self._perm]
 
     @property
     def key_array(self):

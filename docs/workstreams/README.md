@@ -33,7 +33,10 @@ clear and beautiful.
    `web/src/bench/registry.ts`) registers itself; use `useBench` (`web/src/bench/selection.ts`) for the shared
    selection; shared small components go in `web/src/kit/`. Light and dark themes.
 8. **Tests.** pytest tests in `tests/test_<area>.py` on small worlds (scale 0.02–0.05); the full suite
-   (`python -m pytest -q`) must pass before you hand off.
+   (`python -m pytest -q`) must pass before you hand off. It includes the **speed budget**
+   (`tests/test_speed_budget.py`): a simulated day, and each system in it, must stay within `config/perf_budget.json`
+   (normalized for the machine). `python scripts/perf.py` shows the timings. If a new layer is worth its cost, record a
+   new budget with `python scripts/perf.py --update "why"` and say so in the HANDOFF session log; don't just raise it.
 9. **Privacy — non-negotiable.** Survey responses never enter the repository: raw exports live only in
    `data/raw/` (gitignored, supplied by the owner), only aggregates with **≥ 10 respondents per cell** are committed,
    free-text answers and contact details are never read into the model. `tests/test_no_raw_survey_data.py` guards

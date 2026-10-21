@@ -6,7 +6,7 @@ export const NAV: { group: string; label: string; items: NavItem[] }[] = [
   { group: 'world', label: 'The world', items: [
     BENCH,
     { id: 'world', label: 'World', icon: 'globe', hint: 'What is happening right now: news, trends, lives to follow, the two worlds', color: '--s1' },
-    { id: 'map', label: 'Map', icon: 'map', hint: 'Watch people move through Provo and Orem; color homes by anything', color: '--s3' },
+    { id: 'map', label: 'Flat map (backup)', icon: 'map', hint: 'The older flat map, kept as a backup: homes, complexes, wards, day and months replays. The living 3D map is the Map tool on the workbench.', color: '--s3' },
     { id: 'people', label: 'People', icon: 'people', hint: 'Find and follow individual lives', color: '--s7' },
     { id: 'relationships', label: 'Relationships', icon: 'rings', hint: 'Couples, friendships and how people meet', color: '--s5' },
     { id: 'places', label: 'Places', icon: 'places', hint: 'Apartment complexes, wards, neighborhoods, schools', color: '--s4' },

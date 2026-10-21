@@ -61,9 +61,7 @@ The title screen builds a world: pick a **size** (share of the real community: Q
 ≈ 9k, Detailed ≈ 18k, Full ≈ 60k), a **world number** (the random seed: the same number always gives the
 same people and history) and warm-up days. Settings (the gear) rebuilds later.
 
-**Read-only snapshot.** `scripts/export_static.py` exports a pre-run world (with a what-if branch) as a
-static site that runs in any browser, including the published demo page: every page, both worlds and the
-butterfly views work; running time, making changes and searching people by name need the app.
+**Read-only snapshot.** Dropped on 2026-10-21 (the owner's decision): the app always runs with its simulator. Old `STATIC` branches in the web code are inert and will be removed.
 
 ---
 
@@ -302,14 +300,14 @@ web/                        React + TypeScript (Vite)
   src/nav.ts                the places of the world and the research desk
   src/time.tsx              the calendar ribbon
   src/store.ts              zustand store (route, lens, filter, follows, pins, toasts, caches)
-  src/api.ts                API client (+ static-snapshot fallbacks)
+  src/api.ts                API client
   src/ui.tsx, components.tsx, analysis.ts, graph.tsx, names.ts
   src/views/                World, MapView, People, PersonView, Relationships, Places, Events,
                             whatif/ (Change builder + drawer, WhatIf butterfly view), explore/ (FieldPane,
                             FieldCanvas, FieldExplorer), research pages (Overview, Flows, Crosstab,
                             CausalWeb, Experiments, ModelCheck, Variables, Mechanisms, About), Guide,
                             WorldSetup (title and loading screens)
-scripts/                    validate, calibrate, stability, export_static, gen_catalogs, fetch_* /
+scripts/                    validate, calibrate, stability, gen_catalogs, fetch_* /
                             build_* data builders
 tests/                      pytest: engine, population, interventions, analysis/API/privacy, realism,
                             butterfly (game-layer reads and endpoints)
@@ -338,7 +336,7 @@ of the month; housing; night positions; clamps; recorder; history snapshot).
 ### Testing and release
 `pytest` (about 50 tests, under a minute) covers determinism, invariants, interventions, the cohort
 language, the API, privacy guards and the realism checks. CI builds the Windows installer and runs a
-packaged self-test. `scripts/export_static.py` builds the read-only demo.
+packaged self-test.
 
 ---
 

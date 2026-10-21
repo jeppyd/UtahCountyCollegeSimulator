@@ -298,7 +298,8 @@ export default function MapView({ initial }: { initial?: string }) {
     <div className="mapwrap">
       <div ref={el} style={{ position: 'absolute', inset: 0, background: 'var(--map-bg)' }} />
       <div className="card map-panel">
-        <h3>Map of Provo & Orem</h3>
+        <h3>Flat map (backup)</h3>
+        <p className="hint">The older map, kept as a backup. The living map (real buildings in 3D, everyone in their room or seat) is the <b>Map</b> tool on the workbench.</p>
         <p className="hint">{MODE_HINT[mode]}</p>
         <div className="seg" style={{ marginBottom: 8 }}>
           {(['people', 'homes', 'complexes', 'wards'] as Mode[]).map(m => <button key={m} className={mode === m ? 'on' : ''} onClick={() => setMode(m)} title={MODE_HINT[m]}>{MODE_LABEL[m]}</button>)}

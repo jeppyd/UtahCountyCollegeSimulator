@@ -73,8 +73,8 @@ flagship:
     floors: 3
     units_from: addresses
     street_near: [-111.6600, 40.2614, 380]
-    # both communities live here: Wikipedia says the southern half was converted to single housing in 2006 and the
-    # complex "now houses both married and single students"; BYU lists both. Which half is which: an estimate.
+    # both communities live here (BYU lists both): the south half single students, the north half families —
+    # confirmed by the owner (2026-10-21); Wikipedia: the southern half was converted to single housing in 2006
     split: {family: north, share_family: 0.5}
     family_layouts:
       - {share: 0.6, bedrooms: [2, 2], baths: 1, words: "two bedrooms, about 700 sq ft, up to four, $1,055 a month"}
@@ -85,7 +85,7 @@ flagship:
       - {share: 0.15, bedrooms: [2, 1], baths: 1, words: "two bedrooms, one shared and one private"}
       - {share: 0.30, bedrooms: [2, 1, 1], baths: 1, words: "three bedrooms (one shared), one bathroom"}
       - {share: 0.20, bedrooms: [1, 1, 1], baths: 1, words: "three private bedrooms, one bathroom"}
-    estimate: [layouts.share, floors, split]
+    estimate: [layouts.share, floors]
     sources:
       - "BYU Housing, family housing options: Wyview 2-bedroom ~700 sq ft (max 4) $1,055, 3-bedroom ~850 sq ft (max 6) $1,215"
       - "BYU Housing, 19 and older community (2026–27): two or three bedrooms and one bathroom; private and shared rooms; kitchen shared by three to four tenants; $3,445 shared, $4,440 private; single students 19+"

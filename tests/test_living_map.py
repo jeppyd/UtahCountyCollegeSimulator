@@ -83,3 +83,21 @@ def test_endpoints(sim):
         assert now["occasion"]["id"] == int(f["cid"][i]) and now["doing"] and isinstance(now["mind"], list)
     finally:
         server.WS.base, server.WS.alt = saved
+
+
+def test_bedroom_mates_talk_at_night(sim):
+    """Lights-out talks add conversations between people sharing a room (not between spouses)."""
+    from ucsim.engine.state import EdgeStore
+    w = sim.w
+    P, E = w.P, w.E
+    room = P.internal["room"][: P.n]
+    ids = np.flatnonzero(P["present"][: P.n] & (room >= 0))
+    o = ids[np.argsort(room[ids], kind="stable")]
+    same = (room[o[:-1]] == room[o[1:]]) & (P["partner_id"][o[:-1]] != o[1:])
+    a, b = o[:-1][same], o[1:][same]
+    assert len(a) > 20
+    before = E["n_inter"][np.maximum(E.find(EdgeStore.make_keys(a, b)), 0)].astype(int).copy()
+    sim.systems["encounters"].bedroom()
+    after = E["n_inter"][E.find(EdgeStore.make_keys(a, b))].astype(int)
+    talked = (after - before) > 0
+    assert 0.3 < talked.mean() < 0.95          # talk_rate 0.6 a night

@@ -172,6 +172,40 @@ class Encounters:
         elif b == 0:
             self.evening_social_pairs = None
 
+    def bedroom(self):
+        """Lights-out talks: people sharing a bedroom (spouses aside) often talk before sleep, one more conversation at
+        home on top of the day's; tidiness and bedtimes that don't match make it go worse (housing.bedroom)."""
+        sim, w = self.sim, self.sim.w
+        P, p = w.P, sim.p
+        from .. import rooms
+        n = P.n
+        room = rooms.ensure(P)[:n]
+        here = np.flatnonzero(P["present"][:n].astype(bool) & (room >= 0) & (P["unit_id"][:n] >= 0))
+        if len(here) < 2:
+            return
+        ids = here[np.lexsort((here, room[here]))]
+        r = room[ids]
+        a_, b_ = [], []
+        for k in (1, 2, 3):                       # every pair in a room of up to four
+            same = r[:-k] == r[k:]
+            a_.append(ids[:-k][same])
+            b_.append(ids[k:][same])
+        a, b = np.concatenate(a_), np.concatenate(b_)
+        spouses = P["partner_id"][a] == b
+        a, b = a[~spouses], b[~spouses]
+        if not len(a):
+            return
+        rng = sim.streams.gen("bedroom_talk", w.day)
+        go = rng.random(len(a)) < p("housing.bedroom.talk_rate")
+        a, b = a[go], b[go]
+        if not len(a):
+            return
+        # only clear mismatches grate: tidiness over 1.2 standard deviations apart, sleep over two hours apart
+        friction = -(p("housing.bedroom.tidy") * np.clip(np.abs(sim.z("conscientiousness")[a] - sim.z("conscientiousness")[b]) - 1.2, 0, None)
+                     + p("housing.bedroom.sleep") * np.clip(np.abs(P["sleep_hours"][a] - P["sleep_hours"][b]) - 2.0, 0, None))
+        self.apply(a, b, np.full(len(a), CTX_ID["unit"], np.uint8), P["unit_id"][a].astype(np.int64), clock.N_BLOCKS - 1,
+                   self.similarity(a, b), np.zeros(len(a), bool), v_adj=friction, stream="bedroom_valence")
+
     def friend_contact(self):
         """Deliberate contact with existing friends (plans, meals, calls, texts).
 
@@ -273,7 +307,7 @@ class Encounters:
         s += 0.1 * (P["origin_region"][a] == P["origin_region"][b])
         return s.astype(np.float32)
 
-    def apply(self, a, b, ctx, place, block, sim_, gath):
+    def apply(self, a, b, ctx, place, block, sim_, gath, v_adj=None, stream: str = "valence"):
         sim, w = self.sim, self.sim.w
         P, E, p = w.P, w.E, sim.p
         day = w.day
@@ -317,7 +351,7 @@ class Encounters:
             E.cols["att_hl"][ni] = att_hl
             sim.systems["mind"].init_beliefs(ni, lo, hi)
         # ---- interaction valence
-        rng = sim.streams.gen("valence", day, block)
+        rng = sim.streams.gen(stream, day, block)
         chem = E["chemistry"][idx]
         mood = P["mood"]
         v = (p("encounter.valence.base") + p("encounter.valence.chemistry") * chem
@@ -327,6 +361,8 @@ class Encounters:
              + p("encounter.valence.similarity") * sim_
              + p("encounter.valence.liking") * E["liking"][idx]
              + p("encounter.valence.noise") * rng.standard_normal(len(a)))
+        if v_adj is not None:          # context-specific frictions (bedroom-mates' mismatched habits)
+            v = v + v_adj
         dur = self.dur[ctx] * np.where(gath, 1.6, 1.0) * rng.lognormal(0, 0.5, len(a))
         at_occ = ctx == CTX_ID["occasion"]
         if at_occ.any():    # how long people talk at an occasion depends on the kind (a dinner vs a dance floor)

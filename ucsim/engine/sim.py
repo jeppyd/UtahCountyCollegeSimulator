@@ -291,6 +291,7 @@ class Simulation:
             self._run("emotion", S["emotion"].monthly)
         self._run("housing", S["housing"].daily)
         self._run("activity", S["activity"].night)
+        self._run("encounters", S["encounters"].bedroom)   # bedroom-mates talk before sleep (rooms settled above)
         self.clamp()
         if self.record:
             self._run("recorder", S["recorder"].daily)

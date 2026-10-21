@@ -143,12 +143,13 @@ def now_person(i: int, u: str = "base"):
 
 
 @router.get("/api/now/occasions")
-def now_occasions(u: str = "base"):
-    """What's happening right now: every occasion people are at in the latest part of the day, with how many are
-    there and where (for the map's pins and the 'right now' list)."""
+def now_occasions(u: str = "base", block: str = "now"):
+    """What's happening right now: every occasion people are at in the latest part of the day (or part 0–4 of the last
+    full day), with how many are there and where (for the map's pins and the 'right now' list)."""
     S = _server()
     sim = S.WS.sim(u)
-    f = getattr(sim.systems["activity"], "snapshot", None)
+    act = sim.systems["activity"]
+    f = getattr(act, "snapshot", None) if block == "now" else (getattr(act, "day_snaps", None) or {}).get(int(block)) if block.isdigit() else None
     if f is None:
         return S.jresp({"occasions": [], "counts": {}})
     from ..engine.state import CTX_ID

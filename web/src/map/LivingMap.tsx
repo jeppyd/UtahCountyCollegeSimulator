@@ -155,11 +155,11 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
   useEffect(() => { loadCore(u, dataVersion).then(setCore) }, [u, dataVersion])
   // occasions happening at the moment shown (pins, the 'right now' list)
   useEffect(() => {
-    if (!prec || (when !== 'now' && !gliding)) { setOccs(null); return }
+    if (!prec) { setOccs(null); return }
     let alive = true
-    loadNowOccasions(u).then(d => { if (alive) setOccs(d) }).catch(() => {})
+    loadNowOccasions(u, when !== 'now' ? when : gliding && glide !== null ? glide : 'now').then(d => { if (alive) setOccs(d) }).catch(() => {})
     return () => { alive = false }
-  }, [u, prec?.day, prec?.block, when])
+  }, [u, prec?.day, prec?.block, when, glide])
   const pickPerson = (i: number) => { setCard(i); onPerson?.(i) }
   const flyTo = (lon: number, lat: number, z = 18) => map.current?.flyTo({ center: [lon, lat], zoom: Math.max(map.current.getZoom(), z), duration: 900 })
 

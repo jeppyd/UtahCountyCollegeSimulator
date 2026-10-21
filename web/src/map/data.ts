@@ -136,8 +136,8 @@ export async function loadNowPerson(i: number, u: Universe): Promise<NowPerson> 
 }
 export type NowOcc = { id: number; kind: string; label: string; category: string; name: string | null; n: number; lon: number; lat: number; start: number; dur: number }
 export type NowOccasions = { occasions: NowOcc[]; counts: { label: string; category: string; occasions: number; people: number }[]; day: number; block: number; date: string }
-export async function loadNowOccasions(u: Universe): Promise<NowOccasions> {
-  const r = await fetch(`/api/now/occasions?u=${u}`)
+export async function loadNowOccasions(u: Universe, block: 'now' | number = 'now'): Promise<NowOccasions> {
+  const r = await fetch(`/api/now/occasions?u=${u}&block=${block}`)
   if (!r.ok) throw new Error(`${r.status} occasions`)
   return r.json()
 }

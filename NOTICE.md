@@ -10,6 +10,13 @@
 - **Utah Geospatial Resource Center (UGRC / SGID)**: parcels (Utah County LIR), building footprints, address
   points, places of worship, parks, roads, municipal boundaries, campuses and trailheads; public data from the
   State of Utah.
+- **Overture Maps Foundation**: building footprints, heights and names (`ucsim/geo/data/buildings.parquet`,
+  `web/public/geo/buildings3d.bin`, `web/public/geo/building_names.json`) come from the Overture Maps buildings
+  theme, which combines OpenStreetMap (© OpenStreetMap contributors, ODbL 1.0), Esri Community Maps and Microsoft
+  building footprints; released under ODbL 1.0 (https://docs.overturemaps.org/attribution/). Places (shops,
+  restaurants; not yet used) are CDLA-Permissive-2.0.
+- **BYU Housing** published facts (buildings, floors, layouts, rents) behind `ucsim/config/places/flagship.yaml`;
+  each value cites its page.
 - **Utah Transit Authority (UTA)**: travel times by transit are derived from UTA's public GTFS schedule feed
   (https://gtfsfeed.rideuta.com/GTFS.zip). The feed itself is not included in this repository. UTA's terms of use
   were listed at http://developer.rideuta.com/TermsOfUse.aspx (no longer reachable when checked on 2026-10-20).

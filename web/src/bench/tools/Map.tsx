@@ -14,6 +14,7 @@ import { usePersonName } from '../../kit/RefChip'
 import { LivingMap, type LivingOpts } from '../../map/LivingMap'
 import { type Precise, type Refresh, REFRESH_WORDS } from '../../map/data'
 import { loadColumns, useLens, useStore } from '../../store'
+import { useLayout } from '../layout'
 import { PanelOptions } from '../panel'
 import type { PanelProps, ToolDef } from '../registry'
 import { focusItem, subjectPerson } from '../sel'
@@ -111,7 +112,8 @@ function MapTool({ sel, setSel, opts, setOpts }: PanelProps) {
         </select>
       </PanelOptions>
       <LivingMap u={u} opts={live} setOpts={o => set({ live: o })} colorOf={(i, p) => color?.fn(i, p) ?? null} chosen={chosen} focus={focus}
-        onPerson={i => { if (!boxing) focusItem(setSel, { kind: 'person', id: i, label: name(i) }) }} onHover={setHover} mapRef={mapRef} onFrame={setPrec}>
+        onPerson={i => { if (!boxing) focusItem(setSel, { kind: 'person', id: i, label: name(i) }) }} onHover={setHover} mapRef={mapRef} onFrame={setPrec}
+        onOccasion={(id, label) => { focusItem(setSel, { kind: 'occasion', id, label, u }); useLayout.getState().ensure('occasion') }}>
         <button className={`btn small ${boxing ? 'primary' : ''}`} onClick={() => setBoxing(!boxing)} title="Drag a rectangle on the map to select everyone inside it">{boxing ? 'Drag a box…' : '▭ Select an area'}</button>
       </LivingMap>
       {(boxing || box) && (

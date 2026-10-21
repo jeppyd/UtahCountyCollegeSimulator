@@ -121,3 +121,24 @@ export function loadCore(u: Universe, version: number): Promise<Set<number>> {
   }
   return coreCache.get(k)!
 }
+
+export type NowPerson = {
+  id: number; name: string; headline: string; doing: string; activity: string; present: boolean; date: string; block: number
+  place: { kind: string; building: number | null; building_name: string | null; floor: number; words: string }
+  occasion?: { id: number; kind: string; kind_label: string; name: string | null; time: string; n_people: number; organizer: { id: number; name: string } | null; how: string; me?: any }
+  n_with: number; n_known: number; with: { id: number; name: string; tie: string }[]
+  mind: { text: string; from: string }[]
+}
+export async function loadNowPerson(i: number, u: Universe): Promise<NowPerson> {
+  const r = await fetch(`/api/now/person/${i}?u=${u}`)
+  if (!r.ok) throw new Error(`${r.status} person ${i}`)
+  return r.json()
+}
+export type NowOcc = { id: number; kind: string; label: string; category: string; name: string | null; n: number; lon: number; lat: number; start: number; dur: number }
+export type NowOccasions = { occasions: NowOcc[]; counts: { label: string; category: string; occasions: number; people: number }[]; day: number; block: number; date: string }
+export async function loadNowOccasions(u: Universe): Promise<NowOccasions> {
+  const r = await fetch(`/api/now/occasions?u=${u}`)
+  if (!r.ok) throw new Error(`${r.status} occasions`)
+  return r.json()
+}
+export const clock = (m: number) => { const h = Math.floor(m / 60) % 24, mm = m % 60; return `${((h + 11) % 12) + 1}${mm ? ':' + String(mm).padStart(2, '0') : ''} ${h < 12 ? 'am' : 'pm'}` }

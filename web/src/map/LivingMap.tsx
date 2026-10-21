@@ -10,7 +10,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { api, type Universe } from '../api'
 import { cssVar, hexRgb } from '../components'
 import { useStore } from '../store'
-import { type BuildingInside, type Buildings, type Precise, type Refresh, KINDS, loadBuilding, loadBuildings3d, loadCore, loadPrecise, refreshKey, toLonLat } from './data'
+import { catRgb } from '../kit/Bits'
+import { type BuildingInside, type Buildings, type NowOccasions, type NowPerson, type Precise, type Refresh, clock, KINDS, loadBuilding, loadBuildings3d, loadCore, loadNowOccasions, loadNowPerson, loadPrecise, refreshKey, toLonLat } from './data'
 
 const CENTER: [number, number] = [-111.672, 40.262]
 export const BLOCK_NAMES = ['Morning', 'Afternoon', 'Evening', 'Late evening', 'Night']
@@ -32,6 +33,7 @@ export type LivingOpts = {
   when?: 'now' | number     // the latest part of the day, or part 0–4 of the last full day
   labels?: boolean
   basemap?: boolean
+  pins?: boolean            // occasions happening now, as pins
 }
 export type LivingProps = {
   u: Universe
@@ -43,6 +45,8 @@ export type LivingProps = {
   chosen?: Uint8Array | null
   focus?: number | null
   onPerson?: (i: number) => void
+  /** an occasion was picked (a pin, a card) */
+  onOccasion?: (id: number, label: string) => void
   onHover?: (h: { x: number; y: number; i: number; p: Precise } | null) => void
   /** extra controls drawn in the corner */
   children?: ReactNode
@@ -62,13 +66,16 @@ function kindColor(kind: number, base: [number, number, number], dark: boolean):
   return [0, 1, 2].map(j => Math.round(base[j] * (1 - a) + c[j] * a)) as [number, number, number]
 }
 
-export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, onHover, children, mapRef, onFrame }: LivingProps) {
+export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, onOccasion, onHover, children, mapRef, onFrame }: LivingProps) {
   const status = useStore(s => s.status)
   const theme = useStore(s => s.theme)
   const dataVersion = useStore(s => s.dataVersion)
   const dark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
   const view3d = opts.view3d ?? true, xray = opts.xray ?? true, refresh: Refresh = opts.refresh ?? 'auto'
-  const when = opts.when ?? 'now', labels = opts.labels ?? true
+  const when = opts.when ?? 'now', labels = opts.labels ?? true, pins = opts.pins ?? true
+  const [card, setCard] = useState<number | null>(null)              // the person whose card is open
+  const [occs, setOccs] = useState<NowOccasions | null>(null)
+  const [list, setList] = useState(false)                            // the 'right now' list
   const el = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const overlay = useRef<MapboxOverlay | null>(null)
@@ -146,6 +153,15 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
   }, [gliding, status?.perf?.day, u])
   useEffect(() => { onFrame?.(prec) }, [prec])
   useEffect(() => { loadCore(u, dataVersion).then(setCore) }, [u, dataVersion])
+  // occasions happening at the moment shown (pins, the 'right now' list)
+  useEffect(() => {
+    if (!prec || (when !== 'now' && !gliding)) { setOccs(null); return }
+    let alive = true
+    loadNowOccasions(u).then(d => { if (alive) setOccs(d) }).catch(() => {})
+    return () => { alive = false }
+  }, [u, prec?.day, prec?.block, when])
+  const pickPerson = (i: number) => { setCard(i); onPerson?.(i) }
+  const flyTo = (lon: number, lat: number, z = 18) => map.current?.flyTo({ center: [lon, lat], zoom: Math.max(map.current.getZoom(), z), duration: 900 })
 
   // ---- a building opened up
   useEffect(() => {
@@ -242,6 +258,23 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
         backgroundPadding: [3, 1],
       }))
     }
+    if (pins && occs) {
+      const big = occs.occasions.filter(o => o.n >= (zoom >= 16 ? 2 : zoom >= 14.5 ? 4 : 12))
+      layers.push(new ScatterplotLayer({
+        id: 'pins', data: big, getPosition: (o: any) => [o.lon, o.lat, 0.2], getRadius: (o: any) => 4 + 2.2 * Math.sqrt(o.n), radiusUnits: 'pixels',
+        filled: true, getFillColor: (o: any) => [...catRgb(o.category), 50], stroked: true, getLineColor: (o: any) => [...catRgb(o.category), 230], lineWidthMinPixels: 2,
+        pickable: true, parameters: { depthCompare: 'always' },
+        onClick: (info: any) => { if (info.object) onOccasion?.(info.object.id, info.object.name ?? info.object.label) },
+        onHover: (info: any) => onHover?.(null),
+      }))
+      layers.push(new TextLayer({
+        id: 'pin-labels', data: big.filter(o => o.n >= (zoom >= 16.5 ? 2 : 8)).slice(0, 300),
+        getText: (o: any) => `${o.name ?? o.label} · ${o.n}`, getPosition: (o: any) => [o.lon, o.lat, 0.3],
+        getPixelOffset: (o: any) => [0, -(8 + 2.2 * Math.sqrt(o.n))], getSize: 11, getColor: [...text, 230], fontFamily: 'system-ui, sans-serif', fontWeight: 600,
+        billboard: true, outlineWidth: 2, outlineColor: [...surf, 240], fontSettings: { sdf: true, fontSize: 64, buffer: 6 }, characterSet: 'auto',
+        parameters: { depthCompare: 'always' }, getTextAnchor: 'middle', getAlignmentBaseline: 'bottom',
+      }))
+    }
     if (prec) {
       layers.push(new ScatterplotLayer({
         id: 'people', data: pIdx, getPosition: (i: number) => [prec.lon[i], prec.lat[i], zOf(i)],
@@ -253,7 +286,7 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
         transitions: { getPosition: { duration: gliding ? Math.max(200, (pace * 1000) / 5 * 0.85) : 700 } },
         updateTriggers: { getFillColor: [colorOf, chosen, prec], getRadius: [chosen], getPosition: [prec, open] },
         onHover: (info: any) => onHover?.(info.object === undefined || info.object === null ? null : { x: info.x, y: info.y, i: info.object, p: prec }),
-        onClick: (info: any) => { if (info.object !== undefined && info.object !== null) onPerson?.(info.object) },
+        onClick: (info: any) => { if (info.object !== undefined && info.object !== null) pickPerson(info.object) },
       }))
       if (focus !== null && focus !== undefined && focus < prec.n && !Number.isNaN(prec.lon[focus])) {
         layers.push(new ScatterplotLayer({
@@ -274,7 +307,7 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
       }))
     }
     overlay.current.setProps({ layers })
-  }, [geo, bld, bCore, bFlat, prec, pIdx, colorOf, chosen, focus, view3d, xray, dark, inside, openK, zoom, labels, names, gliding, pace])
+  }, [occs, pins, geo, bld, bCore, bFlat, prec, pIdx, colorOf, chosen, focus, view3d, xray, dark, inside, openK, zoom, labels, names, gliding, pace])
 
   const shown = gliding && glide !== null ? `${BLOCK_NAMES[glide]} (playing the day as time runs)` : prec ? (prec.block >= 0 && prec.block < 5 ? BLOCK_NAMES[prec.block] : '') : ''
   return (
@@ -290,9 +323,14 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
           <option value="now">Now</option>
           {BLOCK_NAMES.map((b, k) => <option key={b} value={k}>{b} of the last day</option>)}
         </select>
+        <button className={`btn small ${list ? 'primary' : ''}`} onClick={() => setList(!list)} disabled={!occs} title="Everything happening at this moment: dates, dinners, parties, games…">Right now{occs ? ` · ${occs.occasions.length}` : ''}</button>
+        <label className="inline small lm-chk"><input type="checkbox" checked={pins} onChange={e => setOpts({ ...opts, pins: e.target.checked })} />pins</label>
         {children}
       </div>
-      {open !== null && <BuildingCard d={inside} onClose={() => setOpen(null)} onPerson={onPerson} />}
+      {open !== null && <BuildingCard d={inside} onClose={() => setOpen(null)} onPerson={pickPerson} />}
+      {card !== null && <NowCard i={card} u={u} k={`${prec?.day}:${prec?.block}`} onClose={() => setCard(null)} onPerson={pickPerson} onOccasion={onOccasion}
+        onBuilding={b => openBuilding(b)} />}
+      {list && occs && <RightNow d={occs} onClose={() => setList(false)} onPick={o => { flyTo(o.lon, o.lat); onOccasion?.(o.id, o.name ?? o.label) }} />}
       <div className="lm-when">{prec ? <>{new Date(prec.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}{shown ? ` · ${shown}` : ''}{running && refresh !== 'live' && !gliding ? ' · updates ' + (refreshKey(refresh, status).startsWith('d:') ? 'once a day' : 'when paused') : ''}</> : null}</div>
       {err && !prec && <div className="lm-over small">{err.includes('404') ? 'Run time forward a little and people appear.' : err}</div>}
       {!prec && !err && <div className="lm-over small muted">Placing people…</div>}
@@ -338,6 +376,75 @@ function BuildingCard({ d, onClose, onPerson }: { d: BuildingInside | null; onCl
           </div>
         ))}
         {shownHomes.length > 120 && <p className="small muted">{shownHomes.length - 120} more homes; pick a floor.</p>}
+      </div>
+    </div>
+  )
+}
+
+/** One person at this moment: what they are doing and where, the occasion and why they came, who they're with and
+ *  how they know them, and what's on their mind (every line from the model's own state). */
+function NowCard({ i, u, k, onClose, onPerson, onOccasion, onBuilding }: { i: number; u: Universe; k: string; onClose: () => void
+  onPerson: (i: number) => void; onOccasion?: (id: number, label: string) => void; onBuilding: (b: number) => void }) {
+  const [d, setD] = useState<NowPerson | null>(null)
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    let alive = true
+    setErr('')
+    loadNowPerson(i, u).then(x => { if (alive) setD(x) }).catch(e => { if (alive) setErr(String(e.message ?? e)) })
+    return () => { alive = false }
+  }, [i, u, k])
+  return (
+    <div className="lm-card lm-now">
+      <div className="lm-card-h">
+        <div><b>{d?.name ?? '…'}</b><small>{d?.headline ?? ''}</small></div>
+        <button className="bx-icon" onClick={onClose} aria-label="Close">✕</button>
+      </div>
+      <div className="lm-card-b">
+        {err && <p className="small">{err}</p>}
+        {d && <>
+          <div className="lm-now-doing">{d.present ? d.doing[0].toUpperCase() + d.doing.slice(1) : 'Away from Provo'}{d.block >= 0 && d.block < 5 ? <small> · {BLOCK_NAMES[d.block].toLowerCase()}</small> : null}</div>
+          {d.place.words && <div className="small">{d.place.words}{d.place.building !== null && <> · <button className="lm-link" onClick={() => onBuilding(d.place.building!)}>open the building</button></>}</div>}
+          {d.occasion && (
+            <div className="lm-occ">
+              <button className="lm-link" onClick={() => onOccasion?.(d.occasion!.id, d.occasion!.name ?? d.occasion!.kind_label)}><b>{d.occasion.name ?? d.occasion.kind_label}</b></button>
+              <small> · {d.occasion.time} · {d.occasion.n_people} {d.occasion.n_people === 1 ? 'person' : 'people'}</small>
+              {d.occasion.organizer && <div className="small muted">{d.occasion.organizer.id === d.id ? 'They organized it' : <>Organized by <button className="lm-link" onClick={() => onPerson(d.occasion!.organizer!.id)}>{d.occasion.organizer.name}</button></>}{d.occasion.how ? ` (${d.occasion.how})` : ''}</div>}
+              {d.occasion.me?.why && <div className="small muted">Why they came: {String(d.occasion.me.why)}</div>}
+            </div>
+          )}
+          {d.n_with > 0 && <><div className="bx-h">With {d.n_with} {d.n_with === 1 ? 'person' : 'people'}{d.n_with > 1 ? `, ${d.n_known} they know` : ''}</div>
+            <div className="lm-with">{d.with.map(w => <button key={w.id} onClick={() => onPerson(w.id)}><span>{w.name}</span><small>{w.tie}</small></button>)}
+              {d.n_with > d.with.length && <span className="small muted">and {d.n_with - d.with.length} more</span>}</div></>}
+          {d.mind.length > 0 && <><div className="bx-h">On their mind</div>
+            <ul className="lm-mind">{d.mind.map((m, k2) => <li key={k2} title={`From: ${m.from}`}>{m.text}</li>)}</ul></>}
+          <p className="bx-note">Every line comes from the simulation's own state for this person at this moment; nothing here is written by an AI.</p>
+        </>}
+      </div>
+    </div>
+  )
+}
+
+/** Everything happening at this moment, by kind; click one to go there. */
+function RightNow({ d, onClose, onPick }: { d: NowOccasions; onClose: () => void; onPick: (o: NowOccasions['occasions'][number]) => void }) {
+  const [kind, setKind] = useState<string | null>(null)
+  const rows = kind ? d.occasions.filter(o => o.label === kind) : d.occasions
+  return (
+    <div className="lm-card lm-list">
+      <div className="lm-card-h">
+        <div><b>Right now</b><small>{new Date(d.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}{d.block >= 0 && d.block < 5 ? ` · ${BLOCK_NAMES[d.block].toLowerCase()}` : ''} · {d.occasions.length} occasions, {d.occasions.reduce((s, o) => s + o.n, 0).toLocaleString()} people</small></div>
+        <button className="bx-icon" onClick={onClose} aria-label="Close">✕</button>
+      </div>
+      <div className="lm-card-b">
+        <div className="lm-kinds">
+          <button className={kind === null ? 'on' : ''} onClick={() => setKind(null)}>Everything</button>
+          {d.counts.map(c => <button key={c.label} className={kind === c.label ? 'on' : ''} onClick={() => setKind(c.label)}><i className="bx-catdot" style={{ background: `rgb(${catRgb(c.category).join(',')})` }} />{c.label}<small> {c.occasions} · {c.people} people</small></button>)}
+        </div>
+        {rows.slice(0, 150).map(o => (
+          <button key={o.id} className="lm-occ-row" onClick={() => onPick(o)}>
+            <i className="bx-catdot" style={{ background: `rgb(${catRgb(o.category).join(',')})` }} />
+            <span>{o.name ?? o.label}</span><small>{clock(o.start)}–{clock(o.start + o.dur)} · {o.n} {o.n === 1 ? 'person' : 'people'}</small>
+          </button>
+        ))}
       </div>
     </div>
   )

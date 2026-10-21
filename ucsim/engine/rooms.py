@@ -64,6 +64,11 @@ def assign_all(w):
             r[k] = rr[np.argmax(U.room_cap[rr])] if len(rr) else NO_ROOM
     ok = U.n_rooms[u] > 0
     room[ids[ok]] = r[ok]
+    # couples share one room, even in a home of private rooms (the other bedroom stays free)
+    cp = live[coupled]
+    first = cp < pid[coupled]
+    a_, b_ = cp[first], pid[coupled][first]
+    room[b_] = room[a_]
 
 
 def sync(sim) -> np.ndarray:

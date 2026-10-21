@@ -74,6 +74,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [family-homes](workstreams/family-homes.md) (wave 2) | **done, merged** | working branch | open issues below |
 | [survey-followups](workstreams/survey-followups.md) | audits designed, interrupted | — | needs the raw survey files in `data/raw/` |
 | [integration](workstreams/integration.md) | ongoing | — | after each merge |
+| living-map (owner-directed, 2026-10-21) | in progress | `claude/clever-wright-3fh95g` | speed/logs done; buildings, floors, bedrooms, precise placement, 3D map, inspect cards done; next: bedroom-mate effects (owner's answer), classic Map page onto the living map, shops/errands |
 
 Time-occasions and provenance-trace are merged, so everything in wave 1 can proceed. Wave 2 (messaging,
 institutions, family-homes) can start now too, but coordinate: they touch the same systems as the running builders.
@@ -158,6 +159,33 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-21 (2) — Claude Code (cloud session) — the living map
+- Geography: `scripts/fetch_overture.py` (Overture buildings + places, public S3 through pyarrow) →
+  `python -m ucsim.geo.buildings` (footprints, heights, floors, kinds, oriented boxes; web `buildings3d.bin` and
+  `building_names.json`) → `python -m ucsim.geo.homes` (`homes.parquet`: every dwelling's building/floor/label;
+  `flagship_units.parquet`: the halls' and family housing's units; `place_buildings.parquet`). Raw inputs in
+  `data/external/` (gitignored); UGRC must be re-fetched first (`scripts/fetch_geodata.py`).
+- Simulation: Units carry building, floor, label and bedrooms (`Units.set_rooms`; flagship layouts, else
+  `default_bedrooms`); the halls and Wymount/Wyview are built from the rosters (real buildings and floors) instead
+  of random points; Wyview's north half is family housing, the south half single students (estimate); Riviera is
+  BYU-owned with its published layouts. `engine/rooms.py`: everyone sleeps in a room (spouse's; a close friend's
+  with a free bed; else the emptiest), settled nightly inside housing.daily; no random draws. Activity no longer
+  jitters positions (loc_lon/loc_lat are the place's own point) and keeps a compact snapshot per part of the day
+  (`activity.snapshot`, `activity.day_snaps` for the last full day). **World outcomes differ from before.**
+- `engine/placement.py` (display only): exact spots: beds in rooms, apartments laid along each building's long side,
+  seats around a place (pairs, circles, sunflower crowds), classes in real campus buildings.
+  `api/routes_placement.py`: `/api/positions/precise` (lock-free, `block=now|0–4`), `/api/building/{b}` (homes,
+  bedrooms, who sleeps where, who's inside), `/api/buildings/core`, `/api/now/person/{i}` (analysis/now.py: doing,
+  where, with whom and how they know them, the occasion and why, on their mind — model state only),
+  `/api/now/occasions`.
+- Web: `web/src/map/` (LivingMap, data): 2D/3D, only buildings people use stand (the rest flat: 1.3 → 28 fps in
+  software rendering), See inside (x-ray), click a building to open it floor by floor, person cards, occasion pins,
+  Right now list, refresh policy (auto: glide through the last day at speeds 1–2, once a day at top speed). The
+  bench Map tool uses it; the classic Map page (views/MapView.tsx) does not yet.
+- Not done: bedroom-mate effects on ties (waiting on the owner), LISR, shops/errands activity, per-unit offsets for
+  homes without a footprint (a few stack), labels render thin in software GL.
+- 268 tests pass (5 new in tests/test_living_map.py).
 
 ### 2026-10-21 (1) — Claude Code (cloud session) — speed tracker, logs, a messaging slowdown
 - **Branch note:** this session works on `claude/clever-wright-3fh95g` (the session's assigned branch). Merging

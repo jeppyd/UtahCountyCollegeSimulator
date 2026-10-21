@@ -90,6 +90,19 @@ containing the parcels, and survey geocodes; plus Helaman & Heritage Halls, Wymo
 meetinghouses and 712 venues (restaurants, cafés, soda & dessert shops, parks, gyms, theaters, trailheads,
 dance venues…). Web layers (roads, city outlines, building footprints) are committed under `web/public/geo/`.
 
+### Buildings, floors and bedrooms (`scripts/fetch_overture.py`, `ucsim/geo/buildings.py`, `ucsim/geo/homes.py`)
+- Overture Maps buildings (release 2026-09-23): 76,013 footprints in Provo/Orem; heights for ~70% (mostly lidar).
+  Floors: the mapped `building:levels` (871), the county parcel's FLOORS_CNT when the parcel centroid is inside
+  the footprint (4,095), height ÷ 3.2 m (49,645), else 1 (2 for apartments) — recorded per row in `floors_src`.
+- Homes on floors: each dwelling's address point → the footprint it is in (else the nearest within 25 m; houses
+  are matched one to a footprint); floor from the apartment number ("Apt 204" → 2nd floor) for 3,750 homes, else
+  spread over the building's floors in address order.
+- Flagship complexes (`ucsim/config/places/flagship.yaml`): Helaman, Heritage, Wymount, Wyview and Riviera from
+  BYU Housing's pages (2026–27) and Wikipedia's list of BYU residence halls; Heritage's apartments are the county's
+  real unit addresses (825 E Heritage Dr, Bldg n Apt fwnn). Layout shares, which halls are men's or women's, and
+  which half of Wyview is family housing are estimates (marked `estimate`).
+- Bedrooms elsewhere are a rule (`population/structure.py` `default_bedrooms`, hypothetical).
+
 ### Travel times (`scripts/build_travel.py` → `ucsim/geo/data/travel.npz`)
 
 | Source | Used for | License / terms |

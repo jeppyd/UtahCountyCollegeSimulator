@@ -88,8 +88,9 @@ def building(b: int, u: str = "base"):
             homes.append({"unit": uu, "label": U.label[uu] if U.label is not None else "", "floor": int(U.floor[uu]),
                           "complex": cxn[c] if 0 <= c < len(cxn) else None, "beds": int(U.capacity[uu]), "rooms": rooms,
                           "shape": shape["unit"], "living": shape["living"],
-                          "kind": ["dorm room", "apartment", "room in a house", "married housing", "family home"][int(U.unit_type[uu])]
-                          if int(U.unit_type[uu]) < 5 else "home"})
+                          "kind": ("hall apartment" if int(U.unit_type[uu]) == 0 and int(U.n_rooms[uu]) > 1 else
+                                   ["dorm room", "apartment", "room in a house", "married housing", "family home"][int(U.unit_type[uu])]
+                                   if int(U.unit_type[uu]) < 5 else "home")})
         acts = P.specs["activity_now"].categories
         now = [{"id": int(i), "name": synthetic_name(P, int(i)), "floor": int(pos["floor"][i]),
                 "doing": acts[int(f["act"][i])] if int(f["act"][i]) < len(acts) else ""} for i in here_now.tolist()[:400]]
@@ -126,3 +127,59 @@ def buildings_core(u: str = "base"):
         _CORE.clear()
         _CORE[key] = np.array(sorted(ids), np.int32)
     return Response(_CORE[key].tobytes(), media_type="application/octet-stream")
+
+
+@router.get("/api/now/person/{i}")
+def now_person(i: int, u: str = "base"):
+    """One person at this moment, in words: doing what, where, with whom (and how they know them), at which occasion
+    and why, and what's on their mind (analysis/now.py)."""
+    S = _server()
+    sim = S.WS.sim(u)
+    from ..analysis.now import person_now
+    with S.WS.lock:
+        if not 0 <= i < sim.w.P.n:
+            raise HTTPException(404, "no such person")
+        return S.jresp(person_now(sim, i))
+
+
+@router.get("/api/now/occasions")
+def now_occasions(u: str = "base"):
+    """What's happening right now: every occasion people are at in the latest part of the day, with how many are
+    there and where (for the map's pins and the 'right now' list)."""
+    S = _server()
+    sim = S.WS.sim(u)
+    f = getattr(sim.systems["activity"], "snapshot", None)
+    if f is None:
+        return S.jresp({"occasions": [], "counts": {}})
+    from ..engine.state import CTX_ID
+    m = ((f["ctype"] == CTX_ID["occasion"]) | (f["ctype"] == CTX_ID["date"])) & f["present"]
+    oid, inv, n = np.unique(f["cid"][m], return_inverse=True, return_counts=True)
+    # pins sit where the people are (a dinner in the host's apartment, not the building's middle)
+    pos = placement.place(sim, f)
+    px = np.bincount(inv, weights=pos["x"][m].astype(np.float64)) / np.maximum(n, 1)
+    py = np.bincount(inv, weights=pos["y"][m].astype(np.float64)) / np.maximum(n, 1)
+    plon, plat = placement.to_lonlat(px, py)
+    with S.WS.lock:
+        O = sim.book.occ
+        pos = O.pos(oid.astype(np.int64))
+        ok = pos >= 0
+        oid, n, pos, plon, plat = oid[ok], n[ok], pos[ok], plon[ok], plat[ok]
+        kinds = O.cols["kind"][pos]
+        book = sim.book
+        rows = []
+        for o, k, c, p, lo, la in zip(oid.tolist(), kinds.tolist(), n.tolist(), pos.tolist(), plon.tolist(), plat.tolist()):
+            kind = book.kinds[k]
+            v = book.vocab.get(kind, {})
+            lab = int(O.cols["label"][p])
+            rows.append({"id": int(o), "kind": kind, "label": v.get("label", kind), "category": v.get("category", "social"),
+                         "name": book.labels[lab] if 0 <= lab < len(book.labels) else None, "n": int(c),
+                         "lon": lo, "lat": la,
+                         "start": int(O.cols["start"][p]), "dur": int(O.cols["dur"][p])})
+    rows.sort(key=lambda r: -r["n"])
+    counts: dict = {}
+    for r in rows:
+        c = counts.setdefault(r["label"], {"label": r["label"], "category": r["category"], "occasions": 0, "people": 0})
+        c["occasions"] += 1
+        c["people"] += r["n"]
+    return S.jresp({"occasions": rows[:3000], "counts": sorted(counts.values(), key=lambda c: -c["people"]),
+                    "day": int(f["day"]), "block": int(f.get("block", -1)), "date": str(sim.cal.date(int(f["day"])))})

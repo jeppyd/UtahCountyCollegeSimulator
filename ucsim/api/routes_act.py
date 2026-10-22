@@ -10,6 +10,7 @@ router = APIRouter()
 def _atom(body: dict) -> dict:
     it = dict(body.get("action") if isinstance(body.get("action"), dict) else body)
     it.pop("u", None)
+    it.pop("world", None)
     it["target_type"] = "social"
     if not it.get("action"):
         raise HTTPException(400, "say which action: invite, series, reschedule, introduce, ride, reach_out or job_offer")
@@ -27,7 +28,7 @@ def act_check(body: dict = Body(...)):
     if WS.base is None:
         raise HTTPException(400, "no world")
     it = _atom(body)
-    u = body.get("u") or ("alt" if WS.alt is not None else "base")
+    u = body.get("u") or ("base" if body.get("world") == "original" or WS.alt is None else "alt")
     sim = WS.sim(u)
     with WS.lock:
         out = check(sim, it)
@@ -38,7 +39,9 @@ def act_check(body: dict = Body(...)):
 
 @router.post("/api/act")
 def act(body: dict = Body(...)):
-    """Do an action in the What-if world now (making the What-if from the Original first if there isn't one)."""
+    """Do an action now. By default in the What-if world (making the What-if from the Original first if there isn't
+    one); with "world": "original", in the Original itself: the change becomes part of your world's own history, with
+    no copy to compare against (a What-if made earlier doesn't get it)."""
     from ..engine import runner
     from ..engine.systems.social_actions import check
     from .routes_trace import _server
@@ -47,7 +50,23 @@ def act(body: dict = Body(...)):
         raise HTTPException(400, "no world")
     if WS.job.get("state") == "building":
         raise HTTPException(409, "a new world is being built; wait for it to finish")
+    original = body.get("world") == "original"
     it = _atom(body)
+    if original:
+        with WS.lock:
+            sim = WS.base
+            pre = check(sim, it)
+            if not pre["ok"]:
+                return jresp({"ok": False, "problems": pre["problems"], "people": pre["people"], "made_whatif": False})
+            man = sim.systems["environment"].manager
+            it["start_day"] = sim.w.day
+            it.setdefault("name", f"Social action: {it['action'].replace('_', ' ')}")
+            man.add(it)
+            sim.interventions.append(it)
+            k = len(man.items) - 1
+            res = man.apply_now(k)
+            WS.compare_cache = None
+            return jresp({**res, "item": k, "made_whatif": False, "world": "Original", "day": sim.w.day})
     with WS.lock:
         made = WS.alt is None
         target = WS.base if made else WS.take_alt()   # mid-run the live What-if may be on the second core

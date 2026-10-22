@@ -13,7 +13,7 @@ export type PanelProps = {
   opts: Record<string, any>
   setOpts: (o: Record<string, any>) => void
 }
-export type ToolGroup = 'see' | 'trace' | 'people' | 'places' | 'talk' | 'world'
+export type ToolGroup = 'see' | 'trace' | 'people' | 'places' | 'talk' | 'world' | 'hood'
 export type ToolDef = {
   id: string
   label: string

@@ -74,7 +74,7 @@ export function SelectionBar() {
 }
 
 /** Find someone by name or number; Enter or click selects them, the + adds them to the selection. */
-function FindPerson({ onPick }: { onPick: (id: number, name: string, add: boolean) => void }) {
+export function FindPerson({ onPick }: { onPick: (id: number, name: string, add: boolean) => void }) {
   const { u } = useLens()
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)

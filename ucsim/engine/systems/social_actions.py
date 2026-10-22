@@ -5,7 +5,8 @@
 
 Actions: invite (a one-off get-together), series (a weekly dinner or study group), reschedule (move an occasion or a
 series), introduce (two people meet at a café through someone), ride (someone drives a person to an occasion),
-reach_out (a text or a visit), job_offer (an employer offers a person a job).
+reach_out (a text or a visit), job_offer (an employer offers a person a job), spark (the editor gives one person
+feelings for another they know: what happens next — asking out, saying yes — is the model's own romance).
 
 * **Editor** (no "as"): arranges the opportunity. The people involved still decide with the model's usual reasons —
   attend_occasion for an invitation, take_job for an offer, reach_out for a nudge to get in touch.
@@ -27,13 +28,14 @@ from scipy.special import expit
 
 from .. import clock
 from ..ledger import CHANNEL_ID, RESPONSE_ID, STATUS_ID
-from ..state import CTX_ID, EdgeStore
+from ..state import CTX_ID, EdgeStore, Tie
 
-ACTIONS = ("invite", "series", "reschedule", "introduce", "ride", "reach_out", "job_offer")
+ACTIONS = ("invite", "series", "reschedule", "introduce", "ride", "reach_out", "job_offer", "spark")
 WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 GROUPS = ("roommates", "housemates", "neighbors", "friends", "close_friends")
 ACTION_WORDS = {"invite": "an invitation", "series": "a weekly get-together", "reschedule": "a new time",
-                "introduce": "an introduction", "ride": "a ride", "reach_out": "getting in touch", "job_offer": "a job offer"}
+                "introduce": "an introduction", "ride": "a ride", "reach_out": "getting in touch", "job_offer": "a job offer",
+                "spark": "feelings for someone"}
 
 
 class Refused(ValueError):
@@ -245,7 +247,7 @@ def _plan(cx: _Ctx) -> dict:
     if cx.actor is not None:
         cx.person(cx.actor, "'as'")
     return {"invite": _plan_invite, "series": _plan_invite, "reschedule": _plan_reschedule, "introduce": _plan_introduce,
-            "ride": _plan_ride, "reach_out": _plan_reach_out, "job_offer": _plan_job}[a](cx)
+            "ride": _plan_ride, "reach_out": _plan_reach_out, "job_offer": _plan_job, "spark": _plan_spark}[a](cx)
 
 
 def _plan_invite(cx: _Ctx) -> dict:
@@ -463,6 +465,27 @@ def _plan_reach_out(cx: _Ctx) -> dict:
             "from": src, "to": dst, "channel": channel}
 
 
+def _plan_spark(cx: _Ctx) -> dict:
+    it, P = cx.it, cx.P
+    if cx.actor is not None:
+        raise Refused("nobody can decide to have feelings for someone; spark is the world editor's (leave out 'as')")
+    src = cx.person(it.get("from"), "'from'")
+    dst = cx.person(it.get("to"), "'to'")
+    if src == dst:
+        raise Refused("spark feelings for someone else")
+    if not cx.knows(src, [dst])[0]:
+        cx.problems.append(f"{_first(P, src)} and {_first(P, dst)} have never met — introduce them first")
+    strength = float(np.clip(float(it.get("strength", 0.7)), 0.1, 1.0))
+    if P["partner_id"][src] == dst:
+        cx.warnings.append(f"{_first(P, src)} is already with {_first(P, dst)}")
+    E = cx.sim.w.E
+    e = E.find(EdgeStore.make_keys(np.array([src]), np.array([dst])))[0]
+    if e >= 0 and E["flags"][e] & Tie.EX:
+        cx.warnings.append(f"{_first(P, src)} and {_first(P, dst)} used to date: people here rarely ask out an ex, so it may go nowhere")
+    return {"summary": f"{_first(P, src)} starts to have feelings for {_first(P, dst)} (whether they act on it, and how "
+                       f"{_first(P, dst)} answers, is up to them)", "from": src, "to": dst, "strength": strength}
+
+
 def _plan_job(cx: _Ctx) -> dict:
     it, sim, P = cx.it, cx.sim, cx.P
     if cx.actor is not None:
@@ -499,7 +522,7 @@ def apply_action(occ, k: int, it: dict) -> dict:
         return {"ok": False, "problems": cx.problems, "people": cx.people}
     a = it["action"]
     fn = {"invite": _do_invite, "series": _do_invite, "reschedule": _do_reschedule, "introduce": _do_introduce,
-          "ride": _do_ride, "reach_out": _do_reach_out, "job_offer": _do_job}[a]
+          "ride": _do_ride, "reach_out": _do_reach_out, "job_offer": _do_job, "spark": _do_spark}[a]
     res = fn(occ, k, it, plan, cx)
     return {"ok": True, "summary": plan.get("summary"), "warnings": cx.warnings, **res}
 
@@ -605,6 +628,23 @@ def _do_reach_out(occ, k, it, plan, cx) -> dict:
     ev = sim.emit("reached_out", a, b=b, block=clock.EVENING[0], mech="occasions.action", salt=5003 + k,
                   decision=did, causes=[("action", [k], 1.0), ("person", b, 0.5)])
     return {"reached_out": True, "event": int(ev[0]), "decision": None if did is None else int(did[0])}
+
+
+def _do_spark(occ, k, it, plan, cx) -> dict:
+    """Raise one person's attraction to another (and keep the tie recent, so it counts as a current interest); the
+    romance system's own crushes, asking out and answers take it from there."""
+    sim, w = occ.sim, occ.sim.w
+    E = w.E
+    src, dst = plan["from"], plan["to"]
+    e = E.find(EdgeStore.make_keys(np.array([src]), np.array([dst])))
+    if e[0] < 0:
+        return {"sparked": False}
+    now = float(E.attraction_from(e, np.array([src]))[0])
+    E.set_attraction_from(e, np.array([src]), np.array([max(now, plan["strength"])], np.float32))
+    E.cols["last_day"][e] = np.maximum(E["last_day"][e], w.day)
+    ev = sim.emit("spark", np.array([src]), b=np.array([dst]), value=plan["strength"], mech="occasions.action",
+                  salt=5101 + k, causes=[("action", [k], 1.0)])
+    return {"sparked": True, "event": int(ev[0]), "before": round(now, 3)}
 
 
 def _do_job(occ, k, it, plan, cx) -> dict:

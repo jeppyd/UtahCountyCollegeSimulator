@@ -5,7 +5,7 @@ import { useStore } from '../store'
 import { GLOSSARY, PageHeader } from '../ui'
 
 const SECTIONS: [string, string][] = [
-  ['bench', 'The workbench'], ['play', 'How to play'], ['idea', 'The big idea'], ['layers', 'Layers of the world'], ['person', 'What a person is made of'],
+  ['valley', 'The valley (home)'], ['bench', 'The workbench'], ['play', 'How to play'], ['idea', 'The big idea'], ['layers', 'Layers of the world'], ['person', 'What a person is made of'],
   ['relationships', 'How relationships form'], ['feelings', 'How feelings work'], ['mind', 'Inner lives'], ['places', 'Places with a culture'],
   ['faith', 'Faith & religious diversity'], ['time', 'How time works'],
   ['whatif', 'What-if experiments'], ['evidence', 'How sure are we?'], ['where', 'Where to go for what'], ['glossary', 'Glossary'],
@@ -42,7 +42,25 @@ export default function Guide({ section }: { section?: string }) {
           {SECTIONS.map(([id, t]) => <a key={id} href={`#/guide/${id}`} onClick={e => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }) }}>{t}</a>)}
         </nav>
         <div>
-          <Sec id="bench" title="The workbench" lede="The app opens on an empty bench and a shelf of tools. Nothing is laid out for you: you pick the tools, place them, and they all look at the same thing.">
+          <Sec id="valley" title="The valley (home)" lede="The app opens on the valley: the people you follow on the left, the living map in the middle, and their story on the right. Follow a few lives, press Space, and watch.">
+            <div className="grid g2">
+              <div className="card">
+                <h3>Follow lives</h3>
+                <dl className="dl">
+                  <dt>Your people</dt><dd>Pick from <b>lives worth following</b> (a freshman in the dorms, someone just home from a mission, a newly engaged couple, a UVU student living at home…) or find anyone by name. Each card shows what they're doing right now, how they feel, their latest moment, and their plans: tonight's party (and whether they said yes), a date tomorrow.</dd>
+                  <dt>The story</dt><dd>What happened to your people, newest first, each moment with its reasons (“because outgoing (61%) and a social apartment (30%)”). Repeats are folded, both sides of a two-person moment show once. <b>The valley</b> tab shows the biggest moments everywhere. Click <i>why, and what it led to</i> for the full push and the ripple.</dd>
+                </dl>
+              </div>
+              <div className="card">
+                <h3>Watch, and make things happen</h3>
+                <dl className="dl">
+                  <dt>Scenes</dt><dd><b>Watch</b> plays a get-together or a date beat by beat: the invitations as texts and the answers (with why), who shows up and how late, who keeps glancing at whom, introductions, what happened. <b>Their story</b> plays two people's history the same way. What happens is what the simulation recorded; the words are illustrative lines that fit.</dd>
+                  <dt>Make it happen</dt><dd>Focus someone and press <b>Make it happen</b>: have them throw a dinner, start a weekly game night, text someone, meet someone new, or fall for someone. It happens <b>in your world</b> (or in a What-if copy if you'd rather compare). You arrange the chance; they still decide for their own reasons. Then let time run and watch the scene.</dd>
+                </dl>
+              </div>
+            </div>
+          </Sec>
+          <Sec id="bench" title="The workbench" lede="The deep-dive bench: a shelf of raw tools you lay out yourself, all looking at the same selection.">
             <div className="grid g2">
               <div className="card">
                 <h3>Setting it up</h3>
@@ -66,7 +84,7 @@ export default function Guide({ section }: { section?: string }) {
                 </dl>
               </div>
             </div>
-            <p className="muted">Every earlier page is still there under <b>Classic views ▾</b> in the top menu.</p>
+            <p className="muted">Every other page is still there under <b>More ▾</b> in the top menu.</p>
           </Sec>
           <Sec id="play" title="How to play" lede="A serious social simulation underneath; a simulation game in your hands. The whole game is one loop:">
             <div className="loop" style={{ marginBottom: 14 }}>

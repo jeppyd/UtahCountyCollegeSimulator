@@ -19,6 +19,7 @@ const GAP = 12, ROW = 60
 const GROUPS: { id: ToolGroup; label: string }[] = [
   { id: 'see', label: 'Look' }, { id: 'people', label: 'People and lives' }, { id: 'places', label: 'Places and occasions' },
   { id: 'trace', label: 'Causes and chains' }, { id: 'world', label: 'Change and compare' }, { id: 'talk', label: 'Talk' },
+  { id: 'hood', label: 'Under the hood' },
 ]
 const DRAG_TYPE = 'application/x-ucsim-tool'
 

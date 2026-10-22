@@ -29,6 +29,9 @@ import Variables from './views/Variables'
 import { ChangeDrawer } from './views/whatif/Change'
 import WhatIf from './views/whatif/WhatIf'
 import World from './views/World'
+import Valley from './views/valley/Valley'
+import { ScenePlayer } from './views/valley/Scene'
+import { MakeItHappen } from './views/valley/MakeItHappen'
 import { WorldSetupPage } from './views/WorldSetup'
 import { AiSetup } from './kit/AiSetup'
 
@@ -57,10 +60,11 @@ export default function App() {
   if (!registry || !status) return <div className="boot"><div className="boot-orbit"><i /><i /><i /></div>Waking up Provo and Orem…</div>
   if (!STATIC && !status.has_world) return <WorldSetupPage />
 
-  const alias: Record<string, string> = { home: 'bench', workbench: 'bench', overview: 'trends', dashboard: 'trends', lab: 'whatif' }
-  const view = alias[route[0]] ?? route[0] ?? 'bench'
+  const alias: Record<string, string> = { home: 'valley', workbench: 'bench', overview: 'trends', dashboard: 'trends', lab: 'whatif' }
+  const view = alias[route[0]] ?? route[0] ?? 'valley'
   let body
   switch (view) {
+    case 'valley': body = STATIC ? <World /> : <Valley />; break
     case 'bench': body = STATIC ? <World /> : <Bench />; break
     case 'world': body = <World />; break
     case 'guide': body = <Guide section={route[1]} />; break
@@ -82,12 +86,12 @@ export default function App() {
     case 'mechanisms': body = <Mechanisms id={route[1]} />; break
     case 'modelcheck': body = <ModelCheck />; break
     case 'about': body = <About />; break
-    default: body = STATIC ? <World /> : <Bench />
+    default: body = STATIC ? <World /> : <Valley />
   }
   const active = view === 'person' ? 'people' : view === 'network' ? 'relationships' : view
   const div = status.divergence?.any_state_diff
   return (
-    <div className={`game v6 ${view === 'map' ? 'full' : ''} ${view === 'bench' ? 'on-bench' : ''}`}>
+    <div className={`game v6 ${view === 'map' ? 'full' : ''} ${view === 'bench' ? 'on-bench' : ''} ${view === 'valley' ? 'on-valley' : ''}`}>
       <Hud />
       <TimeRibbon />
       <TopNav active={active} hasAlt={!!status.has_alt} div={div} />
@@ -98,6 +102,8 @@ export default function App() {
       <Toasts />
       <Palette />
       <ChangeDrawer />
+      <ScenePlayer />
+      <MakeItHappen />
     </div>
   )
 }
@@ -127,7 +133,7 @@ function useKeys() {
   }, [])
 }
 
-/** The app's top navigation: the workbench, the What-if, every earlier page under "Classic views", and the guide. */
+/** The app's top navigation: the valley (home), the workbench, the What-if, every other page under "More", and the guide. */
 function TopNav({ active, hasAlt, div }: { active: string; hasAlt: boolean; div: number | null | undefined }) {
   const setRoute = useStore(s => s.setRoute)
   const [open, setOpen] = useState(false)
@@ -154,8 +160,8 @@ function TopNav({ active, hasAlt, div }: { active: string; hasAlt: boolean; div:
       ))}
       <div className="tn-menu" ref={box}>
         <button className={`tn ${classic ? 'active classic' : ''}`} onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="menu"
-          title="Every earlier page: World, Map, People, Relationships, Places, Events, Explore and the research desk">
-          <span className="tn-icon">{G[classic?.icon ?? 'globe']}</span><span>{classic ? `Classic · ${classic.label}` : 'Classic views'}</span><span className="tn-chev">{G.chevron}</span>
+          title="Every other page: the overview, people, relationships, places, events, every field, and the research desk">
+          <span className="tn-icon">{G[classic?.icon ?? 'explore']}</span><span>{classic ? `More · ${classic.label}` : 'More'}</span><span className="tn-chev">{G.chevron}</span>
         </button>
         {open && (
           <div className="tn-pop" role="menu">

@@ -124,7 +124,7 @@ export const tool: ToolDef = {
   label: 'Speed',
   icon: 'clock',
   hint: 'How long each simulated day takes on this computer, which parts of the model take the time, and why some days are slower.',
-  group: 'world',
+  group: 'hood',
   order: 90,
   component: SpeedTool,
   size: { w: 6, h: 8 },

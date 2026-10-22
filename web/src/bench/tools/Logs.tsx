@@ -83,7 +83,7 @@ export const tool: ToolDef = {
   label: 'Logs',
   icon: 'book',
   hint: 'What the simulator has been doing and anything that went wrong: runs, slow days and why, failed pages, errors with details.',
-  group: 'world',
+  group: 'hood',
   order: 91,
   component: LogsTool,
   size: { w: 6, h: 7 },

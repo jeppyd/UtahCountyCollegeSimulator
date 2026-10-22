@@ -72,7 +72,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [messaging](workstreams/messaging.md) (wave 2) | **done, merged** | working branch | open issues below |
 | [institutions](workstreams/institutions.md) (wave 2) | **done, merged** | working branch | open issues below |
 | [family-homes](workstreams/family-homes.md) (wave 2) | **done, merged** | working branch | open issues below |
-| Real class schedules (`geo/schedule.py`, academics `_real_sections`) | BYU **done, merged**; UVU Fall **done, PR open** | branch `claude/project-thread-wazrz8` | UVU Spring 2027 when published; Spring/Summer terms; cross-listed sections share a room |
+| Real class schedules (`geo/schedule.py`, academics `_real_sections`) | BYU Fall/Winter, UVU Fall **merged**; UVU Spring 2027 **done, PR open** | branch `claude/project-thread-2pvunp` | BYU Spring/Summer and UVU Summer when published; cross-listed sections share a room |
 | Valley home, scenes, make it happen (design review, [DESIGN_REVIEW.md](DESIGN_REVIEW.md)) | **done, PR open** | branch `claude/project-thread-q87n1i` | owner decides on removals; LLM narration of scenes; live scenes; stagger weekly systems |
 | [survey-followups](workstreams/survey-followups.md) | audits designed, interrupted | — | needs the raw survey files in `data/raw/` |
 | [integration](workstreams/integration.md) | ongoing | — | after each merge |
@@ -161,6 +161,30 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-22 (6) — Claude Code (cloud session) — round 3 research: UVU Spring, Homecoming, women's games, complex sizes
+- Owner supplied `provo-orem-round3-2026-10-22.zip` (answers to the research prompt in the project files). Unpack it
+  outside the repo; copy its `uvu/` folder over `data/external/uvu_campus/` (with the first package's `uvu/` there)
+  and run `python -m ucsim.geo.schedule`.
+- **UVU Spring 2027 is real** (term 202720, 3,041 sections in 21 buildings). It was collected while registration was
+  barely open (9% of seats), so enrollment = seats × Fall's fill for the course (`_fill_spring`), never below what's
+  published. Five more buildings hold classes in both terms (Pope Science sits in the Science Building's outline,
+  McKay Education, Health Professions, Digital Transformation, Nellesen): Fall went 2,673 → 3,127 sections. McKay
+  Education and Nellesen footprints had no name; now named. Published storey counts raise buildings (none needed).
+- **Calendar:** BYU's real Homecoming (Oct 6–10): the opening ceremony at 11:00 replaces that Tuesday's devotional;
+  new occasion kinds `homecoming_event` (Light the Y, tailgate, s'mores; ~4–6% of BYU students) and
+  `homecoming_dance` (Wilk ballroom, `ncmo: true`, ~4%); 44 women's soccer/volleyball/basketball home games
+  (`womens_game`, ~2%); UVU spring break Mar 15–21 and Summer May 10 – Aug 13 are real now. Rates hypothetical.
+- **Complexes:** The Green, Wolverine Crossing and Axis (UVU's biggest) had **no apartments** in the world: they came
+  from survey geocodes with a guessed size and no address points (the county lists one point per building there).
+  `config/places/complex_totals.yaml` + `python -m ucsim.geo.complex_totals` give them (and Alpine Village, Liberty
+  Square) their published totals as `extra_units`, at the published beds per apartment (`beds_per_unit`, read in
+  `population/structure.py`). Run outputs differ from before (new people housed, new occasions, RNG stream).
+- **Not used:** LISR (BYU's current page: three shared bedrooms, one bath; the owner's plans say 24 two-bedroom
+  apartments in four pods: still unresolved, and LISR isn't in the world), Helaman hall genders (nothing current
+  published), Wymount (BYU says 240 apartments replaced, the city 354; which buildings are vacant is unknown),
+  Riviera's mix by building, BYU Spring/Summer (not published yet), the one ward listing, county building records.
+  Promenade Place, Village on the Parkway and the Village at South Campus aren't named complexes yet.
 
 ### 2026-10-22 (5) — Claude Code (cloud session) — design review: the valley home, scenes, make it happen
 - Owner asked for a full evaluation as a game and freedom to rebuild. Write-up: [DESIGN_REVIEW.md](DESIGN_REVIEW.md)

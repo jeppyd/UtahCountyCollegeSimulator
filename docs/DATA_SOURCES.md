@@ -136,15 +136,29 @@ dance venues…). Web layers (roads, city outlines, building footprints) are com
   2026; no instructor fields; building centres matched to OpenStreetMap outlines, ODbL). Copy the folder to
   `data/external/uvu_campus/` (never committed) and run `python -m ucsim.geo.schedule`: it writes
   `geo/data/uvu_schedule.parquet` (in-person sections in the 17 main-campus buildings the package locates, same
-  columns as BYU's; 53% of in-person seats, most of the rest high-school concurrent enrollment) and raises those
+  columns as BYU's; 53% of in-person seats at first, most of the rest high-school concurrent enrollment) and raises those
   buildings to the floors their rooms are on. Room floors come from room numbers (an estimate; UVU publishes none).
-  Subjects map to study areas in `ucsim/config/places/uvu_departments.yaml` (judgment). UVU Spring and Summer
-  sections are still drawn.
+  Subjects map to study areas in `ucsim/config/places/uvu_departments.yaml` (judgment). The round 3 package
+  (`provo-orem-round3-2026-10-22.zip`, its `uvu/` folder copied over the same folder) adds Spring 2027 (term 202720,
+  collected 2026-10-21 with registration barely open: enrollment estimated as seats × Fall's fill for the course),
+  points for Pope Science, McKay Education, Health Professions, Digital Transformation and Nellesen (UVU map and OSM;
+  Pope Science shares the Science Building's outline), published storey counts for seven buildings (architects,
+  builders, OSM) and names for two unnamed footprints. Now 62% of Fall's in-person seats. UVU Summer is still drawn.
+- **Off-campus complex totals** (round 3 package, `offcampus_units.csv`): published apartment and bed totals for The
+  Green, Wolverine Crossing, Axis, Alpine Village and Liberty Square (operators, a state directory, a builder,
+  brokers; sources in `ucsim/config/places/complex_totals.yaml`). `python -m ucsim.geo.complex_totals` writes them
+  into `complexes.parquet`: the apartments the county's address points miss become `extra_units`, housing the
+  published beds per apartment. Run it after `ucsim/geo/build_world.py`.
 - **Calendar additions from the same package** (`config/calendar/2026_27.yaml`): BYU home football kickoff times
   (byucougars.com home schedule), the Fall 2026 devotional and forum dates (news.byu.edu; `published_weekly`
   replaces the weekly rule for that term), BYU and UVU men's basketball home games with announced times
   (byucougars.com, gouvu.com) and BYU's Christmas performances (pam.byu.edu). Attendance rates for the two
-  basketball occasion kinds are hypothetical fits (about 9% of BYU and 3% of UVU students a game).
+  basketball occasion kinds are hypothetical fits (about 9% of BYU and 3% of UVU students a game). Round 3 added
+  BYU's published Homecoming week (homecoming.byu.edu: the opening ceremony replaces the Oct 6 devotional; Light the
+  Y, the tailgate and the s'mores social as `homecoming_event`, the formal dance as `homecoming_dance`), 44 BYU
+  women's soccer, volleyball and basketball home games (`womens_game`), UVU's published spring break (Mar 15–21) and
+  Summer 2027 semester (May 10 – Aug 13). Their attendance rates are hypothetical (about 2% of BYU students a women's
+  game, 4–6% a Homecoming social, 4% the dance).
 - Campus places (`ucsim/config/places/campus.yaml`): teaching buildings, hangout spots, gyms, study and events
   buildings for BYU and UVU, BYU building codes → names, and which buildings each study area's classes use
   (judgment from department locations; weights rough).

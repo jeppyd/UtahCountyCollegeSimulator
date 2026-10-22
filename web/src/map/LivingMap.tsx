@@ -7,7 +7,7 @@ import { MapboxOverlay } from '@deck.gl/mapbox'
 import { GeoJsonLayer, PathLayer, ScatterplotLayer, SolidPolygonLayer, TextLayer } from '@deck.gl/layers'
 import maplibregl from 'maplibre-gl'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { api, type Universe } from '../api'
+import { api, STATIC, type Universe } from '../api'
 import { cssVar, hexRgb } from '../components'
 import { useStore } from '../store'
 import { catRgb } from '../kit/Bits'
@@ -21,6 +21,14 @@ const loadGeo = () => (geoCache ??= Promise.all([
   fetch(api.geo('roads.json')).then(r => r.json()).catch(() => null),
   fetch(api.geo('cities.json')).then(r => r.json()).catch(() => null),
 ]).then(([roads, cities]) => ({ roads, cities })))
+// the street map under everything (the classic map's OpenFreeMap styles): street and place names, parks, water.
+// Its own flat buildings are dropped, since ours stand on top. Offline, the map keeps the bundled roads.
+const BLANK = (bg: string): any => ({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': bg } }] })
+const styleCache: Record<string, Promise<any>> = {}
+const loadStyle = (dark: boolean) => (styleCache[dark ? 'dark' : 'light'] ??= fetch(`https://tiles.openfreemap.org/styles/${dark ? 'dark' : 'positron'}`)
+  .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
+  .then(st => ({ ...st, layers: st.layers.filter((l: any) => l.id !== 'building' && !l.id.startsWith('building')) })))
+const BOUNDS: [number, number][] = [[-112.0, 40.0], [-111.4, 40.0], [-111.4, 40.55], [-112.0, 40.55]]
 type Named = { id: number; name: string; lon: number; lat: number; kind: string; floors: number }
 let namesCache: Promise<Named[]> | null = null
 const loadNames = () => (namesCache ??= fetch(api.geo('building_names.json')).then(r => r.json())
@@ -68,6 +76,8 @@ function kindColor(kind: number, base: [number, number, number], dark: boolean):
 }
 
 type Tone = 'day' | 'evening' | 'night'
+type FloorRing = { k: number; path: number[][] }
+type Busy = { id: number; name: string; lon: number; lat: number; kind: string; floors: number; n: number; h: number }
 /** A color under the light of the moment: unchanged by day, warmer in the evening, dark blue at night (and a warm glow
  *  for a building with people inside at night). */
 function shade(c: [number, number, number], tone: Tone, glow: boolean): [number, number, number] {
@@ -75,7 +85,7 @@ function shade(c: [number, number, number], tone: Tone, glow: boolean): [number,
   const mix = (a: number[], b: number[], t: number) => a.map((x, j) => Math.round(x * (1 - t) + b[j] * t)) as [number, number, number]
   if (tone === 'evening') return mix(c, [236, 170, 110], 0.14)
   if (glow) return mix(c, [255, 196, 110], 0.55)
-  return mix(c, [24, 32, 52], 0.62)
+  return mix(c, [24, 32, 52], 0.45)
 }
 
 export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, onOccasion, onHover, children, mapRef, onFrame }: LivingProps) {
@@ -84,7 +94,7 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
   const dataVersion = useStore(s => s.dataVersion)
   const dark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
   const view3d = opts.view3d ?? true, xray = opts.xray ?? true, refresh: Refresh = opts.refresh ?? 'auto'
-  const when = opts.when ?? 'now', labels = opts.labels ?? true, pins = opts.pins ?? true
+  const when = opts.when ?? 'now', labels = opts.labels ?? true, pins = opts.pins ?? true, basemap = opts.basemap ?? !STATIC
   const [card, setCard] = useState<number | null>(null)              // the person whose card is open
   const [follow, setFollow] = useState<number | null>(null)          // the person the camera stays on
   const [occs, setOccs] = useState<NowOccasions | null>(null)
@@ -103,14 +113,18 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
   const [inside, setInside] = useState<BuildingInside | null>(null)
   const [glide, setGlide] = useState<number | null>(null)           // part of the day being played while time runs
   const [core, setCore] = useState<Set<number> | null>(null)       // buildings people use (standing); the rest flat
+  const [pick, setPick] = useState<number | 'all'>('all')          // the floor picked in the opened building
+  const [sep, setSep] = useState(true)                              // the opened building's floors pulled apart
+  const [streets, setStreets] = useState(false)                     // the street map loaded (else the bundled roads)
 
   // ---- the map
   useEffect(() => {
     if (!el.current) return
     const m = new maplibregl.Map({
-      container: el.current, style: { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': cssVar('--map-bg') } }] } as any,
-      center: CENTER, zoom: 13, pitch: view3d ? 50 : 0, bearing: view3d ? -18 : 0, maxPitch: 75, attributionControl: false,
+      container: el.current, style: BLANK(cssVar('--map-bg')),
+      center: CENTER, zoom: 13, pitch: view3d ? 50 : 0, bearing: view3d ? -18 : 0, maxPitch: 75, attributionControl: { compact: true },
     })
+    m.on('error', () => { /* tile errors (offline) are non-fatal */ })
     m.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), 'top-right')
     const ov = new MapboxOverlay({ interleaved: false, layers: [] })
     m.addControl(ov as any)
@@ -137,11 +151,22 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
     return s2
   }, [tone, prec])
   useEffect(() => {
-    if (!ready) return
+    const m = map.current
+    if (!m || !ready) return
+    let alive = true
+    if (!basemap) { setStreets(false); m.setStyle(BLANK(cssVar('--map-bg')), { diff: false }); return }
+    loadStyle(dark).then(st => { if (alive && map.current) { map.current.setStyle(st, { diff: false }); setStreets(true) } })
+      .catch(() => { delete styleCache[dark ? 'dark' : 'light']; if (alive) setStreets(false) })
+    return () => { alive = false }
+  }, [ready, basemap, dark])
+  useEffect(() => {
+    const m = map.current
+    if (!m || !ready || streets) return
     const bg = hexRgb(cssVar('--map-bg'))
     const c = tone === 'day' ? bg : shade(bg, tone, false)
-    map.current?.setPaintProperty('bg', 'background-color', `rgb(${c.join(',')})`)
-  }, [theme, ready, tone])
+    const paint = () => { if (m.getLayer('bg')) m.setPaintProperty('bg', 'background-color', `rgb(${c.join(',')})`) }
+    if (m.isStyleLoaded()) paint(); else m.once('styledata', paint)
+  }, [theme, ready, tone, streets])
   useEffect(() => {
     const m = map.current
     if (!m || !ready) return
@@ -222,6 +247,27 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
     for (let k = 0; k < bld.n; k++) ((core?.has(bld.ids[k]) ?? false) ? a : b).push(k)
     return [a, b]
   }, [bld, core])
+  const floorRings = useMemo(() => {
+    const out: FloorRing[] = []
+    if (!bld) return out
+    for (const k of bCore) {
+      const f = bld.floors[k], h = bld.height[k]
+      if (f < 2 || h <= 0) continue
+      const r = bld.rings[k]
+      for (let j = 1; j < f; j++) {
+        const z = (h * j) / f
+        out.push({ k, path: [...r, r[0]].map(p => [p[0], p[1], z]) })
+      }
+    }
+    return out
+  }, [bld, bCore])
+  const busy = useMemo(() => {
+    if (!prec || !names.length) return [] as Busy[]
+    const n = new Map<number, number>()
+    for (let i = 0; i < prec.n; i++) { const b = prec.building[i]; if (b >= 0) n.set(b, (n.get(b) ?? 0) + 1) }
+    return names.filter(nm => (n.get(nm.id) ?? 0) > 0).map(nm => ({ ...nm, n: n.get(nm.id)!, h: bld?.byId.has(nm.id) ? bld.height[bld.byId.get(nm.id)!] : 8 }))
+      .sort((a, b) => b.n - a.n)
+  }, [prec, names, bld])
   const pIdx = useMemo(() => {
     if (!prec) return []
     const out: number[] = []
@@ -230,35 +276,50 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
     return out
   }, [prec, chosen])
   const openK = open !== null && bld ? bld.byId.get(open) ?? -1 : -1
+  const gap = sep ? GAP : 0
   const zOf = (i: number) => {
     const p = prec!
-    return p.z[i] + (open !== null && p.building[i] === open ? p.floor[i] * GAP : 0)
+    return p.z[i] + (open !== null && p.building[i] === open ? p.floor[i] * gap : 0)
   }
+  useEffect(() => { setPick('all') }, [open])
   useEffect(() => {
     if (!overlay.current) return
     const layers: any[] = []
     const muted = hexRgb(cssVar('--text-muted')), road = hexRgb(cssVar('--map-road')), base = hexRgb(cssVar('--map-bldg'))
     const surf = hexRgb(cssVar('--surface-1')), text = hexRgb(cssVar('--text-primary')), accent = hexRgb(cssVar('--accent'))
-    if (geo?.cities) layers.push(new GeoJsonLayer({ id: 'cities', data: geo.cities, stroked: true, filled: false, getLineColor: [...muted, 80], lineWidthMinPixels: 1 }))
-    if (geo?.roads) layers.push(new GeoJsonLayer({ id: 'roads', data: geo.roads, stroked: true, filled: false, getLineColor: [...road, 255], getLineWidth: (f: any) => (f.properties.c === 1 ? 2 : 0.9), lineWidthUnits: 'pixels' }))
+    const clay = hexRgb(cssVar('--map-clay')), edge = hexRgb(cssVar('--map-edge'))
+    // evening and night over the street map: a tint (the plain ground is shaded directly)
+    if (streets && tone !== 'day') layers.push(new SolidPolygonLayer({
+      id: 'tint', data: [BOUNDS], getPolygon: (d: any) => d, getFillColor: tone === 'night' ? [12, 18, 40, dark ? 90 : 120] : [236, 150, 80, 28],
+      parameters: { depthWriteEnabled: false },
+    }))
+    if (geo?.cities && !streets) layers.push(new GeoJsonLayer({ id: 'cities', data: geo.cities, stroked: true, filled: false, getLineColor: [...muted, 80], lineWidthMinPixels: 1 }))
+    if (geo?.roads && !streets) layers.push(new GeoJsonLayer({ id: 'roads', data: geo.roads, stroked: true, filled: false, getLineColor: [...road, 255], getLineWidth: (f: any) => (f.properties.c === 1 ? 2 : 0.9), lineWidthUnits: 'pixels' }))
     if (bld && zoom >= 13.5) layers.push(new SolidPolygonLayer({
       id: 'bflat', data: bFlat, getPolygon: (k: number) => bld.rings[k], extruded: false,
-      getFillColor: [...base, dark ? 150 : 170], pickable: false, parameters: { depthWriteEnabled: false },
+      getFillColor: dark ? [...clay, streets ? 120 : 150] : [...base, streets ? 160 : 230], pickable: false, parameters: { depthWriteEnabled: false },
     }))
     if (bld) {
       layers.push(new SolidPolygonLayer({
-        id: 'b3d', data: bCore, getPolygon: (k: number) => bld.rings[k], extruded: view3d, wireframe: false,
+        id: 'b3d', data: bCore, getPolygon: (k: number) => bld.rings[k], extruded: view3d, wireframe: view3d && zoom >= 14.5,
+        getLineColor: (k: number) => (k === openK ? [0, 0, 0, 0] : [...edge, view3d && xray ? 150 : 200]),
         getElevation: (k: number) => (k === openK ? 0 : bld.height[k]),
         getFillColor: (k: number) => {
           if (k === openK) return [0, 0, 0, 0]
-          const c = shade(kindColor(bld.kind[k], base, dark), tone, lit?.has(bld.ids[k]) ?? false)
+          const c = shade(kindColor(bld.kind[k], clay, dark), tone, lit?.has(bld.ids[k]) ?? false)
           return [c[0], c[1], c[2], view3d && xray ? (tone === 'night' && lit?.has(bld.ids[k]) ? 170 : 120) : 235]
         },
         material: { ambient: 0.6, diffuse: 0.55, shininess: 6, specularColor: [40, 40, 40] },
         parameters: view3d && xray ? { depthWriteEnabled: false } : {},
         pickable: true, autoHighlight: true, highlightColor: [...accent, 70],
         onClick: (info: any) => { if (info.object !== undefined && info.object !== null) openBuilding(bld.ids[info.object]) },
-        updateTriggers: { getFillColor: [view3d, xray, dark, openK, tone, lit], getElevation: [openK] },
+        updateTriggers: { getFillColor: [view3d, xray, dark, openK, tone, lit], getElevation: [openK], getLineColor: [openK, view3d, xray, dark] },
+      }))
+      // each storey drawn as a thin line round the walls, so floors read without opening the building
+      if (view3d && zoom >= 15.5 && floorRings.length) layers.push(new PathLayer({
+        id: 'storeys', data: floorRings, getPath: (d: FloorRing) => d.path as any, widthUnits: 'pixels', getWidth: 1,
+        getColor: (d: FloorRing) => (d.k === openK ? [0, 0, 0, 0] : [...edge, xray ? 80 : dark ? 120 : 150]),
+        updateTriggers: { getColor: [openK, dark, xray] },
       }))
     }
     // the opened building: its floors, apartments and bedrooms
@@ -267,16 +328,17 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
       const floors = Array.from({ length: Math.max(1, inside.floors) }, (_, f) => f)
       const ring = openK >= 0 && bld ? bld.rings[openK] : null
       if (ring) layers.push(new SolidPolygonLayer({
-        id: 'slabs', data: floors, getPolygon: (f: number) => ring.map(p => [p[0], p[1], f * (inside.storey_m + GAP)]) as any, extruded: false,
-        getFillColor: [...surf, 200], parameters: { depthWriteEnabled: false },
+        id: 'slabs', data: floors, getPolygon: (f: number) => ring.map(p => [p[0], p[1], f * (inside.storey_m + gap)]) as any, extruded: false,
+        getFillColor: (f: number) => (pick === f ? [...accent, 110] : [...surf, pick === 'all' ? 200 : 90]), parameters: { depthWriteEnabled: false },
+        updateTriggers: { getFillColor: [pick], getPolygon: [gap] },
       }))
       const rects: { path: number[][]; kind: string; n: number; beds: number }[] = []
       for (const h of inside.homes) {
-        const zf = (z: number) => z + h.floor * GAP
+        const zf = (z: number) => z + h.floor * gap
         rects.push({ path: [...h.shape.corners, h.shape.corners[0]].map(c => [...ll(c), zf(h.shape.z) + 0.05]), kind: 'home', n: 0, beds: h.beds })
         for (const r of h.rooms) {
           if (!r.shape) continue
-          const zr = r.shape.z + h.floor * GAP
+          const zr = r.shape.z + h.floor * gap
           rects.push({ path: [...r.shape.corners, r.shape.corners[0]].map(c => [...ll(c), zr + 0.06]), kind: 'room', n: r.people.length, beds: r.beds })
         }
       }
@@ -289,7 +351,7 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
       }))
       if (ring) layers.push(new TextLayer({
         id: 'floor-labels', data: floors, getText: (f: number) => (f === 0 ? 'Ground' : `Floor ${f + 1}`),
-        getPosition: (f: number) => [ring[0][0], ring[0][1], f * (inside.storey_m + GAP) + 0.4], getSize: 12, getColor: [...text, 230],
+        getPosition: (f: number) => [ring[0][0], ring[0][1], f * (inside.storey_m + gap) + 0.4], getSize: 12, getColor: [...text, 230],
         fontFamily: 'system-ui, sans-serif', fontWeight: 650, billboard: true, background: true, getBackgroundColor: [...surf, 220], backgroundPadding: [4, 2],
         getTextAnchor: 'end', getPixelOffset: [-8, 0], parameters: { depthCompare: 'always' },
       }))
@@ -299,7 +361,7 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
       }))
       if (zoom >= 18.5) layers.push(new TextLayer({
         id: 'unit-labels', data: inside.homes.filter(h => h.label), getText: (h: any) => h.label.replace(/^Bldg \S+ /, ''),
-        getPosition: (h: any) => { const c = h.living.corners; return [...ll([(c[0][0] + c[2][0]) / 2, (c[0][1] + c[2][1]) / 2]), h.shape.z + h.floor * GAP + 0.3] },
+        getPosition: (h: any) => { const c = h.living.corners; return [...ll([(c[0][0] + c[2][0]) / 2, (c[0][1] + c[2][1]) / 2]), h.shape.z + h.floor * gap + 0.3] },
         getSize: 11, getColor: [...text, 220], fontFamily: 'system-ui, sans-serif', billboard: true, background: true, getBackgroundColor: [...surf, 200],
         backgroundPadding: [3, 1],
       }))
@@ -342,6 +404,14 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
         }))
       }
     }
+    // from afar: the busiest named places, with how many people are inside right now
+    if (labels && busy.length && zoom < 15.3 && zoom >= 12.5) layers.push(new TextLayer({
+      id: 'busy', data: busy.filter(b => b.n >= (zoom >= 14 ? 10 : 30)).slice(0, zoom >= 14 ? 60 : 25), getText: (b: Busy) => `${b.name} · ${b.n}`,
+      getPosition: (b: Busy) => [b.lon, b.lat, view3d ? b.h + 2 : 0], getSize: 11.5, getColor: [...text, 225], fontFamily: 'system-ui, sans-serif', fontWeight: 600,
+      billboard: true, outlineWidth: 2, outlineColor: [...surf, 235], fontSettings: { sdf: true, fontSize: 64, buffer: 6 }, characterSet: 'auto',
+      collisionEnabled: true, getCollisionPriority: (b: Busy) => b.n, extensions: [],
+      parameters: { depthCompare: 'always' },
+    }))
     if (labels && names.length && zoom >= 15.3) {
       const big = names.filter(nm => zoom >= 16.6 || ['campus', 'dorm', 'apartments', 'sports', 'church', 'civic'].includes(nm.kind))
       layers.push(new TextLayer({
@@ -353,7 +423,7 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
       }))
     }
     overlay.current.setProps({ layers })
-  }, [tone, lit, occs, pins, geo, bld, bCore, bFlat, prec, pIdx, colorOf, chosen, focus, view3d, xray, dark, inside, openK, zoom, labels, names, gliding, pace])
+  }, [tone, lit, occs, pins, geo, bld, bCore, bFlat, floorRings, prec, pIdx, colorOf, chosen, focus, view3d, xray, dark, inside, openK, zoom, labels, names, gliding, pace, streets, busy, pick, gap])
 
   const shown = gliding && glide !== null ? `${BLOCK_NAMES[glide]} (playing the day as time runs)` : prec ? (prec.block >= 0 && prec.block < 5 ? BLOCK_NAMES[prec.block] : '') : ''
   return (
@@ -371,10 +441,11 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
         </select>
         <button className={`btn small ${list ? 'primary' : ''}`} onClick={() => setList(!list)} disabled={!occs} title="Everything happening at this moment: dates, dinners, parties, games…">Right now{occs ? ` · ${occs.occasions.length}` : ''}</button>
         <label className="inline small lm-chk"><input type="checkbox" checked={pins} onChange={e => setOpts({ ...opts, pins: e.target.checked })} />pins</label>
+        <label className="inline small lm-chk" title="The street map underneath: street and place names, parks, water (needs the internet)"><input type="checkbox" checked={basemap} onChange={e => setOpts({ ...opts, basemap: e.target.checked })} />streets</label>
         <label className="inline small lm-chk" title="Light by the time of day: a warm evening, a dark night with homes lit from within"><input type="checkbox" checked={daylight} onChange={e => setOpts({ ...opts, daylight: e.target.checked })} />light</label>
         {children}
       </div>
-      {open !== null && <BuildingCard d={inside} onClose={() => setOpen(null)} onPerson={pickPerson} />}
+      {open !== null && <BuildingCard d={inside} onClose={() => setOpen(null)} onPerson={pickPerson} floor={pick} setFloor={setPick} sep={sep} setSep={setSep} />}
       {card !== null && <NowCard i={card} u={u} k={`${prec?.day}:${prec?.block}`} onClose={() => { setCard(null); setFollow(null) }} onPerson={pickPerson} onOccasion={onOccasion}
         following={follow === card} onFollow={() => setFollow(follow === card ? null : card)}
         onBuilding={b => openBuilding(b)} />}
@@ -387,8 +458,10 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
 }
 
 /** The opened building: its floors, the homes on each, their bedrooms and who sleeps in each; who is inside now. */
-function BuildingCard({ d, onClose, onPerson }: { d: BuildingInside | null; onClose: () => void; onPerson?: (i: number) => void }) {
-  const [floor, setFloor] = useState<number | 'all'>('all')
+function BuildingCard({ d, onClose, onPerson, floor, setFloor, sep, setSep }: {
+  d: BuildingInside | null; onClose: () => void; onPerson?: (i: number) => void
+  floor: number | 'all'; setFloor: (f: number | 'all') => void; sep: boolean; setSep: (b: boolean) => void
+}) {
   if (!d) return <div className="lm-card"><div className="lm-card-h"><b>Opening the building…</b><button className="bx-icon" onClick={onClose} aria-label="Close">✕</button></div></div>
   const byFloor = new Map<number, typeof d.homes>()
   for (const h of d.homes) byFloor.set(h.floor, [...(byFloor.get(h.floor) ?? []), h])
@@ -407,9 +480,12 @@ function BuildingCard({ d, onClose, onPerson }: { d: BuildingInside | null; onCl
         {d.n_inside_now > 0 && <><div className="bx-h">Inside right now ({d.n_inside_now})</div>
           <div className="lm-chips">{d.inside_now.slice(0, 40).map(p => <button key={p.id} onClick={() => onPerson?.(p.id)} title={`${ord(p.floor)} · ${p.doing.replace(/_/g, ' ')}`}>{p.name}<small> {p.doing.replace(/_/g, ' ')}</small></button>)}
             {d.n_inside_now > 40 && <span className="muted small">and {d.n_inside_now - 40} more</span>}</div></>}
-        {fl.length > 1 && <div className="seg small-seg" style={{ margin: '8px 0 4px' }}>
-          <button className={floor === 'all' ? 'on' : ''} onClick={() => setFloor('all')}>All</button>
-          {fl.map(f => <button key={f} className={floor === f ? 'on' : ''} onClick={() => setFloor(f)}>{f + 1}</button>)}
+        {fl.length > 1 && <div className="row" style={{ margin: '8px 0 4px', gap: 8, alignItems: 'center' }}>
+          <div className="seg small-seg" title="Pick a floor: it lights up on the map">
+            <button className={floor === 'all' ? 'on' : ''} onClick={() => setFloor('all')}>All</button>
+            {fl.map(f => <button key={f} className={floor === f ? 'on' : ''} onClick={() => setFloor(f)}>{f + 1}</button>)}
+          </div>
+          <label className="inline small" title="Pull the floors apart to see each one, or stack them as they stand"><input type="checkbox" checked={sep} onChange={e => setSep(e.target.checked)} />separate floors</label>
         </div>}
         {shownHomes.length === 0 && d.homes.length === 0 && <p className="small muted">Nobody lives here (it isn't one of the simulated homes).</p>}
         {shownHomes.slice(0, 120).map(h => (

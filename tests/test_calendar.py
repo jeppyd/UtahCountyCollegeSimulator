@@ -46,6 +46,23 @@ def test_items_have_basis_and_sources(cal):
     assert devos and all(it.start.weekday() == 1 and it.time == "11:05" for it in devos)
 
 
+
+def test_published_events(cal):
+    """Dates and times the schools published replace assumed ones: kickoff times, the Fall devotional/forum schedule
+    (no devotional Thanksgiving week), basketball home games as occasions."""
+    items = cal.items_between(D(2026, 8, 1), D(2027, 7, 31))
+    by_id = {it.id: it for it in items}
+    assert by_id["fb_utah_tech"].time == "18:00" and by_id["fb_iowa_state"].time == "20:15"
+    fall = [it for it in items if it.kind == "devotional" and D(2026, 9, 1) <= it.start <= D(2026, 12, 31)]
+    assert len(fall) == 13 and all(it.basis == "real" for it in fall)
+    assert D(2026, 11, 24) not in {it.start for it in fall}
+    assert {it.label for it in fall} == {"BYU devotional", "BYU forum"}
+    winter = [it for it in items if it.kind == "devotional" and it.start.year == 2027]
+    assert winter and all(it.basis == "rule" for it in winter)        # Winter 2027's schedule isn't published
+    games = [it for it in items if it.kind == "basketball"]
+    assert len(games) > 20 and all(it.time and it.place for it in games)
+    assert {it.effects["occasion"]["kind"] for it in games} == {"basketball_game", "uvu_basketball_game"}
+
 def test_rule_years_are_plausible(cal):
     for y in (2027, 2028, 2031):
         Y = cal.year(y)

@@ -54,9 +54,13 @@ def test_member_only_events(ran):
     P = ran.w.P
     ward_occ = np.flatnonzero((O["org_kind"] == ORG_ID["ward"]) & (O["n_came"] > 0))
     assert len(ward_occ)
+    L = ran.log
+    moved = L.cols["type"][: L.n] == ran.reg.event_ids["moved"]
     for r in ward_occ[:5]:
         came = Iv["person"][(Iv["occ"] == O.ids[r]) & Iv["attended"]]
-        assert (P["ward_id"][came] == O["org_id"][r]).all()
+        # members then: anyone in another ward now moved (a wedding, a new apartment) after the event
+        since = np.unique(L.cols["a"][: L.n][moved & (L.cols["day"][: L.n] >= O["day"][r])])
+        assert ((P["ward_id"][came] == O["org_id"][r]) | np.isin(came, since)).all()
 
 
 def test_shift_flex_is_stable_and_by_job(fresh):

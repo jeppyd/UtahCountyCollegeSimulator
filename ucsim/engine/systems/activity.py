@@ -14,7 +14,7 @@ import numpy as np
 from scipy.spatial import cKDTree
 from scipy.special import expit
 
-from .. import clock
+from .. import clock, places
 from ..state import CTX_ID
 
 BYU = (-111.6493, 40.2500)
@@ -41,9 +41,19 @@ class Activity:
         self.v_type = v["vtype"].to_numpy()
         self.v_name = v["name"].to_list()
         self._build_trees()
-        # campus "buildings" used as class locations
+        # class locations: a real teaching building per section building number (engine/places.py, campus.yaml)
         self.bldg = {1: np.c_[BYU[0] + rng.normal(0, 0.0028, 40), BYU[1] + rng.normal(0, 0.0022, 40)],
                      2: np.c_[UVU[0] + rng.normal(0, 0.0022, 24), UVU[1] + rng.normal(0, 0.0018, 24)]}
+        self.bldg_id = {1: np.full(40, -1, np.int64), 2: np.full(24, -1, np.int64)}
+        self.spots = {1: np.empty(0, np.int64), 2: np.empty(0, np.int64)}
+        self.gyms = {1: np.empty(0, np.int64), 2: np.empty(0, np.int64)}
+        if places.available():
+            for s_ in (1, 2):
+                c = places.campus(s_)
+                if len(c["teaching"]):
+                    self.bldg_id[s_] = c["teaching"]
+                    self.bldg[s_] = np.array([places.anchor(int(b)) for b in c["teaching"]])
+                self.spots[s_], self.gyms[s_] = c["spots"], c["gyms"]
         P.add_internal("shift_mask", np.uint32, 0)              # blocks a shift fills (bit clock.slot(wd, b))
         P.add_internal("shift_start", np.int16, -1, shape=(7,))  # per weekday, minutes after midnight (−1: no shift)
         P.add_internal("shift_end", np.int16, -1, shape=(7,))
@@ -83,6 +93,9 @@ class Activity:
         """Intervention hook: a new business opens."""
         w = self.sim.w
         import polars as pl
+        if places.available() and spec.get("vtype") not in ("park", "trailhead", "overlook"):
+            lo, la, _ = places.settle([float(spec["lon"])], [float(spec["lat"])])
+            spec = {**spec, "lon": float(lo[0]), "lat": float(la[0])}
         row = pl.DataFrame([{"venue_id": len(self.v_lon), "name": spec.get("name", "New venue"), "vtype": spec["vtype"],
                              "lon": float(spec["lon"]), "lat": float(spec["lat"]), "src": "intervention", "city": spec.get("city", "Provo")}])
         w.venues = pl.concat([w.venues, row.cast(w.venues.schema)], how="vertical")
@@ -553,6 +566,29 @@ class Activity:
         U[~avail] = -9.0
         return (U, avail, terms) if explain else U
 
+    def _campus_place(self, school: np.ndarray, pick: np.ndarray, table: dict) -> np.ndarray:
+        """Which real campus building (a spot or a gym, by weight) each person goes to: a building id; the school code
+        (1, 2) when the building layer is missing."""
+        out = school.astype(np.int64).copy()
+        for s_ in (1, 2):
+            t = table[s_]
+            m = school == s_
+            if len(t) and m.any():
+                out[m] = t[np.minimum((pick[m] * len(t)).astype(np.int64), len(t) - 1)]
+        return out
+
+    def _campus_point(self, code: np.ndarray):
+        """lon/lat of campus places coded as `_campus_place` returns them."""
+        code = np.asarray(code, np.int64)
+        lon = np.where(code == 1, BYU[0], UVU[0]).astype(float)
+        lat = np.where(code == 1, BYU[1], UVU[1]).astype(float)
+        bl = code > 2
+        if bl.any():
+            u, inv = np.unique(code[bl], return_inverse=True)
+            pts = np.array([places.anchor(int(b)) for b in u])
+            lon[bl], lat[bl] = pts[inv.ravel(), 0], pts[inv.ravel(), 1]
+        return lon, lat
+
     def _discretionary(self, free, b, wd, ctype, cid, act):
         sim, w = self.sim, self.sim.w
         P = w.P
@@ -569,7 +605,7 @@ class Activity:
         # campus
         m = choice == 1
         ctype[idx[m]] = CTX_ID["campus"]
-        cid[idx[m]] = P["school"][idx[m]]
+        cid[idx[m]] = self._campus_place(P["school"][idx[m]], pick[m], self.spots)
         act[idx[m]] = A["campus"]
         # gym: students use campus gym, others nearest commercial gym
         m = choice == 2
@@ -578,7 +614,7 @@ class Activity:
             stud = P["enrolled"][gi]
             ctype[gi] = CTX_ID["gym"]
             near = self.nearest("gym", hl[m], ht[m], 3, pick[m])
-            cid[gi] = np.where(stud, 100000 + P["school"][gi].astype(np.int64), near)
+            cid[gi] = np.where(stud, 100000 + self._campus_place(P["school"][gi], pick[m], self.gyms), near)
             act[gi] = A["gym"]
         for code, group, ctxname, actname in ((3, "food", "venue", "venue"), (4, "outdoors", "outdoors", "outdoors")):
             m = choice == code
@@ -649,15 +685,8 @@ class Activity:
         m = ctype == CTX_ID["unit"]
         lon[m], lat[m] = U.lon[cid[m]], U.lat[cid[m]]
         m = ctype == CTX_ID["class"]
-        if m.any():
-            sec = sim.systems["academics"]
-            b = sec.sec_bldg[cid[m]]
-            sch = sec.sec_school[cid[m]]
-            for s in (1, 2):
-                mm = sch == s
-                pts = self.bldg[s][b[mm] % len(self.bldg[s])]
-                ii = np.where(m)[0][mm]
-                lon[ii], lat[ii] = pts[:, 0], pts[:, 1]
+        if m.any():                    # the section's classroom (or its campus building): academics.section_point
+            lon[m], lat[m], _, _ = sim.systems["academics"].section_point(cid[m])
         m = ctype == CTX_ID["ward"]
         lon[m], lat[m] = w.wards["lon"][cid[m]], w.wards["lat"][cid[m]]
         m = ctype == CTX_ID["fhe"]
@@ -668,14 +697,19 @@ class Activity:
             m = ctype == CTX_ID[name]
             lon[m], lat[m] = self.v_lon[cid[m]], self.v_lat[cid[m]]
         m = ctype == CTX_ID["campus"]
-        lon[m] = np.where(cid[m] == 1, BYU[0], UVU[0])
-        lat[m] = np.where(cid[m] == 1, BYU[1], UVU[1])
+        if m.any():
+            lon[m], lat[m] = self._campus_point(cid[m])
         m = ctype == CTX_ID["gym"]
         if m.any():
             gc = cid[m]
             camp = gc >= 100000
-            gl = np.where(camp, np.where(gc - 100000 == 1, BYU[0] - 0.003, UVU[0]), self.v_lon[np.minimum(gc, len(self.v_lon) - 1)])
-            gt = np.where(camp, np.where(gc - 100000 == 1, BYU[1] + 0.002, UVU[1]), self.v_lat[np.minimum(gc, len(self.v_lat) - 1)])
+            gl = self.v_lon[np.minimum(gc, len(self.v_lon) - 1)]
+            gt = self.v_lat[np.minimum(gc, len(self.v_lat) - 1)]
+            if camp.any():
+                cl, ct_ = self._campus_point(gc[camp] - 100000)
+                old_ = (gc[camp] - 100000) <= 2          # no building layer: the old spots by the campus gyms
+                gl[camp] = np.where(old_, cl + np.where(gc[camp] - 100000 == 1, -0.003, 0.0), cl)
+                gt[camp] = np.where(old_, ct_ + np.where(gc[camp] - 100000 == 1, 0.002, 0.0), ct_)
             lon[m], lat[m] = gl, gt
         m = ctype == CTX_ID["complex"]
         if m.any():

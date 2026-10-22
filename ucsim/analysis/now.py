@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from ..engine import placement
+from ..engine import placement, places
 from ..engine.state import CTX, CTX_ID, Tie
 from .person import headline, synthetic_name
 
@@ -60,7 +60,14 @@ def _place_words(sim, f: dict, pos: dict, i: int) -> dict:
         a = sim.systems["activity"]
         words = a.v_name[cid] if 0 <= cid < len(a.v_name) else "a venue"
     elif ct == CTX_ID["class"]:
-        words = f"class in {bname}" if bname else "in class"
+        ac = sim.systems["academics"]
+        rm = int(ac.sec_room[cid]) if 0 <= cid < len(ac.sec_room) else -1
+        R = places.classrooms(1) if rm >= 0 else None
+        if R is not None:
+            words = f"class in {R['code'][rm]} {R['room'][rm]} ({bname}, {int(R['seats'][rm])} seats)"
+            out["room"] = f"{R['code'][rm]} {R['room'][rm]}"
+        else:
+            words = f"class in {bname}" if bname else "in class"
     elif ct == CTX_ID["ward"]:
         nm = w.wards.get("name")
         words = f"{nm[cid]} (church)" if nm is not None and 0 <= cid < len(nm) else "church"

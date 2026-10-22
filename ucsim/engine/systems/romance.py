@@ -204,7 +204,7 @@ class Romance:
                     + p("romance.motivation.wants") * (P["wants_relationship"] - 2.5) / 1.5
                     + p("romance.motivation.longing") * P["drive_partnership"] / 0.55
                     + p("romance.motivation.marriage_norm") * w.env["marriage_norm"] * age_norm * lds_active
-                    + 0.4 * rm_recent + 0.25 * sim.z("extraversion")
+                    + 0.4 * rm_recent + p("romance.motivation.extraversion") * sim.z("extraversion")
                     - 0.8 * P["depressive_episode"] - p("romance.motivation.competing") * competing + sim.nudge("dating"))
         P["dating_motivation"] = np.where(self.seeking_mask(), mot, 0.0).astype(np.float32)
         self._weddings()
@@ -257,7 +257,8 @@ class Romance:
                  "believed_interest": p("mind.romantic_perception.ask_weight") * (believed - 0.15),
                  "gender_norm": np.where(male, p("romance.ask.male") * w.env["men_initiate_norm"], -p("romance.ask.male") * w.env["men_initiate_norm"] * 0.9),
                  "propensity": p("romance.ask.propensity") * np.log(P["dating_propensity"][ids] + 0.5),
-                 "asks_numbers": 0.25 * (P["asks_for_numbers"][ids] - 2) / 2}
+                 "asks_numbers": 0.25 * (P["asks_for_numbers"][ids] - 2) / 2,
+                 "boldness": p("romance.ask.extraversion") * sim.z("extraversion")[ids]}
         logit = total(p("romance.ask.base"), terms)
         plans = sim.systems.get("plans")
         if plans is not None:

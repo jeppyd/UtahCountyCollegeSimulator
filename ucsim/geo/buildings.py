@@ -82,18 +82,20 @@ def wkb_rings(b: bytes) -> list[np.ndarray]:
 
 
 def area_m2(ring: np.ndarray) -> float:
-    x, y = ring[:, 0] * KX, ring[:, 1] * KY
+    x, y = (ring[:, 0] - ring[0, 0]) * KX, (ring[:, 1] - ring[0, 1]) * KY
     return float(abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1))) / 2)
 
 
 def centroid(ring: np.ndarray) -> tuple[float, float]:
-    x, y = ring[:-1, 0], ring[:-1, 1]
+    # relative to the first vertex: in raw degrees the cross products cancel catastrophically (centres 30 m off)
+    o = ring[0]
+    x, y = ring[:-1, 0] - o[0], ring[:-1, 1] - o[1]
     x1, y1 = np.roll(x, -1), np.roll(y, -1)
     c = x * y1 - x1 * y
     a = c.sum() / 2
-    if abs(a) < 1e-14:
-        return float(x.mean()), float(y.mean())
-    return float(((x + x1) * c).sum() / (6 * a)), float(((y + y1) * c).sum() / (6 * a))
+    if abs(a) < 1e-16:
+        return float(x.mean() + o[0]), float(y.mean() + o[1])
+    return float(((x + x1) * c).sum() / (6 * a) + o[0]), float(((y + y1) * c).sum() / (6 * a) + o[1])
 
 
 def box(ring: np.ndarray) -> tuple[float, float, float, float, float]:
@@ -172,7 +174,7 @@ def build():
         floors = int(min(max(floors, 1), 30))
         if not h:
             h, h_src = floors * STOREY_M + (1.0 if kind in ("house", "townhouse") else 0.0), "floors"
-        bx, by, ang, hl, hw = box(ring)
+        bx, by, ang, hl, hw = box(ring)                 # replaced by shapes.min_rect below
         rows.append({"ov_id": r["id"], "name": name, "kind": kind, "cls": r["class"], "lon": cx, "lat": cy,
                      "box_lon": bx, "box_lat": by, "angle": round(ang, 4), "half_len_m": round(hl, 2), "half_wid_m": round(hw, 2),
                      "floors": floors, "floors_src": f_src, "height_m": round(float(h), 1), "height_src": h_src,
@@ -182,6 +184,9 @@ def build():
     df = df.with_columns(pl.col("building_id").cast(pl.Int32))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     df.write_parquet(OUT, compression="zstd", compression_level=19)
+    from .shapes import build as shapes
+    shapes()                                       # the smallest box and the wings of each footprint
+    df = pl.read_parquet(OUT)
     write_web(df)
     print(f"{df.height} buildings → {OUT.relative_to(ROOT)} ({OUT.stat().st_size / 1e6:.1f} MB), "
           f"{WEB.relative_to(ROOT)} ({WEB.stat().st_size / 1e6:.1f} MB)")

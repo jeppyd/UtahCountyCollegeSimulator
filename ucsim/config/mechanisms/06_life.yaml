@@ -10,13 +10,17 @@ mechanisms:
     label: Weekly study hours
     target: study_hours
     sources: [credits_term, conscientiousness, academic_pressure, work_hours, depressive_episode, fatigue, social_hours_week, children]
-    form: "target = base + 0.75·credits + βC·C + 8·pressure − βw·(work−10)⁺ − 6·depressed − 4·fatigue − 0.08·(social−20)⁺ − 3·[children]"
+    form: "target = base + 0.75·credits + βC·C + 8·pressure − βw·(work−10)⁺ − 6·depressed − 4·fatigue − 0.08·(social−20)⁺ − 3·[children] − βa·ability"
     params:
       base: {value: 4.0, range: [0, 8]}
       conscientiousness: {value: 3.0, range: [1, 5]}
       work_crowdout: {value: 0.25, range: [0.05, 0.5]}
+      ability: {value: 2.5, range: [0.0, 4.0]}
     evidence: hypothetical
-    desc: Time is finite — work and social life crowd out study (and through it GPA).
+    desc: >-
+      Time is finite — work and social life crowd out study (and through it GPA). Students who find the work hard put in
+      more hours (compensation; Plant et al. 2005), which is why study time barely predicts grades in surveys (Psych 308,
+      BYU 2020: r = −0.06).
   academics.gpa:
     label: Term GPA production
     target: [gpa, gpa_term]
@@ -26,7 +30,7 @@ mechanisms:
       base: {value: 3.45, range: [3.0, 3.7]}
       ability: {value: 0.3, range: [0.15, 0.45]}
       conscientiousness: {value: 0.2, range: [0.05, 0.35]}
-      study: {value: 0.015, range: [0.005, 0.03]}
+      study: {value: 0.012, range: [0.005, 0.03]}
       noise: {value: 0.3, range: [0.15, 0.45]}
     evidence: calibrated
     refs: ["ProvoStats: GPA distribution by school and sex", "Okano et al. (2019) npj Sci Learn: sleep and academic performance"]

@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| Claude Code (cloud session, branch `claude/clever-wright-3fh95g`) | 2026-10-21 | living-map (speed/logs done; map phases next) | Owner-directed: precise places, rooms, 3D buildings, click-to-inspect. Spec coming in docs/workstreams/living-map.md. |
+| Claude Code (cloud session, branch `claude/clever-wright-3fh95g`) | 2026-10-22 | living-map (sync check, real places, floor plans) | Owner-directed: precise places, rooms, 3D buildings, click-to-inspect. Spec coming in docs/workstreams/living-map.md. |
 
 ## The goal in one paragraph
 
@@ -74,7 +74,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [family-homes](workstreams/family-homes.md) (wave 2) | **done, merged** | working branch | open issues below |
 | [survey-followups](workstreams/survey-followups.md) | audits designed, interrupted | — | needs the raw survey files in `data/raw/` |
 | [integration](workstreams/integration.md) | ongoing | — | after each merge |
-| living-map (owner-directed, 2026-10-21) | in progress | `claude/clever-wright-3fh95g` | speed/logs done; buildings, floors, bedrooms, precise placement, 3D map, inspect cards done; next: bedroom-mate effects (owner's answer), classic Map page onto the living map, shops/errands |
+| living-map (owner-directed, 2026-10-21) | in progress | `claude/clever-wright-3fh95g` | speed/logs, buildings, bedrooms, 3D map, cards, bedroom-mates done; 2026-10-22: sync check (99.6%+), real places in the backend, Heritage + Wyview + classrooms from BYU plans; next: Wymount/Riviera/LISR plans, elevation, then dashboards |
 
 Time-occasions and provenance-trace are merged, so everything in wave 1 can proceed. Wave 2 (messaging,
 institutions, family-homes) can start now too, but coordinate: they touch the same systems as the running builders.
@@ -159,6 +159,39 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-22 — Claude Code (cloud session) — dots in sync with the simulation; BYU floor plans
+- Owner's priorities: (1) dots exactly where the simulation has people, (2) buildings like the real ones (floor
+  plans, counts, shapes); visuals (furniture, textures) later; dashboards after; elevation welcome. Repo is public:
+  BYU floor-plan PDFs stay in `data/external/floorplans/` (ignored); only derived summaries are committed.
+- **Sync check** (`ucsim/analysis/sync_check.py`, tests/test_sync.py): per kind of place, the share of dots inside
+  the building the simulation names, on a floor it has, groups together, none stacked. Was 64% (homes) and 0%
+  (classes); now 99.6–99.9% overall, classes 100%.
+- **Bugs found:** building centroids were computed in raw degrees (catastrophic cancellation: median 71 m off),
+  which broke point-in-building lookups and mismatched ~60% of homes to buildings (`geo/buildings.centroid` fixed,
+  homes rebuilt); the fitted box used the principal axis (45° on square houses) — now the true smallest rectangle,
+  plus `wings` (L/U-shaped buildings as rectangles: `geo/shapes.py`).
+- **Real places in the backend** (`ucsim/engine/places.py`, `config/places/campus.yaml`): every venue, workplace,
+  meetinghouse, congregation, complex, group and calendar place is moved into its real building at world start
+  (idempotent); classes meet in real teaching buildings, campus hangouts are real buildings (library, Wilk…) and
+  their cid is the building (so who you run into depends on where you are), campus gyms are the Richards Building /
+  Smith Fieldhouse, the stadium is the grandstand footprint. The map draws only what the backend says
+  (`placement.seat_in_buildings`: a seat grid over the real footprint; strangers spread, groups together).
+- **Floor plans (owner-supplied):** `ucsim/geo/floorplans.py` → `geo/data/plan_units.parquet` (Heritage: all 605
+  apartments, 467 three-bedroom / 137 two-bedroom / 1, 3,356 beds, each placed on its footprint by fitting the
+  labels to the outline) and `geo/data/classrooms.parquet` (466 BYU rooms with seat capacities in 33 buildings).
+  Sections get the snuggest free room in their study area's buildings (`academics._rooms_for`); the card says "class
+  in JKB 1102 (… 285 seats)". Wyview: 426 apartments = the address points; one 3-bedroom a floor (90) per the plans.
+  Helaman: plans confirm ~38–40 double rooms a floor, 3 floors (May Hall has no plan). Buildings get the floors
+  their apartments/classrooms are on (`homes.raise_floors`). Not yet used: Wymount (scans, no text), Riviera
+  (labels partly vector), LISR (not in the world yet: 24 two-bedroom apartments in four pods), off-campus and
+  "other" buildings, the stadium seating map, the campus map.
+- **Psych 308 fixes (owner approved 1–3):** a lasting loneliness disposition (Boomsma 2005; β 0.2), contact deficit
+  0.22→0.15, mood←neuroticism 0.07→0.05; the struggling study more (`academics.study.ability` 2.5), GPA←study
+  0.015→0.012; extraversion → asking out (`romance.ask.extraversion` 1.0) and motivation 0.25→0.55. The check now
+  attenuates the model's exact r by the survey measures' reliability (`RELIABILITY`, documented). Result: 13 of 16
+  associations pass; warns: lonely~friends (−0.30 vs −0.13), religion~life sat, family~life sat. Life satisfaction
+  level still low (5.9 vs 7.2) — not changed.
 
 ### 2026-10-21 (4) — Claude Code (cloud session) — a new survey: Psych 308 (BYU, 2020)
 - The owner supplied a BYU class survey (947 students, all during COVID-19) and left inclusion to judgment. Used as

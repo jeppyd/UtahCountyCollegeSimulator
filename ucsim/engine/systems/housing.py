@@ -306,6 +306,8 @@ class Housing:
             U.building_id = np.r_[U.building_id, np.full(k, -1, np.int32)]
             U.floor = np.r_[U.floor, np.zeros(k, np.int8)]
             U.label = U.label + [""] * k
+            if U.placed is not None:
+                U.placed = np.r_[U.placed, np.zeros(k, bool)]
             caps = [U.room_cap[U.room0[s_]: U.room0[s_] + U.n_rooms[s_]] for s_ in src]
             U.room0 = np.r_[U.room0, len(U.room_cap) + np.r_[0, np.cumsum([len(c) for c in caps])[:-1]]].astype(np.int32)
             U.n_rooms = np.r_[U.n_rooms, np.array([len(c) for c in caps], np.uint8)]

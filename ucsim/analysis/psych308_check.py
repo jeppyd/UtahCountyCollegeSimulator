@@ -8,7 +8,8 @@ Latter-day Saint BYU students). Three kinds of rows (scripts/validate.py adds th
   ordinary years, so these show the direction of a difference, not a failure;
 - pattern: within-person associations (Spearman r) — do the model's mechanisms tie the same things together, in the
   same direction and roughly as strongly? The survey's scales differ from the model's, so a sign flips where a scale
-  runs the other way (survey doubts ↔ model certainty; depressive symptoms ↔ mood; emotional stability ↔ neuroticism).
+  runs the other way (survey doubts ↔ model certainty; depressive symptoms ↔ mood; emotional stability ↔ neuroticism),
+  and the model's exact r is attenuated for the survey's measurement noise (RELIABILITY) before comparing.
 """
 from __future__ import annotations
 
@@ -18,6 +19,16 @@ from pathlib import Path
 import numpy as np
 
 SRC = Path(__file__).resolve().parents[1] / "config" / "sources" / "psych308_2020.json"
+
+# How reliable each survey measure is (single items are noisy; a scale of several items less so). The model's values
+# are exact, so its correlation is attenuated by √(rel_a·rel_b) before it is compared with the survey's (Spearman's
+# correction for attenuation, run backwards). Single-item reliabilities ≈ 0.6–0.7 (Wanous & Hudy 2001; life
+# satisfaction 0.68, Lucas & Donnellan 2012); TIPI two-item traits ≈ 0.7 test–retest (Gosling et al. 2003); CES-D-10
+# α ≈ 0.85; counts and hours self-reported for a month ≈ 0.8; GPA ≈ 0.95.
+RELIABILITY = {"lonely": 0.6, "connected_friends": 0.6, "connected_family": 0.6, "lifesat": 0.68, "dates": 0.8,
+               "cesd": 0.85, "selfesteem": 0.75, "sleephrs": 0.8, "socialmedia": 0.7, "exercise": 0.75,
+               "extraverted": 0.7, "conscientious": 0.7, "emotionalstability": 0.7, "collgpa": 0.95, "hoursstudy": 0.7,
+               "pray_freq": 0.8, "doubt": 0.7, "religimp": 0.8, "premarital": 0.8}
 
 # survey association (a, b) → (model a, model b, sign: model r × sign is compared with the survey's r, singles only?)
 PAIR_MAP = {
@@ -141,12 +152,16 @@ def rows(sim) -> list[dict]:
         ok = np.isfinite(x) & np.isfinite(y)
         if ok.sum() < 30 or np.std(x[ok]) == 0 or np.std(y[ok]) == 0:
             continue
-        r = float(spearmanr(x[ok], y[ok]).statistic) * sign
+        r_exact = float(spearmanr(x[ok], y[ok]).statistic) * sign
+        att = float(np.sqrt(RELIABILITY.get(a["a"], 1.0) * RELIABILITY.get(a["b"], 1.0)))
+        r = r_exact * att                                 # what the survey would see, measuring the model's people
         tol = max(0.12, 0.35 * abs(a["r"]))
         st = _status(r - a["r"], tol)
         if abs(a["r"]) >= 0.1 and np.sign(r) != np.sign(a["r"]) and abs(r) >= 0.05:
             st = "fail"                                   # the opposite direction is a failure whatever the distance
         out.append({"table": "p308_assoc", "group": a["words"], "var": f"{ma}~{mb}", "kind": "pattern", "target": a["r"], "sim": round(r, 3),
                     "diff": round(r - a["r"], 3), "tol": round(tol, 3), "n_sim": int(ok.sum()), "n_band": f"Psych 308 n={a['n']}",
-                    "status": st, "holdout": True, "note": f"model {ma} ~ {mb}" + (" (sign flipped: scales run opposite ways)" if sign < 0 else "")})
+                    "status": st, "holdout": True,
+                    "note": f"model {ma} ~ {mb}: exact r {r_exact:+.2f}, × {att:.2f} for the survey's measurement noise"
+                            + (" (sign flipped: scales run opposite ways)" if sign < 0 else "")})
     return out

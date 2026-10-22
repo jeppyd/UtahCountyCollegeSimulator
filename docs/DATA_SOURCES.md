@@ -112,6 +112,19 @@ dance venues…). Web layers (roads, city outlines, building footprints) are com
   real unit addresses (825 E Heritage Dr, Bldg n Apt fwnn). Layout shares, which halls are men's or women's, and
   which half of Wyview is family housing are estimates (marked `estimate`).
 - Bedrooms elsewhere are a rule (`population/structure.py` `default_bedrooms`, hypothetical).
+- Shapes (`ucsim/geo/shapes.py`): each footprint's smallest rectangle and its wings (rectangles inside it); centroids
+  computed relative to the first vertex (computing them in raw degrees put them a median 71 m off).
+- **BYU Facilities Planning floor plans** (pf.byu.edu, behind BYU login; downloaded and supplied by the owner,
+  2026-10-22). The PDFs stay in `data/external/floorplans/` (never committed — the repository is public); only
+  derived summaries are: `geo/data/plan_units.parquet` (Heritage Halls: building, floor, apartment number, beds per
+  bedroom, apartment centre to 1 m) and `geo/data/classrooms.parquet` (BYU rooms whose plan prints a seating
+  capacity: building, floor, room number, seats, centre to 1 m). Read from the Revit exports' text
+  (`ucsim/geo/floorplans.py`); each sheet placed on its footprint by turning and shifting it until its room labels
+  fall inside the outline (scale from the sheet). Wyview's counts (12/18 apartments a building, one three-bedroom
+  a floor) and Helaman's (~38–40 double rooms a floor, 3 floors) were read off the plans into flagship.yaml.
+- Campus places (`ucsim/config/places/campus.yaml`): teaching buildings, hangout spots, gyms, study and events
+  buildings for BYU and UVU, BYU building codes → names, and which buildings each study area's classes use
+  (judgment from department locations; weights rough).
 
 ### Travel times (`scripts/build_travel.py` → `ucsim/geo/data/travel.npz`)
 

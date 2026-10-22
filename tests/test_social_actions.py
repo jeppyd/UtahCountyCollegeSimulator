@@ -153,9 +153,11 @@ def test_moving_a_dinner_later_lets_a_working_student_come(world):
     occ = sim.systems["occasions"]
     h = _host_with_roommates(sim)
     guests = SA._Ctx(sim, {}).group("roommates", h)
-    w = int(guests[0])
     day = sim.w.day + 2
     wd = sim.cal.weekday(day)
+    # a guest whose employer won't let them swap that day's shift (a firm conflict)
+    firm = [int(g) for g in guests if not sim.systems["institutions"].shift_flex([int(g)], day)[0]]
+    w = firm[0] if firm else int(guests[0])
     P.cols["employed"][w] = True
     P.cols["owns_car"][w] = True          # drives from work (their job may be across town)
     P.internal["shift_start"][w, wd], P.internal["shift_end"][w, wd] = 15 * 60, 19 * 60

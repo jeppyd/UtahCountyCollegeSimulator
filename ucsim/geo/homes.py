@@ -202,9 +202,13 @@ def _bldg_num(name: str) -> str:
 def flagship_rosters(fp: Footprints, addr: pl.DataFrame) -> pl.DataFrame:
     spec = yaml.safe_load(FLAGSHIP.read_text(encoding="utf-8"))["flagship"]
     rows = []
+    plans = pl.read_parquet(GEO / "plan_units.parquet") if (GEO / "plan_units.parquet").exists() else None
     for key, s in spec.items():
         if s["units_from"] == "dwellings":
             continue                                 # layouts for an ordinary complex's own homes (see complex_layouts)
+        if s["units_from"] == "plans":
+            rows += _plan_rows(key, s, plans)
+            continue
         rr = _pick_buildings(fp, s["buildings"])
         b = fp.b[rr]
         names = b["name"].fill_null("").to_list()
@@ -257,18 +261,64 @@ def flagship_rosters(fp: Footprints, addr: pl.DataFrame) -> pl.DataFrame:
                 order = order[::-1]
             for j in order[: int(round(len(rr) * float(s["split"]["share_family"])))]:
                 comm[j] = "family"
+        # how many bedrooms each apartment has, where the plans say (the highest-numbered on each floor has three)
+        n_br = [None] * len(units)
+        if s.get("three_bedroom_per_floor"):
+            want = int(s["three_bedroom_per_floor"]) * int(s.get("floors", 3))
+            last, by_b = {}, {}
+            for k, (j, f, label) in enumerate(units):
+                last[(j, f)] = k                         # units are sorted by building, floor, label
+                by_b.setdefault(j, []).append(k)
+            top = set(last.values())
+            for j, ks in by_b.items():                   # a building whose labels don't show its floors: its last ones
+                have = [k for k in ks if k in top]
+                for k in reversed(ks):
+                    if len(have) >= want:
+                        break
+                    if k not in top:
+                        top.add(k)
+                        have.append(k)
+                for k in sorted(have)[: max(len(have) - want, 0)]:
+                    top.discard(k)
+            n_br = [3 if k in top else 2 for k in range(len(units))]
         # layouts in a fixed, even pattern over the units (golden-ratio steps through the shares), never random
         for k, (j, f, label) in enumerate(units):
             ly = s["family_layouts"] if comm[j] == "family" and "family_layouts" in s else lay
-            cum = np.cumsum([x["share"] for x in ly]) / sum(x["share"] for x in ly)
-            li = min(int(np.searchsorted(cum, (k * 0.6180339887) % 1.0, side="right")), len(ly) - 1)
+            if n_br[k] is not None and any(len(x["bedrooms"]) == n_br[k] for x in ly):
+                idx = [i for i, x in enumerate(ly) if len(x["bedrooms"]) == n_br[k]]
+            else:
+                idx = list(range(len(ly)))
+            sh = np.array([ly[i]["share"] for i in idx], float)
+            cum = np.cumsum(sh) / sh.sum()
+            li = idx[min(int(np.searchsorted(cum, (k * 0.6180339887) % 1.0, side="right")), len(idx) - 1)]
             sex = (s.get("sexes") or {}).get(names[j], "")
             rows.append({"flagship": key, "complex": s["complex"], "building_id": int(fp.ids[rr[j]]),
                          "building": names[j] or f"{s['complex']} building", "floor": int(f), "label": label,
                          "community": comm[j], "layout": li, "bedrooms": [int(x) for x in ly[li]["bedrooms"]],
-                         "baths": int(ly[li].get("baths", 1)), "words": ly[li].get("words", ""), "sex": sex})
+                         "baths": int(ly[li].get("baths", 1)), "words": ly[li].get("words", ""), "sex": sex,
+                         "x_m": None, "y_m": None})
         print(f"  {key:16s} {len(rr):3d} buildings  {len(units):5d} units  {sum(sum(r['bedrooms']) for r in rows if r['flagship'] == key):5d} beds")
-    return pl.DataFrame(rows)
+    return pl.DataFrame(rows, infer_schema_length=None)
+
+
+def _plan_rows(key: str, s: dict, plans: pl.DataFrame | None) -> list[dict]:
+    """A flagship complex read off BYU's floor plans (geo/floorplans.py → plan_units.parquet): every apartment, its
+    floor, number, bedrooms and spot on the building; words and baths by bedroom count (flagship.yaml `by_bedrooms`)."""
+    if plans is None:
+        raise FileNotFoundError("plan_units.parquet is missing: python -m ucsim.geo.floorplans")
+    g = plans.filter(pl.col("complex") == key).sort(["building_id", "floor", "label"])
+    kinds = {int(k): v for k, v in s.get("by_bedrooms", {}).items()}
+    rows = []
+    for r in g.iter_rows(named=True):
+        beds = [int(x) for x in r["bedrooms"]]
+        kd = kinds.get(len(beds), {})
+        rows.append({"flagship": key, "complex": s["complex"], "building_id": int(r["building_id"]), "building": r["building"],
+                     "floor": int(r["floor"]), "label": f"Apt {r['label']}", "community": s.get("community", "single"),
+                     "layout": len(beds), "bedrooms": beds, "baths": int(kd.get("baths", 1)), "words": kd.get("words", ""),
+                     "sex": (s.get("sexes") or {}).get(r["building"], ""), "x_m": float(r["x_m"]), "y_m": float(r["y_m"])})
+    print(f"  {key:16s} {g['building_id'].n_unique():3d} buildings  {len(rows):5d} units  "
+          f"{sum(sum(r['bedrooms']) for r in rows):5d} beds  (floor plans)")
+    return rows
 
 
 def build():
@@ -281,9 +331,29 @@ def build():
     fl = flagship_rosters(fp, addr)
     fl.write_parquet(GEO / "flagship_units.parquet", compression="zstd")
     print(f"flagship_units.parquet: {fl.height} units")
+    raise_floors(fl)
     pb = place_buildings(fp)
     pb.write_parquet(GEO / "place_buildings.parquet", compression="zstd")
     print(f"place_buildings.parquet: {pb.height} buildings people go to (venues, churches, workplaces)")
+
+
+def raise_floors(roster: pl.DataFrame):
+    """A building with apartments on more floors than the building layer gives it (a floor plan, a hall's known
+    stories) gets those floors and a height to match, in buildings.parquet and the map's 3D file."""
+    from .buildings import OUT, STOREY_M, write_web
+    b = pl.read_parquet(OUT)
+    need = roster.group_by("building_id").agg((pl.col("floor").max() + 1).alias("need"))
+    j = b.select("building_id", "floors").join(need, on="building_id", how="left")
+    up = (j["need"].fill_null(0) > j["floors"]).to_numpy()
+    if not up.any():
+        return
+    nf = np.where(up, j["need"].fill_null(0).to_numpy(), b["floors"].to_numpy())
+    h = np.where(up, np.maximum(b["height_m"].to_numpy(), nf * STOREY_M + 1.0), b["height_m"].to_numpy())
+    src = np.where(up, "roster", b["floors_src"].to_numpy())
+    b = b.with_columns(floors=pl.Series(nf.astype(np.int64)), height_m=pl.Series(h.round(1)), floors_src=pl.Series(src))
+    b.write_parquet(OUT, compression="zstd", compression_level=19)
+    write_web(b)
+    print(f"raised {int(up.sum())} buildings to the floors their apartments are on")
 
 
 def place_buildings(fp: Footprints) -> pl.DataFrame:

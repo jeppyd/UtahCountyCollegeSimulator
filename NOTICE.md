@@ -17,6 +17,9 @@
   restaurants; not yet used) are CDLA-Permissive-2.0.
 - **BYU Housing** published facts (buildings, floors, layouts, rents) behind `ucsim/config/places/flagship.yaml`;
   each value cites its page.
+- **BYU Facilities Planning** floor plans (supplied by the project owner): only derived counts and approximate
+  positions are included (`ucsim/geo/data/plan_units.parquet`, `ucsim/geo/data/classrooms.parquet`, the plan-based
+  counts in `flagship.yaml`); the plans themselves are not in this repository.
 - **Utah Transit Authority (UTA)**: travel times by transit are derived from UTA's public GTFS schedule feed
   (https://gtfsfeed.rideuta.com/GTFS.zip). The feed itself is not included in this repository. UTA's terms of use
   were listed at http://developer.rideuta.com/TermsOfUse.aspx (no longer reachable when checked on 2026-10-20).

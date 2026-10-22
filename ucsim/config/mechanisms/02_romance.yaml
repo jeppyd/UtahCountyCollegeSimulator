@@ -28,13 +28,14 @@ mechanisms:
     target: dating_motivation
     sources: [wants_relationship, drive_partnership, age, activity, mission_status, extraversion, depressive_episode,
               drive_achievement, drive_security, drive_rest]
-    form: "m = logistic(base + βw·wants + βl·partnership drive/0.55 + βn·marriage_norm·age_norm·active + 0.4·recent RM + 0.25·E − 0.8·depressed − βc·(achievement + security + rest drives)/0.55)"
+    form: "m = logistic(base + βw·wants + βl·partnership drive/0.55 + βn·marriage_norm·age_norm·active + 0.4·recent RM + βE·E − 0.8·depressed − βc·(achievement + security + rest drives)/0.55)"
     params:
       base: {value: -0.5, range: [-1.5, 0.5]}
       wants: {value: 1.0, range: [0.4, 1.6]}
       longing: {value: 1.5, range: [0.5, 2.5]}
       marriage_norm: {value: 1.0, range: [0.3, 1.8]}
       competing: {value: 0.4, range: [0.1, 0.9]}
+      extraversion: {value: 0.55, range: [0.1, 0.9]}     # was 0.25; Psych 308 (BYU 2020): outgoing singles date more, r = 0.37
     evidence: hypothetical
     desc: >-
       Encodes the strong LDS young-adult marriage norm (returned missionaries are expected to date toward marriage). Longing
@@ -43,8 +44,8 @@ mechanisms:
   romance.ask:
     label: Asking someone out
     target: dates_30d
-    sources: [crush attraction, dating_motivation, self_esteem, expect_accept, sex, dating_propensity, asks_for_numbers]
-    form: "P/day = logistic(base + βa·attraction + βm·motivation + βc·confidence + βe·(logit expected yes − logit 0.6) + βb·(believed interest − 0.15) ± βmale·norm + βp·log(propensity)) × weekday factor"
+    sources: [crush attraction, dating_motivation, self_esteem, expect_accept, sex, dating_propensity, asks_for_numbers, extraversion]
+    form: "P/day = logistic(base + βa·attraction + βm·motivation + βc·confidence + βe·(logit expected yes − logit 0.6) + βb·(believed interest − 0.15) ± βmale·norm + βp·log(propensity) + βE·E) × weekday factor"
     params:
       base: {value: -4, range: [-5.5, -2.5]}
       attraction: {value: 2.5, range: [1, 4]}
@@ -54,6 +55,7 @@ mechanisms:
       male: {value: 1.0, range: [0.3, 1.8]}
       propensity: {value: 0.6, range: [0.2, 1.0]}
       min_attraction: {value: 0.25, range: [0.1, 0.4]}
+      extraversion: {value: 1.0, range: [0.0, 1.5]}      # boldness: outgoing people ask more (Psych 308, BYU 2020: r = 0.37 with dates)
     evidence: empirical
     refs: ["Dating survey: most agree men should make the first move", "ProvoStats: dates per month by sex/relationship/activity"]
     desc: >-

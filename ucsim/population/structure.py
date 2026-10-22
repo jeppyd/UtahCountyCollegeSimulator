@@ -22,6 +22,10 @@ def km(lon1, lat1, lon2, lat2):
     return np.hypot((np.asarray(lon1) - lon2) * KX, (np.asarray(lat1) - lat2) * KY)
 
 
+ORIGIN = (-111.70, 40.26)                    # plan positions are metres east/north of here (engine/placement.py)
+KXM, KYM = 111_320 * np.cos(np.radians(40.26)), 111_320.0
+
+
 @dataclass
 class Units:
     lon: np.ndarray
@@ -42,6 +46,7 @@ class Units:
     building_id: np.ndarray | None = None  # row of ucsim/geo/data/buildings.parquet the home is in, −1 unknown
     floor: np.ndarray | None = None        # 0 = ground floor
     label: list | None = None              # apartment label from the county's address ("Bldg 13 Apt 3102"), or ""
+    placed: np.ndarray | None = None       # lon/lat is the apartment's own spot (from a floor plan), not its building's
     # bedrooms: unit u has rooms room0[u] … room0[u] + n_rooms[u] − 1; room_cap = beds in each, room_unit = its unit
     room0: np.ndarray | None = None
     n_rooms: np.ndarray | None = None
@@ -63,7 +68,7 @@ class Units:
     def add_unit(self, rooms: list[int], **cols):
         """Append one unit (interventions that build housing); `cols` gives its other fields (scalars)."""
         for f in ("lon", "lat", "rent_total", "contracted", "sex_restriction", "married_only", "unit_type", "complex_id",
-                  "city", "quality", "kind_src", "nbhd", "real_ward", "building_id", "floor"):
+                  "city", "quality", "kind_src", "nbhd", "real_ward", "building_id", "floor", "placed"):
             arr = getattr(self, f)
             if arr is not None:
                 default = {"building_id": -1, "real_ward": -1}.get(f, 0)
@@ -181,9 +186,14 @@ def build_units(scale: float, rng: np.random.Generator) -> tuple[Units, pl.DataF
         family = comm == "family"
         for r in g[take].iter_rows(named=True):
             bi = int(r["building_id"])
-            extra.append((blon[bi], blat[bi], int(sum(r["bedrooms"])), not family, family,
+            lo_, la_, at = blon[bi], blat[bi], False
+            if r.get("x_m") is not None:          # the apartment's own spot on the building (BYU floor plans)
+                lo_ = ORIGIN[0] + r["x_m"] / KXM
+                la_ = ORIGIN[1] + r["y_m"] / KYM
+                at = True
+            extra.append((lo_, la_, int(sum(r["bedrooms"])), not family, family,
                           3 if family else (0 if hall else 1), row["complex_id"], 5 if family else 4,
-                          bi, int(r["floor"]), r["label"], list(r["bedrooms"]), {"F": 1, "M": 2}.get(r["sex"], 0)))
+                          bi, int(r["floor"]), r["label"], list(r["bedrooms"]), {"F": 1, "M": 2}.get(r["sex"], 0), at))
     # named complexes whose outline holds more apartments than county address points show (OSM footprint × floors)
     if "extra_units" in cx.columns:
         for row in cx.filter(pl.col("extra_units") > 0).iter_rows(named=True):
@@ -195,7 +205,7 @@ def build_units(scale: float, rng: np.random.Generator) -> tuple[Units, pl.DataF
                 c_ = int(rng.choice([4, 6]) if row["contracted"] else rng.choice([2, 3, 4]))
                 extra.append((row["lon"] + rad[i] * np.cos(ang[i]) * 1.3, row["lat"] + rad[i] * np.sin(ang[i]),
                               c_, bool(row["contracted"]), False, 1, row["complex_id"], 2,
-                              -1, 0, "", default_bedrooms(2, c_, bool(row["contracted"])), 0))
+                              -1, 0, "", default_bedrooms(2, c_, bool(row["contracted"])), 0, False))
     if extra:
         ex = np.array(extra, dtype=object)
         lon = np.concatenate([lon, ex[:, 0].astype(float)])
@@ -213,15 +223,17 @@ def build_units(scale: float, rng: np.random.Generator) -> tuple[Units, pl.DataF
         labels = labels + [str(x) for x in ex[:, 10]]
         rooms = rooms + [list(x) for x in ex[:, 11]]
         sexr = np.concatenate([np.zeros(n, np.uint8), ex[:, 12].astype(np.uint8)])
+        placed = np.concatenate([np.zeros(n, bool), ex[:, 13].astype(bool)])
     else:
         married_only = np.zeros(n, bool)
         sexr = np.zeros(n, np.uint8)
+        placed = np.zeros(n, bool)
     m = len(lon)
     units = Units(lon=lon, lat=lat, capacity=cap.astype(np.uint8), rent_total=np.zeros(m, np.float32),
                   contracted=contracted.astype(bool), sex_restriction=sexr,
                   married_only=married_only, unit_type=utype.astype(np.uint8), complex_id=cid.astype(np.int32),
                   city=city.astype(np.int8), quality=quality, kind_src=k.astype(np.int8),
-                  nbhd=neighborhoods.locate(lon, lat), building_id=bldg, floor=floor, label=labels)
+                  nbhd=neighborhoods.locate(lon, lat), building_id=bldg, floor=floor, label=labels, placed=placed)
     units.set_rooms(rooms)
     # complexes the map data only knows by address get their name from the ward listing
     names = cx["name"].to_list()

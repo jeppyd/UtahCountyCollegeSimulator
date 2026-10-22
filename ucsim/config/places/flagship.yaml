@@ -37,14 +37,14 @@ flagship:
     complex: Heritage Halls
     buildings: {name_prefix: "Heritage Halls Building"}
     floors: 4
-    units_from: addresses
-    street: "825 E HERITAGE DR"
-    layouts:
-      - {share: 0.80, bedrooms: [2, 2, 2], baths: 2, words: "three shared bedrooms, two bathrooms"}
-      - {share: 0.12, bedrooms: [2, 2], baths: 1, words: "two shared bedrooms, one bathroom"}
-      - {share: 0.08, bedrooms: [1, 1], baths: 1, words: "two private bedrooms, one bathroom (one is the RA's)"}
-    estimate: [layouts.share]
+    units_from: plans         # every apartment from BYU Facilities Planning's floor plans (geo/floorplans.py)
+    by_bedrooms:
+      3: {baths: 2, words: "three shared bedrooms, two bathrooms"}
+      2: {baths: 2, words: "two shared bedrooms, two bathrooms"}
+      1: {baths: 1, words: "one shared bedroom"}
     sources:
+      - "BYU Facilities Planning floor plans, HR02–HR16 (Revit, 2019; supplied by the owner): 605 apartments, 467 with
+        three bedrooms (C, D, E) and 137 with two, two beds a bedroom, 3,356 beds; each apartment placed on its footprint"
       - "BYU Housing, Heritage Halls: most apartments have three shared bedrooms and two bathrooms; a few two-bedroom apartments"
       - "Wikipedia: L-shaped buildings, 4 stories, about 210 students each, about 2,750 in all"
       - "Utah County address points: 825 E Heritage Dr, Bldg 2–16, Apt fwnn"
@@ -76,17 +76,22 @@ flagship:
     # both communities live here (BYU lists both): the south half single students, the north half families —
     # confirmed by the owner (2026-10-21); Wikipedia: the southern half was converted to single housing in 2006
     split: {family: north, share_family: 0.5}
+    # BYU floor plans WP01–WP30: 426 apartments (as many as the county's address points), every building with one
+    # three-bedroom apartment a floor (90 in all) and the rest two-bedroom; the three-bedroom one is taken to be the
+    # highest-numbered on its floor (the plans' end units)
+    three_bedroom_per_floor: 1
     family_layouts:
-      - {share: 0.6, bedrooms: [2, 2], baths: 1, words: "two bedrooms, about 700 sq ft, up to four, $1,055 a month"}
-      - {share: 0.4, bedrooms: [2, 2, 2], baths: 1, words: "three bedrooms, about 850 sq ft, up to six, $1,215"}
+      - {share: 0.79, bedrooms: [2, 2], baths: 1, words: "two bedrooms, about 700 sq ft, up to four, $1,055 a month"}
+      - {share: 0.21, bedrooms: [2, 2, 2], baths: 1, words: "three bedrooms, about 850 sq ft, up to six, $1,215"}
     # singles: "a kitchen among three to four tenants": three or four people per apartment, shared and private rooms
     layouts:
       - {share: 0.35, bedrooms: [2, 2], baths: 1, words: "two shared bedrooms, one bathroom"}
       - {share: 0.15, bedrooms: [2, 1], baths: 1, words: "two bedrooms, one shared and one private"}
       - {share: 0.30, bedrooms: [2, 1, 1], baths: 1, words: "three bedrooms (one shared), one bathroom"}
       - {share: 0.20, bedrooms: [1, 1, 1], baths: 1, words: "three private bedrooms, one bathroom"}
-    estimate: [layouts.share, floors]
+    estimate: [layouts.share]
     sources:
+      - "BYU Facilities Planning floor plans WP01–WP30 (Revit, 2023; supplied by the owner): 3 floors; 12 or 18 apartments a building, 336 two-bedroom and 90 three-bedroom"
       - "BYU Housing, family housing options: Wyview 2-bedroom ~700 sq ft (max 4) $1,055, 3-bedroom ~850 sq ft (max 6) $1,215"
       - "BYU Housing, 19 and older community (2026–27): two or three bedrooms and one bathroom; private and shared rooms; kitchen shared by three to four tenants; $3,445 shared, $4,440 private; single students 19+"
       - "Wikipedia: 30 buildings; converted to single housing from 2006; houses married and single students"

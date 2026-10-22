@@ -77,30 +77,11 @@ class Layout:
         self.z0 = np.zeros(m)
         self.bi, self.fl = bi.astype(np.int32), fl.astype(np.int8)
         has = bi >= 0
-        if has.any():
-            ids = np.flatnonzero(has)
-            order = np.lexsort((ids, fl[ids], bi[ids]))
-            ids = ids[order]
-            key = bi[ids].astype(np.int64) * 64 + fl[ids]
-            start = np.r_[0, np.flatnonzero(np.diff(key)) + 1]
-            cnt = np.diff(np.r_[start, len(ids)])
-            rank = np.arange(len(ids)) - np.repeat(start, cnt)
-            n_on = np.repeat(cnt, cnt)
-            bx, by, ca, sa, L, W = _frame(bi[ids])
-            rows = np.where((n_on > 2) & (W > 7.0), 2, 1)
-            per_row = np.ceil(n_on / rows).astype(int)
-            row = rank // per_row
-            col = rank % per_row
-            corridor = np.where(rows == 2, 1.0, 0.0)
-            cell_l = 2 * L / per_row
-            cell_w = (2 * W - corridor * 2) / rows
-            u = -L + (col + 0.5) * cell_l
-            v = np.where(rows == 2, np.where(row == 0, -(corridor + cell_w / 2), corridor + cell_w / 2), 0.0)
-            self.cx[ids] = bx + u * ca - v * sa
-            self.cy[ids] = by + u * sa + v * ca
-            self.ux[ids], self.uy[ids] = ca, sa
-            self.hl[ids], self.hw[ids] = np.maximum(cell_l / 2 * 0.92, 1.0), np.maximum(cell_w / 2 * 0.92, 1.0)
-            self.z0[ids] = fl[ids] * STOREY
+        placed = has & (U.placed if getattr(U, "placed", None) is not None else np.zeros(m, bool))
+        if placed.any():
+            self._placed(np.flatnonzero(placed), bi, fl)
+        if (has & ~placed).any():
+            self._cells(np.flatnonzero(has & ~placed), bi, fl)
         # homes with no footprint (a few address points): several at one point are spread 9 m apart on a grid
         nob = np.flatnonzero(~has)
         if len(nob):
@@ -118,9 +99,99 @@ class Layout:
         self.upstairs = np.zeros(m, np.int16)
         if has.any():
             n_in = np.bincount(bi[has], minlength=B["n"])
-            alone = has & (n_in[np.maximum(bi, 0)] == 1)
+            alone = has & (n_in[np.maximum(bi, 0)] == 1) & (fl == 0)   # (an upstairs flat alone in a scaled world: no)
             self.upstairs[alone] = np.maximum(B["floors"][bi[alone]] - 1, 0)
         self.room0, self.n_rooms, self.room_cap = U.room0, U.n_rooms.astype(np.int32), U.room_cap
+
+    def _placed(self, ids: np.ndarray, bi: np.ndarray, fl: np.ndarray):
+        """Homes whose own spot is known (BYU floor plans): the cell sits there, along the wing it is in, as long as
+        the spacing to its neighbours on the floor allows, as wide as its side of the corridor."""
+        from . import places
+        order = np.lexsort((ids, fl[ids], bi[ids]))
+        ids = ids[order]
+        key = bi[ids].astype(np.int64) * 64 + fl[ids]
+        start = np.r_[0, np.flatnonzero(np.diff(key)) + 1]
+        for s0, e0 in zip(start, np.r_[start[1:], len(ids)]):
+            uu = ids[s0:e0]
+            W = places.wings_of(int(bi[uu[0]]))
+            px, py = self.cx[uu], self.cy[uu]
+            for k, u in enumerate(uu):
+                # the wing it is in (else the nearest): direction, and which side of the corridor
+                best, bd = 0, np.inf
+                for j, (wx, wy, a, L, Wd) in enumerate(W):
+                    ca, sa = np.cos(a), np.sin(a)
+                    du, dv = (px[k] - wx) * ca + (py[k] - wy) * sa, -(px[k] - wx) * sa + (py[k] - wy) * ca
+                    d = max(abs(du) - L, 0) + max(abs(dv) - Wd, 0)
+                    if d < bd:
+                        best, bd = j, d
+                wx, wy, a, L, Wd = W[best]
+                ca, sa = np.cos(a), np.sin(a)
+                du = (px - wx) * ca + (py - wy) * sa
+                dv = -(px - wx) * sa + (py - wy) * ca
+                same_side = np.abs(dv - dv[k]) < 2.5
+                gap = np.abs(du - du[k])[same_side]
+                gap = gap[gap > 0.5]
+                hl = float(np.clip((gap.min() if len(gap) else 2 * L) / 2 * 0.94, 2.0, 7.0))
+                double = Wd > 4.5
+                hw = (Wd - 0.9) / 2 * 0.94 if double else Wd - 0.4
+                v = (np.sign(dv[k]) * (0.9 + hw / 0.94) if double and abs(dv[k]) > 0.5 else 0.0)
+                v = float(np.clip(v, -(Wd - hw), Wd - hw))
+                u_ = float(np.clip(du[k], -L + hl, L - hl)) if L > hl else 0.0
+                self.cx[u], self.cy[u] = wx + u_ * ca - v * sa, wy + u_ * sa + v * ca
+                self.ux[u], self.uy[u] = ca, sa
+                self.hl[u], self.hw[u] = hl, max(hw, 1.0)
+                self.z0[u] = fl[u] * STOREY
+
+    def _cells(self, ids: np.ndarray, bi: np.ndarray, fl: np.ndarray):
+        """Lay the homes of each building floor along its wings (the real footprint as rectangles: an L-shaped hall
+        has two wings): homes shared among the wings by their length, side by side along each wing, in two rows with
+        a corridor when the wing is wide enough."""
+        from . import places
+        order = np.lexsort((ids, fl[ids], bi[ids]))
+        ids = ids[order]
+        key = bi[ids].astype(np.int64) * 64 + fl[ids]
+        start = np.r_[0, np.flatnonzero(np.diff(key)) + 1]
+        cnt = np.diff(np.r_[start, len(ids)])
+        # one home on its floor (houses, mostly): the largest wing, all at once
+        one = ids[start[cnt == 1]]
+        if len(one):
+            W0 = np.array([places.wings_of(int(b))[0] for b in bi[one]])
+            self.cx[one], self.cy[one] = W0[:, 0], W0[:, 1]
+            self.ux[one], self.uy[one] = np.cos(W0[:, 2]), np.sin(W0[:, 2])
+            self.hl[one], self.hw[one] = np.maximum(W0[:, 3] - 0.4, 1.0), np.maximum(W0[:, 4] - 0.4, 1.0)
+            self.z0[one] = fl[one] * STOREY
+        for s0, c in zip(start[cnt > 1].tolist(), cnt[cnt > 1].tolist()):
+            uu = ids[s0:s0 + c]
+            W = places.wings_of(int(bi[uu[0]]))
+            if c == 1 or len(W) == 1:
+                wi = np.zeros(c, np.int64)
+            else:
+                # homes per wing by the length of corridor each offers (two rows on a wide wing)
+                cap = 2 * W[:, 3] * np.where(W[:, 4] > 3.5, 2, 1)
+                q = cap / cap.sum() * c
+                k = np.floor(q).astype(int)
+                k[np.argsort(-(q - k))[: c - k.sum()]] += 1
+                wi = np.repeat(np.arange(len(W)), k)
+            for j in np.unique(wi):
+                sel = uu[wi == j]
+                n_on = len(sel)
+                wx, wy, a, L, Wd = W[j]
+                L, Wd = max(L - 0.4, 1.0), max(Wd - 0.4, 1.0)
+                ca, sa = np.cos(a), np.sin(a)
+                rows = 2 if (n_on > 2 and Wd > 3.5) else 1
+                per_row = int(np.ceil(n_on / rows))
+                rank = np.arange(n_on)
+                row, col = rank // per_row, rank % per_row
+                corridor = 1.0 if rows == 2 else 0.0
+                cell_l = 2 * L / per_row
+                cell_w = (2 * Wd - corridor * 2) / rows
+                u = -L + (col + 0.5) * cell_l
+                v = np.where(rows == 2, np.where(row == 0, -(corridor + cell_w / 2), corridor + cell_w / 2), 0.0)
+                self.cx[sel] = wx + u * ca - v * sa
+                self.cy[sel] = wy + u * sa + v * ca
+                self.ux[sel], self.uy[sel] = ca, sa
+                self.hl[sel], self.hw[sel] = max(cell_l / 2 * 0.94, 1.0), max(cell_w / 2 * 0.94, 1.0)
+                self.z0[sel] = fl[sel] * STOREY
 
     def living(self, u: np.ndarray):
         """Centre of each unit's living area (the first slice of the apartment), and its height."""
@@ -263,6 +334,122 @@ def campus_buildings(school: int) -> np.ndarray:
     return _CAMPUS[school]
 
 
+# ---------------------------------------------------------------------- seats inside buildings
+AMBIENT = ("venue", "gym", "campus", "complex", "dance", "outdoors")   # the place is shared by strangers
+SEAT_M = 1.0
+
+
+def _hilbert(xi: np.ndarray, yi: np.ndarray, order: int) -> np.ndarray:
+    """Hilbert-curve index of integer grid points (0 ≤ x, y < 2**order): neighbours along it are neighbours in space."""
+    x, y = xi.astype(np.int64).copy(), yi.astype(np.int64).copy()
+    d = np.zeros(len(x), np.int64)
+    s_ = 1 << (order - 1)
+    while s_ > 0:
+        rx = ((x & s_) > 0).astype(np.int64)
+        ry = ((y & s_) > 0).astype(np.int64)
+        d += s_ * s_ * ((3 * rx) ^ ry)
+        flip = ry == 0
+        sw = flip & (rx == 1)
+        x[sw], y[sw] = s_ - 1 - x[sw], s_ - 1 - y[sw]
+        x[flip], y[flip] = y[flip].copy(), x[flip].copy()
+        s_ >>= 1
+    return d
+
+
+_GRID: dict = {}
+
+
+def grid(b: int, spacing: float = SEAT_M) -> np.ndarray:
+    """Seat points (x, y) inside building b — on its wings, off the walls — ordered along a Hilbert curve so that a
+    run of consecutive seats is a compact patch."""
+    key = (b, round(spacing, 2))
+    g = _GRID.get(key)
+    if g is None:
+        from . import places
+        pts = []
+        for cx, cy, a, hl, hw in places.wings_of(b):
+            nu = max(int((2 * hl - 1.0) // spacing) + 1, 1)
+            nv = max(int((2 * hw - 1.0) // spacing) + 1, 1)
+            iu, iv = np.meshgrid(np.arange(nu), np.arange(nv), indexing="ij")
+            iu, iv = iu.ravel(), iv.ravel()
+            order = max(int(np.ceil(np.log2(max(nu, nv, 2)))), 1)
+            h = np.argsort(_hilbert(iu, iv, order), kind="stable")
+            u = (iu[h] - (nu - 1) / 2) * spacing
+            v = (iv[h] - (nv - 1) / 2) * spacing
+            ca, sa = np.cos(a), np.sin(a)
+            pts.append(np.c_[cx + u * ca - v * sa, cy + u * sa + v * ca])
+        g = np.concatenate(pts) if pts else np.zeros((1, 2))
+        # only seats truly inside the outline (a wing can poke past a concave corner)
+        from ..geo.buildings import inside
+        ok = inside(g[:, 0], g[:, 1], places.footprints()["rings"][b])
+        if ok.sum() >= max(1, len(g) // 4):
+            g = g[ok]
+        if len(_GRID) > 20_000:
+            _GRID.clear()
+        _GRID[key] = g
+    return g
+
+
+def seat_in_buildings(bld: np.ndarray, floor: np.ndarray, gkey: np.ndarray, ids: np.ndarray):
+    """Seats for people in buildings: per building floor, the groups (by gkey, in key order) take runs of seats along
+    the floor's grid, spread evenly with free seats between them; a group's members sit side by side. When a floor is
+    full the seats get closer (down to 0.5 m)."""
+    k = len(bld)
+    sx, sy = np.zeros(k), np.zeros(k)
+    order = np.lexsort((ids, gkey, floor, bld))
+    b_s, f_s, g_s = bld[order], floor[order], gkey[order]
+    cell = np.r_[True, (b_s[1:] != b_s[:-1]) | (f_s[1:] != f_s[:-1])]
+    newg = cell | np.r_[True, g_s[1:] != g_s[:-1]]
+    c_start = np.flatnonzero(cell)
+    c_end = np.r_[c_start[1:], k]
+    for s0, e0 in zip(c_start.tolist(), c_end.tolist()):
+        D = e0 - s0
+        gs = np.cumsum(newg[s0:e0]) - 1                     # group number within the floor
+        G = int(gs[-1]) + 1
+        b = int(b_s[s0])
+        pts = grid(b)
+        if D + G > len(pts):
+            pts = grid(b, max(0.5, SEAT_M * np.sqrt(len(pts) / (D + G)) * 0.95))
+        C = len(pts)
+        free = max(C - D, 0)
+        pos = np.arange(D) + (gs * free) // max(G, 1) + (free // (2 * G) if G else 0)
+        pos = np.minimum(pos, C - 1) if C >= D else pos % C
+        o = order[s0:e0]
+        sx[o], sy[o] = pts[pos, 0], pts[pos, 1]
+    return sx, sy
+
+
+def seat_around(bld: np.ndarray, floor: np.ndarray, gkey: np.ndarray, ids: np.ndarray, ax: np.ndarray, ay: np.ndarray):
+    """Seats for groups that meet at a spot inside their building (a class in its classroom): the free seats of the
+    building's grid nearest the spot, group by group (bigger first), so neighbouring rooms don't overlap."""
+    k = len(bld)
+    sx, sy = np.zeros(k), np.zeros(k)
+    order = np.lexsort((ids, gkey, floor, bld))
+    b_s, f_s, g_s = bld[order], floor[order], gkey[order]
+    cell = np.r_[True, (b_s[1:] != b_s[:-1]) | (f_s[1:] != f_s[:-1])]
+    c_start = np.flatnonzero(cell)
+    for s0, e0 in zip(c_start.tolist(), np.r_[c_start[1:], k].tolist()):
+        o = order[s0:e0]
+        pts = grid(int(b_s[s0]), 0.9)
+        if len(pts) < len(o):
+            pts = grid(int(b_s[s0]), max(0.5, 0.9 * np.sqrt(len(pts) / len(o)) * 0.95))
+        used = np.zeros(len(pts), bool)
+        gk = gkey[o]
+        groups = sorted(np.unique(gk).tolist(), key=lambda g_: (-(gk == g_).sum(), g_))
+        for g_ in groups:
+            mem = o[gk == g_]
+            j0 = mem[0]
+            d = np.hypot(pts[:, 0] - ax[j0], pts[:, 1] - ay[j0])
+            d[used] = np.inf
+            take = np.argsort(d, kind="stable")[: len(mem)]
+            take = take[np.isfinite(d[take])]
+            if len(take) < len(mem):                     # the floor is full: share seats
+                take = np.r_[take, np.argsort(np.hypot(pts[:, 0] - ax[j0], pts[:, 1] - ay[j0]))[: len(mem) - len(take)]]
+            used[take] = True
+            sx[mem], sy[mem] = pts[take, 0], pts[take, 1]
+    return sx, sy
+
+
 # ---------------------------------------------------------------------- everyone
 def frame(sim, ctype=None, cid=None, act=None) -> dict:
     """What placement needs, copied and compact (23 bytes a person): contexts (activity's, or the ones given), the place
@@ -332,49 +519,61 @@ def place(sim, f: dict) -> dict:
         x[ii], y[ii], z[ii] = lx + ox, ly + oy, lz
         bld[ii], flo[ii] = L.bi[uu], L.fl[uu]
 
-    # everywhere else: the place's point from the simulation, people sharing it seated around it
+    # everywhere else: inside the building the simulation's place is in (engine/places.py), on a floor, seated on a
+    # grid over the real footprint — strangers spread out, a group (a class, a date, a ward, a club) together
     rest = present & np.isnan(x) & (ctype != NONE)
     if rest.any():
+        from . import places
         ii = np.flatnonzero(rest)
         px, py = to_xy(f["lon"][ii], f["lat"][ii])
-        # classes: a real teaching building of that campus, and a floor
-        cls = ctype[ii] == CTX_ID["class"]
-        if cls.any():
-            ac = sim.systems["academics"]
-            sec = cid[ii][cls]
-            sch = ac.sec_school[sec]
-            B = buildings()
-            for s in (1, 2):
-                cb = campus_buildings(s)
-                mm = sch == s
-                if not len(cb) or not mm.any():
-                    continue
-                b = cb[(ac.sec_bldg[sec[mm]].astype(np.int64) * 7 + sec[mm]) % len(cb)]
-                k = np.flatnonzero(cls)[mm]
-                px[k], py[k] = B["x"][b], B["y"][b]
-                f = (sec[mm] % np.maximum(B["floors"][b], 1)).astype(np.int8)
-                z[ii[k]] = f * STOREY + EYE
-                bld[ii[k]], flo[ii[k]] = b, f
-        # hanging out on campus: spread over the campus's buildings (library, student centre…) by person
-        camp = ctype[ii] == CTX_ID["campus"]
-        if camp.any():
-            B = buildings()
-            for s in (1, 2):
-                cb = campus_buildings(s)[:12]
-                mm = camp & (cid[ii] == s)
-                if len(cb) and mm.any():
-                    b = cb[(ii[mm] * 7919) % len(cb)]
-                    px[mm], py[mm] = B["x"][b], B["y"][b]
-                    bld[ii[mm]] = b
-        gkey = np.where(cls | camp, bld[ii].astype(np.int64) * 1000 + (cid[ii] % 997), cid[ii])
-        g = np.full(n, -1, np.int64)
-        g[ii] = gkey
-        rank, size = group_rank(ctype, g, ii)
-        spacing = np.where(size > 200, 0.55, 0.8)
-        ox, oy = seat_offsets(rank, size, 0.8)
-        ox, oy = ox * spacing / 0.8, oy * spacing / 0.8
-        # several groups at one spot (two couples at a restaurant, two wards in a meetinghouse): each its own table
-        tx, ty = table_offsets(px, py, ctype[ii].astype(np.int64) * (1 << 40) + gkey + 1, size)
-        x[ii], y[ii] = px + tx + ox, py + ty + oy
-        z[ii] = np.where(z[ii] > 0, z[ii], EYE)
+        pb = places.containing(px, py) if places.available() else np.full(len(ii), -1, np.int64)
+        ct, ci = ctype[ii].astype(np.int64), cid[ii].astype(np.int64)
+        B = buildings()
+        nfl = np.where(pb >= 0, np.maximum(B["floors"][np.maximum(pb, 0)], 1), 1).astype(np.int64)
+        fl = np.zeros(len(ii), np.int64)
+        cls = ct == CTX_ID["class"]
+        anchor = np.zeros(len(ii), bool)
+        if cls.any():                                            # a section's classroom: its building, floor and spot
+            _, _, rf, rb = sim.systems["academics"].section_point(ci[cls])
+            k = np.flatnonzero(cls)
+            pb[k] = np.where(rb >= 0, rb, pb[k])
+            known = sim.systems["academics"].sec_room[ci[cls]] >= 0 if len(sim.systems["academics"].sec_room) else np.zeros(len(k), bool)
+            fl[k] = np.where(known, rf, (ci[cls] * 7) % nfl[k])
+            anchor[k] = True
+        wk = ct == CTX_ID["work"]
+        fl[wk] = ci[wk] % nfl[wk]                                # an employer on one floor
+        sp = ct == CTX_ID["campus"]
+        fl[sp] = ii[sp] % nfl[sp]                                # people about campus on every floor
+        grp = np.isin(ct, [CTX_ID[k] for k in ("club", "institute")])
+        fl[grp] = ci[grp] % nfl[grp]
+        # who sits together: everyone in one group (same context); strangers at a venue, a gym, about campus alone
+        alone = np.isin(ct, [CTX_ID[k] for k in AMBIENT])
+        gkey = np.where(alone, -(ii.astype(np.int64) + 1), ct * (1 << 40) + ci)
+        inb = (pb >= 0) & ~anchor
+        if inb.any():
+            sx, sy = seat_in_buildings(pb[inb], fl[inb], gkey[inb], ii[inb])
+            k = ii[inb]
+            x[k], y[k] = sx, sy
+            z[k] = fl[inb] * STOREY + EYE
+            bld[k], flo[k] = pb[inb], fl[inb]
+        ina = (pb >= 0) & anchor
+        if ina.any():                                            # classes: seated around their room's spot
+            sx, sy = seat_around(pb[ina], fl[ina], gkey[ina], ii[ina], px[ina], py[ina])
+            k = ii[ina]
+            x[k], y[k] = sx, sy
+            z[k] = fl[ina] * STOREY + EYE
+            bld[k], flo[k] = pb[ina], fl[ina]
+        # outdoors (a park, a trailhead) or a place with no footprint: seated around the point
+        out = pb < 0
+        if out.any():
+            oi = ii[out]
+            g = np.full(n, -1, np.int64)
+            g[oi] = np.where(alone[out], ci[out], gkey[out])
+            rank, size = group_rank(ctype, g, oi)
+            spacing = np.where(size > 200, 0.55, 0.8)
+            ox, oy = seat_offsets(rank, size, 0.8)
+            ox, oy = ox * spacing / 0.8, oy * spacing / 0.8
+            tx, ty = table_offsets(px[out], py[out], ctype[oi].astype(np.int64) * (1 << 40) + g[oi] + 1, size)
+            x[oi], y[oi] = px[out] + tx + ox, py[out] + ty + oy
+            z[oi] = EYE
     return {"x": x.astype(np.float32), "y": y.astype(np.float32), "z": z.astype(np.float32), "building": bld, "floor": flo}

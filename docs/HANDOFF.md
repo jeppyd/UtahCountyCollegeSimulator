@@ -72,7 +72,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [messaging](workstreams/messaging.md) (wave 2) | **done, merged** | working branch | open issues below |
 | [institutions](workstreams/institutions.md) (wave 2) | **done, merged** | working branch | open issues below |
 | [family-homes](workstreams/family-homes.md) (wave 2) | **done, merged** | working branch | open issues below |
-| Real BYU class schedule (`geo/schedule.py`, academics `_real_sections`) | **done, PR open** | branch `claude/project-thread-qzhs7j` | UVU schedule if public; Spring/Summer terms; cross-listed sections share a room |
+| Real class schedules (`geo/schedule.py`, academics `_real_sections`) | BYU **done, merged**; UVU Fall **done, PR open** | branch `claude/project-thread-wazrz8` | UVU Spring 2027 when published; Spring/Summer terms; cross-listed sections share a room |
 | [survey-followups](workstreams/survey-followups.md) | audits designed, interrupted | — | needs the raw survey files in `data/raw/` |
 | [integration](workstreams/integration.md) | ongoing | — | after each merge |
 | living-map (owner-directed, 2026-10-21) | in progress | `claude/clever-wright-3fh95g` | speed/logs, buildings, bedrooms, 3D map, cards, bedroom-mates done; 2026-10-22: sync check (99.6%+), real places in the backend, Heritage + Wyview + classrooms from BYU plans; next: Wymount/Riviera/LISR plans, elevation, then dashboards |
@@ -95,7 +95,7 @@ institutions, family-homes) can start now too, but coordinate: they touch the sa
   /api/person/{i}/day, /api/person/{i}/choice, /api/act/check, /api/act).
 - Builders' worktrees may start from `main`: merge the working branch first.
 - Calendar: BYU fall classes really begin Wed Sep 2, 2026 (the world still starts Aug 24, so BYU students are between
-  terms for the first nine days; UVU starts Aug 19). Football kickoff times aren't announced (assumed, labelled);
+  terms for the first nine days; UVU starts Aug 19). Football kickoff times are real except Baylor and Cincinnati (TBA);
   Homecoming week, UVU spring break and Stadium of Fire 2027 are estimates. Conference watching is not an occasion
   (faith.py already skips ward meetings on conference weekends). Only BYU students attend calendar football games
   (no community fans). Weather removed the old random "weather" draw, so run outputs differ from before.
@@ -160,6 +160,30 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-22 (3) — Claude Code (cloud session) — UVU's real schedule, real game and devotional times
+- Owner supplied `provo-orem-student-life-research-2026-10-21.zip` (public-source research: UVU's Fall 2026 class
+  schedule, a 2026–27 events list, BYU housing notes for Wymount/Riviera/LISR/Helaman, 15 off-campus complexes with
+  operator bed counts, floor-plan images, a field-level evidence ledger). Unpack it outside the repo; copy `uvu/` to
+  `data/external/uvu_campus/` and run `python -m ucsim.geo.schedule` to rebuild `geo/data/uvu_schedule.parquet`.
+- **UVU students take real Fall sections** (same path as BYU: `real_schedule(term, areas, school)`): 2,673 in-person
+  sections in 17 buildings; UVU's 4-digit course numbers are divided by 10 so GE (< 300) and graduate (500+) rules
+  carry over; no religion class. UVU buildings were mostly one guessed storey in the building layer; 12 now have the
+  floors their rooms are on (room-number estimate, `uvu_floors`). UVU Spring keeps drawn sections. Tests:
+  tests/test_uvu_schedule.py (real courses, no clashes, dots in their building on a real floor, no names).
+- **Calendar:** real kickoff times for five home football games (Baylor, Cincinnati still TBA); the published Fall
+  2026 devotional/forum dates (`published_weekly`, calendar_real; no devotional Nov 24; forums labelled); 32 men's
+  basketball home games as occasions (`basketball_game` BYU at the Marriott Center, ~9% of students a game;
+  `uvu_basketball_game` UVU at the UCCU Center, ~3%; both hypothetical rates); Christmas performances as items.
+  Run outputs differ from before (new occasions).
+- **Not used yet (next steps):** off-campus complex bed counts (Glenwood 1,160, Raintree 924, The Green 1,603,
+  Wolverine Crossing 1,233, Axis 1,044, Liberty Square 808, Alpine Village 665, Village on the Parkway 432,
+  Promenade Place 425; Village at South Campus 940 is a 2023 broker figure) could check or correct complexes.parquet's
+  unit counts (Alpine Village has 34 units there; The Green 416). The package's "Promenade Place" is in Orem (875 S
+  Geneva Rd), not the Provo "Promenade" in complexes.parquet. Housing notes conflict with the owner's plans on LISR
+  (package: three bedrooms, one bath per apartment; plans: 24 two-bedroom apartments) — ask the owner. Riviera's
+  apartment ranges give 137 apartments in buildings A–L. Women's basketball, soccer and volleyball games were left
+  out (no occasion kinds). Plan images were not committed (operator copyright; repo is public).
 
 ### 2026-10-22 (2) — Claude Code (cloud session) — BYU's real class schedule
 - Owner supplied `byu-campus-data-01.zip` (BYU's public class schedule, Fall 2026 + Winter 2027, with rooms, times,

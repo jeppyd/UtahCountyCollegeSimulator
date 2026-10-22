@@ -22,6 +22,12 @@ sources:
   uvu_finals: https://www.uvu.edu/academicscheduling/docs/2026-2027_final_exams_table.pdf
   uvu_future: https://www.uvu.edu/schedule/future.html
   byu_football: https://byucougars.com/news/2026/08/6/fall-camp-week-1-a-look-at-byus-2026-schedule
+  byu_football_home: https://byucougars.com/sports/football/schedule?type=home
+  byu_mbb_home: https://byucougars.com/sports/mens-basketball/schedule?type=home
+  uvu_mbb: https://gouvu.com/sports/mens-basketball/schedule/2026-27
+  byu_devotionals_fall: https://news.byu.edu/fall-2026-devotional-and-forum-schedule
+  pam_living_legends: https://pam.byu.edu/performance-groups/living-legends/
+  pam_celebration_christmas: https://pam.byu.edu/events-posts/celebration-of-christmas-2/
   conference_oct: https://newsroom.churchofjesuschrist.org/event/october-2026-general-conference
 
 places:
@@ -50,29 +56,108 @@ items:
   - {id: byu_classes_begin, label: BYU fall classes begin, date: 2026-09-02, kind: school, basis: real, source: byu_catalog}
   - {id: labor_day, label: Labor Day, date: 2026-09-07, kind: holiday, basis: real, source: byu_catalog, effects: {no_class: [BYU, UVU]}}
 
-  # ---------------------------------------------------------------- BYU home football (kickoff times not yet announced)
-  - {id: fb_utah_tech, label: "BYU football vs Utah Tech", date: 2026-09-05, time: "19:00", place: stadium, kind: football, basis: real,
-     source: byu_football, note: "Kickoff time not announced; 7 pm assumed.", effects: {occasion: {kind: football_game}}}
-  - {id: fb_arizona, label: "BYU football vs Arizona", date: 2026-09-12, time: "19:00", place: stadium, kind: football, basis: real,
-     source: byu_football, note: "Kickoff time not announced; 7 pm assumed.", effects: {occasion: {kind: football_game}}}
+  # ---------------------------------------------------------------- BYU home football (kickoff times from BYU's home schedule,
+  # retrieved 2026-10-21; Baylor and Cincinnati were still to be announced)
+  - {id: fb_utah_tech, label: "BYU football vs Utah Tech", date: 2026-09-05, time: "18:00", place: stadium, kind: football, basis: real,
+     source: byu_football_home, effects: {occasion: {kind: football_game}}}
+  - {id: fb_arizona, label: "BYU football vs Arizona", date: 2026-09-12, time: "13:30", place: stadium, kind: football, basis: real,
+     source: byu_football_home, effects: {occasion: {kind: football_game}}}
   - {id: fb_at_csu, label: "BYU football at Colorado State (away)", date: 2026-09-19, kind: football_away, basis: real, source: byu_football}
   - {id: fb_at_tcu, label: "BYU football at TCU (away, conference Saturday)", date: 2026-10-03, kind: football_away, basis: real, source: byu_football}
-  - {id: fb_iowa_state, label: "BYU football vs Iowa State (Friday)", date: 2026-10-09, time: "19:00", place: stadium, kind: football,
-     basis: real, source: byu_football, note: "A Friday-night game; time assumed.", effects: {occasion: {kind: football_game}}}
+  - {id: fb_iowa_state, label: "BYU football vs Iowa State (Friday)", date: 2026-10-09, time: "20:15", place: stadium, kind: football,
+     basis: real, source: byu_football_home, note: "A Friday-night game.", effects: {occasion: {kind: football_game}}}
   - {id: fb_notre_dame, label: "BYU football vs Notre Dame", date: 2026-10-17, time: "17:30", place: stadium, kind: football, basis: real,
-     source: byu_football, note: "First Notre Dame game in Provo since 2004; time assumed.", effects: {occasion: {kind: football_game}}}
+     source: byu_football_home, note: "First Notre Dame game in Provo since 2004.", effects: {occasion: {kind: football_game}}}
   - {id: fb_at_ucf, label: "BYU football at UCF (away)", date: 2026-10-24, kind: football_away, basis: real, source: byu_football}
-  - {id: fb_arizona_state, label: "BYU football vs Arizona State (Halloween)", date: 2026-10-31, time: "19:00", place: stadium, kind: football,
-     basis: real, source: byu_football, note: "Time assumed.", effects: {occasion: {kind: football_game}}}
+  - {id: fb_arizona_state, label: "BYU football vs Arizona State (Halloween)", date: 2026-10-31, time: "13:30", place: stadium, kind: football,
+     basis: real, source: byu_football_home, effects: {occasion: {kind: football_game}}}
   - {id: fb_at_utah, label: "BYU football at Utah (rivalry, away)", date: 2026-11-07, kind: football_away, basis: real, source: byu_football}
   - {id: fb_baylor, label: "BYU football vs Baylor", date: 2026-11-14, time: "14:00", place: stadium, kind: football, basis: real,
-     source: byu_football, note: "Time assumed (November afternoon).", effects: {occasion: {kind: football_game}}}
+     source: byu_football_home, note: "Kickoff time to be announced; 2 pm assumed (November afternoon).", effects: {occasion: {kind: football_game}}}
   - {id: fb_at_kansas, label: "BYU football at Kansas (away)", date: 2026-11-21, kind: football_away, basis: real, source: byu_football}
   - {id: fb_cincinnati, label: "BYU football vs Cincinnati (Thanksgiving weekend)", date: 2026-11-28, time: "14:00", place: stadium,
-     kind: football, basis: real, source: byu_football, note: "Time assumed; many students are home for Thanksgiving.",
+     kind: football, basis: real, source: byu_football_home, note: "Kickoff time to be announced; 2 pm assumed. Many students are home for Thanksgiving.",
      effects: {occasion: {kind: football_game}}}
   - {id: fb_big12_title, label: "Big 12 Championship (if BYU qualifies)", date: 2026-12-04, time: "18:00", kind: football_away, basis: real,
      source: byu_football, note: "Arlington, Texas; 7 pm CT."}
+
+  # ---------------------------------------------------------------- men's basketball home games (BYU at the Marriott Center,
+  # UVU at the UCCU Center; schools' home schedules retrieved 2026-10-21; games whose time was still TBA are left out)
+  - {id: mbb_nebraska, label: "BYU men's basketball vs Nebraska", date: 2026-10-16, time: "19:00", place: marriott,
+     kind: basketball, basis: real, source: byu_mbb_home, effects: {occasion: {kind: basketball_game}}}
+  - {id: uvu_mbb_western_colorado, label: "UVU men's basketball vs Western Colorado", date: 2026-11-02, time: "18:00", place: uccu,
+     kind: basketball, basis: real, source: uvu_mbb, effects: {occasion: {kind: uvu_basketball_game}}}
+  - {id: mbb_omaha, label: "BYU men's basketball vs Omaha", date: 2026-11-06, time: "19:00", place: marriott,
+     kind: basketball, basis: real, source: byu_mbb_home, effects: {occasion: {kind: basketball_game}}}
+  - {id: mbb_queens, label: "BYU men's basketball vs Queens", date: 2026-11-10, time: "19:00", place: marriott,
+     kind: basketball, basis: real, source: byu_mbb_home, effects: {occasion: {kind: basketball_game}}}
+  - {id: mbb_montana_state, label: "BYU men's basketball vs Montana State", date: 2026-11-12, time: "19:00", place: marriott,
+     kind: basketball, basis: real, source: byu_mbb_home, effects: {occasion: {kind: basketball_game}}}
+  - {id: mbb_northern_colorado, label: "BYU men's basketball vs Northern Colorado", date: 2026-11-18, time: "19:00", place: marriott,
+     kind: basketball, basis: real, source: byu_mbb_home, effects: {occasion: {kind: basketball_game}}}
+  - {id: uvu_mbb_san_jose_state, label: "UVU men's basketball vs San Jose State", date: 2026-11-28, time: "14:00", place: uccu,
+     kind: basketball, basis: real, source: uvu_mbb, effects: {occasion: {kind: uvu_basketball_game}}}
+  - {id: uvu_mbb_sacramento_state, label: "UVU men's basketball vs Sacramento State", date: 2026-12-05, time: "14:00", place: uccu,
+     kind: basketball, basis: real, source: uvu_mbb, effects: {occasion: {kind: uvu_basketball_game}}}
+  - {id: mbb_utah_state, label: "BYU men's basketball vs Utah State", date: 2026-12-09, time: "20:00", place: marriott,
+     kind: basketball, basis: real, source: byu_mbb_home, effects: {occasion: {kind: basketball_game}}}
+  - {id: mbb_cal_state_fullerton, label: "BYU men's basketball vs Cal State Fullerton", date: 2026-12-12, time: "14:30", place: marriott,
+     kind: basketball, basis: real, source: byu_mbb_home, effects: {occasion: {kind: basketball_game}}}
+  - {id: mbb_weber_state, label: "BYU men's basketball vs Weber State", date: 2026-12-15, time: "19:00", place: marriott,
+     kind: basketball, basis: real, source: byu_mbb_home, effects: {occasion: {kind: basketball_game}}}
+  - {id: uvu_mbb_justice, label: "UVU men's basketball vs Justice", date: 2026-12-21, time: "18:00", place: uccu,
+     kind: basketball, basis: real, source: uvu_mbb, effects: {occasion: {kind: uvu_basketball_game}}}
+  - {id: mbb_la_salle, label: "BYU men's basketball vs La Salle", date: 2026-12-22, time: "19:00", place: marriott,
+     kind: basketball, basis: real, source: byu_mbb_home, effects: {occasion: {kind: basketball_game}}}
+  - {id: uvu_mbb_cal_state_bakersfield, label: "UVU men's basketball vs Cal State Bakersfield", date: 2026-12-31, time: "14:00", place: uccu,
+     kind: basketball, basis: real, source: uvu_mbb, effects: {occasion: {kind: uvu_basketball_game}}}
+  - {id: uvu_mbb_csun, label: "UVU men's basketball vs CSUN", date: 2027-01-02, time: "14:00", place: uccu,
+     kind: basketball, basis: real, source: uvu_mbb, effects: {occasion: {kind: uvu_basketball_game}}}
+  - {id: mbb_cincinnati, label: "BYU men's basketball vs Cincinnati", date: 2027-01-06, time: "20:30", place: marriott,
+     kind: basketball, basis: real, source: byu_mbb_home, effects: {occasion: {kind: basketball_game}}}
+  - {id: mbb_kansas, label: "BYU men's basketball vs Kansas", date: 2027-01-09, time: "11:00", place: marriott,
+     kind: basketball, basis: real, source: byu_mbb_home, effects: {occasion: {kind: basketball_game}}}
+  - {id: uvu_mbb_uc_santa_barbara, label: "UVU men's basketball vs UC Santa Barbara", date: 2027-01-14, time: "18:00", place: uccu,
+     kind: basketball, basis: real, source: uvu_mbb, effects: {occasion: {kind: uvu_basketball_game}}}
+  - {id: uvu_mbb_cal_poly, label: "UVU men's basketball vs Cal Poly", date: 2027-01-16, time: "14:00", place: uccu,
+     kind: basketball, basis: real, source: uvu_mbb, effects: {occasion: {kind: uvu_basketball_game}}}
+  - {id: mbb_utah, label: "BYU men's basketball vs Utah", date: 2027-01-16, time: "20:00", place: marriott,
+     kind: basketball, basis: real, source: byu_mbb_home, effects: {occasion: {kind: basketball_game}}}
+  - {id: uvu_mbb_california_baptist, label: "UVU men's basketball vs California Baptist", date: 2027-01-21, time: "18:00", place: uccu,
+     kind: basketball, basis: real, source: uvu_mbb, effects: {occasion: {kind: uvu_basketball_game}}}
+  - {id: mbb_west_virginia, label: "BYU men's basketball vs West Virginia", date: 2027-01-23, time: "12:00", place: marriott,
+     kind: basketball, basis: real, source: byu_mbb_home, effects: {occasion: {kind: basketball_game}}}
+  - {id: uvu_mbb_uc_riverside, label: "UVU men's basketball vs UC Riverside", date: 2027-01-23, time: "14:00", place: uccu,
+     kind: basketball, basis: real, source: uvu_mbb, effects: {occasion: {kind: uvu_basketball_game}}}
+  - {id: mbb_baylor, label: "BYU men's basketball vs Baylor", date: 2027-02-02, time: "18:00", place: marriott,
+     kind: basketball, basis: real, source: byu_mbb_home, effects: {occasion: {kind: basketball_game}}}
+  - {id: uvu_mbb_uc_irvine, label: "UVU men's basketball vs UC Irvine", date: 2027-02-11, time: "18:00", place: uccu,
+     kind: basketball, basis: real, source: uvu_mbb, effects: {occasion: {kind: uvu_basketball_game}}}
+  - {id: mbb_kansas_state, label: "BYU men's basketball vs Kansas State", date: 2027-02-13, time: "13:30", place: marriott,
+     kind: basketball, basis: real, source: byu_mbb_home, effects: {occasion: {kind: basketball_game}}}
+  - {id: uvu_mbb_uc_san_diego, label: "UVU men's basketball vs UC San Diego", date: 2027-02-13, time: "14:00", place: uccu,
+     kind: basketball, basis: real, source: uvu_mbb, effects: {occasion: {kind: uvu_basketball_game}}}
+  - {id: mbb_tcu, label: "BYU men's basketball vs TCU", date: 2027-02-20, time: "12:00", place: marriott,
+     kind: basketball, basis: real, source: byu_mbb_home, effects: {occasion: {kind: basketball_game}}}
+  - {id: mbb_arizona, label: "BYU men's basketball vs Arizona", date: 2027-02-22, time: "19:00", place: marriott,
+     kind: basketball, basis: real, source: byu_mbb_home, effects: {occasion: {kind: basketball_game}}}
+  - {id: uvu_mbb_long_beach_state, label: "UVU men's basketball vs Long Beach State", date: 2027-02-25, time: "18:00", place: uccu,
+     kind: basketball, basis: real, source: uvu_mbb, effects: {occasion: {kind: uvu_basketball_game}}}
+  - {id: uvu_mbb_cal_state_fullerton, label: "UVU men's basketball vs Cal State Fullerton", date: 2027-02-27, time: "14:00", place: uccu,
+     kind: basketball, basis: real, source: uvu_mbb, effects: {occasion: {kind: uvu_basketball_game}}}
+  - {id: mbb_oklahoma_state, label: "BYU men's basketball vs Oklahoma State", date: 2027-03-02, time: "19:00", place: marriott,
+     kind: basketball, basis: real, source: byu_mbb_home, effects: {occasion: {kind: basketball_game}}}
+
+  # ---------------------------------------------------------------- Christmas performances (BYU Performing Arts Management;
+  # the listings give no building)
+  - {id: christmas_around_world_1, label: "Christmas Around the World (BYU Living Legends and folk dancers)", date: 2026-12-04,
+     time: "19:30", kind: performance, basis: real, source: pam_living_legends}
+  - {id: christmas_around_world_2, label: "Christmas Around the World (matinee)", date: 2026-12-05, time: "14:00", kind: performance,
+     basis: real, source: pam_living_legends}
+  - {id: christmas_around_world_3, label: "Christmas Around the World (evening)", date: 2026-12-05, time: "19:30", kind: performance,
+     basis: real, source: pam_living_legends}
+  - {id: celebration_of_christmas, label: "BYU Celebration of Christmas", date: 2026-12-05, time: "19:30", kind: performance,
+     basis: real, source: pam_celebration_christmas}
 
   # ---------------------------------------------------------------- October
   - {id: conference_oct, label: General Conference, date: [2026-10-03, 2026-10-04], kind: conference, basis: real, source: conference_oct,
@@ -119,3 +204,24 @@ items:
      note: "Observed Monday July 5 (the Fourth is a Sunday).", effects: {no_class: [BYU, UVU]}}
   - {id: pioneer_day, label: Pioneer Day, date: 2027-07-23, kind: holiday, basis: real, source: byu_catalog,
      note: "Observed Friday July 23 (the 24th is a Saturday).", effects: {no_class: [BYU, UVU]}}
+
+# Weekly items whose dates are published for a term: these dates and labels replace the rule's weeks (rules.yaml weekly)
+# in the named terms. Winter 2027's devotional schedule wasn't published yet (retrieved 2026-10-21), so the rule stands.
+published_weekly:
+  devotional:
+    terms: [BYU.Fall]
+    source: byu_devotionals_fall
+    dates:
+      2026-09-08: BYU devotional
+      2026-09-15: BYU devotional
+      2026-09-22: BYU devotional
+      2026-09-29: BYU forum
+      2026-10-06: BYU devotional
+      2026-10-13: BYU devotional
+      2026-10-20: BYU devotional
+      2026-10-27: BYU devotional
+      2026-11-03: BYU devotional
+      2026-11-10: BYU devotional
+      2026-11-17: BYU forum
+      2026-12-01: BYU devotional
+      2026-12-08: BYU devotional

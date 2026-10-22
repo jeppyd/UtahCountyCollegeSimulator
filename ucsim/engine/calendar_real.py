@@ -75,6 +75,8 @@ class _Year:
         self.y = y
         self.terms: dict[str, list[Term]] = {s: [] for s in SCHOOLS}
         self.items: list[Item] = []
+        self.published = (real or {}).get("published_weekly") or {}
+        self.sources = (real or {}).get("sources") or {}
         if real is not None:
             self._from_real(real)
         else:
@@ -159,15 +161,22 @@ class _Year:
         closed = {d for it in self.items if "BYU" in (it.effects.get("no_class") or [])
                   for d in _days(it.start, it.end)}
         for wk in rules.get("weekly", []):
+            pub = self.published.get(wk["id"]) or {}
+            pl = places.get(wk["place"]) if isinstance(wk.get("place"), str) else wk.get("place")
             for ref in wk.get("terms", []):
                 school, name = ref.split(".")
                 t = next((t for t in self.terms[school] if t.name == name), None)
                 if t is None:
                     continue
+                if ref in pub.get("terms", []):           # this term's dates are published: exactly those
+                    src = self.sources.get(pub.get("source"), pub.get("source"))
+                    for d, label in sorted((_date(k), v) for k, v in pub["dates"].items()):
+                        self.items.append(Item(f"{wk['id']}_{d.isoformat()}", label, d, d, wk.get("kind", "other"), "real",
+                                               wk.get("time"), pl, src, None, dict(wk.get("effects") or {})))
+                    continue
                 d = t.start + dt.timedelta(days=(int(wk["weekday"]) - t.start.weekday()) % 7)
                 while d <= t.classes_end:
                     if d not in closed:
-                        pl = places.get(wk["place"]) if isinstance(wk.get("place"), str) else wk.get("place")
                         self.items.append(Item(f"{wk['id']}_{d.isoformat()}", wk["label"], d, d, wk.get("kind", "other"),
                                                wk.get("basis", "rule"), wk.get("time"), pl, wk.get("source"), wk.get("note"),
                                                dict(wk.get("effects") or {})))

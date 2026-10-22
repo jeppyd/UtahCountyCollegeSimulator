@@ -18,7 +18,7 @@ _REAL: dict = {}
 
 
 def real_schedule(term: str | None, areas: list, school: str = "BYU") -> dict | None:
-    """A school's real sections for a term (ucsim/geo/schedule.py: BYU Fall and Winter, UVU Fall; the 2026–27 schedule
+    """A school's real sections for a term (ucsim/geo/schedule.py: BYU Fall and Winter, UVU Fall and Spring; the 2026–27 schedule
     stands in for every year) as arrays, with each BYU room matched to the floor plans' classrooms and each point to its
     building; None for other terms or when the schedule file is absent (then sections are drawn). area_code: the study
     area's index, −1 university-wide courses, −2 religion."""
@@ -138,7 +138,7 @@ class Academics:
         n_ge = np.minimum(np.where(P["class_standing"][ids] <= P.code("class_standing", "sophomore"), 2, 1), n_cls)
         n_major = n_cls - n_ge
         S = real_schedule(term, list(P.specs["study_area"].categories), school)
-        if S is not None:                             # real courses, rooms and times (BYU Fall and Winter, UVU Fall)
+        if S is not None:                             # real courses, rooms and times (BYU Fall and Winter, UVU Fall and Spring)
             self._real_sections(S, ids, credits, n_ge, rng, code)
             P.internal["sched_count"][ids] = 0
             P.internal["attend_count"][ids] = 0

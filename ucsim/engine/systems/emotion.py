@@ -47,6 +47,7 @@ class Emotion:
         P.add_internal("friends_mood", np.float32, 0.5)
         P.add_internal("last_date_day", np.int32, -60)
         P.add_internal("mood_8w", np.float32, 0.55)
+        P.add_internal("dep_start", np.int32, -999)
         # warm start: neutral states then a few settling iterations
         for s in STATE_ORDER:
             P[s] = 0.3 if s != "mood" else 0.55
@@ -273,15 +274,24 @@ class Emotion:
                        - 1.5 * P["lgbtq_tension"] + 0.3 * sim.z("extraversion") + sim.p("culture.feedback.ward_warmth") * warmth)
         P["ward_belonging"] = (0.6 * P["ward_belonging"] + 0.4 * np.where(ward >= 0, target, 0.3)).astype(np.float32)
         P.internal["mood_8w"][:n] = 0.88 * P.internal["mood_8w"][:n] + 0.12 * P["mood"]
+
+    def depression(self):
+        """Depressive episodes, each person's weekly chance taken on their own day of the week."""
+        sim, w = self.sim, self.sim.w
+        P = w.P
+        n = P.n
         # depressive episodes: onset rises steeply when sustained mood is low (threshold non-linearity)
         u = sim.u("depress")
         onset, remit, T, R = self._hazards(terms=True)
-        start = P["present"] & ~P["depressive_episode"] & (u < onset)
-        stop = P["depressive_episode"] & (u < remit)
+        turn = sim.my_turn(np.arange(n))
+        start = turn & P["present"] & ~P["depressive_episode"] & (u < onset)
+        # an episode lasts at least two weeks (the clinical minimum), so it can't flicker on and off week to week
+        stop = turn & P["depressive_episode"] & (w.day - P.internal["dep_start"][:n] >= 14) & (u < remit)
         D = sim.decisions
         if start.any():
             ids = np.where(start)[0]
             P.cols["depressive_episode"][ids] = True
+            P.internal["dep_start"][ids] = w.day
             did = D.record("depression_onset", w.day, ids, "started", pick(T, ids), base=-7.9, prob=onset[ids],
                            refs={"low_mood": ("state", state_ref(sim, "mood", ids)),
                                  "loneliness": ("state", state_ref(sim, "loneliness", ids))})

@@ -486,9 +486,10 @@ class OccasionBook:
         self._bump("n_yes", occ[now_yes & ~was_yes])
         self._bump("n_yes", occ[was_yes & ~now_yes], -1)
 
-    def attend(self, occ, people, *, arrive=-1, ride_by=-1, inv_ids=None, day: int | None = None) -> np.ndarray:
+    def attend(self, occ, people, *, arrive=-1, ride_by=-1, inv_ids=None, day: int | None = None, count=None) -> np.ndarray:
         """Mark attendance. Invited people are matched to their invitation (pass inv_ids when known); anyone else
-        becomes a walk-in row. Returns the invitation-row ids of everyone who came."""
+        becomes a walk-in row. `count` (bool mask) says who counts toward the turnout (default: everyone). Returns the
+        invitation-row ids of everyone who came."""
         people = np.atleast_1d(np.asarray(people, np.int64))
         k = len(people)
         if not k:
@@ -508,7 +509,7 @@ class OccasionBook:
         self.inv.cols["attended"][p] = True
         self.inv.cols["arrive"][p] = np.broadcast_to(np.asarray(arrive, np.int16), (k,))
         self.inv.cols["ride_by"][p] = np.broadcast_to(np.asarray(ride_by, np.int32), (k,))
-        self._bump("n_came", occ)
+        self._bump("n_came", occ if count is None else occ[np.asarray(count, bool)])
         return inv_ids
 
     def _find_inv(self, occ: np.ndarray, people: np.ndarray) -> np.ndarray:

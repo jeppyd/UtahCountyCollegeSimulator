@@ -65,9 +65,9 @@ def test_dealbreaker_can_end_a_relationship():
     eix = E.find(EdgeStore.make_keys(a, b))
     E.cols["disclosure"][eix] = 1.0
     E.cols["closeness"][eix] = 0.0
-    for _ in range(6):
-        I.weekly()
-        sim.w.day += 7
+    for _ in range(42):          # six weeks: each couple takes its weekly turn on its own day
+        I.couples_week()
+        sim.w.day += 1
     L = sim.log
     t = L.cols["type"][: L.n]
     assert (t == sim.reg.event_ids["dealbreaker_found"]).sum() > 0

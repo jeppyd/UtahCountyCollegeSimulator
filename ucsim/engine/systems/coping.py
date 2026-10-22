@@ -90,7 +90,9 @@ class Coping:
         if done.any():
             self._end(np.where(done)[0], need)
         # ---- start of episodes
-        start = pres & (P["coping_strategy"] == 0) & (ew > p("coping.episode.on"))
+        # strain has to build before someone notices it and changes how they cope: once over the line, a daily chance
+        # (about three days on average), so a new semester doesn't start everyone coping on the same morning
+        start = pres & (P["coping_strategy"] == 0) & (ew > p("coping.episode.on")) & (sim.u("cope_on") < 0.3)
         if start.any():
             self._start(np.where(start)[0], need)
         # ---- rumination rehearses negative memories while strained

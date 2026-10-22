@@ -107,6 +107,12 @@ class Simulation:
     def day(self) -> int:
         return self.w.day
 
+    def my_turn(self, ids: np.ndarray) -> np.ndarray:
+        """Whether today is these people's day of the week for weekly chances (a fixed, scrambled weekday per
+        person, so roommates and couples created together don't share one)."""
+        h = (np.asarray(ids, np.uint64) * np.uint64(2654435761)) % np.uint64(1 << 32)
+        return (h >> np.uint64(16)) % np.uint64(7) == np.uint64(self.cal.weekday(self.w.day))
+
     def u(self, name: str, block: int = 0) -> np.ndarray:
         """Per-agent uniform draws for this day (common random numbers across universes)."""
         return self.streams.uniform(name, self.w.day, self.w.P.n, block)
@@ -274,6 +280,12 @@ class Simulation:
         self._run("plans", S["plans"].daily)
         self._run("emotion", S["emotion"].daily)
         self._run("norms", S["norms"].daily)
+        # weekly chances that change a life, taken on each person's (or couple's) own day of the week, so that
+        # depression, faith crises, engagements, breakups and dealbreakers don't all land on Sunday night
+        self._run("emotion", S["emotion"].depression)
+        self._run("faith", S["faith"].crisis)
+        self._run("romance", S["romance"].couples_week)
+        self._run("intimacy", S["intimacy"].couples_week)
         if wd == 6:  # Sunday night: weekly systems
             self._run("network", S["network"].weekly)
             self._run("mind", S["mind"].weekly)

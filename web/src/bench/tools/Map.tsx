@@ -11,7 +11,7 @@ import { cssVar, hexRgb, seqColor, VarPicker } from '../../components'
 import { fval, pretty } from '../../fields'
 import { useAsync } from '../../game'
 import { usePersonName } from '../../kit/RefChip'
-import { LivingMap, type LivingOpts } from '../../map/LivingMap'
+import { CLAY, LivingMap, type LivingOpts } from '../../map/LivingMap'
 import { type Precise, type Refresh, REFRESH_WORDS } from '../../map/data'
 import { loadColumns, useLens, useStore } from '../../store'
 import { useLayout } from '../layout'
@@ -25,7 +25,7 @@ function MapTool({ sel, setSel, opts, setOpts }: PanelProps) {
   const theme = useStore(s => s.theme)
   const reg = useStore(s => s.registry)!
   const name = usePersonName(u)
-  const colorBy: string = opts.color ?? 'activity_now'
+  const colorBy: string = opts.color ?? 'none'          // everyone the same until a field is picked to color by
   const live: LivingOpts = opts.live ?? { when: opts.mode === 'home' ? 4 : 'now' }
   const set = (o: Record<string, any>) => setOpts({ ...opts, ...o })
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -35,7 +35,7 @@ function MapTool({ sel, setSel, opts, setOpts }: PanelProps) {
   const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
 
   // ---- the color field and who is selected
-  const field = useAsync(async () => (colorBy === 'activity_now' ? null : (await loadColumns([colorBy], u))[colorBy] as Column),
+  const field = useAsync(async () => (colorBy === 'activity_now' || colorBy === 'none' ? null : (await loadColumns([colorBy], u))[colorBy] as Column),
     [u, colorBy, dataVersion], { key: `bench-map:${u}:${colorBy}` })
   const group = useAsync(async () => (sel.filter?.length ? (await cohortMask(sel.filter, u)).mask : null), [JSON.stringify(sel.filter ?? []), u, dataVersion])
   const n = prec?.n ?? 0
@@ -54,6 +54,7 @@ function MapTool({ sel, setSel, opts, setOpts }: PanelProps) {
   const color = useMemo(() => {
     const pal = [1, 2, 3, 4, 5, 6, 7, 8].map(k => hexRgb(cssVar(`--s${k}`)))
     const other = hexRgb(cssVar('--text-muted'))
+    if (colorBy === 'none') { const one = hexRgb((live.look ?? 'clay') === 'clay' ? CLAY['--map-dot'] : cssVar('--map-dot')); return { fn: () => one, legend: null } }
     if (colorBy === 'activity_now') {
       const cats = prec?.actNames ?? []
       return { fn: (i: number, p: Precise) => (p.act[i] < 8 ? pal[p.act[i]] : other), legend: { kind: 'cat' as const, cats: cats.slice(0, 8).map(pretty), more: cats.length > 8 } }
@@ -70,7 +71,7 @@ function MapTool({ sel, setSel, opts, setOpts }: PanelProps) {
     vals.sort((a, b) => a - b)
     const lo = quantile(vals, 0.02), hi = quantile(vals, 0.98)
     return { fn: (i: number) => (i < col.data.length && !Number.isNaN(col.data[i]) ? seqColor(((col.data[i] as number) - lo) / ((hi - lo) || 1)) : other), legend: { kind: 'seq' as const, lo, hi, low: spec?.scale?.low, high: spec?.scale?.high } }
-  }, [colorBy, field.data, prec?.actNames, theme])
+  }, [colorBy, field.data, prec?.actNames, theme, live.look])
 
   // ---- drag a box to select
   const boxStart = (e: React.PointerEvent) => {
@@ -106,7 +107,8 @@ function MapTool({ sel, setSel, opts, setOpts }: PanelProps) {
   return (
     <div className="bm">
       <PanelOptions>
-        <VarPicker value={colorBy === 'activity_now' ? '' : colorBy} onChange={v => set({ color: v || 'activity_now' })} filter={s => !!s.mappable} placeholder="Color: what they're doing" allowEmpty />
+        <VarPicker value={colorBy === 'none' ? '' : colorBy} onChange={v => set({ color: v || 'none' })} filter={s => !!s.mappable && s.id !== 'activity_now' && s.id !== 'rel_status'} placeholder="Color: none (everyone the same)" allowEmpty
+          lead={[['activity_now', "Color: what they're doing"], ...(reg.variables.rel_status ? [['rel_status', 'Color: relationship status'] as [string, string]] : [])]} />
         <select value={refresh} onChange={e => set({ live: { ...live, refresh: e.target.value as Refresh } })} title="How often people move on the map while time runs">
           {(Object.keys(REFRESH_WORDS) as Refresh[]).map(k => <option key={k} value={k} title={REFRESH_WORDS[k]}>{k === 'auto' ? 'Updates: automatic' : k === 'live' ? 'Updates: every part of the day' : k === 'daily' ? 'Updates: once a day' : 'Updates: when paused'}</option>)}
         </select>
@@ -122,7 +124,7 @@ function MapTool({ sel, setSel, opts, setOpts }: PanelProps) {
         </div>
       )}
       {nSel > 0 && <div className="bm-note"><b>{nSel.toLocaleString()}</b> selected</div>}
-      {color && (
+      {color?.legend && (
         <div className="bm-legend">
           <b>{colorBy === 'activity_now' ? "What they're doing" : spec?.label ?? colorBy}</b>
           {color.legend.kind === 'cat'

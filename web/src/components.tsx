@@ -96,8 +96,10 @@ export function PersonLink({ id, name }: { id: number; name?: string }) {
 
 export function Loading({ what = 'Loading' }: { what?: string }) { return <div className="empty">{what}…</div> }
 
-export function VarPicker({ value, onChange, filter, placeholder = 'Choose a variable', allowEmpty = false }:
-  { value: string; onChange: (v: string) => void; filter?: (v: VarSpec) => boolean; placeholder?: string; allowEmpty?: boolean }) {
+export function VarPicker({ value, onChange, filter, placeholder = 'Choose a variable', allowEmpty = false, lead }:
+  { value: string; onChange: (v: string) => void; filter?: (v: VarSpec) => boolean; placeholder?: string; allowEmpty?: boolean
+    /** extra choices listed first, as [value, label] */
+    lead?: [string, string][] }) {
   const reg = useStore(s => s.registry)
   const groups = useMemo(() => {
     const g: Record<string, VarSpec[]> = {}
@@ -114,6 +116,7 @@ export function VarPicker({ value, onChange, filter, placeholder = 'Choose a var
   return (
     <select value={value} onChange={e => onChange(e.target.value)} style={{ maxWidth: 260 }}>
       {(allowEmpty || !value) && <option value="">{placeholder}</option>}
+      {lead?.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       {Object.entries(groups).sort().map(([d, vs]) => (
         <optgroup key={d} label={DOMAIN_LABEL[d] ?? d}>
           {vs.map(v => <option key={v.id} value={v.id}>{v.label}</option>)}

@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useMemo } from 'react'
+import { STATIC } from '../api'
 import { Evidence } from '../components'
 import { G, UBadge } from '../game'
 import { useStore } from '../store'
@@ -146,7 +147,7 @@ export default function Guide({ section }: { section?: string }) {
                 body="Households and roommates, wards and FHE groups, class sections, workplaces, clubs, intramural teams, institute classes, gatherings in apartments, and dating apps. Being in the same group is how people get the chance to meet." />
               <Layer c="--s3" name="Relationships" small={`${n('edge')} measures per tie`} go={() => setRoute(['relationships'])}
                 body="Every pair who has met is a tie with its own history: familiarity, liking, closeness, trust, conflict, attraction in each direction, hours together, how and where they met, and who introduced them." />
-              <Layer c="--s1" name="People" small={`${person.length} measures each`} go={() => setRoute(['people'])}
+              <Layer c="--s1" name="People" small={`${person.length} measures each`} go={() => setRoute([STATIC ? 'people' : 'valley'])}
                 body="Each person has a background, personality, beliefs, habits, circumstances, feelings and a life history (see below). People are not stereotypes: an active member can doubt, a drinker can believe, an extravert can be lonely." />
               <Layer c="--s5" name="Events" small={`${Object.keys(reg.events).length} kinds`} go={() => setRoute(['events'])}
                 body="Things that happen to people (first dates, breakups, faith crises, job losses, graduations). Each event remembers what caused it, so chains like FHE group → first date → DTR → engagement can be traced." />

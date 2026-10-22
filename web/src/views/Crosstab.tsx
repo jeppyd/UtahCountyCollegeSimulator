@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { crosstab, fmt, groupsOf, useCohortData } from '../analysis'
 import { CohortBar, Evidence, VarPicker } from '../components'
+import { STATIC } from '../api'
+import { useLayout } from '../bench/layout'
+import { useBench } from '../bench/selection'
 import { Cond, useStore } from '../store'
 import { Advanced, PageHeader } from '../ui'
 
@@ -37,8 +40,11 @@ export default function Crosstab({ row0, col0 }: { row0?: string; col0?: string 
         }
       }
     }
-    setCohort([...cohort, ...conds])
-    setRoute(['people'])
+    if (STATIC) { setCohort([...cohort, ...conds]); setRoute(['people']); return }
+    // the live app lists them in the workbench's People tool
+    useBench.getState().setSel({ filter: [...cohort, ...conds], people: undefined })
+    useLayout.getState().ensure('people')
+    setRoute(['bench'])
   }
   const cellVal = (a: number, b: number) => {
     if (!tab) return 0

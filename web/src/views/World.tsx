@@ -45,8 +45,9 @@ export default function World() {
   const date = new Date(status.date + 'T12:00:00')
   return (
     <div className="page world">
-      <section className="world-hero card">
-        <LivingMap />
+      {/* the valley is the live app's home, with the living map and the story; the overview keeps the numbers */}
+      <section className={`world-hero card ${STATIC ? '' : 'plain'}`}>
+        {STATIC && <LivingMap />}
         <div className="wh-overlay">
           <div className="eyebrow">{status.season}</div>
           <h1>{date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</h1>
@@ -63,8 +64,8 @@ export default function World() {
         </div>
       </section>
 
-      <div className="world-grid">
-        <div className="card">
+      <div className={`world-grid ${STATIC ? '' : 'plain'}`}>
+        {STATIC && <div className="card">
           <div className="card-head"><div><h3>{G.events} Headlines</h3><p className="hint">The biggest moments lately. Click a name to open that life.</p></div><button className="btn small" onClick={() => setRoute(['events'])}>All events</button></div>
           {compare ? (
             <div className="two-u">
@@ -72,8 +73,8 @@ export default function World() {
               <div className="u-col card flat alt"><UBadge u="alt" /><Headlines list={(pulseAlt.data as any)?.headlines} /></div>
             </div>
           ) : <Headlines list={p?.headlines} />}
-        </div>
-        <div className="grid" style={{ alignContent: 'start' }}>
+        </div>}
+        <div className={STATIC ? 'grid' : 'grid g2'} style={{ alignContent: 'start' }}>
           <TwoWorlds />
           <div className="card">
             <h3>{G.clock} A day in Provo</h3>

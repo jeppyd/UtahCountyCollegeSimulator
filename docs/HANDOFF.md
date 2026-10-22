@@ -174,6 +174,15 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
 - Nav: Valley · Workbench · What-if · More; World page is "Overview"; Logs/Speed under "Under the hood".
 - Tests: tests/test_valley.py. Map code untouched (the 3D buildings thread owns it).
 
+### 2026-10-22 (5) — Claude Code (cloud session) — map: clay look by default, dots one color until you color by a field
+
+- Owner: dark mode not liked; wants the "City · architectural clay" concept look, and uniform dots with a color-by
+  choice (activity, relationship status, any field). `LivingOpts.look` ('clay' default | 'theme'), `CLAY` colors in
+  `web/src/map/LivingMap.tsx` (the map keeps them whatever the app theme; positron street map with a warm ground; one
+  clay for every building). Map tool `opts.color` defaults to `'none'` (all dots `--map-dot`); the picker lists
+  "what they're doing" and "relationship status" first (`VarPicker` gained `lead`).
+- Offered next (owner to choose): sun shadows, OSM trees as clay shapes, horizon haze.
+
 ### 2026-10-22 (4) — Claude Code (cloud session) — living map: street map, clay buildings, floors; stale-page fix
 
 - **Why the owner saw only dots:** the installed app showed a cached copy of an old page. The app window

@@ -87,7 +87,7 @@ places show their culture; the research desk gains the uncertainty panel and acc
   hypothetical mechanisms.
 
 **Model depth**
-- Class schedules (real course sections and buildings), study groups, TA/professor ties.
+- Class schedules (real course sections and buildings: BYU Fall/Winter done 2026-10-22), study groups, TA/professor ties.
 - Dorms/contracted housing room assignment; roommate matching services; subleasing.
 - Richer family ties (parents and siblings in Utah County, Sunday dinners, family pressure events).
 - Social media as a second network layer (follows, comparison, Instagram-official), group chats.

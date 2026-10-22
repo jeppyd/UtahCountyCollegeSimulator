@@ -62,12 +62,13 @@ def test_classes_meet_in_real_classrooms_that_fit(sim):
         ac.start_term("BYU")
     byu = ac.sec_school == 1
     rm = ac.sec_room
-    assert (rm[byu] >= 0).mean() > 0.95                          # nearly every BYU section has a room
+    assert ((rm[byu] >= 0) | (ac.sec_place[byu] >= 0)).mean() > 0.95   # nearly every BYU section has a room
     size = np.bincount(ac.stu_secs[ac.stu_secs >= 0], minlength=len(rm))
-    has = rm >= 0
+    has = (rm >= 0) & (ac.sec_start < 0)                         # drawn sections (real ones keep BYU's own rooms)
     assert (R["seats"][rm[has]] >= size[has]).all()             # everyone has a seat
     key = rm[has].astype(np.int64) * 1000 + ac.sec_days[has].astype(np.int64) * 10 + ac.sec_block[has]
     assert len(np.unique(key)) == has.sum()                      # no room double-booked at an hour
+    has = rm >= 0
     from ucsim.analysis.now import _place_words
     f = sim.systems["activity"].snapshot
     from ucsim.engine import placement
@@ -76,4 +77,4 @@ def test_classes_meet_in_real_classrooms_that_fit(sim):
     i = i[rm[f["cid"][i]] >= 0]
     if len(i):
         words = _place_words(sim, f, placement.place(sim, f), int(i[0]))["words"]
-        assert words.startswith("class in ") and "seats" in words
+        assert " class in " in f" {words}" and "seats" in words

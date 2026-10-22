@@ -72,6 +72,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [messaging](workstreams/messaging.md) (wave 2) | **done, merged** | working branch | open issues below |
 | [institutions](workstreams/institutions.md) (wave 2) | **done, merged** | working branch | open issues below |
 | [family-homes](workstreams/family-homes.md) (wave 2) | **done, merged** | working branch | open issues below |
+| Real BYU class schedule (`geo/schedule.py`, academics `_real_sections`) | **done, PR open** | branch `claude/project-thread-qzhs7j` | UVU schedule if public; Spring/Summer terms; cross-listed sections share a room |
 | [survey-followups](workstreams/survey-followups.md) | audits designed, interrupted | — | needs the raw survey files in `data/raw/` |
 | [integration](workstreams/integration.md) | ongoing | — | after each merge |
 | living-map (owner-directed, 2026-10-21) | in progress | `claude/clever-wright-3fh95g` | speed/logs, buildings, bedrooms, 3D map, cards, bedroom-mates done; 2026-10-22: sync check (99.6%+), real places in the backend, Heritage + Wyview + classrooms from BYU plans; next: Wymount/Riviera/LISR plans, elevation, then dashboards |
@@ -159,6 +160,23 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-22 (2) — Claude Code (cloud session) — BYU's real class schedule
+- Owner supplied `byu-campus-data-01.zip` (BYU's public class schedule, Fall 2026 + Winter 2027, with rooms, times,
+  enrollment and 10-minute building occupancy). Unpack it to `data/external/byu_campus/` (ignored) and run
+  `python -m ucsim.geo.schedule` to rebuild `geo/data/byu_schedule.parquet` and `byu_occupancy.parquet` (committed,
+  no names: instructor names stay out of the repo).
+- In Fall and Winter, BYU students now take **real sections** (`academics._real_sections`): number of classes from
+  their credits at the schedule's 2.5 credits a seat (at most five), a religion class at the schedule's rate (about
+  two in three), general education from 100/200-level courses, the rest from their study area's departments
+  (`config/places/byu_departments.yaml`); graduate students 500-level and up. Sections are drawn by enrollment until
+  the simulated students fill them at real sizes; clashing classes are swapped or dropped (none left). Each section
+  keeps its real days, start and end (`activity.class_times`), room, floor and building; the person card says e.g.
+  "A HTG 100 class in KMBL 250". UVU and BYU Spring/Summer keep drawn sections.
+- Check (tests/test_class_schedule.py): simulated presence per building and block correlates 0.88 with BYU's
+  occupancy numbers (scaled to the simulated students), at about 80% of the volume (the five-class cap, online
+  sections). Smith Fieldhouse (activity classes) runs low.
+- Next: UVU's schedule if it's public (asked in the treasure-hunt prompt); real Spring/Summer when a package has them.
 
 ### 2026-10-22 — Claude Code (cloud session) — dots in sync with the simulation; BYU floor plans
 - Owner's priorities: (1) dots exactly where the simulation has people, (2) buildings like the real ones (floor

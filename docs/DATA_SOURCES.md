@@ -122,6 +122,15 @@ dance venues…). Web layers (roads, city outlines, building footprints) are com
   (`ucsim/geo/floorplans.py`); each sheet placed on its footprint by turning and shifting it until its room labels
   fall inside the outline (scale from the sheet). Wyview's counts (12/18 apartments a building, one three-bedroom
   a floor) and Helaman's (~38–40 double rooms a floor, 3 floors) were read off the plans into flagship.yaml.
+- **BYU class schedule and room data** (owner-supplied package `byu-campus-data-01.zip`, collected 2026-10-22 from
+  BYU's public class schedule, commtech.byu.edu/noauth/classSchedule, and BYU's public ArcGIS layers; terms Fall 2026
+  and Winter 2027). The package stays in `data/external/byu_campus/` (never committed: it carries instructor names).
+  `python -m ucsim.geo.schedule` writes the derived, name-free tables: `geo/data/byu_schedule.parquet` (in-person
+  sections: department, course number, level, credits, enrollment, the main meeting's days, start, end, room,
+  floor, point and seats) and `geo/data/byu_occupancy.parquet` (mean scheduled student presence per building,
+  weekday and simulation block, for checks). Departments map to study areas in
+  `ucsim/config/places/byu_departments.yaml` (judgment, by college). Enrollment is a collection-time snapshot
+  (Winter's provisional). The 2026–27 schedule stands in for every year; Spring and Summer sections are still drawn.
 - Campus places (`ucsim/config/places/campus.yaml`): teaching buildings, hangout spots, gyms, study and events
   buildings for BYU and UVU, BYU building codes → names, and which buildings each study area's classes use
   (judgment from department locations; weights rough).

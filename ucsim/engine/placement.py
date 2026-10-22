@@ -537,8 +537,9 @@ def place(sim, f: dict) -> dict:
             _, _, rf, rb = sim.systems["academics"].section_point(ci[cls])
             k = np.flatnonzero(cls)
             pb[k] = np.where(rb >= 0, rb, pb[k])
-            known = sim.systems["academics"].sec_room[ci[cls]] >= 0 if len(sim.systems["academics"].sec_room) else np.zeros(len(k), bool)
-            fl[k] = np.where(known, rf, (ci[cls] * 7) % nfl[k])
+            known = sim.systems["academics"].floor_known(ci[cls])
+            nfl[k] = np.where(rb >= 0, np.maximum(B["floors"][np.maximum(rb, 0)], 1), nfl[k])
+            fl[k] = np.where(known, np.minimum(rf, nfl[k] - 1), (ci[cls] * 7) % nfl[k])
             anchor[k] = True
         wk = ct == CTX_ID["work"]
         fl[wk] = ci[wk] % nfl[wk]                                # an employer on one floor

@@ -63,11 +63,19 @@ def _place_words(sim, f: dict, pos: dict, i: int) -> dict:
         ac = sim.systems["academics"]
         rm = int(ac.sec_room[cid]) if 0 <= cid < len(ac.sec_room) else -1
         R = places.classrooms(1) if rm >= 0 else None
+        course = ac.sec_course[cid] if 0 <= cid < len(ac.sec_course) else ""
+        if course:
+            out["course"] = course
         if R is not None:
             words = f"class in {R['code'][rm]} {R['room'][rm]} ({bname}, {int(R['seats'][rm])} seats)"
             out["room"] = f"{R['code'][rm]} {R['room'][rm]}"
+        elif 0 <= cid < len(ac.sec_where) and ac.sec_where[cid]:
+            words = f"class in {ac.sec_where[cid]}" + (f" ({bname})" if bname else "")
+            out["room"] = ac.sec_where[cid]
         else:
             words = f"class in {bname}" if bname else "in class"
+        if course and words.startswith("class in "):
+            words = f"{course} class in {words[len('class in '):]}"
     elif ct == CTX_ID["ward"]:
         nm = w.wards.get("name")
         words = f"{nm[cid]} (church)" if nm is not None and 0 <= cid < len(nm) else "church"

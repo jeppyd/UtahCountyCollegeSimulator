@@ -1,0 +1,19 @@
+# BYU course departments (class schedule prefixes) → the model's study areas (campus.yaml `areas`), so a student's
+# major classes come from their own area's real courses. "religion": REL A/C/E, which BYU students take every term.
+# A department not listed here counts as Humanities (mostly the ~80 language programs). Assumption, by college.
+areas:
+  religion: [REL A, REL C, REL E]
+  Business: [ACC, IS, FIN, MKTG, ENT, GSCM, MSB, STRAT, HRM, MBA, EMBA, MPA, EXDM]
+  Health Sciences: [NURS, EXSC, HLTH, NDFS, COMD, ANES, PETE, GERO, SWELL]
+  Engineering & Tech: [C S, ME EN, EC EN, CE, CBE, CCE, MFGEN, CYBER, IP&T, TECH, PSE, EIME, DES, DESAN, DESGD,
+                       DESIL, DESPX, DESPH, CSANM, TEE, MDT]
+  Social Sciences: [PSYCH, ECON, POLI, SOC, ANTHR, GEOG, SFL, CFM, SOC W, MFT, MFHD, FHSS, NEURO, GWS, AM ST, HIST]
+  Natural Sciences: [CHEM, PHSCS, BIO, CELL, MMBIO, GEOL, PHY S, LFSCI]
+  Education: [EL ED, SC ED, CPSE, EDLF, ECE, TES, TELL, T ED, MTHED, ARTED, TML]
+  Fine Arts: [MUSIC, DANCE, TMA, ART, ARTHC, FNART]
+  Humanities: [ENGL, WRTG, PHIL, LING, ELING, IHUM, CL CV, CMLIT, HONRS, A HTG, DIGHT]
+  Math & Stats: [MATH, STAT, ACME, DS]
+  Communications: [COMMS, M COM, ADV, JOUR, PR]
+  Law & Policy: [LAW, IAS, MIL S, AEROS]
+  Agriculture & Environment: [PWS, GES, ENVIR]
+  general: [UNIV, STDEV, STAC, GCI, HCOLL, PLANG, FLANG, TEST]

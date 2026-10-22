@@ -199,7 +199,7 @@ class Activity:
 
     def class_times(self, secs) -> tuple[np.ndarray, np.ndarray]:
         """Clock times of class sections inside their block (for shifts, plans and agendas; who is where is still
-        resolved per block). Real sections (BYU Fall and Winter) at their scheduled times. Drawn ones: morning
+        resolved per block). Real sections (BYU Fall and Winter, UVU Fall) at their scheduled times. Drawn ones: morning
         sections start on the hour 8–11, afternoon ones 1–4 pm, evening ones 5:30 or 6:30 pm; MWF classes run 50
         minutes, Tuesday/Thursday 75, evening 110 — the usual BYU/UVU pattern, assigned by section number (no random
         draws)."""

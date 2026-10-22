@@ -1,0 +1,18 @@
+# UVU course subjects (class schedule prefixes, Fall 2026) → the model's study areas, so a UVU student's major classes
+# come from their own area's real courses (geo/schedule.py). UVU has no religion requirement, so nothing maps to
+# "religion". A subject not listed here counts as Humanities. Assumption, by UVU college and course titles.
+areas:
+  Business: [ACC, MGMT, MKTG, FIN, ENTR, HR, HM, IM, INFO, IS, LEGL]
+  Health Sciences: [NURS, HLSC, HLTH, EXSC, NUTR, PES, PETE, PAS, OT, PTA, RESP, DENT, REC, ESEC]
+  Engineering & Tech: [CS, IT, CYBR, ENGR, ME, ECE, CIVE, MECH, EGDT, AUT, CRT, CMGT, BIT, SURV, TECH, TT, AET, DMT,
+                       CAW, ARC, DGM, DWDD, AVSC, GIS, FAC]
+  Social Sciences: [PSY, SOC, ANTH, ECON, POLS, HIST, GEOG, FAMS, SW, MFT, CMHC, SUDC, PJST, AIST, AUTS, CNST, CGCL]
+  Natural Sciences: [BIOL, CHEM, PHYS, ZOOL, MICR, BOT, GEO, ASTR, METO, PHSC, FSCI, BTEC, SCIE]
+  Education: [EDEL, EDSC, EDUC, EDSP, EDCO, EDAB, EDEC, EDLE, EDHE, ICCS]
+  Fine Arts: [MUSC, ART, ARTH, DANC, THEA, DCPR, DAGV, DAPR, CINE, CA]
+  Humanities: [ENGL, PHIL, HUM, SPAN, FREN, GER, CHIN, JPNS, PORT, RUS, LATN, LANG, ASL, CLST, HONR]
+  Math & Stats: [MAT, MATH, STAT]
+  Communications: [COMM]
+  Law & Policy: [CJ, PADM, MILS, AERO, NSS, ESMG, ES, ESFF, ESFO, ESWF]
+  Agriculture & Environment: [ENVT, ENST]
+  general: [SLSS, UVST]

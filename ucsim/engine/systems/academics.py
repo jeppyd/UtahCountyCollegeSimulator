@@ -17,24 +17,26 @@ SEC_FIELDS = {"sec_school": (np.int8, 0), "sec_days": (np.uint8, 0), "sec_block"
 _REAL: dict = {}
 
 
-def real_schedule(term: str | None, areas: list) -> dict | None:
-    """BYU's real sections for a Fall or Winter term (ucsim/geo/schedule.py; the 2026–27 schedule stands in for every
-    year) as arrays, with each room matched to the floor plans' classrooms and each point to its building; None for
-    Spring/Summer or when the schedule file is absent (then sections are drawn). area_code: the study area's index,
-    −1 university-wide courses, −2 religion."""
-    if term not in ("Fall", "Winter"):
+def real_schedule(term: str | None, areas: list, school: str = "BYU") -> dict | None:
+    """A school's real sections for a term (ucsim/geo/schedule.py: BYU Fall and Winter, UVU Fall; the 2026–27 schedule
+    stands in for every year) as arrays, with each BYU room matched to the floor plans' classrooms and each point to its
+    building; None for other terms or when the schedule file is absent (then sections are drawn). area_code: the study
+    area's index, −1 university-wide courses, −2 religion."""
+    if term is None:
         return None
-    if term not in _REAL:
+    key = (school, term)
+    if key not in _REAL:
         import polars as pl
 
         from ...geo import schedule
         from .. import places
-        D = schedule.load()
-        if D is None:
-            _REAL[term] = None
+        D = schedule.load(school)
+        if D is not None:
+            D = D.filter(pl.col("term") == term)
+        if D is None or D.height == 0:
+            _REAL[key] = None
             return None
-        D = D.filter(pl.col("term") == term)
-        R = places.classrooms(1) if places.available() else None
+        R = places.classrooms(1 if school == "BYU" else 2) if places.available() else None
         rooms = {(c, str(r)): i for i, (c, r) in enumerate(zip(R["code"], R["room"]))} if R is not None else {}
         code_of = {a: i for i, a in enumerate(areas)} | {"religion": -2}
         out = {c: D[c].to_numpy() for c in ("level", "credits", "enrollment", "days", "start", "end", "lon", "lat")}
@@ -53,8 +55,8 @@ def real_schedule(term: str | None, areas: list) -> dict | None:
             place[has], out["floor"][has] = R["building"][rr], R["floor"][rr]
             out["lon"][has], out["lat"][has] = R["lon"][rr], R["lat"][rr]
         out["place"] = place
-        _REAL[term] = out
-    return _REAL[term]
+        _REAL[key] = out
+    return _REAL[key]
 
 
 class Academics:
@@ -67,7 +69,7 @@ class Academics:
         self.sec_bldg = np.zeros(0, np.int16)
         self.sec_area = np.zeros(0, np.int16)
         self.sec_room = np.zeros(0, np.int32)          # classroom (row of places.classrooms()), −1: none known
-        # real sections (BYU's class schedule, geo/schedule.py); drawn ones have start −1, no point, no course
+        # real sections (BYU and UVU class schedules, geo/schedule.py); drawn ones have start −1, no point, no course
         self.sec_start = np.zeros(0, np.int16)         # clock minutes
         self.sec_end = np.zeros(0, np.int16)
         self.sec_lon = np.zeros(0, np.float64)
@@ -135,8 +137,8 @@ class Academics:
         n_cls = np.clip(np.round(credits / 3.3), 1, 5).astype(int)
         n_ge = np.minimum(np.where(P["class_standing"][ids] <= P.code("class_standing", "sophomore"), 2, 1), n_cls)
         n_major = n_cls - n_ge
-        S = real_schedule(term, list(P.specs["study_area"].categories)) if school == "BYU" else None
-        if S is not None:                             # BYU's real courses, rooms and times (Fall and Winter)
+        S = real_schedule(term, list(P.specs["study_area"].categories), school)
+        if S is not None:                             # real courses, rooms and times (BYU Fall and Winter, UVU Fall)
             self._real_sections(S, ids, credits, n_ge, rng, code)
             P.internal["sched_count"][ids] = 0
             P.internal["attend_count"][ids] = 0
@@ -197,10 +199,11 @@ class Academics:
             setattr(self, f, np.r_[getattr(self, f), new] if dt is not object else np.concatenate([getattr(self, f), new]))
 
     def _real_sections(self, S: dict, ids: np.ndarray, credits: np.ndarray, n_ge: np.ndarray, rng, code: int):
-        """Students take BYU's real sections (geo/schedule.py): as many as their credits fill at the schedule's mean
-        credits a seat (2.5: labs and one- and two-credit classes count; at most five); undergraduates a religion class
-        at the schedule's rate (religion's share of seats × their classes: about two in three take one), n_ge
-        general-education classes (100- and 200-level courses of any department) and the rest in their study area;
+        """Students take their school's real sections (geo/schedule.py): as many as their credits fill at the
+        schedule's mean credits a seat (BYU 2.5: labs and one- and two-credit classes count; at most five);
+        undergraduates a religion class at the schedule's rate (BYU: religion's share of seats × their classes, about
+        two in three take one; UVU has none), n_ge general-education classes (100- and 200-level courses of any
+        department; UVU's 1000s and 2000s) and the rest in their study area;
         graduate students their area's 500-level and up. Sections are drawn in proportion to their real
         enrollment until the simulated students fill them at real class sizes (so a small world has fewer sections,
         not emptier ones), and the students are shuffled into the seats. A class that clashes with one already on the

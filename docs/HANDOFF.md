@@ -192,6 +192,9 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   attenuates the model's exact r by the survey measures' reliability (`RELIABILITY`, documented). Result: 13 of 16
   associations pass; warns: lonely~friends (−0.30 vs −0.13), religion~life sat, family~life sat. Life satisfaction
   level still low (5.9 vs 7.2) — not changed.
+- Release run 42 (merge of PR #21) failed its Windows self-test: places.py imported pyarrow, which the packaged app
+  excludes. Fixed (polars' read_parquet_schema); tests/test_packaged_imports.py now builds a world with pyarrow,
+  duckdb and pandas blocked. **Runtime code must not import them** (build-time geo scripts may).
 
 ### 2026-10-21 (4) — Claude Code (cloud session) — a new survey: Psych 308 (BYU, 2020)
 - The owner supplied a BYU class survey (947 students, all during COVID-19) and left inclusion to judgment. Used as

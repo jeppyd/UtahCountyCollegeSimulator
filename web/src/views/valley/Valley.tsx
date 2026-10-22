@@ -184,6 +184,7 @@ function Feed({ cast, focus }: { cast: number[]; focus: number | null }) {
           {only ? name(only[0]).split(' ')[0] : 'Your people'}</button>
         <button className={t === 'valley' ? 'on' : ''} onClick={() => setTab('valley')}>The valley</button>
         <span className="spacer" />
+        {!running && status?.checkpoint && <Undo cp={status.checkpoint} />}
         {!running && <button className="btn small primary" onClick={() => timeCtl.play()} title="Let time run (Space)">{G.play} Run</button>}
       </div>
       <div className="vl-story">
@@ -260,4 +261,21 @@ function WhyRipple({ ev }: { ev: number }) {
       </>}
     </div>
   )
+}
+
+/** One step back: the world as it was just before your last change in it (and nothing that happened since). */
+function Undo({ cp }: { cp: { label: string; date: string; day: number } }) {
+  const [busy, setBusy] = useState(false)
+  const go = async () => {
+    const lost = (useStore.getState().status?.day ?? cp.day) - cp.day
+    if (!window.confirm(`Undo "${cp.label}"?${lost > 0 ? ` The ${lost} day${lost === 1 ? '' : 's'} since then will be lost.` : ''}`)) return
+    setBusy(true)
+    try {
+      const r = await valleyApi.undo()
+      useStore.getState().toast?.({ kind: 'world', title: `Undone: ${r.undone}`, body: `Back to ${new Date(r.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}.`, ttl: 6000 })
+      await useStore.getState().refreshStatus()
+    } catch (e: any) { window.alert(String(e?.message ?? e)) }
+    setBusy(false)
+  }
+  return <button className="btn small ghost" disabled={busy} onClick={go} title={`Put your world back as it was just before: ${cp.label}`}>↶ Undo</button>
 }

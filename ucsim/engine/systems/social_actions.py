@@ -6,7 +6,9 @@
 Actions: invite (a one-off get-together), series (a weekly dinner or study group), reschedule (move an occasion or a
 series), introduce (two people meet at a café through someone), ride (someone drives a person to an occasion),
 reach_out (a text or a visit), job_offer (an employer offers a person a job), spark (the editor gives one person
-feelings for another they know: what happens next — asking out, saying yes — is the model's own romance).
+feelings for another they know: what happens next — asking out, saying yes — is the model's own romance), ask_out
+(someone asks someone they know out now; the answer is the other person's own), break_up (someone ends their
+relationship), go_home (someone goes home to family for a few days).
 
 * **Editor** (no "as"): arranges the opportunity. The people involved still decide with the model's usual reasons —
   attend_occasion for an invitation, take_job for an offer, reach_out for a nudge to get in touch.
@@ -30,12 +32,14 @@ from .. import clock
 from ..ledger import CHANNEL_ID, RESPONSE_ID, STATUS_ID
 from ..state import CTX_ID, EdgeStore, Tie
 
-ACTIONS = ("invite", "series", "reschedule", "introduce", "ride", "reach_out", "job_offer", "spark")
+ACTIONS = ("invite", "series", "reschedule", "introduce", "ride", "reach_out", "job_offer", "spark", "ask_out", "break_up",
+           "go_home")
 WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 GROUPS = ("roommates", "housemates", "neighbors", "friends", "close_friends")
 ACTION_WORDS = {"invite": "an invitation", "series": "a weekly get-together", "reschedule": "a new time",
                 "introduce": "an introduction", "ride": "a ride", "reach_out": "getting in touch", "job_offer": "a job offer",
-                "spark": "feelings for someone"}
+                "spark": "feelings for someone", "ask_out": "asking someone out", "break_up": "a breakup",
+                "go_home": "a trip home"}
 
 
 class Refused(ValueError):
@@ -247,7 +251,8 @@ def _plan(cx: _Ctx) -> dict:
     if cx.actor is not None:
         cx.person(cx.actor, "'as'")
     return {"invite": _plan_invite, "series": _plan_invite, "reschedule": _plan_reschedule, "introduce": _plan_introduce,
-            "ride": _plan_ride, "reach_out": _plan_reach_out, "job_offer": _plan_job, "spark": _plan_spark}[a](cx)
+            "ride": _plan_ride, "reach_out": _plan_reach_out, "job_offer": _plan_job, "spark": _plan_spark,
+            "ask_out": _plan_ask_out, "break_up": _plan_break_up, "go_home": _plan_go_home}[a](cx)
 
 
 def _plan_invite(cx: _Ctx) -> dict:
@@ -509,6 +514,51 @@ def _plan_job(cx: _Ctx) -> dict:
             "hours": hours, "wage": wage, "shifts": it.get("shifts")}
 
 
+def _plan_ask_out(cx: _Ctx) -> dict:
+    it, P = cx.it, cx.P
+    src = cx.actor if cx.actor is not None else cx.person(it.get("from"), "'from'")
+    dst = cx.person(it.get("to"), "'to'")
+    if src == dst:
+        raise Refused("ask someone else out")
+    if not cx.knows(src, [dst])[0]:
+        cx.problems.append(f"{_first(P, src)} doesn't know {_name(P, dst)} — introduce them first")
+    if P["partner_id"][src] == dst:
+        cx.problems.append(f"{_first(P, src)} is already with {_first(P, dst)}")
+    if P.isin("rel_status", ["married", "engaged"])[dst]:
+        cx.warnings.append(f"{_first(P, dst)} is {P.labels('rel_status', [P['rel_status'][dst]])[0]}: expect a no")
+    elif P["partner_id"][dst] >= 0:
+        cx.warnings.append(f"{_first(P, dst)} is seeing someone: likely a no")
+    if P.isin("rel_status", ["dating", "engaged", "married"])[src]:
+        cx.warnings.append(f"{_first(P, src)} is already in a relationship")
+    return {"summary": f"{_first(P, src)} asks {_first(P, dst)} out (the answer is {_first(P, dst)}'s)", "from": src, "to": dst}
+
+
+def _plan_break_up(cx: _Ctx) -> dict:
+    it, P = cx.it, cx.P
+    src = cx.actor if cx.actor is not None else cx.person(it.get("from"), "'from'")
+    b = int(P["partner_id"][src])
+    if b < 0:
+        raise Refused(f"{_name(P, src)} isn't with anyone")
+    if P.is_("rel_status", "married")[src]:
+        raise Refused("a divorce isn't something to arrange here")
+    word = "stops talking to" if P.is_("rel_status", "talking")[src] else "breaks up with"
+    return {"summary": f"{_first(P, src)} {word} {_first(P, b)}", "from": src, "partner": b}
+
+
+def _plan_go_home(cx: _Ctx) -> dict:
+    it, sim, P = cx.it, cx.sim, cx.P
+    i = cx.actor if cx.actor is not None else cx.person(it.get("who", it.get("from")), "'who'")
+    hrs = float(P["home_drive_hours"][i])
+    if hrs <= 0.6:
+        raise Refused(f"{_first(P, i)}'s family lives right here")
+    fam = sim.systems.get("family")
+    if fam is None:
+        raise Refused("this world has no families away from Provo")
+    nights = int(np.clip(int(it.get("nights") or 2), 1, 14))
+    how = "flies" if hrs > float(sim.p("family.trip.fly_hours")) else f"drives {hrs:.0f} hours"
+    return {"summary": f"{_first(P, i)} goes home for {nights} night{'s' if nights > 1 else ''} ({how})", "who": i, "nights": nights}
+
+
 # ---------------------------------------------------------------------- apply
 def apply_action(occ, k: int, it: dict) -> dict:
     """Lower intervention item k (target_type 'social') into the world. Returns what happened, with any refusal."""
@@ -522,7 +572,8 @@ def apply_action(occ, k: int, it: dict) -> dict:
         return {"ok": False, "problems": cx.problems, "people": cx.people}
     a = it["action"]
     fn = {"invite": _do_invite, "series": _do_invite, "reschedule": _do_reschedule, "introduce": _do_introduce,
-          "ride": _do_ride, "reach_out": _do_reach_out, "job_offer": _do_job, "spark": _do_spark}[a]
+          "ride": _do_ride, "reach_out": _do_reach_out, "job_offer": _do_job, "spark": _do_spark,
+          "ask_out": _do_ask_out, "break_up": _do_break_up, "go_home": _do_go_home}[a]
     res = fn(occ, k, it, plan, cx)
     return {"ok": True, "summary": plan.get("summary"), "warnings": cx.warnings, **res}
 
@@ -693,3 +744,22 @@ def _do_job(occ, k, it, plan, cx) -> dict:
     P.cols["wage"][i] = plan["wage"]
     ev = sim.emit("job_found", [i], decision=did, mech="occasions.action", salt=5011 + k, causes=[("action", [k], 1.0)])
     return {"accepted": True, "decision": int(did[0]), "event": int(ev[0])}
+
+
+def _do_ask_out(occ, k, it, plan, cx) -> dict:
+    return occ.sim.systems["romance"].ask_now(plan["from"], plan["to"], k)
+
+
+def _do_break_up(occ, k, it, plan, cx) -> dict:
+    return occ.sim.systems["romance"].end_now(plan["from"], k)
+
+
+def _do_go_home(occ, k, it, plan, cx) -> dict:
+    sim = occ.sim
+    fam = sim.systems["family"]
+    i, day = np.array([plan["who"]], np.int64), sim.w.day
+    fam._go(i, day, day + plan["nights"], "weekend", {}, 0.0, np.ones(1), np.ones(1, bool))
+    ev = int(fam.trips["event"][fam.trips.n - 1])
+    from ..provenance import link
+    link(sim, [ev], "action", [k], 1.0)
+    return {"went": True, "event": ev, "back_day": day + plan["nights"]}

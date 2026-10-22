@@ -542,4 +542,5 @@ export const valleyApi = {
   ripple: (ref: string, u: Universe = 'base'): Promise<any> => j(`/api/story/ripple?ref=${encodeURIComponent(ref)}&u=${u}&depth=4`),
   act: (action: any, world: 'original' | 'whatif'): Promise<any> => post('/api/act', { ...action, world }),
   check: (action: any, world: 'original' | 'whatif'): Promise<any> => post('/api/act/check', { ...action, u: world === 'original' ? 'base' : undefined }),
+  undo: (): Promise<{ ok: boolean; undone: string; date: string; days_lost: number }> => post('/api/act/undo', {}),
 }

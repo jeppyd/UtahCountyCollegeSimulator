@@ -1,0 +1,106 @@
+# The flagship complexes, specified by hand from published facts: which real buildings they are, how many floors,
+# and the apartment (or room) layouts inside. ucsim/geo/homes.py turns this into a roster of units — building,
+# floor, label, bedrooms — that the simulation places people in. Anything not published is marked `estimate`.
+#
+#   complex     the complex's name in ucsim/geo/data/complexes.parquet (the byu_dorm / married row)
+#   buildings   which footprints in ucsim/geo/data/buildings.parquet: by exact `names`, a `name_prefix`, or
+#               `near` (lon, lat, radius m) + `kinds` + `min_area_m2`/`max_area_m2` + `name_pattern`; `exclude` names
+#               (several footprints with one name, e.g. a hall mapped in parts: the largest is the building)
+#   floors      floors with homes on them (overrides the footprint's own count); min_floors: at least this many
+#   units_from  addresses: the county's apartment numbers (data/external/ugrc/addresses.json, `street` + "BLDG n APT
+#               fwnn", the first digit the floor); generate: `per_floor` units on each floor of each building
+#   total       the number of units in the real complex (generate spreads them over the buildings)
+#   layouts     unit types: share of units, bedrooms (beds in each), baths, words; shares sum to 1
+#   sexes       per building, for single-sex halls (F/M); omitted = set per unit by the simulation
+#   community   single (default) or family (married students and families); split: {family: north|south,
+#               share_family} puts that share of the buildings, from that end, in family housing (family_layouts)
+flagship:
+  helaman_halls:
+    complex: Helaman Halls
+    buildings: {names: [Budge Hall, Building 9, Chipman Hall, David John Hall, Hinckley Hall, May Hall, Merrill Hall,
+                        Stover Hall, Taylor Hall], near: [-111.6537, 40.2526, 350]}
+    floors: 3                 # "six floors (in three stories)": split-level half floors, drawn as three
+    units_from: generate
+    per_floor: 39             # 22 rooms on each of two half-floors per story (44), trimmed to the published
+                              # "just over 2,100 students" (staff and RA rooms, lounges)
+    layouts:
+      - {share: 0.985, bedrooms: [2], baths: 0, words: "a shared room with a sink; the floor's bathroom has five or six private showers"}
+      - {share: 0.015, bedrooms: [2, 2], baths: 1, words: "a shared suite: two rooms joined by a bathroom for four (on the mezzanine)"}
+    # five halls for women and four for men (published); which ones is an estimate
+    sexes: {Budge Hall: F, Building 9: F, Chipman Hall: M, David John Hall: F, Hinckley Hall: M, May Hall: F,
+            Merrill Hall: F, Stover Hall: M, Taylor Hall: M}
+    estimate: [sexes]
+    sources:
+      - "Wikipedia, List of BYU residence halls: nine buildings, 5 women's and 4 men's; two per room; 22 rooms per floor; about 2,100 students"
+      - "BYU Housing, 19 and older community (2026–27): shared room with a sink, floor bathroom with 5–6 private showers; two shared suites per building on the mezzanine (not David John Hall or Building 9); single suites only in David John Hall; basement kitchenette and laundry in each hall; $3,455 Fall–Winter"
+  heritage_halls:
+    complex: Heritage Halls
+    buildings: {name_prefix: "Heritage Halls Building"}
+    floors: 4
+    units_from: plans         # every apartment from BYU Facilities Planning's floor plans (geo/floorplans.py)
+    by_bedrooms:
+      3: {baths: 2, words: "three shared bedrooms, two bathrooms"}
+      2: {baths: 2, words: "two shared bedrooms, two bathrooms"}
+      1: {baths: 1, words: "one shared bedroom"}
+    sources:
+      - "BYU Facilities Planning floor plans, HR02–HR16 (Revit, 2019; supplied by the owner): 605 apartments, 467 with
+        three bedrooms (C, D, E) and 137 with two, two beds a bedroom, 3,356 beds; each apartment placed on its footprint"
+      - "BYU Housing, Heritage Halls: most apartments have three shared bedrooms and two bathrooms; a few two-bedroom apartments"
+      - "Wikipedia: L-shaped buildings, 4 stories, about 210 students each, about 2,750 in all"
+      - "Utah County address points: 825 E Heritage Dr, Bldg 2–16, Apt fwnn"
+      - "BYU Housing, 19 and older community (2026–27): kitchen shared by up to five roommates; activity room with a TV on each first floor, smaller ones upstairs; RHA Rec Room in the basement of building 7; $5,045 shared, $6,115 private"
+  wymount_terrace:
+    complex: Wymount Terrace
+    buildings: {near: [-111.6396, 40.2588, 420], kinds: [house, other, apartments], min_area_m2: 250, max_area_m2: 900,
+                name_pattern: "^[0-9]+[A-D]$|^$"}
+    min_floors: 2             # the 24 southern buildings have three stories, the 48 northern two (lidar says which)
+    units_from: generate
+    total: 898
+    community: family
+    layouts:                  # bedrooms here are the most people each room holds (a couple, or children)
+      - {share: 0.15, bedrooms: [2], baths: 1, words: "one bedroom, about 430–450 sq ft, up to two people, $970 a month"}
+      - {share: 0.10, bedrooms: [2, 2], baths: 1, words: "one bedroom with a study, about 500 sq ft, up to four, $1,005"}
+      - {share: 0.65, bedrooms: [2, 2], baths: 1, words: "two bedrooms, about 550–600 sq ft, up to four, $1,020"}
+      - {share: 0.10, bedrooms: [2, 2, 2], baths: 1, words: "three bedrooms, about 750 sq ft, up to six, $1,190"}
+    estimate: [layouts.share]
+    sources:
+      - "BYU Housing, family housing options (2026–27): one bedroom 430–450 sq ft (max 2), one bedroom with study ~500 (max 4), two bedroom 550–600 (max 4), three bedroom ~750 (max 6); rents as listed"
+      - "Wikipedia and BYU Housing: 898 apartments in 72 buildings (24 three-story, 48 two-story); one to three bedrooms"
+      - "BYU Residence Life: two bedrooms about 550–600 sq ft, up to four people; one bedroom with study about 500 sq ft"
+  wyview_park:
+    complex: Wyview Park
+    buildings: {name_prefix: "Building ", near: [-111.6600, 40.2614, 380], kinds: [apartments, other, house]}
+    floors: 3
+    units_from: addresses
+    street_near: [-111.6600, 40.2614, 380]
+    # both communities live here (BYU lists both): the south half single students, the north half families —
+    # confirmed by the owner (2026-10-21); Wikipedia: the southern half was converted to single housing in 2006
+    split: {family: north, share_family: 0.5}
+    # BYU floor plans WP01–WP30: 426 apartments (as many as the county's address points), every building with one
+    # three-bedroom apartment a floor (90 in all) and the rest two-bedroom; the three-bedroom one is taken to be the
+    # highest-numbered on its floor (the plans' end units)
+    three_bedroom_per_floor: 1
+    family_layouts:
+      - {share: 0.79, bedrooms: [2, 2], baths: 1, words: "two bedrooms, about 700 sq ft, up to four, $1,055 a month"}
+      - {share: 0.21, bedrooms: [2, 2, 2], baths: 1, words: "three bedrooms, about 850 sq ft, up to six, $1,215"}
+    # singles: "a kitchen among three to four tenants": three or four people per apartment, shared and private rooms
+    layouts:
+      - {share: 0.35, bedrooms: [2, 2], baths: 1, words: "two shared bedrooms, one bathroom"}
+      - {share: 0.15, bedrooms: [2, 1], baths: 1, words: "two bedrooms, one shared and one private"}
+      - {share: 0.30, bedrooms: [2, 1, 1], baths: 1, words: "three bedrooms (one shared), one bathroom"}
+      - {share: 0.20, bedrooms: [1, 1, 1], baths: 1, words: "three private bedrooms, one bathroom"}
+    estimate: [layouts.share]
+    sources:
+      - "BYU Facilities Planning floor plans WP01–WP30 (Revit, 2023; supplied by the owner): 3 floors; 12 or 18 apartments a building, 336 two-bedroom and 90 three-bedroom"
+      - "BYU Housing, family housing options: Wyview 2-bedroom ~700 sq ft (max 4) $1,055, 3-bedroom ~850 sq ft (max 6) $1,215"
+      - "BYU Housing, 19 and older community (2026–27): two or three bedrooms and one bathroom; private and shared rooms; kitchen shared by three to four tenants; $3,445 shared, $4,440 private; single students 19+"
+      - "Wikipedia: 30 buildings; converted to single housing from 2006; houses married and single students"
+  riviera:
+    complex: Riviera Apartments
+    units_from: dwellings     # the complex's own address points (already on their buildings and floors)
+    layouts:
+      - {share: 0.5, bedrooms: [2, 2], baths: 2, words: "two shared bedrooms, two bathrooms"}
+      - {share: 0.5, bedrooms: [2, 2, 2], baths: 2, words: "three shared bedrooms, two bathrooms"}
+    estimate: [layouts.share]
+    sources:
+      - "BYU Housing, 19 and older community (2026–27): BYU-owned; two or three shared bedrooms (two beds each) and two bathrooms; pool, hot tub, fitness center, clubhouse; $4,355 Fall–Winter"

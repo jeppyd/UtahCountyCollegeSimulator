@@ -19,6 +19,7 @@ class Academics:
         self.sec_block = np.zeros(0, np.int8)
         self.sec_bldg = np.zeros(0, np.int16)
         self.sec_area = np.zeros(0, np.int16)
+        self.sec_room = np.zeros(0, np.int32)          # classroom (row of places.classrooms()), −1: none known
 
     def init(self):
         P = self.sim.w.P
@@ -61,6 +62,10 @@ class Academics:
             self.stu_secs = np.where(self.stu_secs >= 0, remap[np.maximum(self.stu_secs, 0)], -1)
         self.sec_school, self.sec_days = self.sec_school[keep], self.sec_days[keep]
         self.sec_block, self.sec_bldg, self.sec_area = self.sec_block[keep], self.sec_bldg[keep], self.sec_area[keep]
+        if len(self.sec_room) == len(keep):
+            self.sec_room = self.sec_room[keep]
+        else:
+            self.sec_room = np.full(int(keep.sum()), -1, np.int32)
         self.stu_secs[ids] = -1
         if len(ids) == 0:
             return
@@ -119,10 +124,68 @@ class Academics:
         self.sec_block = np.r_[self.sec_block, np.array(new_block, np.int8)]
         self.sec_bldg = np.r_[self.sec_bldg, np.array(new_bldg, np.int16)]
         self.sec_area = np.r_[self.sec_area, np.array(new_area, np.int16)]
+        self.sec_room = np.r_[self.sec_room, self._rooms_for(np.arange(base - len(new_school), base), code)]
         P.internal["sched_count"][ids] = 0
         P.internal["attend_count"][ids] = 0
         if not initial:
             sim.emit("term_started", ids, mech="academics.term")
+
+    def _rooms_for(self, secs: np.ndarray, school: int) -> np.ndarray:
+        """A real classroom for each new section (BYU floor plans; engine/places.py): in a building of its study area
+        (general education anywhere), seats for everyone enrolled, the snuggest such room free at that hour; −1 when
+        none fits or there are no plans (the section then meets in its campus building's slot)."""
+        from .. import places
+        out = np.full(len(secs), -1, np.int32)
+        R = places.classrooms(school) if places.available() else None
+        if R is None or not len(R["seats"]) or not len(secs):
+            return out
+        size = np.zeros(len(secs), np.int64)
+        held = self.stu_secs[self.stu_secs >= 0]
+        cnt = np.bincount(held, minlength=int(secs.max()) + 1)
+        size = cnt[secs]
+        areas = self.sim.w.P.specs["study_area"].categories if hasattr(self.sim.w.P.specs["study_area"], "categories") else []
+        seats = R["seats"].astype(np.int64)
+        pools = {k: np.asarray(v, np.int64) for k, v in R["by_area"].items()}
+        everything = np.asarray(R["all"], np.int64)
+        busy: dict = {}                               # (days, block) → rooms taken at that hour this term
+        for j in np.lexsort((secs, -size)):           # the biggest sections choose first
+            s_ = int(secs[j])
+            a = int(self.sec_area[s_])
+            pref = pools.get(areas[a] if 0 <= a < len(areas) else "general", pools["general"])
+            slot = (int(self.sec_days[s_]), int(self.sec_block[s_]))
+            taken = busy.setdefault(slot, np.zeros(len(seats), bool))
+            for pool in (pref, pools["general"], everything):
+                ok = pool[(seats[pool] >= size[j]) & ~taken[pool]]
+                if len(ok):
+                    r = int(ok[np.lexsort(((ok * 2654435761 + s_) % 997, seats[ok]))[0]])
+                    out[j] = r
+                    taken[r] = True
+                    break
+        return out
+
+    def section_point(self, secs: np.ndarray):
+        """Where each section meets: (lon, lat, floor, building) — its classroom, else its campus building's anchor."""
+        from .. import places
+        act = self.sim.systems["activity"]
+        secs = np.asarray(secs, np.int64)
+        sch = self.sec_school[secs]
+        sb = self.sec_bldg[secs].astype(np.int64)
+        lon, lat = np.zeros(len(secs)), np.zeros(len(secs))
+        floor = np.zeros(len(secs), np.int64)
+        bld = np.full(len(secs), -1, np.int64)
+        for s_ in (1, 2):
+            m = sch == s_
+            if m.any():
+                pts = act.bldg[s_]
+                lon[m], lat[m] = pts[sb[m] % len(pts), 0], pts[sb[m] % len(pts), 1]
+                bld[m] = act.bldg_id[s_][sb[m] % len(act.bldg_id[s_])]
+        rm = self.sec_room[secs] if len(self.sec_room) > int(secs.max(initial=-1)) else np.full(len(secs), -1)
+        has = rm >= 0
+        if has.any() and places.available():
+            R = places.classrooms(1)
+            lon[has], lat[has] = R["lon"][rm[has]], R["lat"][rm[has]]
+            floor[has], bld[has] = R["floor"][rm[has]], R["building"][rm[has]]
+        return lon, lat, floor, bld
 
     def section_now(self, wd: int, b: int) -> np.ndarray:
         P = self.sim.w.P
@@ -173,7 +236,8 @@ class Academics:
         target = (p("academics.study.base") + 0.75 * P["credits_term"] + p("academics.study.conscientiousness") * sim.z("conscientiousness")
                   + 8 * P["academic_pressure"] - p("academics.study.work_crowdout") * np.clip(P["work_hours"] - 10, 0, None)
                   - 6 * P["depressive_episode"] - 4 * P["fatigue"] - 0.08 * np.clip(P["social_hours_week"] - 20, 0, None)
-                  - 3 * (P["children"] > 0) + p("mind.self_efficacy.study") * (P["self_eff_academic"] - 0.5))
+                  - 3 * (P["children"] > 0) + p("mind.self_efficacy.study") * (P["self_eff_academic"] - 0.5)
+                  - p("academics.study.ability") * sim.z("academic_ability"))      # the struggling put in more hours
         plans = sim.systems.get("plans")
         if plans is not None:
             target = target + plans.study_boost()

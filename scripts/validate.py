@@ -244,7 +244,8 @@ def compare(sim, priors):
             rows.append({"table": table, "group": group, "var": var, "kind": kind, "target": target, "sim": got,
                          "diff": got - target, "tol": tol, "n_sim": n, "n_band": r.get("n_band"), "status": status(got - target, tol),
                          "holdout": table in HOLDOUT})
-    return rows + sexuality_rows(sim, priors)
+    from ucsim.analysis.psych308_check import rows as psych308_rows   # BYU Psych 308 class survey, 2020 (held out)
+    return rows + sexuality_rows(sim, priors) + psych308_rows(sim)
 
 
 def benchmarks(sim):

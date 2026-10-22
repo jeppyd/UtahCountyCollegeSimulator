@@ -66,6 +66,7 @@ class Groups:
         first = not w.groups
         if first:
             self._build_table()
+        self._settle_places()
         self._index()
         if first:
             self.assign(np.where(P["present"])[0])
@@ -109,6 +110,26 @@ class Groups:
         w.groups = {"kind": np.array(cols[0]), "school": np.array(cols[1], np.int8), "name": list(cols[2]),
                     "lon": np.array(cols[3]), "lat": np.array(cols[4]), "weekday": np.array(cols[5], np.int8),
                     "block": np.array(cols[6], np.int8), "faith": np.array(cols[7], dtype=object)}
+
+    def _settle_places(self):
+        """Each group meets in a real building (engine/places.py): clubs in a campus teaching building, intramural
+        teams and the institute at their named buildings. Idempotent."""
+        from .. import places
+        G = self.sim.w.groups
+        try:
+            places.footprints()
+        except FileNotFoundError:
+            return
+        lon, lat = np.array(G["lon"], np.float64), np.array(G["lat"], np.float64)
+        for g, (kind, school) in enumerate(zip(G["kind"], G["school"])):
+            if kind == "club":
+                slots = places.campus(int(school))["teaching"]
+                b = int(slots[(g * 7) % len(slots)]) if len(slots) else -1
+            else:
+                b = places.named(PLACES.get((str(kind), int(school)), ("",))[0])
+            if b >= 0:
+                lon[g], lat[g] = places.anchor(b)
+        G["lon"], G["lat"] = lon, lat
 
     def _index(self):
         G = self.sim.w.groups

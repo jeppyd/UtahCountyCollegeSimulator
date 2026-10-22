@@ -173,6 +173,9 @@ def main():
         log = open(home / "simulator.log", "a", encoding="utf-8", buffering=1)  # windowed app: no console
         sys.stdout = sys.stderr = log
     print(f"--- {time.strftime('%Y-%m-%d %H:%M:%S')} starting {TITLE}")
+    from ucsim.telemetry import LOG, setup_logging
+    setup_logging(home / "logs")
+    LOG.info("Started %s", TITLE)
     args = set(sys.argv[1:])
     port = free_port()
     try:

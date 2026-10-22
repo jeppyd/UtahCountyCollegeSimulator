@@ -324,8 +324,9 @@ class Occasions:
         camp = ~home
         if camp.any():      # a study group on the host's campus (the library, a study room)
             byu = P["school"][h] == 1
-            lon = np.where(camp, np.where(byu, BYU[0] + 0.0012, UVU[0] + 0.0010), lon)
-            lat = np.where(camp, np.where(byu, BYU[1] + 0.0018, UVU[1] - 0.0008), lat)
+            (bx, by_), (ux, uy) = self._study_point(1), self._study_point(2)
+            lon = np.where(camp, np.where(byu, bx, ux), lon)
+            lat = np.where(camp, np.where(byu, by_, uy), lat)
         # the host has to be free: move it later (up to the kind's latest start) to fit a shift or a class
         f = self._feasible(h, tday, start, dur, lon, lat, host=True)
         # (something starting during it can't be fixed by moving it later: then they don't host that day)
@@ -678,12 +679,12 @@ class Occasions:
             meets = valid & ((acad.sec_days[ss] >> wd[:, None].astype(np.uint8)) & 1).astype(bool)
             r, j = np.nonzero(meets)
             st, en = sim.systems["activity"].class_times(ss[r, j])
-            byu = P["school"][persons][r] == 1
             rows.append(r)
             cs.append(st)
             ce.append(en)
-            clon.append(np.where(byu, BYU[0], UVU[0]))
-            clat.append(np.where(byu, BYU[1], UVU[1]))
+            lo_, la_, _, _ = acad.section_point(ss[r, j])      # the class's own room or building
+            clon.append(lo_)
+            clat.append(la_)
             ck.append(np.full(len(r), KIND_C["class"]))
         # occasions they're going to (said yes) or organizing
         I, O = self.book.inv, self.book.occ
@@ -1830,6 +1831,14 @@ class Occasions:
                 "weekday": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][wd],
                 "blocks": blocks, "commitments": com, "occasions": sorted(occs, key=lambda o: o["start"]),
                 "free": self.free_window(i, day)}
+
+    def _study_point(self, school: int) -> tuple[float, float]:
+        """Where a campus get-together meets: the campus's study building (the library), a point inside it."""
+        from .. import places
+        b = places.campus(school)["study"] if places.available() else -1
+        if b >= 0:
+            return places.anchor(b)
+        return (BYU[0] + 0.0012, BYU[1] + 0.0018) if school == 1 else (UVU[0] + 0.0010, UVU[1] - 0.0008)
 
     def place_label(self, oid: int) -> str:
         """Where an occasion is, in words."""

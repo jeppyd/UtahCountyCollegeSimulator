@@ -1,0 +1,1574 @@
+{
+ "meta": {
+  "source": "Psych 308 class survey, BYU, Mar 17 – Dec 14, 2020 (during the COVID-19 pandemic)",
+  "built": "2026-10-21",
+  "n": 947,
+  "n_lds": 929,
+  "k_min": 10,
+  "make_up": {
+   "women": 0.636,
+   "freshmen": 0.355,
+   "psychology_majors": 0.371,
+   "single": 0.693,
+   "married": 0.14,
+   "age_median": 21.0
+  },
+  "note": "Latter-day Saint respondents only below. Stable = usable as held-out checks; pandemic = 2020 levels, diagnostics only; associations = Spearman correlations (pairwise complete).",
+  "labels": {
+   "parentmarital": "Parents divorced (1 = divorced)",
+   "siblings": "Number of siblings",
+   "mission": "Mission: 1 not going, 2 planning, 3 served",
+   "belief": "Believes in God",
+   "religimp": "Importance of religion (1–5)",
+   "doubt": "Doubts in the last year (1 none … 4 many)",
+   "pray_freq": "Private prayer frequency now (1 never … 6 several times a day)",
+   "scripture_freq": "Scripture reading frequency now (1–6)",
+   "relspir": "1 neither, 2 religious and spiritual, 3 religious not spiritual, 4 spiritual not religious",
+   "political": "1 liberal, 2 moderate, 3 conservative",
+   "same_sex": "Opposes legal same-sex marriage",
+   "premarital": "Premarital sex: 1 always wrong … 4 not wrong at all",
+   "getmarried": "Singles: how much they want to marry now (1–5)",
+   "agemarried": "Married: age at marriage",
+   "hoursstudy": "Study hours per week per credit hour",
+   "cheat_any": "Cheated on an assignment or exam in the past year",
+   "alcohol_any": "Drank alcohol in the past month",
+   "extraverted": "TIPI-style item, 1–7",
+   "conscientious": "1–7",
+   "openness": "1–7",
+   "agreeableness": "1–7",
+   "emotionalstability": "1–7",
+   "parentingstyle": "1 authoritative, 2 authoritarian, 3 permissive, 4 neglectful",
+   "connected_family": "Connected to family now (1–5)",
+   "connected_family_hs": "Connected to family in high school (1–5)",
+   "dates_hs": "Dates per month in high school",
+   "dates": "Dates per month (2020)",
+   "lonely": "'I felt lonely' past week: 0 rarely … 3 most days",
+   "cesd": "CES-D-10 total (0–30; 10+ = notable symptoms)",
+   "lifesat": "Life satisfaction (0–10)",
+   "selfesteem": "Self-esteem (mean of 3 items, 1–5)",
+   "sleephrs": "Sleep hours a night",
+   "socialmedia": "Social media minutes a day",
+   "exercise": "Exercise hours a week",
+   "videogames": "Video game hours a week",
+   "workhrs": "Work hours a week",
+   "connected_friends": "Connected to friends now (1–5)",
+   "collgpa": "College GPA",
+   "attendance": "Classes missed in the last 4 weeks"
+  }
+ },
+ "stable": {
+  "parentmarital": {
+   "all": {
+    "summary": {
+     "n": 928,
+     "mean": 0.089,
+     "median": 0.0,
+     "p25": 0.0,
+     "p75": 0.0
+    },
+    "shares": {
+     "0": 0.9106,
+     "1": 0.0894
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 340,
+     "mean": 0.085,
+     "median": 0.0,
+     "p25": 0.0,
+     "p75": 0.0
+    },
+    "shares": {
+     "0": 0.9147,
+     "1": 0.0853
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 588,
+     "mean": 0.092,
+     "median": 0.0,
+     "p25": 0.0,
+     "p75": 0.0
+    },
+    "shares": {
+     "0": 0.9082,
+     "1": 0.0918
+    }
+   }
+  },
+  "siblings": {
+   "all": {
+    "summary": {
+     "n": 929,
+     "mean": 3.553,
+     "median": 3.0,
+     "p25": 3.0,
+     "p75": 4.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 340,
+     "mean": 3.669,
+     "median": 3.0,
+     "p25": 3.0,
+     "p75": 4.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 589,
+     "mean": 3.486,
+     "median": 3.0,
+     "p25": 2.0,
+     "p75": 4.0
+    }
+   }
+  },
+  "mission": {
+   "all": {
+    "summary": {
+     "n": 923,
+     "mean": 2.277,
+     "median": 3.0,
+     "p25": 1.0,
+     "p75": 3.0
+    },
+    "shares": {
+     "1": 0.2676,
+     "2": 0.1874,
+     "3": 0.545
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 338,
+     "mean": 2.751,
+     "median": 3.0,
+     "p25": 3.0,
+     "p75": 3.0
+    },
+    "shares": {
+     "1": 0.0533,
+     "2": 0.142,
+     "3": 0.8047
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 585,
+     "mean": 2.003,
+     "median": 2.0,
+     "p25": 1.0,
+     "p75": 3.0
+    },
+    "shares": {
+     "1": 0.3915,
+     "2": 0.2137,
+     "3": 0.3949
+    }
+   }
+  },
+  "belief": {
+   "all": {
+    "summary": {
+     "n": 926,
+     "mean": 0.992,
+     "median": 1.0,
+     "p25": 1.0,
+     "p75": 1.0
+    },
+    "shares": {
+     "1": 0.9924
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 338,
+     "mean": 0.991,
+     "median": 1.0,
+     "p25": 1.0,
+     "p75": 1.0
+    },
+    "shares": {
+     "1": 0.9911
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 588,
+     "mean": 0.993,
+     "median": 1.0,
+     "p25": 1.0,
+     "p75": 1.0
+    },
+    "shares": {
+     "1": 0.9932
+    }
+   }
+  },
+  "religimp": {
+   "all": {
+    "summary": {
+     "n": 926,
+     "mean": 4.605,
+     "median": 5.0,
+     "p25": 4.0,
+     "p75": 5.0
+    },
+    "shares": {
+     "2": 0.0151,
+     "3": 0.0702,
+     "4": 0.2095,
+     "5": 0.7052
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 338,
+     "mean": 4.541,
+     "median": 5.0,
+     "p25": 4.0,
+     "p75": 5.0
+    },
+    "shares": {
+     "3": 0.0858,
+     "4": 0.2426,
+     "5": 0.6568
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 588,
+     "mean": 4.641,
+     "median": 5.0,
+     "p25": 4.0,
+     "p75": 5.0
+    },
+    "shares": {
+     "3": 0.0612,
+     "4": 0.1905,
+     "5": 0.733
+    }
+   }
+  },
+  "doubt": {
+   "all": {
+    "summary": {
+     "n": 926,
+     "mean": 2.009,
+     "median": 2.0,
+     "p25": 1.0,
+     "p75": 3.0
+    },
+    "shares": {
+     "1": 0.3661,
+     "2": 0.3542,
+     "3": 0.1847,
+     "4": 0.095
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 338,
+     "mean": 1.976,
+     "median": 2.0,
+     "p25": 1.0,
+     "p75": 3.0
+    },
+    "shares": {
+     "1": 0.3905,
+     "2": 0.355,
+     "3": 0.142,
+     "4": 0.1124
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 588,
+     "mean": 2.027,
+     "median": 2.0,
+     "p25": 1.0,
+     "p75": 3.0
+    },
+    "shares": {
+     "1": 0.352,
+     "2": 0.3537,
+     "3": 0.2092,
+     "4": 0.085
+    }
+   }
+  },
+  "pray_freq": {
+   "all": {
+    "summary": {
+     "n": 372,
+     "mean": 4.659,
+     "median": 5.0,
+     "p25": 4.0,
+     "p75": 6.0
+    },
+    "shares": {
+     "2": 0.1022,
+     "3": 0.0995,
+     "4": 0.1452,
+     "5": 0.2634,
+     "6": 0.3737
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 125,
+     "mean": 4.704,
+     "median": 5.0,
+     "p25": 4.0,
+     "p75": 6.0
+    },
+    "shares": {
+     "3": 0.12,
+     "4": 0.152,
+     "5": 0.264,
+     "6": 0.376,
+     "other": 0.088
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 247,
+     "mean": 4.636,
+     "median": 5.0,
+     "p25": 4.0,
+     "p75": 6.0
+    },
+    "shares": {
+     "2": 0.1174,
+     "3": 0.0891,
+     "4": 0.1417,
+     "5": 0.2632,
+     "6": 0.3725
+    }
+   }
+  },
+  "scripture_freq": {
+   "all": {
+    "summary": {
+     "n": 372,
+     "mean": 3.89,
+     "median": 4.0,
+     "p25": 3.0,
+     "p75": 5.0
+    },
+    "shares": {
+     "1": 0.0403,
+     "2": 0.1613,
+     "3": 0.1478,
+     "4": 0.2339,
+     "5": 0.3522,
+     "6": 0.0645
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 125,
+     "mean": 3.928,
+     "median": 4.0,
+     "p25": 3.0,
+     "p75": 5.0
+    },
+    "shares": {
+     "2": 0.144,
+     "3": 0.168,
+     "4": 0.2,
+     "5": 0.352,
+     "6": 0.088
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 247,
+     "mean": 3.87,
+     "median": 4.0,
+     "p25": 3.0,
+     "p75": 5.0
+    },
+    "shares": {
+     "2": 0.17,
+     "3": 0.1377,
+     "4": 0.251,
+     "5": 0.3522,
+     "6": 0.0526
+    }
+   }
+  },
+  "relspir": {
+   "all": {
+    "summary": {
+     "n": 925,
+     "mean": 2.194,
+     "median": 2.0,
+     "p25": 2.0,
+     "p75": 2.0
+    },
+    "shares": {
+     "2": 0.8605,
+     "3": 0.0595,
+     "4": 0.0714
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 338,
+     "mean": 2.219,
+     "median": 2.0,
+     "p25": 2.0,
+     "p75": 2.0
+    },
+    "shares": {
+     "2": 0.8166,
+     "3": 0.0858,
+     "4": 0.0769
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 587,
+     "mean": 2.181,
+     "median": 2.0,
+     "p25": 2.0,
+     "p75": 2.0
+    },
+    "shares": {
+     "2": 0.8859,
+     "3": 0.0443,
+     "4": 0.0681
+    }
+   }
+  },
+  "political": {
+   "all": {
+    "summary": {
+     "n": 927,
+     "mean": 2.162,
+     "median": 2.0,
+     "p25": 2.0,
+     "p75": 3.0
+    },
+    "shares": {
+     "1": 0.1489,
+     "2": 0.5405,
+     "3": 0.3107
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 338,
+     "mean": 2.325,
+     "median": 2.0,
+     "p25": 2.0,
+     "p75": 3.0
+    },
+    "shares": {
+     "1": 0.0799,
+     "2": 0.5148,
+     "3": 0.4053
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 589,
+     "mean": 2.068,
+     "median": 2.0,
+     "p25": 2.0,
+     "p75": 3.0
+    },
+    "shares": {
+     "1": 0.1885,
+     "2": 0.5552,
+     "3": 0.2564
+    }
+   }
+  },
+  "same_sex": {
+   "all": {
+    "summary": {
+     "n": 922,
+     "mean": 0.422,
+     "median": 0.0,
+     "p25": 0.0,
+     "p75": 1.0
+    },
+    "shares": {
+     "0": 0.5781,
+     "1": 0.4219
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 336,
+     "mean": 0.521,
+     "median": 1.0,
+     "p25": 0.0,
+     "p75": 1.0
+    },
+    "shares": {
+     "0": 0.4792,
+     "1": 0.5208
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 586,
+     "mean": 0.365,
+     "median": 0.0,
+     "p25": 0.0,
+     "p75": 1.0
+    },
+    "shares": {
+     "0": 0.6348,
+     "1": 0.3652
+    }
+   }
+  },
+  "premarital": {
+   "all": {
+    "summary": {
+     "n": 926,
+     "mean": 1.544,
+     "median": 1.0,
+     "p25": 1.0,
+     "p75": 2.0
+    },
+    "shares": {
+     "1": 0.6555,
+     "2": 0.189,
+     "3": 0.1112,
+     "4": 0.0443
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 337,
+     "mean": 1.46,
+     "median": 1.0,
+     "p25": 1.0,
+     "p75": 2.0
+    },
+    "shares": {
+     "1": 0.6944,
+     "2": 0.181,
+     "3": 0.095,
+     "4": 0.0297
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 589,
+     "mean": 1.593,
+     "median": 1.0,
+     "p25": 1.0,
+     "p75": 2.0
+    },
+    "shares": {
+     "1": 0.6333,
+     "2": 0.1935,
+     "3": 0.1205,
+     "4": 0.0526
+    }
+   }
+  },
+  "getmarried": {
+   "all": {
+    "summary": {
+     "n": 642,
+     "mean": 2.456,
+     "median": 2.0,
+     "p25": 1.0,
+     "p75": 3.0
+    },
+    "shares": {
+     "1": 0.3037,
+     "2": 0.2181,
+     "3": 0.2555,
+     "4": 0.1636,
+     "5": 0.0592
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 213,
+     "mean": 2.573,
+     "median": 3.0,
+     "p25": 1.0,
+     "p75": 4.0
+    },
+    "shares": {
+     "1": 0.2723,
+     "2": 0.216,
+     "3": 0.2488,
+     "4": 0.1925,
+     "5": 0.0704
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 429,
+     "mean": 2.399,
+     "median": 2.0,
+     "p25": 1.0,
+     "p75": 3.0
+    },
+    "shares": {
+     "1": 0.3193,
+     "2": 0.2191,
+     "3": 0.2587,
+     "4": 0.1492,
+     "5": 0.0536
+    }
+   }
+  },
+  "agemarried": {
+   "all": {
+    "summary": {
+     "n": 131,
+     "mean": 21.408,
+     "median": 21.0,
+     "p25": 21.0,
+     "p75": 22.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 62,
+     "mean": 21.983,
+     "median": 22.0,
+     "p25": 21.0,
+     "p75": 22.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 69,
+     "mean": 21.0,
+     "median": 21.0,
+     "p25": 20.0,
+     "p75": 22.0
+    }
+   }
+  },
+  "hoursstudy": {
+   "all": {
+    "summary": {
+     "n": 926,
+     "mean": 4.878,
+     "median": 3.0,
+     "p25": 2.0,
+     "p75": 6.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 339,
+     "mean": 5.234,
+     "median": 3.0,
+     "p25": 2.0,
+     "p75": 6.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 587,
+     "mean": 4.672,
+     "median": 3.0,
+     "p25": 2.0,
+     "p75": 5.0
+    }
+   }
+  },
+  "cheat_any": {
+   "all": {
+    "summary": {
+     "n": 926,
+     "mean": 0.343,
+     "median": 0.0,
+     "p25": 0.0,
+     "p75": 1.0
+    },
+    "shares": {
+     "0": 0.6566,
+     "1": 0.3434
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 338,
+     "mean": 0.379,
+     "median": 0.0,
+     "p25": 0.0,
+     "p75": 1.0
+    },
+    "shares": {
+     "0": 0.6213,
+     "1": 0.3787
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 588,
+     "mean": 0.323,
+     "median": 0.0,
+     "p25": 0.0,
+     "p75": 1.0
+    },
+    "shares": {
+     "0": 0.6769,
+     "1": 0.3231
+    }
+   }
+  },
+  "alcohol_any": {
+   "all": {
+    "summary": {
+     "n": 926,
+     "mean": 0.014,
+     "median": 0.0,
+     "p25": 0.0,
+     "p75": 0.0
+    },
+    "shares": {
+     "0": 0.986,
+     "1": 0.014
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 338,
+     "mean": 0.012,
+     "median": 0.0,
+     "p25": 0.0,
+     "p75": 0.0
+    },
+    "shares": {
+     "0": 0.9882
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 588,
+     "mean": 0.015,
+     "median": 0.0,
+     "p25": 0.0,
+     "p75": 0.0
+    },
+    "shares": {
+     "0": 0.9847
+    }
+   }
+  },
+  "extraverted": {
+   "all": {
+    "summary": {
+     "n": 928,
+     "mean": 4.652,
+     "median": 5.0,
+     "p25": 3.0,
+     "p75": 6.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 339,
+     "mean": 4.493,
+     "median": 5.0,
+     "p25": 3.0,
+     "p75": 6.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 589,
+     "mean": 4.744,
+     "median": 5.0,
+     "p25": 3.0,
+     "p75": 6.0
+    }
+   }
+  },
+  "conscientious": {
+   "all": {
+    "summary": {
+     "n": 928,
+     "mean": 5.738,
+     "median": 6.0,
+     "p25": 5.0,
+     "p75": 7.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 339,
+     "mean": 5.587,
+     "median": 6.0,
+     "p25": 5.0,
+     "p75": 6.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 589,
+     "mean": 5.825,
+     "median": 6.0,
+     "p25": 5.0,
+     "p75": 7.0
+    }
+   }
+  },
+  "openness": {
+   "all": {
+    "summary": {
+     "n": 928,
+     "mean": 5.735,
+     "median": 6.0,
+     "p25": 5.0,
+     "p75": 6.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 339,
+     "mean": 5.681,
+     "median": 6.0,
+     "p25": 5.0,
+     "p75": 6.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 589,
+     "mean": 5.766,
+     "median": 6.0,
+     "p25": 5.0,
+     "p75": 6.0
+    }
+   }
+  },
+  "agreeableness": {
+   "all": {
+    "summary": {
+     "n": 928,
+     "mean": 5.951,
+     "median": 6.0,
+     "p25": 6.0,
+     "p75": 7.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 339,
+     "mean": 5.689,
+     "median": 6.0,
+     "p25": 5.0,
+     "p75": 7.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 589,
+     "mean": 6.102,
+     "median": 6.0,
+     "p25": 6.0,
+     "p75": 7.0
+    }
+   }
+  },
+  "emotionalstability": {
+   "all": {
+    "summary": {
+     "n": 928,
+     "mean": 5.267,
+     "median": 6.0,
+     "p25": 5.0,
+     "p75": 6.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 339,
+     "mean": 5.596,
+     "median": 6.0,
+     "p25": 5.0,
+     "p75": 7.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 589,
+     "mean": 5.078,
+     "median": 5.0,
+     "p25": 4.0,
+     "p75": 6.0
+    }
+   }
+  },
+  "parentingstyle": {
+   "all": {
+    "summary": {
+     "n": 927,
+     "mean": 1.435,
+     "median": 1.0,
+     "p25": 1.0,
+     "p75": 2.0
+    },
+    "shares": {
+     "1": 0.7335,
+     "2": 0.1133,
+     "3": 0.1381,
+     "4": 0.0151
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 339,
+     "mean": 1.46,
+     "median": 1.0,
+     "p25": 1.0,
+     "p75": 2.0
+    },
+    "shares": {
+     "1": 0.7139,
+     "2": 0.1268,
+     "3": 0.1445
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 588,
+     "mean": 1.42,
+     "median": 1.0,
+     "p25": 1.0,
+     "p75": 2.0
+    },
+    "shares": {
+     "1": 0.7449,
+     "2": 0.1054,
+     "3": 0.1344
+    }
+   }
+  },
+  "connected_family": {
+   "all": {
+    "summary": {
+     "n": 927,
+     "mean": 4.443,
+     "median": 5.0,
+     "p25": 4.0,
+     "p75": 5.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 339,
+     "mean": 4.295,
+     "median": 4.0,
+     "p25": 4.0,
+     "p75": 5.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 588,
+     "mean": 4.528,
+     "median": 5.0,
+     "p25": 4.0,
+     "p75": 5.0
+    }
+   }
+  },
+  "connected_family_hs": {
+   "all": {
+    "summary": {
+     "n": 339,
+     "mean": 4.171,
+     "median": 4.0,
+     "p25": 4.0,
+     "p75": 5.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 117,
+     "mean": 4.06,
+     "median": 4.0,
+     "p25": 3.0,
+     "p75": 5.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 222,
+     "mean": 4.273,
+     "median": 5.0,
+     "p25": 4.0,
+     "p75": 5.0
+    }
+   }
+  },
+  "dates_hs": {
+   "all": {
+    "summary": {
+     "n": 338,
+     "mean": 1.446,
+     "median": 1.0,
+     "p25": 0.0,
+     "p75": 2.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 116,
+     "mean": 2.122,
+     "median": 1.0,
+     "p25": 0.0,
+     "p75": 3.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 222,
+     "mean": 1.1,
+     "median": 0.0,
+     "p25": 0.0,
+     "p75": 1.0
+    }
+   }
+  }
+ },
+ "pandemic": {
+  "dates": {
+   "all": {
+    "summary": {
+     "n": 640,
+     "mean": 1.743,
+     "median": 1.0,
+     "p25": 0.0,
+     "p75": 2.25
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 212,
+     "mean": 2.043,
+     "median": 1.0,
+     "p25": 0.0,
+     "p75": 3.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 428,
+     "mean": 1.501,
+     "median": 1.0,
+     "p25": 0.0,
+     "p75": 2.0
+    }
+   }
+  },
+  "lonely": {
+   "all": {
+    "summary": {
+     "n": 925,
+     "mean": 1.117,
+     "median": 1.0,
+     "p25": 0.0,
+     "p75": 2.0
+    },
+    "shares": {
+     "0": 0.3146,
+     "1": 0.3611,
+     "2": 0.2173,
+     "3": 0.107
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 338,
+     "mean": 1.053,
+     "median": 1.0,
+     "p25": 0.0,
+     "p75": 2.0
+    },
+    "shares": {
+     "0": 0.3639,
+     "1": 0.3314,
+     "2": 0.1923,
+     "3": 0.1124
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 587,
+     "mean": 1.153,
+     "median": 1.0,
+     "p25": 0.0,
+     "p75": 2.0
+    },
+    "shares": {
+     "0": 0.2862,
+     "1": 0.3782,
+     "2": 0.2317,
+     "3": 0.1039
+    }
+   }
+  },
+  "cesd": {
+   "all": {
+    "summary": {
+     "n": 925,
+     "mean": 10.254,
+     "median": 9.0,
+     "p25": 6.0,
+     "p75": 14.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 338,
+     "mean": 9.558,
+     "median": 9.0,
+     "p25": 6.0,
+     "p75": 13.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 587,
+     "mean": 10.627,
+     "median": 10.0,
+     "p25": 6.0,
+     "p75": 14.0
+    }
+   }
+  },
+  "lifesat": {
+   "all": {
+    "summary": {
+     "n": 925,
+     "mean": 7.202,
+     "median": 7.0,
+     "p25": 6.0,
+     "p75": 8.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 338,
+     "mean": 7.178,
+     "median": 8.0,
+     "p25": 6.0,
+     "p75": 8.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 587,
+     "mean": 7.217,
+     "median": 7.0,
+     "p25": 7.0,
+     "p75": 8.0
+    }
+   }
+  },
+  "selfesteem": {
+   "all": {
+    "summary": {
+     "n": 925,
+     "mean": 3.847,
+     "median": 4.0,
+     "p25": 3.333,
+     "p75": 4.333
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 338,
+     "mean": 3.844,
+     "median": 4.0,
+     "p25": 3.333,
+     "p75": 4.333
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 587,
+     "mean": 3.825,
+     "median": 4.0,
+     "p25": 3.333,
+     "p75": 4.333
+    }
+   }
+  },
+  "sleephrs": {
+   "all": {
+    "summary": {
+     "n": 926,
+     "mean": 7.048,
+     "median": 7.0,
+     "p25": 6.0,
+     "p75": 8.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 338,
+     "mean": 7.039,
+     "median": 7.0,
+     "p25": 6.0,
+     "p75": 8.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 588,
+     "mean": 7.046,
+     "median": 7.0,
+     "p25": 6.0,
+     "p75": 8.0
+    }
+   }
+  },
+  "socialmedia": {
+   "all": {
+    "summary": {
+     "n": 915,
+     "mean": 74.432,
+     "median": 60.0,
+     "p25": 30.0,
+     "p75": 120.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 335,
+     "mean": 57.333,
+     "median": 45.0,
+     "p25": 25.0,
+     "p75": 80.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 580,
+     "mean": 85.261,
+     "median": 60.0,
+     "p25": 30.0,
+     "p75": 120.0
+    }
+   }
+  },
+  "exercise": {
+   "all": {
+    "summary": {
+     "n": 928,
+     "mean": 4.457,
+     "median": 4.0,
+     "p25": 2.0,
+     "p75": 6.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 339,
+     "mean": 5.03,
+     "median": 4.0,
+     "p25": 3.0,
+     "p75": 7.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 589,
+     "mean": 4.092,
+     "median": 3.0,
+     "p25": 2.0,
+     "p75": 5.0
+    }
+   }
+  },
+  "videogames": {
+   "all": {
+    "summary": {
+     "n": 926,
+     "mean": 1.524,
+     "median": 0.0,
+     "p25": 0.0,
+     "p75": 2.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 337,
+     "mean": 3.236,
+     "median": 1.0,
+     "p25": 0.0,
+     "p75": 4.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 589,
+     "mean": 0.563,
+     "median": 0.0,
+     "p25": 0.0,
+     "p75": 0.0
+    }
+   }
+  },
+  "workhrs": {
+   "all": {
+    "summary": {
+     "n": 925,
+     "mean": 12.652,
+     "median": 13.0,
+     "p25": 0.0,
+     "p75": 20.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 338,
+     "mean": 13.125,
+     "median": 15.0,
+     "p25": 0.0,
+     "p75": 20.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 587,
+     "mean": 12.253,
+     "median": 12.0,
+     "p25": 0.0,
+     "p75": 20.0
+    }
+   }
+  },
+  "connected_friends": {
+   "all": {
+    "summary": {
+     "n": 927,
+     "mean": 4.015,
+     "median": 4.0,
+     "p25": 3.0,
+     "p75": 5.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 339,
+     "mean": 3.791,
+     "median": 4.0,
+     "p25": 3.0,
+     "p75": 5.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 588,
+     "mean": 4.129,
+     "median": 4.0,
+     "p25": 4.0,
+     "p75": 5.0
+    }
+   }
+  },
+  "collgpa": {
+   "all": {
+    "summary": {
+     "n": 859,
+     "mean": 3.584,
+     "median": 3.7,
+     "p25": 3.4,
+     "p75": 3.9
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 315,
+     "mean": 3.615,
+     "median": 3.71,
+     "p25": 3.5,
+     "p75": 3.9
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 544,
+     "mean": 3.569,
+     "median": 3.7,
+     "p25": 3.4,
+     "p75": 3.9
+    }
+   }
+  },
+  "attendance": {
+   "all": {
+    "summary": {
+     "n": 926,
+     "mean": 2.221,
+     "median": 1.0,
+     "p25": 0.0,
+     "p75": 3.0
+    }
+   },
+   "men": {
+    "summary": {
+     "n": 339,
+     "mean": 2.813,
+     "median": 1.0,
+     "p25": 0.0,
+     "p75": 4.0
+    }
+   },
+   "women": {
+    "summary": {
+     "n": 587,
+     "mean": 1.887,
+     "median": 1.0,
+     "p25": 0.0,
+     "p75": 3.0
+    }
+   }
+  }
+ },
+ "associations": [
+  {
+   "a": "lonely",
+   "b": "connected_friends",
+   "words": "lonelier ↔ less connected to friends",
+   "who": "all",
+   "n": 924,
+   "r": -0.127
+  },
+  {
+   "a": "lonely",
+   "b": "dates",
+   "words": "lonelier ↔ fewer dates (singles)",
+   "who": "singles",
+   "n": 638,
+   "r": -0.114
+  },
+  {
+   "a": "lonely",
+   "b": "lifesat",
+   "words": "lonelier ↔ less satisfied with life",
+   "who": "all",
+   "n": 925,
+   "r": -0.438
+  },
+  {
+   "a": "cesd",
+   "b": "selfesteem",
+   "words": "more depressive symptoms ↔ lower self-esteem",
+   "who": "all",
+   "n": 925,
+   "r": -0.529
+  },
+  {
+   "a": "cesd",
+   "b": "sleephrs",
+   "words": "more depressive symptoms ↔ sleep",
+   "who": "all",
+   "n": 923,
+   "r": -0.211
+  },
+  {
+   "a": "cesd",
+   "b": "socialmedia",
+   "words": "more depressive symptoms ↔ social media time",
+   "who": "all",
+   "n": 913,
+   "r": 0.131
+  },
+  {
+   "a": "cesd",
+   "b": "exercise",
+   "words": "more depressive symptoms ↔ exercise",
+   "who": "all",
+   "n": 925,
+   "r": -0.039
+  },
+  {
+   "a": "extraverted",
+   "b": "dates",
+   "words": "more outgoing ↔ more dates (singles)",
+   "who": "singles",
+   "n": 640,
+   "r": 0.374
+  },
+  {
+   "a": "extraverted",
+   "b": "lonely",
+   "words": "more outgoing ↔ less lonely",
+   "who": "all",
+   "n": 925,
+   "r": -0.179
+  },
+  {
+   "a": "conscientious",
+   "b": "collgpa",
+   "words": "more self-disciplined ↔ higher GPA",
+   "who": "all",
+   "n": 858,
+   "r": 0.202
+  },
+  {
+   "a": "hoursstudy",
+   "b": "collgpa",
+   "words": "more study ↔ higher GPA",
+   "who": "all",
+   "n": 859,
+   "r": -0.062
+  },
+  {
+   "a": "pray_freq",
+   "b": "doubt",
+   "words": "prays more ↔ fewer doubts",
+   "who": "all",
+   "n": 372,
+   "r": -0.317
+  },
+  {
+   "a": "religimp",
+   "b": "lifesat",
+   "words": "religion more important ↔ life satisfaction",
+   "who": "all",
+   "n": 925,
+   "r": 0.329
+  },
+  {
+   "a": "emotionalstability",
+   "b": "cesd",
+   "words": "calmer ↔ fewer depressive symptoms",
+   "who": "all",
+   "n": 925,
+   "r": -0.467
+  },
+  {
+   "a": "connected_family",
+   "b": "lifesat",
+   "words": "closer to family ↔ life satisfaction",
+   "who": "all",
+   "n": 924,
+   "r": 0.28
+  },
+  {
+   "a": "religimp",
+   "b": "premarital",
+   "words": "religion more important ↔ more disapproval of premarital sex (reversed scale)",
+   "who": "all",
+   "n": 924,
+   "r": -0.451
+  }
+ ]
+}

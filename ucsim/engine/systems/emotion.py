@@ -18,6 +18,20 @@ STATE_ORDER = ["fatigue", "financial_stress", "academic_pressure", "romantic_lon
 RANGE = {s: (0.0, 1.0) for s in STATE_ORDER}
 
 
+
+_DISP: dict = {}
+
+
+def _disposition(n: int, what: str) -> np.ndarray:
+    """A fixed standard-normal score per person (from the id: the same in every world and run)."""
+    d = _DISP.get(what)
+    if d is None or len(d) < n:
+        from scipy.special import ndtri
+        from ...analysis.query import hash_uniform
+        m = max(n, 2 * len(d) if d is not None else n)
+        d = _DISP[what] = ndtri(np.clip(hash_uniform(np.arange(m), f"disposition:{what}"), 1e-6, 1 - 1e-6)).astype(np.float32)
+    return d[:n]
+
 class Emotion:
     def __init__(self, sim):
         self.sim = sim
@@ -145,6 +159,9 @@ class Emotion:
             T["roommates"] = -p("loneliness.roommates.beta") * (P["roommate_cohesion"] - 0.5)
             T["romantic"] = p("loneliness.romantic.beta") * P["romantic_longing"]
             T["outsider"] = p("loneliness.outsider.beta") * P["outsider"]
+            # a lasting disposition of one's own, apart from circumstances (about 40% of loneliness differences are
+            # the person's: Boomsma et al. 2005): a fixed per-person draw from the person's id, no random stream
+            T["disposition"] = p("loneliness.disposition.beta") * _disposition(n, "loneliness")
         elif s == "belonging":
             T["setpoint"] = np.full(n, 0.5)
             T["ward"] = p("belonging.ward.beta") * (P["ward_belonging"] - 0.5) * (P["activity"] >= 2)

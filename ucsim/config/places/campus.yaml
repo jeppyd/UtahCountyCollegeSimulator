@@ -1,0 +1,133 @@
+# Real campus buildings for what happens on campus (engine/places.py). Names as in the building layer
+# (ucsim/geo/data/buildings.parquet, from OpenStreetMap via Overture); weights are rough shares of classes held there
+# (owner's floor plans can replace them with room counts). Display and simulation both use these: a class meets in a
+# real building and room, people hanging out on campus are in a real building, and they meet whoever else is there.
+byu:
+  centre: [-111.6493, 40.2500]
+  teaching:                         # name: weight (share of class sections)
+    Jesse Knight Building: 6
+    Joseph F. Smith Building: 8
+    N. Eldon Tanner Building: 6
+    Carl F. Eyring Science Center: 5
+    James E. Talmage Math Sciences / Computer Building: 5
+    Ezra Taft Benson Building: 4
+    W. W. Clyde Engineering Building: 4
+    David O. McKay Building: 3
+    Joseph Smith Building: 6
+    Thomas L. Martin Building: 3
+    Life Sciences Building: 4
+    Spencer W. Kimball Tower: 3
+    J. Reuben Clark Building: 2
+    Harold B. Lee Library: 1
+    Stephen L. Richards Building: 3
+    Herald R. Clark Building: 1
+    George H. Brimhall Building: 1
+    Roland A. Crabtree Technology Building: 1
+    Music Building: 2
+    Arts Building: 2
+  spots:                            # where people spend time on campus between things (weights: how many)
+    Harold B. Lee Library: 6
+    Ernest L. Wilkinson Student Center: 5
+    N. Eldon Tanner Building: 2
+    Joseph F. Smith Building: 2
+    Ezra Taft Benson Building: 1
+    Carl F. Eyring Science Center: 1
+    James E. Talmage Math Sciences / Computer Building: 1
+  gyms:
+    Stephen L. Richards Building: 2
+    George Albert Smith Fieldhouse: 1
+  study: Harold B. Lee Library      # study groups and other campus get-togethers
+  events: Ernest L. Wilkinson Student Center
+uvu:
+  centre: [-111.7129, 40.2773]
+  teaching:
+    Liberal Arts Building: 6
+    Science Building: 6
+    Clarke Building: 4
+    Gunther Technology Building: 3
+    Smith Engineering Building: 3
+    Computer Science & Engineering: 3
+    Woodbury Business Building: 3
+    Keller Building: 2
+    Losee Center: 3
+    Sparks Automotive Building: 1
+    Browning Administration Building: 1
+    Ira A. and Mary Lou Fulton Library: 1
+  spots:
+    Ira A. and Mary Lou Fulton Library: 4
+    Sorensen Student Center: 5
+    Clarke Building: 1
+    Liberal Arts Building: 1
+  gyms:
+    Student Life & Wellness Center: 1
+  study: Ira A. and Mary Lou Fulton Library
+  events: Sorensen Student Center
+# named places that otherwise sit at approximate points: name in the simulation → building
+named:
+  LaVell Edwards Stadium: {building_near: [-111.6537, 40.2575], kind: sports}      # the grandstand footprint
+  Marriott Center: {name: Marriott Center}
+  Orem Institute of Religion (approx.): {name: LDS Institute of Religion}
+  BYU Intramurals (Richards Building fields): {name: Stephen L. Richards Building}
+  UVU Student Life & Wellness Center: {name: Student Life & Wellness Center}
+# BYU building codes (as on BYU Facilities Planning's floor plans) → names in the building layer
+codes:
+  ARTS: Arts Building
+  ASB: Smoot Administration Building
+  B66: B-66 Classroom/Lab Building
+  BNSN: Ezra Taft Benson Building
+  BRMB: George H. Brimhall Building
+  BYUB: BYU Broadcasting
+  CANC: George Q. Cannon Center
+  CB: W. W. Clyde Engineering Building
+  CONF: BYU Conference Center
+  CTB: Roland A. Crabtree Technology Building
+  EB: BYU Engineering Building
+  ESC: Carl F. Eyring Science Center
+  HBLL: Harold B. Lee Library
+  HC: Caroline Hemenway Harman Building
+  HCEB: Gordon B. Hinckley Alumni and Visitors Center
+  HGB: Heber J. Grant Building
+  HRCB: Herald R. Clark Building
+  IPF: Indoor Practice Facility
+  ITB: Information Technology Building
+  JFSB: Joseph F. Smith Building
+  JKB: Jesse Knight Building
+  JRCB: J. Reuben Clark Building
+  JSB: Joseph Smith Building
+  KMBL: Spencer W. Kimball Tower
+  LSB: Life Sciences Building
+  MARB: Thomas L. Martin Building
+  MB: Music Building
+  MC: Marriott Center
+  MCDB: Howard S. McDonald Building
+  MCKB: David O. McKay Building
+  MLBM: Monte L. Bean Life Science Museum
+  MOA: BYU Museum of Art
+  MSRB: Karl G. Maeser Building
+  NICB: Joseph K. Nicholes Building
+  RB: Stephen L. Richards Building
+  SAB: Student Athlete Building
+  SFH: George Albert Smith Fieldhouse
+  SNLB: William H. Snell Building
+  TLRB: Taylor Building
+  TMCB: James E. Talmage Math Sciences / Computer Building
+  TNRB: N. Eldon Tanner Building
+  UPB: University Press Building
+  UPC: University Parkway Center
+  WSC: Ernest L. Wilkinson Student Center
+  WVB: West View Building
+# which buildings each study area's own classes meet in (BYU; codes above); general education anywhere with room
+areas:
+  Business: [TNRB]
+  Health Sciences: [KMBL, ESC, LSB]
+  Engineering & Tech: [CB, EB, CTB, SNLB]
+  Social Sciences: [KMBL, JFSB]
+  Natural Sciences: [ESC, LSB, BNSN, MARB]
+  Education: [MCKB, BRMB]
+  Fine Arts: [MB, HRCB, ARTS]
+  Humanities: [JFSB, JKB]
+  Math & Stats: [TMCB]
+  Communications: [BRMB, JFSB]
+  Law & Policy: [JRCB, JFSB]
+  Agriculture & Environment: [LSB, BNSN]
+  general: [JKB, JSB, MARB, ESC, JFSB, TNRB, BNSN, HBLL, WSC, MCKB, CB, TMCB]

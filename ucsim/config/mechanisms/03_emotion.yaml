@@ -166,7 +166,7 @@ mechanisms:
     label: Trait loneliness set-point
     target: loneliness
     sources: [neuroticism, social_anxiety]
-    form: "0.43 + β·N + 0.025·SA"
+    form: "0.43 + β·N + 0.025·SA (+ a lasting disposition: loneliness.disposition)"
     params: {neuroticism: {value: 0.05, range: [0.02, 0.1]}}
     evidence: literature
   loneliness.contact_deficit:
@@ -176,7 +176,7 @@ mechanisms:
     moderators: [extraversion]
     form: "β·clip((need − contact)/need, −1, 1), need = need_hours·exp(βE·E)"
     params:
-      beta: {value: 0.22, range: [0.1, 0.4]}
+      beta: {value: 0.15, range: [0.1, 0.4]}    # was 0.22: felt loneliness follows contact only modestly (Hawkley et al. 2008)
       need_hours: {value: 16, range: [8, 24]}
       extraversion: {value: 0.25, range: [0.0, 0.5]}
     evidence: literature
@@ -190,6 +190,19 @@ mechanisms:
     params: {beta: {value: 0.05, range: [0.02, 0.12]}}
     evidence: literature
     desc: Lowered from 0.07 when the perceived-support term took over part of what close friends do for loneliness.
+  loneliness.disposition:
+    label: A lasting disposition to feel lonely
+    target: loneliness
+    sources: []
+    form: "β·d, d a fixed standard-normal score per person"
+    params: {beta: {value: 0.2, range: [0.0, 0.3]}}
+    evidence: literature
+    refs: ["Boomsma et al. (2005) Behavior Genetics: loneliness heritability ≈ 0.48 in Dutch twins",
+           "Psych 308 class survey (BYU 2020): loneliness relates only weakly to friends (r = −0.13) and dates (−0.11)"]
+    desc: >-
+      Loneliness is partly a lasting trait of the person, not only a reading of their circumstances. Without it the model
+      tied loneliness almost mechanically to friends, contact and support (r ≈ −0.5 with close friends, against −0.13 in
+      the Psych 308 survey).
   loneliness.coping:
     label: Being supported through a hard time eases loneliness
     target: loneliness
@@ -363,7 +376,7 @@ mechanisms:
     form: "0.55 + βE·E − βN·N"
     params:
       extraversion: {value: 0.05, range: [0.02, 0.08]}
-      neuroticism: {value: 0.07, range: [0.03, 0.1]}
+      neuroticism: {value: 0.05, range: [0.03, 0.1]}    # was 0.07: mood followed neuroticism too closely (r −0.71 vs −0.47 in Psych 308)
     evidence: literature
     refs: ["Steel, Schmidt & Shultz (2008) Psychol Bull: personality and subjective well-being"]
   mood.loneliness:

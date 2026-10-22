@@ -28,7 +28,7 @@ rules in [`docs/workstreams/README.md`](workstreams/README.md).
 
 | Agent | Since (UTC) | Workstream | Notes |
 |---|---|---|---|
-| — | — | — | Nobody. Travel merged 2026-10-20; next: survey-followups (needs the raw CSVs), integration. |
+| Claude Code (cloud session, branch `claude/clever-wright-3fh95g`) | 2026-10-22 | living-map (sync check, real places, floor plans) | Owner-directed: precise places, rooms, 3D buildings, click-to-inspect. Spec coming in docs/workstreams/living-map.md. |
 
 ## The goal in one paragraph
 
@@ -74,6 +74,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [family-homes](workstreams/family-homes.md) (wave 2) | **done, merged** | working branch | open issues below |
 | [survey-followups](workstreams/survey-followups.md) | audits designed, interrupted | — | needs the raw survey files in `data/raw/` |
 | [integration](workstreams/integration.md) | ongoing | — | after each merge |
+| living-map (owner-directed, 2026-10-21) | in progress | `claude/clever-wright-3fh95g` | speed/logs, buildings, bedrooms, 3D map, cards, bedroom-mates done; 2026-10-22: sync check (99.6%+), real places in the backend, Heritage + Wyview + classrooms from BYU plans; next: Wymount/Riviera/LISR plans, elevation, then dashboards |
 
 Time-occasions and provenance-trace are merged, so everything in wave 1 can proceed. Wave 2 (messaging,
 institutions, family-homes) can start now too, but coordinate: they touch the same systems as the running builders.
@@ -158,6 +159,117 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-22 — Claude Code (cloud session) — dots in sync with the simulation; BYU floor plans
+- Owner's priorities: (1) dots exactly where the simulation has people, (2) buildings like the real ones (floor
+  plans, counts, shapes); visuals (furniture, textures) later; dashboards after; elevation welcome. Repo is public:
+  BYU floor-plan PDFs stay in `data/external/floorplans/` (ignored); only derived summaries are committed.
+- **Sync check** (`ucsim/analysis/sync_check.py`, tests/test_sync.py): per kind of place, the share of dots inside
+  the building the simulation names, on a floor it has, groups together, none stacked. Was 64% (homes) and 0%
+  (classes); now 99.6–99.9% overall, classes 100%.
+- **Bugs found:** building centroids were computed in raw degrees (catastrophic cancellation: median 71 m off),
+  which broke point-in-building lookups and mismatched ~60% of homes to buildings (`geo/buildings.centroid` fixed,
+  homes rebuilt); the fitted box used the principal axis (45° on square houses) — now the true smallest rectangle,
+  plus `wings` (L/U-shaped buildings as rectangles: `geo/shapes.py`).
+- **Real places in the backend** (`ucsim/engine/places.py`, `config/places/campus.yaml`): every venue, workplace,
+  meetinghouse, congregation, complex, group and calendar place is moved into its real building at world start
+  (idempotent); classes meet in real teaching buildings, campus hangouts are real buildings (library, Wilk…) and
+  their cid is the building (so who you run into depends on where you are), campus gyms are the Richards Building /
+  Smith Fieldhouse, the stadium is the grandstand footprint. The map draws only what the backend says
+  (`placement.seat_in_buildings`: a seat grid over the real footprint; strangers spread, groups together).
+- **Floor plans (owner-supplied):** `ucsim/geo/floorplans.py` → `geo/data/plan_units.parquet` (Heritage: all 605
+  apartments, 467 three-bedroom / 137 two-bedroom / 1, 3,356 beds, each placed on its footprint by fitting the
+  labels to the outline) and `geo/data/classrooms.parquet` (466 BYU rooms with seat capacities in 33 buildings).
+  Sections get the snuggest free room in their study area's buildings (`academics._rooms_for`); the card says "class
+  in JKB 1102 (… 285 seats)". Wyview: 426 apartments = the address points; one 3-bedroom a floor (90) per the plans.
+  Helaman: plans confirm ~38–40 double rooms a floor, 3 floors (May Hall has no plan). Buildings get the floors
+  their apartments/classrooms are on (`homes.raise_floors`). Not yet used: Wymount (scans, no text), Riviera
+  (labels partly vector), LISR (not in the world yet: 24 two-bedroom apartments in four pods), off-campus and
+  "other" buildings, the stadium seating map, the campus map.
+- **Psych 308 fixes (owner approved 1–3):** a lasting loneliness disposition (Boomsma 2005; β 0.2), contact deficit
+  0.22→0.15, mood←neuroticism 0.07→0.05; the struggling study more (`academics.study.ability` 2.5), GPA←study
+  0.015→0.012; extraversion → asking out (`romance.ask.extraversion` 1.0) and motivation 0.25→0.55. The check now
+  attenuates the model's exact r by the survey measures' reliability (`RELIABILITY`, documented). Result: 13 of 16
+  associations pass; warns: lonely~friends (−0.30 vs −0.13), religion~life sat, family~life sat. Life satisfaction
+  level still low (5.9 vs 7.2) — not changed.
+
+### 2026-10-21 (4) — Claude Code (cloud session) — a new survey: Psych 308 (BYU, 2020)
+- The owner supplied a BYU class survey (947 students, all during COVID-19) and left inclusion to judgment. Used as
+  checks, not inputs: `ucsim/ingest/psych308.py` (aggregates → config/sources/psych308_2020.json),
+  `ucsim/analysis/psych308_check.py` (rows in validate.py: holdout levels, 2020 diagnostics, 16 associations),
+  tests/test_psych308.py. 60 days at scale 0.15: family background, missions, marriage age, drinking, liberal share,
+  singles' dates, sleep, GPA and 9 associations match; mismatches: loneliness far too tightly tied to close friends,
+  dates and life satisfaction (and neuroticism to mood) — real students vary more; study hours → GPA too strong
+  (+0.30 vs −0.06); extraversion → dates too weak; life satisfaction low (6.1 vs 7.2); conservative share and SSM
+  attitudes disagree with ProvoStats/College Life (time and wording differences). Fixes proposed to the owner, not
+  made (they touch calibrated mechanisms).
+- Owner is downloading BYU floor-plan PDFs (pf.byu.edu, behind BYU login: the owner downloads; never share
+  credentials; PDFs stay in data/external/).
+
+### 2026-10-21 (3) — Claude Code (cloud session) — bedroom-mates, snapshot dropped, map polish
+- Owner decisions: bedroom-mates matter (done: `housing.bedroom` in config/mechanisms/20_rooms.yaml, hypothetical:
+  nightly lights-out talks at 0.6, friction only for clear tidiness/sleep mismatches; 40 days, scale 0.15, two seeds:
+  matched bedroom-mates become close friends ~45% more often than apartment-mates, mismatched pairs sour); the
+  read-only snapshot is **dropped** (export script and build mode removed; old `STATIC` branches in web code are inert,
+  remove in a cleanup); the classic Map page stays as "Flat map (backup)"; polish before shops/errands. Helaman's
+  men's/women's halls stay a guess; Wyview south = single, north = family (owner-confirmed). LISR: owner will send
+  maps. Owner is collecting BYU floor-plan PDFs (to be uploaded as a zip into data/external/, never committed).
+  Remind the owner later about 5–10 off-campus complexes to model exactly.
+- Map polish: groups sharing a place point get their own table (no two people on one spot, even at full scale);
+  homes without a footprint spread on a grid; person card: why they came (the decision's factors in words, how they
+  were invited, travel and lateness), date details (which date, who asked, where they stand), Follow; opened
+  buildings shade bedrooms by occupancy and label floors; light by time of day (warm evening, dark night with
+  occupied buildings glowing). Full scale (73,667 people): placement 0.02–0.07 s, 1.2 MB per update, card 0.04 s.
+- 269 tests pass.
+
+### 2026-10-21 (2) — Claude Code (cloud session) — the living map
+- Geography: `scripts/fetch_overture.py` (Overture buildings + places, public S3 through pyarrow) →
+  `python -m ucsim.geo.buildings` (footprints, heights, floors, kinds, oriented boxes; web `buildings3d.bin` and
+  `building_names.json`) → `python -m ucsim.geo.homes` (`homes.parquet`: every dwelling's building/floor/label;
+  `flagship_units.parquet`: the halls' and family housing's units; `place_buildings.parquet`). Raw inputs in
+  `data/external/` (gitignored); UGRC must be re-fetched first (`scripts/fetch_geodata.py`).
+- Simulation: Units carry building, floor, label and bedrooms (`Units.set_rooms`; flagship layouts, else
+  `default_bedrooms`); the halls and Wymount/Wyview are built from the rosters (real buildings and floors) instead
+  of random points; Wyview's north half is family housing, the south half single students (estimate); Riviera is
+  BYU-owned with its published layouts. `engine/rooms.py`: everyone sleeps in a room (spouse's; a close friend's
+  with a free bed; else the emptiest), settled nightly inside housing.daily; no random draws. Activity no longer
+  jitters positions (loc_lon/loc_lat are the place's own point) and keeps a compact snapshot per part of the day
+  (`activity.snapshot`, `activity.day_snaps` for the last full day). **World outcomes differ from before.**
+- `engine/placement.py` (display only): exact spots: beds in rooms, apartments laid along each building's long side,
+  seats around a place (pairs, circles, sunflower crowds), classes in real campus buildings.
+  `api/routes_placement.py`: `/api/positions/precise` (lock-free, `block=now|0–4`), `/api/building/{b}` (homes,
+  bedrooms, who sleeps where, who's inside), `/api/buildings/core`, `/api/now/person/{i}` (analysis/now.py: doing,
+  where, with whom and how they know them, the occasion and why, on their mind — model state only),
+  `/api/now/occasions`.
+- Web: `web/src/map/` (LivingMap, data): 2D/3D, only buildings people use stand (the rest flat: 1.3 → 28 fps in
+  software rendering), See inside (x-ray), click a building to open it floor by floor, person cards, occasion pins,
+  Right now list, refresh policy (auto: glide through the last day at speeds 1–2, once a day at top speed). The
+  bench Map tool uses it; the classic Map page (views/MapView.tsx) does not yet.
+- Not done: bedroom-mate effects on ties (waiting on the owner), LISR, shops/errands activity, per-unit offsets for
+  homes without a footprint (a few stack), labels render thin in software GL.
+- 268 tests pass (5 new in tests/test_living_map.py).
+
+### 2026-10-21 (1) — Claude Code (cloud session) — speed tracker, logs, a messaging slowdown
+- **Branch note:** this session works on `claude/clever-wright-3fh95g` (the session's assigned branch). Merging
+  `claude/festive-archimedes-1llpw1` brought in commit 7c319cd (survey audit inventory), which **fails
+  tests/test_no_raw_survey_data.py** (Qualtrics metadata column names, which the guard treats as raw-export
+  signatures, in docs/survey_audit/inventory.md and scripts/survey_inventory.py; I saw no respondent values). It was reverted here
+  (e6a0fbb) and left for the owner to decide; fix the guard hits on that branch before merging it anywhere.
+- **Speed and logs** (`ucsim/telemetry.py`, `ucsim/api/routes_perf.py`): every simulated day is timed (overall, per
+  system, per world, CPU share, memory) and kept (last 4,000 days); slow days say why (Sunday night's weekly updates,
+  the end of a month, the two-weekly snapshot, or a system much slower than usual). `/api/perf`, `/api/perf/estimate`
+  (per-computer history in `<data home>/speed_history.json` → the world-setup estimate), `/api/logs`,
+  `/api/debug-bundle` (zip: versions, settings, timings, logs; no people). The `ucsim` logger goes to an in-memory
+  logbook and, in the app or `python -m ucsim.api.server`, `<data home>/logs/ucsim.log` (2 MB × 3). Logged: worlds
+  built, runs stopped, slow days, failed or slow (> 3 s) requests, errors with tracebacks. Web: a speed meter in the
+  HUD (click: details, Speed tool, Logs, bundle), bench tools **Speed** and **Logs**. The HUD's z-index rose 6 → 12
+  (its menus opened under the bench's sticky selection bar).
+- **Messaging slowdown fixed**: `KnowledgeStore.add` re-sorted every who-knows-what key on each call (`np.union1d`);
+  at scale 0.15 messaging grew 0.010 → 0.273 s/day over 140 days (nearly all of the "days get slower" drift). Now a
+  sorted insert; bit-identical (60-day fingerprint matched). Scale 0.15 week means after the fix: 0.37 → 0.40–0.54 s
+  (before: 0.40 → 0.75). The weekly Sunday-night day is ~2× a normal day (network/mind/culture weekly + messaging's
+  friend-group detection).
+- 263 tests pass (5 new in tests/test_telemetry.py).
 
 ### 2026-10-20 (7) — Claude Code (cloud session) — What-if on a second core, numba kernels
 - **Second core** (`api/parallel.py`): during a run with a What-if, a persistent spawned worker steps the What-if

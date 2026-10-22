@@ -58,6 +58,16 @@ reads `data/raw/lds-sexuality_2025-06-29.xlsx` in place and adds only its own se
   keeps 18–35); mostly Utah and mostly active members, so less-active and inactive cells are small (10–29 or 30–99)
   and non-members are extrapolated. About a quarter of respondents stop before the attitude and dealbreaker pages.
 
+### The Psych 308 class survey (BYU, 2020) — checks only
+- 947 BYU students in Psych 308 (statistics for psychology), March 17 – December 14, 2020: 98% Latter-day Saints,
+  64% women, a third freshmen, 37% psychology majors, median age 21. Raw export `data/raw/psych308_2020.xlsx` (never
+  committed); `python -m ucsim.ingest.psych308` writes aggregates only (cells ≥ 10; no free text, ids or timestamps)
+  to `ucsim/config/sources/psych308_2020.json`; `ucsim/analysis/psych308_check.py` compares the model (validate.py).
+- Every response came during the COVID-19 pandemic. Stable measures (family background, missions, marriage age,
+  attitudes, religiosity) are held-out checks; 2020 levels of dating, sleep, screen time, work, GPA and life
+  satisfaction are diagnostics only; within-person associations (Spearman) are pattern checks of mechanisms.
+- Not used for starting values (yet): nothing in the model was tuned to it.
+
 ## Institutional & market figures (`ucsim/config/world.yaml`)
 
 Fall 2025 headcounts: BYU 37,337 (modeled 35,000 daytime, in-residence) and UVU 48,670 (16,000 in scope).
@@ -89,6 +99,32 @@ replaced with official figures where available (see `ROADMAP.md`).
 containing the parcels, and survey geocodes; plus Helaman & Heritage Halls, Wymount and Wyview), 151 LDS
 meetinghouses and 712 venues (restaurants, cafés, soda & dessert shops, parks, gyms, theaters, trailheads,
 dance venues…). Web layers (roads, city outlines, building footprints) are committed under `web/public/geo/`.
+
+### Buildings, floors and bedrooms (`scripts/fetch_overture.py`, `ucsim/geo/buildings.py`, `ucsim/geo/homes.py`)
+- Overture Maps buildings (release 2026-09-23): 76,013 footprints in Provo/Orem; heights for ~70% (mostly lidar).
+  Floors: the mapped `building:levels` (871), the county parcel's FLOORS_CNT when the parcel centroid is inside
+  the footprint (4,095), height ÷ 3.2 m (49,645), else 1 (2 for apartments) — recorded per row in `floors_src`.
+- Homes on floors: each dwelling's address point → the footprint it is in (else the nearest within 25 m; houses
+  are matched one to a footprint); floor from the apartment number ("Apt 204" → 2nd floor) for 3,750 homes, else
+  spread over the building's floors in address order.
+- Flagship complexes (`ucsim/config/places/flagship.yaml`): Helaman, Heritage, Wymount, Wyview and Riviera from
+  BYU Housing's pages (2026–27) and Wikipedia's list of BYU residence halls; Heritage's apartments are the county's
+  real unit addresses (825 E Heritage Dr, Bldg n Apt fwnn). Layout shares, which halls are men's or women's, and
+  which half of Wyview is family housing are estimates (marked `estimate`).
+- Bedrooms elsewhere are a rule (`population/structure.py` `default_bedrooms`, hypothetical).
+- Shapes (`ucsim/geo/shapes.py`): each footprint's smallest rectangle and its wings (rectangles inside it); centroids
+  computed relative to the first vertex (computing them in raw degrees put them a median 71 m off).
+- **BYU Facilities Planning floor plans** (pf.byu.edu, behind BYU login; downloaded and supplied by the owner,
+  2026-10-22). The PDFs stay in `data/external/floorplans/` (never committed — the repository is public); only
+  derived summaries are: `geo/data/plan_units.parquet` (Heritage Halls: building, floor, apartment number, beds per
+  bedroom, apartment centre to 1 m) and `geo/data/classrooms.parquet` (BYU rooms whose plan prints a seating
+  capacity: building, floor, room number, seats, centre to 1 m). Read from the Revit exports' text
+  (`ucsim/geo/floorplans.py`); each sheet placed on its footprint by turning and shifting it until its room labels
+  fall inside the outline (scale from the sheet). Wyview's counts (12/18 apartments a building, one three-bedroom
+  a floor) and Helaman's (~38–40 double rooms a floor, 3 floors) were read off the plans into flagship.yaml.
+- Campus places (`ucsim/config/places/campus.yaml`): teaching buildings, hangout spots, gyms, study and events
+  buildings for BYU and UVU, BYU building codes → names, and which buildings each study area's classes use
+  (judgment from department locations; weights rough).
 
 ### Travel times (`scripts/build_travel.py` → `ucsim/geo/data/travel.npz`)
 

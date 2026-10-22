@@ -7,6 +7,22 @@ from ..interventions import InterventionManager
 from ..weather import Weather
 
 
+def _in_building(pl: dict) -> tuple[float, float]:
+    """A calendar place's point inside its real building (engine/places.py): by name (the stadium's grandstand, the
+    Marriott Center), else the building at or nearest the point."""
+    lon, lat = float(pl.get("lon", np.nan)), float(pl.get("lat", np.nan))
+    from .. import places
+    if not places.available() or not np.isfinite(lon):
+        return lon, lat
+    b = places.named(pl.get("name", "")) if pl.get("name") else -1
+    if b < 0 and pl.get("name"):
+        b = places.by_name(pl["name"])
+    if b >= 0:
+        return places.anchor(b)
+    lo, la, _ = places.settle([lon], [lat])
+    return float(lo[0]), float(la[0])
+
+
 class Environment:
     def __init__(self, sim):
         self.sim = sim
@@ -128,5 +144,6 @@ class Environment:
                 hh, mm = str(spec.get("start", "19:00")).split(":")
                 start = int(hh) * 60 + int(mm)
             pl = it.place or {}
-            book.plan(kind, d, start, int(spec.get("dur", 120)), lon=float(pl.get("lon", np.nan)), lat=float(pl.get("lat", np.nan)),
+            lon, lat = _in_building(pl)
+            book.plan(kind, d, start, int(spec.get("dur", 120)), lon=lon, lat=lat,
                       origin="calendar", open_=True, label=label, capacity=int(spec.get("capacity", -1)))

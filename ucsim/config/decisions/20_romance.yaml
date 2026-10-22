@@ -18,6 +18,7 @@ decisions:
       gender_norm:       {label: "the local norm that men do the asking", more: "men are expected to ask", less: "women are expected to wait to be asked"}
       propensity:        {label: "how much they date in general", more: "dates a lot", less: "rarely dates"}
       asks_numbers:      {label: "how readily they ask for a number", more: "asks for numbers easily", less: "rarely asks for numbers"}
+      boldness:          {label: "how outgoing they are", more: "outgoing", less: "reserved"}
       intention:         {label: "a plan to ask this person out", more: "had decided to ask them", less: ""}
       weekday:           {label: "the day of the week (most asking happens early in the week)", kind: multiplier, more: "early in the week", less: "late in the week"}
   accept_date:

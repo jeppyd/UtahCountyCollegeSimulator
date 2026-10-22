@@ -14,6 +14,7 @@ import numpy as np
 from scipy.special import expit
 
 from ...population.structure import BYU, UVU, km
+from .. import rooms
 from ..provenance import link, pick, place_ref, state_ref
 from ..state import CTX_ID
 
@@ -28,6 +29,7 @@ class Housing:
         P = w.P
         self.occ = np.bincount(P["unit_id"][P["unit_id"] >= 0], minlength=len(U)).astype(np.int32)
         self._ward_maps()
+        rooms.assign_all(w)
 
     def _ward_maps(self):
         w = self.sim.w
@@ -234,6 +236,10 @@ class Housing:
 
     # ------------------------------------------------------------------ daily / monthly
     def daily(self):
+        self._turnover()
+        rooms.sync(self.sim)          # beds for whoever moved, arrived or came back today (before the night's positions)
+
+    def _turnover(self):
         sim, w = self.sim, self.sim.w
         if not sim.cal.is_lease_turnover(w.day):
             return
@@ -296,4 +302,15 @@ class Housing:
         U.quality = np.r_[U.quality, np.full(k, 0.85, np.float32)]
         U.kind_src = np.r_[U.kind_src, U.kind_src[src]]
         U.nbhd = np.r_[U.nbhd, U.nbhd[src]]
+        if U.room0 is not None:     # new buildings near campus: the same layouts as the units they copy, no address yet
+            U.building_id = np.r_[U.building_id, np.full(k, -1, np.int32)]
+            U.floor = np.r_[U.floor, np.zeros(k, np.int8)]
+            U.label = U.label + [""] * k
+            if U.placed is not None:
+                U.placed = np.r_[U.placed, np.zeros(k, bool)]
+            caps = [U.room_cap[U.room0[s_]: U.room0[s_] + U.n_rooms[s_]] for s_ in src]
+            U.room0 = np.r_[U.room0, len(U.room_cap) + np.r_[0, np.cumsum([len(c) for c in caps])[:-1]]].astype(np.int32)
+            U.n_rooms = np.r_[U.n_rooms, np.array([len(c) for c in caps], np.uint8)]
+            U.room_unit = np.r_[U.room_unit, np.repeat(np.arange(len(U.lon) - k, len(U.lon), dtype=np.int32), [len(c) for c in caps])]
+            U.room_cap = np.r_[U.room_cap, np.concatenate(caps).astype(np.uint8)]
         self.occ = np.r_[self.occ, np.zeros(k, np.int32)]

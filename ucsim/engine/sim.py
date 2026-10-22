@@ -81,6 +81,9 @@ class Simulation:
         self._zcache_day = -999
         self._zcache: dict[str, tuple[float, float]] = {}
         self._zarr: dict[str, tuple] = {}
+        from . import places
+        if places.available():
+            places.settle_world(self.w)          # every place inside its real building (the map shows it there)
         for name in ("environment", "housing", "activity", "groups", "network", "academics", "encounters", "economy",
                      "romance", "intimacy", "faith", "norms", "mind", "coping", "plans", "routine", "emotion", "culture", "occasions",
                      "institutions", "family", "honor", "messaging", "lifecourse", "recorder"):
@@ -291,6 +294,7 @@ class Simulation:
             self._run("emotion", S["emotion"].monthly)
         self._run("housing", S["housing"].daily)
         self._run("activity", S["activity"].night)
+        self._run("encounters", S["encounters"].bedroom)   # bedroom-mates talk before sleep (rooms settled above)
         self.clamp()
         if self.record:
             self._run("recorder", S["recorder"].daily)

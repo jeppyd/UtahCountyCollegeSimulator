@@ -135,7 +135,7 @@ Explore (`views/explore/`, driven by the field catalog in `fields.ts`); the rese
 Flows, Cross-tabs, Cause & effect, Experiments, Model check, Data dictionary, Rules and Evidence. The filter
 (cohort) persists across views; in Compare it is evaluated in the Original and applied to the same people in
 the What-if.
-`npm run build:static` + `scripts/export_static.py` produce a static snapshot (no server) for sharing.
+(The static, server-less snapshot was dropped on 2026-10-21.)
 
 ## Validation, accounting and uncertainty
 

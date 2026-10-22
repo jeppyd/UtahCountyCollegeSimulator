@@ -954,7 +954,6 @@ prices:  # $/M: input, cache_write_5m, cache_read, output
   - The CI self-test never calls the API, and no key is ever baked into an artifact.
 - **STATIC demo build** (`__STATIC__`):
   - Hide all LLM UI.
-  - `scripts/export_static.py` must never call `/api/llm/*` unless explicitly flagged.
   - Any pre-generated narration is frozen with provenance and a "generated text" badge.
 
 ### 5.8 Tests

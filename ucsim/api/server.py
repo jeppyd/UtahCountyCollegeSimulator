@@ -33,6 +33,7 @@ from . import parallel
 from ..engine.interventions import load_presets
 from ..engine.state import CTX, Tie
 from ..registry import get_registry
+from ..telemetry import LOG, TELEMETRY
 from ucsim.population.structure import ward_name
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -224,13 +225,21 @@ class Workspace:
         j = self.job
         self.last_job = {"kind": kind, "reason": reason, "progress": j.get("progress", 0), "total": j.get("total", 0),
                          "ended": time.time(), "seconds": round(time.time() - j.get("started", time.time()), 1), **extra}
-        self.job = {"state": "error", "error": extra.get("error", "")} if reason == "error" else {"state": "idle"}
+        if kind == "run" and j.get("progress"):
+            n, sec = j["progress"], self.last_job["seconds"]
+            LOG.info("Time %s after %s simulated day%s in %s s (%.2f s per day, including any slow-speed waiting)",
+                     "stopped" if reason != "error" else "stopped by an error", n, "s" if n != 1 else "", sec, sec / n)
+            TELEMETRY.remember_speed()
+        self.job ={"state": "error", "error": extra.get("error", "")} if reason == "error" else {"state": "idle"}
 
     def build(self, scale: float, seed: int, warmup: int = 0):
         """Synthesize a new world (replacing the current one and any intervention universe), then warm it up."""
         self.job.update(phase="synthesizing")
+        t_build = time.time()
         try:
+            TELEMETRY.remember_speed()                  # the old world's measured speed, for the next estimate
             sim = runner.new_simulation(scale=scale, seed=seed)
+            LOG.info("Built a world: scale %s, seed %s, %s people in %.1f s", scale, seed, f"{int(sim.w.P.n):,}", time.time() - t_build)
             for k in range(warmup):
                 if self.job.get("cancel"):
                     break
@@ -240,9 +249,11 @@ class Workspace:
                 self.base, self.alt, self.divergence, self.compare_cache = sim, None, [], None
                 self.world_id += 1
                 self._index = None
+            TELEMETRY.new_world(scale, seed, int(sim.w.P.n), time.time() - t_build, warmup)
             self.finish_job("build", "done")
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
+            LOG.exception("Building a world (scale %s, seed %s) failed", scale, seed)
             self.finish_job("build", "error", error=repr(e))
 
     def step(self, days: int = 0, hours: int = 0, pace: float = 0.0):
@@ -258,6 +269,8 @@ class Workspace:
                 if self.job.get("cancel"):
                     break
                 t_day = time.time()
+                t0 = TELEMETRY.day_begin()
+                tb, ta, a_s = dict(self.base.timing), None, None
                 with self.lock:
                     world = "Original"
                     if self._par_cool:
@@ -280,6 +293,7 @@ class Workspace:
                     if alt is not None:
                         world = "What-if"
                         t_alt = time.time()
+                        ta = dict(alt.timing)
                         alt.step_day()
                         a_s = time.time() - t_alt
                         self._alt_day_s = a_s if self._alt_day_s is None else 0.7 * self._alt_day_s + 0.3 * a_s
@@ -293,6 +307,7 @@ class Workspace:
                     # Original's finished day and the pages' copy of the What-if)
                     world = "What-if"
                     _, a_s = self._par.wait()
+                    a_s = float(a_s)
                     self._alt_day_s = a_s if self._alt_day_s is None else 0.7 * self._alt_day_s + 0.3 * a_s
                     with self.lock:
                         # refresh the pages' copy when someone is looking, at most every few seconds (and never so
@@ -302,6 +317,9 @@ class Workspace:
                             self._par_refresh()
                         self.compare_cache = None
                 self.job.update(progress=k + 1, updated=time.time(), day_seconds=round(time.time() - t_day, 2))
+                TELEMETRY.day(self.base, t0, tb, alt=alt if ta is not None else None, alt_timing_before=ta,
+                              alt_s=a_s if a_s is not None else (sum(alt.timing.values()) - sum(ta.values()) if ta is not None else None),
+                              parallel=par_step, pace=pace)
                 # the pace can change while time runs (the speed buttons): read it fresh every day
                 pace = float(self.job.get("pace", pace) or 0.0)
                 while pace and time.time() - t_day < pace and not self.job.get("cancel"):
@@ -321,12 +339,31 @@ class Workspace:
                 except Exception:  # noqa: BLE001
                     pass
                 self._par = None
+            LOG.exception("The %s world hit an error on day %s", world, self.base.w.day)
             self.finish_job("run", "error", error=f"the {world} world hit an error on day {self.base.w.day}: {e!r}")
 
 
 WS = Workspace()
 app = FastAPI(title="Utah County College Social Simulator", version="0.1")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+
+@app.middleware("http")
+async def _log_requests(request: Request, call_next):
+    """Log page requests that fail or take long (the Logs tool), so a slow or broken page can be found later."""
+    t = time.perf_counter()
+    try:
+        resp = await call_next(request)
+    except Exception:
+        LOG.exception("%s %s failed", request.method, request.url.path)
+        raise
+    dt_s = time.perf_counter() - t
+    if resp.status_code >= 500:
+        LOG.error("%s %s answered %s after %.2f s", request.method, request.url.path, resp.status_code, dt_s)
+    elif dt_s > 3.0 and request.url.path.startswith("/api/"):
+        LOG.info("%s %s took %.1f s%s", request.method, request.url.path, dt_s,
+                 " (it waited for the simulated day in progress)" if WS.job.get("state") == "running" else "")
+    return resp
 
 
 # ----------------------------------------------------------------------------- meta
@@ -360,7 +397,7 @@ async def status():
                     "fork_day": getattr(alt, "meta_fork_day", None) if alt is not None else None,
                     "divergence": divergence[-1] if alt is not None and divergence else None,
                     "last_event_id": n_ev - 1,
-                    "timing": dict(b.timing)})
+                    "timing": dict(b.timing), "perf": TELEMETRY.brief()})
     except Exception as e:  # noqa: BLE001  (a read raced a day in progress; the next poll will be complete)
         out["partial"] = repr(e)
     return jresp(out)
@@ -1785,6 +1822,8 @@ def main():
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--host", default="127.0.0.1")
     args = ap.parse_args()
+    from ..telemetry import log_dir_default, setup_logging
+    setup_logging(log_dir_default())
     if args.scale is not None:
         print(f"Building world (scale {args.scale}, seed {args.seed}, warmup {args.warmup} days) …")
         WS.job = {"state": "building", "phase": "synthesizing", "progress": 0, "total": max(args.warmup, 1), "started": time.time()}

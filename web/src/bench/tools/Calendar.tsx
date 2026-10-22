@@ -13,7 +13,7 @@ import { focusItem } from '../sel'
 
 const KIND_C: Record<string, string> = {
   football: '--s2', football_away: '--s2', conference: '--s7', devotional: '--s7', holiday: '--s1', break: '--s6',
-  travel: '--s6', school: '--s4', festival: '--s5',
+  travel: '--s6', school: '--s4', festival: '--s5', basketball: '--s2', performance: '--s5',
 }
 const kc = (k: string) => `var(${KIND_C[k] ?? '--text-muted'})`
 const BASIS: Record<string, string> = { real: 'published date', rule: 'recurring rule', hypothetical: 'our estimate' }

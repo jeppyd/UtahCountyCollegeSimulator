@@ -131,6 +131,20 @@ dance venues…). Web layers (roads, city outlines, building footprints) are com
   weekday and simulation block, for checks). Departments map to study areas in
   `ucsim/config/places/byu_departments.yaml` (judgment, by college). Enrollment is a collection-time snapshot
   (Winter's provisional). The 2026–27 schedule stands in for every year; Spring and Summer sections are still drawn.
+- **UVU class schedule** (owner-supplied research package `provo-orem-student-life-research-2026-10-21.zip`, its
+  `uvu/` folder; collected 2026-10-21 from UVU's public Banner class search, userve.uvu.edu, term 202640 = Fall
+  2026; no instructor fields; building centres matched to OpenStreetMap outlines, ODbL). Copy the folder to
+  `data/external/uvu_campus/` (never committed) and run `python -m ucsim.geo.schedule`: it writes
+  `geo/data/uvu_schedule.parquet` (in-person sections in the 17 main-campus buildings the package locates, same
+  columns as BYU's; 53% of in-person seats, most of the rest high-school concurrent enrollment) and raises those
+  buildings to the floors their rooms are on. Room floors come from room numbers (an estimate; UVU publishes none).
+  Subjects map to study areas in `ucsim/config/places/uvu_departments.yaml` (judgment). UVU Spring and Summer
+  sections are still drawn.
+- **Calendar additions from the same package** (`config/calendar/2026_27.yaml`): BYU home football kickoff times
+  (byucougars.com home schedule), the Fall 2026 devotional and forum dates (news.byu.edu; `published_weekly`
+  replaces the weekly rule for that term), BYU and UVU men's basketball home games with announced times
+  (byucougars.com, gouvu.com) and BYU's Christmas performances (pam.byu.edu). Attendance rates for the two
+  basketball occasion kinds are hypothetical fits (about 9% of BYU and 3% of UVU students a game).
 - Campus places (`ucsim/config/places/campus.yaml`): teaching buildings, hangout spots, gyms, study and events
   buildings for BYU and UVU, BYU building codes → names, and which buildings each study area's classes use
   (judgment from department locations; weights rough).

@@ -62,3 +62,43 @@ occasions:
     base: -2.8
     interest: {fd_concert: 0.6, extraversion: 0.3, drive_fun: 0.6}
     capacity: 60000
+  basketball_game:
+    label: BYU men's basketball game
+    where: stadium       # the Marriott Center arena
+    start: "19:00"
+    dur: 150
+    open: true
+    social: true
+    category: sports
+    rate: 0.3
+    talk_h: 0.3
+    act: venue
+    cost: 0              # students get in on an all-sports pass
+    # The Marriott Center seats ~18,000; the student section ("the ROC") holds a few thousand at a well-attended game,
+    # so roughly one in fifteen of BYU's students at a typical home game (hypothetical fit). BYU students only.
+    audience:
+      - {var: school, op: "==", value: BYU}
+      - {var: enrolled, op: "==", value: true}
+    base: -2.4
+    interest: {fd_sports_game: 0.8, sports: 0.5, extraversion: 0.3, drive_fun: 0.6}
+    capacity: 18000
+  uvu_basketball_game:
+    label: UVU men's basketball game
+    where: stadium       # the UCCU Center
+    start: "19:00"
+    dur: 150
+    open: true
+    social: true
+    category: sports
+    rate: 0.25
+    talk_h: 0.3
+    act: venue
+    cost: 0              # students get in with their UVU card
+    # The UCCU Center seats ~8,500 and is rarely full; UVU is a commuter campus, so a small share of its students go
+    # to a typical home game (hypothetical, ~3%). UVU students only.
+    audience:
+      - {var: school, op: "==", value: UVU}
+      - {var: enrolled, op: "==", value: true}
+    base: -3.3
+    interest: {fd_sports_game: 0.8, sports: 0.5, extraversion: 0.3, drive_fun: 0.6}
+    capacity: 8500

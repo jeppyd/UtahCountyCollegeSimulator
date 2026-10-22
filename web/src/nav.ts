@@ -1,11 +1,13 @@
-// The places you can go. The workbench is home; the earlier pages ("classic views") and the research desk stay reachable
-// from the Classic views menu, so nothing is lost.
+// The places you can go. The valley is home (your people, the map, the story); the workbench is the deep-dive bench of
+// raw tools; the What-if splits the world. Every other page and the research desk stay reachable from "More".
 export type NavItem = { id: string; label: string; icon: string; hint: string; color?: string }
+export const VALLEY: NavItem = { id: 'valley', label: 'Valley', icon: 'home', hint: 'Home: the people you follow, the living map, and the story as it happens — watch scenes, see why, make things happen', color: '--s3' }
 export const BENCH: NavItem = { id: 'bench', label: 'Workbench', icon: 'desk', hint: 'Your own bench of raw tools: pick anyone or anything and see what led to it and what it led to', color: '--s1' }
 export const NAV: { group: string; label: string; items: NavItem[] }[] = [
   { group: 'world', label: 'The world', items: [
+    VALLEY,
     BENCH,
-    { id: 'world', label: 'World', icon: 'globe', hint: 'What is happening right now: news, trends, lives to follow, the two worlds', color: '--s1' },
+    { id: 'world', label: 'Overview', icon: 'globe', hint: 'The valley in numbers: this week, what is moving, the two worlds, curiosities', color: '--s1' },
     { id: 'map', label: 'Flat map (backup)', icon: 'map', hint: 'The older flat map, kept as a backup: homes, complexes, wards, day and months replays. The living 3D map is the Map tool on the workbench.', color: '--s3' },
     { id: 'people', label: 'People', icon: 'people', hint: 'Find and follow individual lives', color: '--s7' },
     { id: 'relationships', label: 'Relationships', icon: 'rings', hint: 'Couples, friendships and how people meet', color: '--s5' },
@@ -30,8 +32,8 @@ export const NAV: { group: string; label: string; items: NavItem[] }[] = [
   ] },
 ]
 
-/** The top of the app: the workbench and the What-if; every other page lives under Classic views. */
-export const TOP = ['bench', 'whatif']
+/** The top of the app: the valley, the workbench and the What-if; every other page lives under More. */
+export const TOP = ['valley', 'bench', 'whatif']
 export const CLASSIC: { label: string; items: NavItem[] }[] = [
   { label: 'The world', items: NAV[0].items.filter(i => !TOP.includes(i.id)) },
   { label: NAV[1].label, items: NAV[1].items },

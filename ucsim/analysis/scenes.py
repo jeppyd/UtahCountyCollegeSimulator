@@ -80,7 +80,7 @@ def scene(sim, oid: int) -> dict:
     why = None
     if d["decision"] >= 0:
         why = sim.decisions.get(int(d["decision"])) or None
-    origin = {"engine": "planned by the organizer", "user": "arranged by a What-if action", "calendar": "on the calendar",
+    origin = {"engine": "planned by the organizer", "user": "arranged by you", "calendar": "on the calendar",
               "institution": "organized by an institution", "family": "a family thing"}.get(d["origin"], d["origin"])
     if row["series"] is not None:
         S = book.series

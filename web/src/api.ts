@@ -505,3 +505,40 @@ export type PerfSummary = {
 export type PerfReply = { summary: PerfSummary; days: PerfDay[]; system_words: Record<string, string>; periodic_words: Record<string, string>; has_alt: boolean; running: boolean }
 export type PerfEstimate = { measured: boolean; from_scale?: number; updated?: string; early_s?: number; later_s?: number; build_s?: number }
 export type LogLine = { id: number; t: number; level: string; source: string; msg: string }
+
+// ---------------------------------------------------------------- the valley: feed, lives to follow, scenes (routes_valley.py)
+export type Moment = {
+  event: number; day: number; date: string; weekday: string; type: string; label: string; category: string; salience: number
+  text: string; people: { id: number; name: string }[]; cast: number[]; reasons: { words: string; share: number | null }[]
+  because: string; times: number; first_day: number; first_date: string; big: boolean; occasion: number | null
+}
+export type CastPick = { kind: string; label: string; hook: string; id: number; name: string; headline: string; mood: number; loneliness: number }
+export type CastNow = {
+  id: number; name: string; headline: string; present: boolean; doing: string; status: string
+  partner: { id: number; name: string } | null; mood: number; loneliness: number; stress: number
+  next: { what: string; time: string } | null; last: { event: number; text: string; day: number; date: string } | null
+}
+export type Beat = {
+  kind: 'decide' | 'setup' | 'text' | 'say' | 'unseen' | 'silence' | 'stage' | 'arrive' | 'note' | 'meet' | 'event' | 'wrap' | 'thought'
+  text?: string; line?: string | null; minute?: number | null; time?: string | null; who?: { id: number; name: string } | null
+  to?: { id: number; name: string } | null; speaker?: { id: number; name: string } | null; why?: string; source?: string
+  ref?: { kind: string; id: string | number } | null; channel?: string; category?: string; day?: number; date?: string
+}
+export type Script = {
+  kind: 'occasion' | 'pair'; title?: string; place?: string; date?: string; weekday?: string; time?: string; status?: string
+  organizer?: { id: number; name: string } | null; cast?: { id: number; name: string }[]
+  a?: { id: number; name: string }; b?: { id: number; name: string }; tie?: any; beats: Beat[]; note: string
+}
+export const valleyApi = {
+  feed: (people: number[], u: Universe = 'base', since?: number): Promise<{ today: number; moments: Moment[]; note: string }> =>
+    j(`/api/valley/feed?u=${u}&people=${people.join(',')}${since !== undefined ? `&since=${since}` : ''}`),
+  cast: (shuffle = 0, u: Universe = 'base'): Promise<{ cast: CastPick[] }> => j(`/api/valley/cast?u=${u}&shuffle=${shuffle}`),
+  now: (people: number[], u: Universe = 'base'): Promise<{ day: number; hour: number; people: CastNow[] }> =>
+    j(`/api/valley/now?u=${u}&people=${people.join(',')}`),
+  occasion: (oid: number, u: Universe = 'base'): Promise<Script> => j(`/api/scene/occasion/${oid}?u=${u}`),
+  pair: (a: number, b: number, u: Universe = 'base'): Promise<Script> => j(`/api/scene/pair?a=${a}&b=${b}&u=${u}`),
+  why: (ref: string, u: Universe = 'base'): Promise<any> => j(`/api/story/why?ref=${encodeURIComponent(ref)}&u=${u}`),
+  ripple: (ref: string, u: Universe = 'base'): Promise<any> => j(`/api/story/ripple?ref=${encodeURIComponent(ref)}&u=${u}&depth=4`),
+  act: (action: any, world: 'original' | 'whatif'): Promise<any> => post('/api/act', { ...action, world }),
+  check: (action: any, world: 'original' | 'whatif'): Promise<any> => post('/api/act/check', { ...action, u: world === 'original' ? 'base' : undefined }),
+}

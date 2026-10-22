@@ -100,6 +100,9 @@ def feed(sim, people: list[int] | None = None, since: int | None = None, limit: 
             rs = S._reasons(w, 2)
         except Exception:  # noqa: BLE001  (an older event whose details were thinned)
             rs = []
+        for r_ in rs:
+            if str(r_.get("words", "")).startswith("action "):
+                r_["words"], r_["share"] = "you made it happen", None
         who = [x] + ([y] if y >= 0 else [])
         line = {"event": e, "day": d, "date": str(sim.cal.date(d)), "weekday": _wd(sim, d), "type": nm,
                 "label": spec.label, "category": spec.category, "salience": float(sal[t]), "text": W.event_line(e),
@@ -108,8 +111,23 @@ def feed(sim, people: list[int] | None = None, since: int | None = None, limit: 
                 "big": bool(sal[t] >= 0.8)}
         folded[fk] = line
         out.append(line)
+    _occasions(sim, out)
     return {"today": today, "date": str(sim.cal.date(today)), "since": lo, "people": cast, "moments": out,
             "note": "Reasons are the model's own recorded pushes inside this simulated world, as shares of the whole."}
+
+
+def _occasions(sim, lines: list[dict]):
+    """Mark each moment that happened at an occasion (a dinner, a date, a party) with it, so it can be watched."""
+    if not lines:
+        return
+    from ..engine.ledger import CAUSE_ID
+    t = sim.causes.t
+    ids = np.array([ln["event"] for ln in lines], np.int64)
+    m = np.isin(t["event"], ids) & (t["kind"] == CAUSE_ID["occasion"])
+    occ = dict(zip(t["event"][m].tolist(), t["ref"][m].tolist()))
+    for ln in lines:
+        o = occ.get(ln["event"])
+        ln["occasion"] = int(o) if o is not None and o >= 0 else None
 
 
 # ---------------------------------------------------------------------------------------------------------------- cast

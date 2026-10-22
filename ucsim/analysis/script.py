@@ -288,6 +288,14 @@ def occasion_script(sim, oid: int) -> dict:
 
 
 # ---------------------------------------------------------------------------------------------------- two people
+SHORT = {"gathering": "hangout", "ward_activity_plain": "ward activity", "club_social_food": "club social",
+         "resident_event": "resident event"}
+MET_WORDS = {"unit": "as roommates", "complex": "in their apartment complex", "class": "in class", "ward": "at church",
+             "fhe": "in their family home evening group", "work": "at work", "gym": "at the gym", "venue": "out somewhere",
+             "gathering": "at a get-together", "campus": "on campus", "app": "on a dating app", "date": "on a date",
+             "occasion": "at a get-together", "online": "online", "hangout": "hanging out", "club": "at a club",
+             "team": "on a team", "institute": "at institute", "family": "as family", "dance": "at a dance",
+             "outdoors": "outdoors", "congregation": "at church"}
 PAIR_EVENTS = {"asked_out", "rejected", "first_date", "date", "talking_started", "relationship_started", "first_kiss_with",
                "engaged", "wedding", "breakup_initiated", "breakup_received", "new_friend", "close_friend", "friendship_faded",
                "ghosted", "dealbreaker_found", "dealbreaker_overlooked", "intimacy_step", "ncmo", "app_match",
@@ -341,6 +349,24 @@ def pair_script(sim, a: int, b: int, limit: int = 120) -> dict:
             items.append((d, 3, {"kind": "stage", "text": W.event_line(e) + ".", "source": "a date", "ref": src, "fold": "date"}))
         else:
             items.append((d, 3, {"kind": "stage", "text": W.event_line(e) + ".", "why": why, "source": nm.replace("_", " "), "ref": src}))
+    # the occasions they were both at (each one can be watched)
+    I = sim.book.inv
+    if I.n:
+        att = I["attended"]
+        oa = set(I["occ"][att & (I["person"] == a)].tolist())
+        both = sorted(oa & set(I["occ"][att & (I["person"] == b)].tolist()))
+        from .scenes import occasion_row
+        for o in both[-40:]:
+            row = occasion_row(sim, int(o))
+            if not row:
+                continue
+            org = row.get("organizer") or {}
+            what = SHORT.get(row["kind"], row["kind_label"].lower()) if not row.get("name") else row["name"]
+            first = org["name"].split()[0] if org.get("name") else ""
+            whose = f"{first}'s {what}" if first and not row.get("name") else what
+            place = "" if first and str(row["place"]).startswith(first) else f", {row['place']}"
+            items.append((int(row["day"]), 2, {"kind": "stage", "text": f"Both at {whose} ({row['time'].split('–')[0]}{place}).",
+                                               "source": "an occasion they both came to", "ref": {"kind": "occasion", "id": int(o)}}))
     M = sim.systems.get("messaging")
     if M is not None and M.acts.n:
         from ..engine.systems.messaging import ACTS
@@ -362,6 +388,18 @@ def pair_script(sim, a: int, b: int, limit: int = 120) -> dict:
                 ref = int(A.cols["ref"][r])
                 items.append((d, 0, {"kind": "text", "who": who, "line": _pick(INVITE["_"], r).format(t="tonight"), "source": "an invitation",
                                      "ref": {"kind": "occasion", "id": ref} if ref >= 0 else None}))
+    # how they met
+    E = sim.w.E
+    e0 = E.find(E.make_keys(np.array([a]), np.array([b])))[0]
+    if e0 >= 0 and E["first_day"][e0] >= 0:
+        from ..engine.state import CTX
+        ctx = CTX[int(E["origin_ctx"][e0])] if int(E["origin_ctx"][e0]) < len(CTX) else ""
+        intro = int(E["introducer"][e0])
+        where = MET_WORDS.get(ctx, f"through {ctx.replace('_', ' ')}" if ctx else "")
+        txt = f"They met {where}" + (f", introduced by {W.name(intro)}" if intro >= 0 else "") + "."
+        if E["flags"][e0] & Tie.PREEXISTING:
+            txt = "They already knew each other when the story began."
+        items.append((int(E["first_day"][e0]), -1, {"kind": "stage", "text": txt, "source": "where their tie began"}))
     items.sort(key=lambda x: (x[0], x[1]))
     beats, folded = [], None
     for d, _o, bt in items:

@@ -97,7 +97,7 @@ type State = {
 
 function parseHash(): string[] {
   const h = window.location.hash.replace(/^#\/?/, '')
-  return h ? h.split('/').map(decodeURIComponent) : ['bench']
+  return h ? h.split('/').map(decodeURIComponent) : ['valley']
 }
 
 let toastId = 1

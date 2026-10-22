@@ -67,7 +67,8 @@ MAYBE = ["maybe? I'll let you know", "I'll try to make it", "possibly, depends o
 NO = ["ahh I can't tonight, sorry!", "I wish, can't make it", "not tonight but next time for sure", "can't, sorry 😕",
       "ugh I would but I can't"]
 NO_BECAUSE = {"work": "I'm working till late, sorry!", "class": "I have class then 😩", "conflict": "I already have something then",
-              "far": "that's kind of far for me tonight"}
+              "far": "that's kind of far for me tonight", "get there": "I don't have a ride tonight 😕",
+              "ride": "I don't have a ride tonight 😕", "shift": "I'm working then, sorry!", "date": "I have a date tonight 👀"}
 TIRED = ["honestly I'm so tired, next time!", "I'm dead tonight 😴 next time", "I need a night in, sorry!",
          "so tired, rain check?"]
 MODE_WORDS = {"walk": "on foot", "bike": "by bike", "car": "by car", "transit": "by bus", "ride": "by ride"}
@@ -105,6 +106,36 @@ def _no_line(dec: dict | None, key) -> str:
     return _pick(NO, *key)
 
 
+DATE_YES = ["yes! I'd love that", "sure, sounds fun :)", "okay yes!", "I'd like that", "yes, I'm free"]
+
+
+def _date_dynamics(sim, beat, ids, start, end):
+    """How a date goes, from the two people's attraction and chemistry (recorded on their tie)."""
+    P, E = sim.w.P, sim.w.E
+    x, y = int(ids[0]), int(ids[1])
+    e = E.find(E.make_keys(np.array([x]), np.array([y])))[0]
+    if e < 0:
+        return
+    fx = float(E.attraction_from(np.array([e]), np.array([x]))[0])
+    fy = float(E.attraction_from(np.array([e]), np.array([y]))[0])
+    chem = float(E["chemistry"][e])
+    mid = start + max(end - start, 30) // 2
+    X, Y = _first(P, x), _first(P, y)
+    ref = {"kind": "tie", "id": f"{min(x, y)}-{max(x, y)}"}
+    if min(fx, fy) >= 0.35 and chem >= 0.3:
+        beat("stage", "The conversation is easy. They lose track of time.", minute=mid, source="mutual attraction and chemistry", ref=ref)
+    elif min(fx, fy) >= 0.3:
+        beat("stage", "They like each other, you can tell, but there are a few long pauses.", minute=mid, source="attraction without much chemistry yet", ref=ref)
+    elif max(fx, fy) >= 0.3:
+        s_, o_ = (X, Y) if fx >= fy else (Y, X)
+        beat("stage", f"{s_} is clearly into it. {o_} is friendly, and checks the time once or twice.", minute=mid,
+             source="one-sided attraction", ref=ref)
+    else:
+        beat("stage", "It's pleasant, a little polite. Neither of them feels much.", minute=mid, source="little attraction either way", ref=ref)
+    if float(E["conflict"][e]) >= 0.3:
+        beat("stage", "Something from before hangs over it.", minute=mid + 15, source="unresolved conflict between them", ref=ref)
+
+
 # --------------------------------------------------------------------------------------------------- occasion scenes
 def occasion_script(sim, oid: int) -> dict:
     """One occasion as a scene (see the module docstring)."""
@@ -127,9 +158,25 @@ def occasion_script(sim, oid: int) -> dict:
     if org and hd:
         why = _reasons(sim, hd["id"])
         chance = hd.get("prob")
-        beat("decide", f"{org['name']} decides to host {sc['kind_label'].lower()}.", who=org, why=why,
+        what = {"gathering": "people over", "dinner": "a dinner", "party": "a party", "game_night": "a game night",
+                "study_group": "a study group"}.get(kind, sc["kind_label"].lower())
+        beat("decide", f"{org['name']} decides to have {what}.", who=org, why=why,
              source="their choice to host" + (f" · it had a {round(100 * chance)}% chance" if chance is not None else ""),
              ref={"kind": "decision", "id": hd["id"]})
+    elif kind == "date" and org and len(sc["people"]) >= 2:
+        other = next((p["person"] for p in sc["people"] if p["person"]["id"] != org["id"]), None)
+        log, n = sim.log, sim.log.n
+        why = ""
+        if other:
+            t = sim.reg.event_ids.get("asked_out")
+            m = np.flatnonzero((log["type"][:n] == t) & (log["a"][:n] == org["id"]) & (log["b"][:n] == other["id"]) & (log["day"][:n] <= sc["day"]))
+            if len(m):
+                try:
+                    why = S.reason_text(S._reasons(S.why(sim, f"event:{int(m[-1])}"), 2))
+                except Exception:  # noqa: BLE001
+                    why = ""
+        beat("setup", f"{org['name']} has been working up the nerve to ask {other['name'] if other else 'someone'} out.",
+             who=org, why=why, source="why they asked")
     else:
         beat("setup", f"{sc['kind_label']} — {sc['how']}.", source="how it came about")
     # the invitations, as messages (texts and group chats) or as asking in person
@@ -153,13 +200,16 @@ def occasion_script(sim, oid: int) -> dict:
         else:
             beat("say", f"{inviter['name']} asks {who['name']} {'in person' if chan == 'in_person' else 'through ' + p['channel_words']}.",
                  who=inviter, to=who, line=msg, source=f"invitation ({p['channel_words']})")
+        if kind == "date":
+            msg = _pick(ASK_OUT, oid, who["id"])
+            beats[-1]["line"] = msg
         r = p["response"]
         if p.get("seen_day") is None:
             beat("unseen", f"{who['name']} never sees it.", who=who, source="the invitation was never seen")
             continue
         why = _reasons(sim, dec["id"]) if dec else ""
         if r == "yes":
-            beat("text" if chan != "in_person" else "say", "", who=who, to=inviter, line=_pick(YES, oid, who["id"], "y"),
+            beat("text" if chan != "in_person" else "say", "", who=who, to=inviter, line=_pick(DATE_YES if kind == "date" else YES, oid, who["id"], "y"),
                  why=why, source="their answer", ref={"kind": "decision", "id": dec["id"]} if dec else None)
         elif r == "maybe":
             beat("text" if chan != "in_person" else "say", "", who=who, to=inviter, line=_pick(MAYBE, oid, who["id"]),
@@ -177,7 +227,10 @@ def occasion_script(sim, oid: int) -> dict:
     for p in came:
         who = p["person"]
         if p["role"] == "organizer":
-            beat("stage", f"{who['name']} gets the place ready.", minute=max(start - 30, 0), who=who, source="the organizer")
+            if kind == "date":
+                beat("stage", f"{who['name']} gets there a few minutes early.", minute=max(start - 5, 0), who=who, source="the organizer")
+            elif sc.get("org_kind") in ("household", "user", "engine") and "place" in str(sc.get("place", "")):
+                beat("stage", f"{who['name']} gets the place ready.", minute=max(start - 30, 0), who=who, source="the organizer")
             continue
         late = p.get("late_minutes") or 0
         trip = p.get("trip") or {}
@@ -205,7 +258,9 @@ def occasion_script(sim, oid: int) -> dict:
                  why=_reasons(sim, p["no_show"]["id"]), source="their choice on the day")
     # the room: who is drawn to whom, old friends, tension, who hangs back
     ids = [p["person"]["id"] for p in came]
-    if len(ids) >= 2:
+    if kind == "date" and len(ids) == 2:
+        _date_dynamics(sim, beat, ids, start, int(sc["end"]))
+    elif len(ids) >= 2:
         a_, b_ = np.triu_indices(len(ids), 1)
         A, B = np.array(ids)[a_], np.array(ids)[b_]
         eix = E.find(E.make_keys(A, B))
@@ -261,9 +316,14 @@ def occasion_script(sim, oid: int) -> dict:
              minute=start + 25, who=m["a"], to=m["b"], line=_pick(["have you two met?", "you two would get along", "wait, you don't know each other?"], oid, m["a"]["id"]) if intro else None,
              speaker=intro, source="a new tie that began here",
              ref={"kind": "tie", "id": f"{min(m['a']['id'], m['b']['id'])}-{max(m['a']['id'], m['b']['id'])}"})
+    shown_ev = set()
     for ev in sc.get("events", []):
         if ev["type"] in ("hosted_gathering",):
             continue
+        mk = (ev["type"], ev["day"], tuple(sorted((ev["a"], ev.get("b") if ev.get("b") is not None else -1))))
+        if mk in shown_ev:
+            continue
+        shown_ev.add(mk)
         try:
             from .trace import _Words
             txt = _Words(sim).event_line(int(ev["id"]))
@@ -273,7 +333,9 @@ def occasion_script(sim, oid: int) -> dict:
             txt = "Elsewhere: " + txt
         beat("event", txt + ".", minute=int(sc["end"]) - 10, source="an event recorded here", ref={"kind": "event", "id": ev["id"]},
              category=ev.get("category"))
-    if sc["status"] == "happened":
+    if sc["status"] == "happened" and kind == "date" and len(ids) == 2:
+        beat("wrap", f"Around {clock.hhmm(int(sc['end']))} they say goodbye.", minute=int(sc["end"]), source="when it ended")
+    elif sc["status"] == "happened":
         bits = [f"{sc['talks']} conversations"] if sc.get("talks") else []
         if sc.get("new_ties"):
             bits.append(f"{sc['new_ties']} {'person' if sc['new_ties'] == 1 else 'people'} met for the first time")

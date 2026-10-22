@@ -517,6 +517,7 @@ export type CastNow = {
   id: number; name: string; headline: string; present: boolean; doing: string; status: string
   partner: { id: number; name: string } | null; mood: number; loneliness: number; stress: number
   next: { what: string; time: string } | null; last: { event: number; text: string; day: number; date: string } | null
+  plans: { occasion: number; label: string; kind: string; day: number; time: string; place: string; status: string; hosting: boolean; answer: string | null; came: boolean }[]
 }
 export type Beat = {
   kind: 'decide' | 'setup' | 'text' | 'say' | 'unseen' | 'silence' | 'stage' | 'arrive' | 'note' | 'meet' | 'event' | 'wrap' | 'thought'

@@ -61,12 +61,30 @@ function CastRail({ ids, focus }: { ids: number[]; focus: number | null }) {
             <span className="vl-p-now">{p.present ? DOING[p.doing] ?? p.doing : 'away'}{p.next ? <> · next: {p.next.what} {p.next.time?.split('–')[0]}</> : null}</span>
             <Feel p={p} />
             {p.last && <span className="vl-p-last">{p.last.text}</span>}
+            <Plans p={p} today={now.data?.day ?? 0} />
           </span>
         </button>
       ))}
       {ids.length < 3 && <Suggestions have={ids} onFollow={(c) => { toggleFollow(c.id); focusPerson(c.id, c.name) }} />}
       {ids.length > 0 && <p className="vl-tip small muted">Follow anyone from the map, the story, or their page. {focus !== null && ids.includes(focus) && <button className="linkish" onClick={() => toggleFollow(focus)}>Stop following the selected person</button>}</p>}
     </aside>
+  )
+}
+
+/** Their get-togethers and dates around now: what's coming (and their answer), and what happened (watch it). */
+function Plans({ p, today }: { p: CastNow; today: number }) {
+  const rows = (p.plans ?? []).filter(x => x.status !== 'cancelled' && (x.status === 'planned' || x.came)).slice(0, 3)
+  if (!rows.length) return null
+  const when = (d: number) => (d === today ? 'today' : d === today - 1 ? 'yesterday' : d === today + 1 ? 'tomorrow' : `in ${d - today} days`)
+  return (
+    <span className="vl-plans">
+      {rows.map(x => (
+        <span key={x.occasion} className={`vl-plan ${x.status}`}>
+          <span className="vl-plan-t">{when(x.day)} {x.time.split('–')[0]} · {x.label}{x.hosting ? ' (hosting)' : x.answer && x.status === 'planned' ? ` · ${x.answer}` : ''}</span>
+          {x.status === 'happened' && <span role="button" tabIndex={0} className="vl-watch" onClick={e => { e.stopPropagation(); openScene({ kind: 'occasion', id: x.occasion }, p.id) }}>{G.play} watch</span>}
+        </span>
+      ))}
+    </span>
   )
 }
 

@@ -192,6 +192,49 @@ def cast(sim, k: int = 9, shuffle: int = 0) -> dict:
 
 
 # ----------------------------------------------------------------------------------------------------------------- now
+RESP_WORDS = {"pending": "hasn't seen it yet", "yes": "said yes", "no": "said no", "no_reply": "didn't answer", "maybe": "said maybe"}
+
+
+def _plans(sim, i: int) -> list[dict]:
+    """Their get-togethers from yesterday to the next few days: what, when, where, their part and their answer, and
+    whether it already happened (then it can be watched)."""
+    from .scenes import occasion_row
+    book = sim.book
+    I, O = book.inv, book.occ
+    day = sim.w.day
+    mine = I["occ"][I["person"] == i] if I.n else np.empty(0, np.int64)
+    own = O["id"][: O.n][O["organizer"][: O.n] == i] if O.n else np.empty(0, np.int64)
+    ids = np.unique(np.r_[mine, own]) if len(mine) + len(own) else np.empty(0, np.int64)
+    out = []
+    for o in ids.tolist():
+        row = occasion_row(sim, int(o))
+        if not row or not (day - 1 <= row["day"] <= day + 6) or row["kind"] in ("devotional",):
+            continue
+        hosting = row.get("organizer") and row["organizer"]["id"] == i
+        r = None
+        if not hosting:
+            k = np.flatnonzero((I["occ"] == o) & (I["person"] == i))
+            if len(k):
+                r = book.inv.row(int(I["id"][k[-1]]))
+        resp = r.get("response") if r else None
+        if isinstance(resp, (int, np.integer)):
+            from ..engine.ledger import RESPONSES
+            resp = RESPONSES[int(resp)]
+        label = row.get("name") or row["kind_label"]
+        if row["kind"] == "date":
+            others = [int(p) for p in I["person"][I["occ"] == o].tolist() if int(p) != i]
+            if row.get("organizer") and row["organizer"]["id"] != i:
+                others.insert(0, row["organizer"]["id"])
+            if others:
+                label = f"Date with {synthetic_name(sim.w.P, others[0])}"
+        elif row.get("organizer") and not hosting and not row.get("name"):
+            label = f"{row['organizer']['name'].split()[0]}'s {row['kind_label'].lower()}"
+        out.append({"occasion": int(o), "label": label, "kind": row["kind"], "day": row["day"],
+                    "time": row["time"], "place": row["place"], "status": row["status"], "hosting": bool(hosting),
+                    "organizer": row.get("organizer"), "answer": RESP_WORDS.get(str(resp), None) if resp is not None else None,
+                    "came": bool(r.get("attended")) if r else bool(hosting)})
+    return sorted(out, key=lambda x: (x["day"], x["time"]))[:6]
+
 def now(sim, ids: list[int]) -> dict:
     """The followed people right now (see the module docstring)."""
     P, log = sim.w.P, sim.log
@@ -226,6 +269,7 @@ def now(sim, ids: list[int]) -> dict:
                         "date": str(sim.cal.date(int(log["day"][e])))}
                 break
         out.append({"id": i, "name": synthetic_name(P, i), "headline": headline(sim, i), "present": bool(P["present"][i]),
+                    "plans": _plans(sim, i),
                     "doing": acats[int(P["activity_now"][i])], "status": rel[int(P["rel_status"][i])],
                     "partner": {"id": pid, "name": synthetic_name(P, pid)} if pid >= 0 else None,
                     "mood": float(P["mood"][i]), "loneliness": float(P["loneliness"][i]), "stress": float(P["stress"][i]),

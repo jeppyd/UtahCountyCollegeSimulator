@@ -73,7 +73,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [institutions](workstreams/institutions.md) (wave 2) | **done, merged** | working branch | open issues below |
 | [family-homes](workstreams/family-homes.md) (wave 2) | **done, merged** | working branch | open issues below |
 | Real class schedules (`geo/schedule.py`, academics `_real_sections`) | BYU **done, merged**; UVU Fall **done, PR open** | branch `claude/project-thread-wazrz8` | UVU Spring 2027 when published; Spring/Summer terms; cross-listed sections share a room |
-| Valley home, scenes, make it happen (design review, [DESIGN_REVIEW.md](DESIGN_REVIEW.md)) | **done, PR open** | branch `claude/project-thread-q87n1i` | owner decides on removals; LLM narration of scenes; live scenes; stagger weekly systems |
+| Valley home, scenes, make it happen (design review, [DESIGN_REVIEW.md](DESIGN_REVIEW.md)) | **merged (#26); round 2 PR open** | branch `claude/project-thread-q87n1i` | world events as verbs; stagger the remaining Sunday systems; recalibrate |
 | [survey-followups](workstreams/survey-followups.md) | audits designed, interrupted | — | needs the raw survey files in `data/raw/` |
 | [integration](workstreams/integration.md) | ongoing | — | after each merge |
 | living-map (owner-directed, 2026-10-21) | in progress | `claude/clever-wright-3fh95g` | speed/logs, buildings, bedrooms, 3D map, cards, bedroom-mates done; 2026-10-22: sync check (99.6%+), real places in the backend, Heritage + Wyview + classrooms from BYU plans; next: Wymount/Riviera/LISR plans, elevation, then dashboards |
@@ -161,6 +161,18 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-22 (6) — Claude Code (cloud session) — design review round 2: removals, noise, stagger, verbs, narration
+- Removals in one revertible commit (Story/Ripple/Why tools; People page out of the live menus; Overview hero map and
+  headlines); the flat map stays as "Neighborhood map" (unique: complex/ward coloring, replays). See DESIGN_REVIEW.md.
+- Engine: `sim.my_turn(ids)` gives each person a weekday; `emotion.depression`, `faith.crisis`,
+  `romance.couples_week`, `intimacy.couples_week` run daily for those whose day it is (was all Sunday). Depression
+  minimum 14 days (`dep_start`). Coping start is a 0.3 daily chance above the threshold. `book.attend(count=)`;
+  decliners at home don't bump `n_came`. Run outputs differ from before.
+- Story: `time_with_family` folded into `went_home`; `WORK_NAMES` for employers; decisions `ncmo`, `ncmo_app`.
+- Actions `ask_out`, `break_up`, `go_home`; `/api/act/undo` (one checkpoint, taken on every change in the Original);
+  `/api/scene/narrate` (llm/talk/narrate.py, checked against beats; tests fake the model).
+- Tests: 294 passed; web build passes.
 
 ### 2026-10-22 (5) — Claude Code (cloud session) — design review: the valley home, scenes, make it happen
 - Owner asked for a full evaluation as a game and freedom to rebuild. Write-up: [DESIGN_REVIEW.md](DESIGN_REVIEW.md)

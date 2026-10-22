@@ -170,3 +170,27 @@ Reversible plan: delete in one PR so it can be reverted in one click.
 5. **Remove the duplicates** listed above.
 6. **A checkpoint before you meddle**: acting in your own world has no undo (the owner said no savable worlds; a
    single in-memory checkpoint would be enough).
+
+## Round 2 (same day): the recommendations, done
+
+The owner approved the rest. On branch `claude/project-thread-q87n1i`, in separate commits:
+
+* **Removals** (one commit, revert it to bring everything back): the Story, Ripple and Why workbench tools; the People
+  page from the live app's menus (the read-only snapshot keeps it; Cross-tabs' "show these people" opens the People
+  tool); the Overview's hero map and headlines (the snapshot keeps them). **Not removed:** the flat map, renamed
+  "Neighborhood map": it is the only home for complexes and wards colored by a measure and for the day and months
+  replays, and several pages link to it.
+* **Story noise:** `went_home` carries the time-with-family effects and `time_with_family` is gone; work groups have
+  names ("the Creamery", "a dental office") instead of "BYU campus dept 93"; NCMO records its decision, ghosting points
+  at the date, homesickness at the trip (salient events with a recorded reason: 94% → 99%); the valley says "life
+  happens" for things that happen to people.
+* **Engine:** depression, faith crises and each couple's week (engagement, breakups, dealbreakers) run on each
+  person's or couple's own weekday (`sim.my_turn`), same weekly rate; a depressive episode lasts at least two weeks;
+  starting to cope is a daily chance once strain crosses the line (no 1,000-person mornings); housemates who said no
+  don't count toward a party's turnout. The 62-minute walk was not a bug: they left an hour early.
+* **Play:** ask someone out, end it, go home (Make it happen); **Undo** your last change in your own world;
+  **watch live** for today's get-togethers; **Tell it as a story** (your Claude login writes the scene as prose,
+  checked against the beats).
+
+Still open: world events as verbs (a snowstorm tonight, a ward activity), the Sunday-night systems that remain
+weekly (network, culture, norms, honor, plans, academics), and a recalibration pass after the stagger.

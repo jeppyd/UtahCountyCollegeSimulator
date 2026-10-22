@@ -195,15 +195,20 @@ def build_units(scale: float, rng: np.random.Generator) -> tuple[Units, pl.DataF
             extra.append((lo_, la_, int(sum(r["bedrooms"])), not family, family,
                           3 if family else (0 if hall else 1), row["complex_id"], 5 if family else 4,
                           bi, int(r["floor"]), r["label"], list(r["bedrooms"]), {"F": 1, "M": 2}.get(r["sex"], 0), at))
-    # named complexes whose outline holds more apartments than county address points show (OSM footprint × floors)
+    # named complexes whose outline holds more apartments than county address points show (OSM footprint × floors, or
+    # the operator's published total: config/places/complex_totals.yaml)
     if "extra_units" in cx.columns:
         for row in cx.filter(pl.col("extra_units") > 0).iter_rows(named=True):
             near = min(dist_km(row["lon"], row["lat"], -111.6493, 40.2519), dist_km(row["lon"], row["lat"], -111.7149, 40.2785)) < 2.8
             n_units = int(rng.binomial(row["extra_units"], min(1.0, scale * (1.15 if near else 0.45))))
             ang = rng.uniform(0, 2 * np.pi, n_units)
             rad = np.sqrt(rng.uniform(0, 1, n_units)) * 0.0007
+            bpu = row.get("beds_per_unit") or 0       # published beds per apartment (geo/complex_totals.py)
             for i in range(n_units):
-                c_ = int(rng.choice([4, 6]) if row["contracted"] else rng.choice([2, 3, 4]))
+                if bpu:
+                    c_ = int(bpu) + int(rng.random() < bpu % 1)
+                else:
+                    c_ = int(rng.choice([4, 6]) if row["contracted"] else rng.choice([2, 3, 4]))
                 extra.append((row["lon"] + rad[i] * np.cos(ang[i]) * 1.3, row["lat"] + rad[i] * np.sin(ang[i]),
                               c_, bool(row["contracted"]), False, 1, row["complex_id"], 2,
                               -1, 0, "", default_bedrooms(2, c_, bool(row["contracted"])), 0, False))

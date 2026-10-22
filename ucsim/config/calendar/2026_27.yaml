@@ -29,10 +29,21 @@ sources:
   pam_living_legends: https://pam.byu.edu/performance-groups/living-legends/
   pam_celebration_christmas: https://pam.byu.edu/events-posts/celebration-of-christmas-2/
   conference_oct: https://newsroom.churchofjesuschrist.org/event/october-2026-general-conference
+  byu_homecoming: https://homecoming.byu.edu/homecoming/schedule
+  byu_wsoc_home: https://byucougars.com/sports/womens-soccer/schedule?type=home
+  byu_wvb_home: https://byucougars.com/sports/womens-volleyball/schedule?type=home
+  byu_wbb_home: https://byucougars.com/sports/womens-basketball/schedule?type=home
+  uvu_summer: https://www.uvu.edu/schedule/summer/
 
 places:
   stadium: {name: LaVell Edwards Stadium, lon: -111.6546, lat: 40.2576}
   marriott: {name: Marriott Center, lon: -111.6490, lat: 40.2493}
+  fieldhouse: {name: George Albert Smith Fieldhouse, lon: -111.6543, lat: 40.2474}
+  south_field: {name: BYU South Field (approx.), lon: -111.6556, lat: 40.2452}
+  wilk: {name: Ernest L. Wilkinson Student Center, lon: -111.6473, lat: 40.2486}
+  brigham_square: {name: Brigham Square (approx.), lon: -111.6478, lat: 40.2479}
+  y_trailhead: {name: Y Mountain trailhead (approx.), lon: -111.6296, lat: 40.2466}
+  cougar_canyon: {name: Cougar Canyon tailgate, west of the stadium (approx.), lon: -111.6566, lat: 40.2574}
   uccu: {name: UCCU Center (UVU), lon: -111.7140, lat: 40.2779}
 
 terms:
@@ -44,8 +55,8 @@ terms:
   UVU:
     - {name: Fall, classes: [2026-08-19, 2026-12-04], finals: [2026-12-07, 2026-12-11], basis: real, source: uvu_fall}
     - {name: Spring, classes: [2027-01-11, 2027-04-27], finals: [2027-04-29, 2027-05-05], basis: real, source: uvu_spring}
-    # Summer 2027 isn't published yet; UVU's pattern (Summer 2028: Wed May 10 – Fri Aug 4) gives these
-    - {name: Summer, classes: [2027-05-12, 2027-08-06], finals: [2027-08-06, 2027-08-06], basis: rule, source: uvu_future}
+    # Summer 2027: full semester May 10 – Aug 13 (first block to Jun 25, second from Jun 28); no separate finals week
+    - {name: Summer, classes: [2027-05-10, 2027-08-13], finals: [2027-08-13, 2027-08-13], basis: real, source: uvu_summer}
 
 items:
   # ---------------------------------------------------------------- the start of the year
@@ -159,11 +170,122 @@ items:
   - {id: celebration_of_christmas, label: "BYU Celebration of Christmas", date: 2026-12-05, time: "19:30", kind: performance,
      basis: real, source: pam_celebration_christmas}
 
+  # ---------------------------------------------------------------- BYU women's soccer (South Field), volleyball (Smith
+  # Fieldhouse) and basketball (Marriott Center) home games, from BYU's home schedules retrieved 2026-10-21; games whose
+  # time was still TBA, and two listed against "BYU" itself (exhibitions), are left out
+  - {id: wsoc_idaho_state_0808, label: "BYU women's soccer vs Idaho State", date: 2026-08-08, time: "20:00", place: south_field,
+     kind: womens_sports, basis: real, source: byu_wsoc_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wvb_utah_tech_0822, label: "BYU women's volleyball vs Utah Tech", date: 2026-08-22, time: "12:00", place: fieldhouse,
+     kind: womens_sports, basis: real, source: byu_wvb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wsoc_usc_0822, label: "BYU women's soccer vs USC", date: 2026-08-22, time: "19:00", place: south_field,
+     kind: womens_sports, basis: real, source: byu_wsoc_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wsoc_minnesota_0827, label: "BYU women's soccer vs Minnesota", date: 2026-08-27, time: "19:00", place: south_field,
+     kind: womens_sports, basis: real, source: byu_wsoc_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wvb_eastern_illinois_0903, label: "BYU women's volleyball vs Eastern Illinois", date: 2026-09-03, time: "18:30", place: fieldhouse,
+     kind: womens_sports, basis: real, source: byu_wvb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wsoc_colorado_state_0903, label: "BYU women's soccer vs Colorado State", date: 2026-09-03, time: "19:30", place: south_field,
+     kind: womens_sports, basis: real, source: byu_wsoc_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wvb_pittsburgh_0904, label: "BYU women's volleyball vs No. 2 Pittsburgh", date: 2026-09-04, time: "18:30", place: fieldhouse,
+     kind: womens_sports, basis: real, source: byu_wvb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wsoc_oklahoma_0905, label: "BYU women's soccer vs Oklahoma", date: 2026-09-05, time: "14:00", place: south_field,
+     kind: womens_sports, basis: real, source: byu_wsoc_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wvb_ucla_0911, label: "BYU women's volleyball vs UCLA", date: 2026-09-11, time: "18:30", place: fieldhouse,
+     kind: womens_sports, basis: real, source: byu_wvb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wvb_utah_valley_0915, label: "BYU women's volleyball vs Utah Valley", date: 2026-09-15, time: "18:30", place: fieldhouse,
+     kind: womens_sports, basis: real, source: byu_wvb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wvb_utah_state_0919, label: "BYU women's volleyball vs Utah State", date: 2026-09-19, time: "13:00", place: fieldhouse,
+     kind: womens_sports, basis: real, source: byu_wvb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wsoc_ucf_0924, label: "BYU women's soccer vs UCF", date: 2026-09-24, time: "19:00", place: south_field,
+     kind: womens_sports, basis: real, source: byu_wsoc_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wvb_baylor_0925, label: "BYU women's volleyball vs No. 17 Baylor", date: 2026-09-25, time: "20:00", place: fieldhouse,
+     kind: womens_sports, basis: real, source: byu_wvb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wsoc_tcu_0928, label: "BYU women's soccer vs TCU", date: 2026-09-28, time: "19:00", place: south_field,
+     kind: womens_sports, basis: real, source: byu_wsoc_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wsoc_kansas_state_1002, label: "BYU women's soccer vs Kansas State", date: 2026-10-02, time: "19:00", place: south_field,
+     kind: womens_sports, basis: real, source: byu_wsoc_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wvb_west_virginia_1010, label: "BYU women's volleyball vs West Virginia", date: 2026-10-10, time: "18:30", place: fieldhouse,
+     kind: womens_sports, basis: real, source: byu_wvb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wsoc_texas_tech_1016, label: "BYU women's soccer vs Texas Tech", date: 2026-10-16, time: "19:00", place: south_field,
+     kind: womens_sports, basis: real, source: byu_wsoc_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wvb_colorado_1022, label: "BYU women's volleyball vs No. 25 Colorado", date: 2026-10-22, time: "18:30", place: fieldhouse,
+     kind: womens_sports, basis: real, source: byu_wvb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wvb_arizona_state_1024, label: "BYU women's volleyball vs No. 8 Arizona State", date: 2026-10-24, time: "18:30", place: fieldhouse,
+     kind: womens_sports, basis: real, source: byu_wvb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wbb_western_colorado_1027, label: "BYU women's basketball vs Western Colorado", date: 2026-10-27, time: "19:00", place: marriott,
+     kind: womens_sports, basis: real, source: byu_wbb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wvb_utah_1030, label: "BYU women's volleyball vs Utah", date: 2026-10-30, time: "18:30", place: fieldhouse,
+     kind: womens_sports, basis: real, source: byu_wvb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wsoc_utah_1030, label: "BYU women's soccer vs Utah", date: 2026-10-30, time: "19:30", place: south_field,
+     kind: womens_sports, basis: real, source: byu_wsoc_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wbb_idaho_state_1103, label: "BYU women's basketball vs Idaho State", date: 2026-11-03, time: "19:00", place: marriott,
+     kind: womens_sports, basis: real, source: byu_wbb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wbb_portland_1105, label: "BYU women's basketball vs Portland", date: 2026-11-05, time: "19:00", place: marriott,
+     kind: womens_sports, basis: real, source: byu_wbb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wsoc_arizona_state_1105, label: "BYU women's soccer vs Arizona State", date: 2026-11-05, time: "19:00", place: south_field,
+     kind: womens_sports, basis: real, source: byu_wsoc_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wbb_montana_1107, label: "BYU women's basketball vs Montana", date: 2026-11-07, time: "14:00", place: marriott,
+     kind: womens_sports, basis: real, source: byu_wbb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wbb_bethune_cookman_1111, label: "BYU women's basketball vs Bethune-Cookman", date: 2026-11-11, time: "11:00", place: marriott,
+     kind: womens_sports, basis: real, source: byu_wbb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wvb_texas_tech_1114, label: "BYU women's volleyball vs Texas Tech", date: 2026-11-14, time: "13:00", place: fieldhouse,
+     kind: womens_sports, basis: real, source: byu_wvb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wbb_new_mexico_1114, label: "BYU women's basketball vs New Mexico", date: 2026-11-14, time: "14:00", place: marriott,
+     kind: womens_sports, basis: real, source: byu_wbb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wbb_utah_state_1118, label: "BYU women's basketball vs Utah State", date: 2026-11-18, time: "14:00", place: marriott,
+     kind: womens_sports, basis: real, source: byu_wbb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wvb_arizona_1119, label: "BYU women's volleyball vs Arizona", date: 2026-11-19, time: "18:30", place: fieldhouse,
+     kind: womens_sports, basis: real, source: byu_wvb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wvb_cincinnati_1121, label: "BYU women's volleyball vs Cincinnati", date: 2026-11-21, time: "13:00", place: fieldhouse,
+     kind: womens_sports, basis: real, source: byu_wvb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wbb_northern_colorado_1121, label: "BYU women's basketball vs Northern Colorado", date: 2026-11-21, time: "14:00", place: marriott,
+     kind: womens_sports, basis: real, source: byu_wbb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wvb_tcu_1127, label: "BYU women's volleyball vs No. 13 TCU", date: 2026-11-27, time: "18:30", place: fieldhouse,
+     kind: womens_sports, basis: real, source: byu_wvb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wbb_southern_utah_1209, label: "BYU women's basketball vs Southern Utah", date: 2026-12-09, time: "14:00", place: marriott,
+     kind: womens_sports, basis: real, source: byu_wbb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wbb_weber_state_1215, label: "BYU women's basketball vs Weber State", date: 2026-12-15, time: "14:00", place: marriott,
+     kind: womens_sports, basis: real, source: byu_wbb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wbb_kansas_state_1230, label: "BYU women's basketball vs Kansas State", date: 2026-12-30, time: "19:00", place: marriott,
+     kind: womens_sports, basis: real, source: byu_wbb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wbb_houston_0102, label: "BYU women's basketball vs Houston", date: 2027-01-02, time: "14:00", place: marriott,
+     kind: womens_sports, basis: real, source: byu_wbb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wbb_oklahoma_state_0116, label: "BYU women's basketball vs Oklahoma State", date: 2027-01-16, time: "12:00", place: marriott,
+     kind: womens_sports, basis: real, source: byu_wbb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wbb_ucf_0127, label: "BYU women's basketball vs UCF", date: 2027-01-27, time: "19:00", place: marriott,
+     kind: womens_sports, basis: real, source: byu_wbb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wbb_kansas_0206, label: "BYU women's basketball vs Kansas", date: 2027-02-06, time: "14:00", place: marriott,
+     kind: womens_sports, basis: real, source: byu_wbb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wbb_arizona_0210, label: "BYU women's basketball vs Arizona", date: 2027-02-10, time: "19:00", place: marriott,
+     kind: womens_sports, basis: real, source: byu_wbb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wbb_colorado_0216, label: "BYU women's basketball vs Colorado", date: 2027-02-16, time: "19:00", place: marriott,
+     kind: womens_sports, basis: real, source: byu_wbb_home, effects: {occasion: {kind: womens_game}}}
+  - {id: wbb_utah_0227, label: "BYU women's basketball vs Utah", date: 2027-02-27, time: "14:00", place: marriott,
+     kind: womens_sports, basis: real, source: byu_wbb_home, effects: {occasion: {kind: womens_game}}}
+
   # ---------------------------------------------------------------- October
   - {id: conference_oct, label: General Conference, date: [2026-10-03, 2026-10-04], kind: conference, basis: real, source: conference_oct,
      note: "Sessions 10 am and 2 pm both days; watched at home or with friends.", effects: {conference: true}}
-  - {id: byu_homecoming, label: BYU Homecoming week, date: [2026-10-05, 2026-10-10], kind: school, basis: hypothetical,
-     note: "Not yet announced; BYU usually ties Homecoming to an October home game (here Iowa State, Oct 9)."}
+  # ---------------------------------------------------------------- BYU Homecoming (the published schedule, retrieved
+  # 2026-10-21): the opening ceremony replaces that Tuesday's devotional; no parade (retired in 2019), no Spectacular
+  - {id: byu_homecoming, label: BYU Homecoming week, date: [2026-10-06, 2026-10-10], kind: school, basis: real, source: byu_homecoming}
+  - {id: hc_opening, label: Homecoming opening ceremony, date: 2026-10-06, time: "11:00", place: marriott, kind: homecoming,
+     basis: real, source: byu_homecoming, effects: {occasion: {kind: devotional}}}
+  - {id: hc_pizza, label: Homecoming Pizza in the Plaza, date: 2026-10-06, time: "12:00", place: brigham_square, kind: homecoming,
+     basis: real, source: byu_homecoming}
+  - {id: hc_light_the_y, label: Homecoming hike and Light the Y, date: 2026-10-06, time: "17:00", place: y_trailhead, kind: homecoming,
+     basis: real, source: byu_homecoming, effects: {occasion: {kind: homecoming_event}}}
+  - {id: hc_noonday, label: Homecoming noonday activities, date: [2026-10-07, 2026-10-09], time: "12:00", place: brigham_square,
+     kind: homecoming, basis: real, source: byu_homecoming}
+  - {id: hc_tailgate, label: Homecoming Cougar Canyon tailgate, date: 2026-10-09, time: "16:45", place: cougar_canyon, kind: homecoming,
+     basis: real, source: byu_homecoming, effects: {occasion: {kind: homecoming_event}}}
+  - {id: hc_bravo, label: Homecoming BRAVO jazz concert, date: 2026-10-09, time: "19:30", kind: performance, basis: real,
+     source: byu_homecoming}
+  - {id: hc_cougar_run, label: Homecoming Cougar Run and blue pancakes, date: 2026-10-10, time: "08:45", kind: homecoming, basis: real,
+     source: byu_homecoming}
+  - {id: hc_smores, label: Homecoming s'mores social, date: 2026-10-10, time: "18:00", place: brigham_square, kind: homecoming,
+     basis: real, source: byu_homecoming, effects: {occasion: {kind: homecoming_event}}}
+  - {id: hc_dance, label: Homecoming formal dance, date: 2026-10-10, time: "19:00", place: wilk, kind: homecoming, basis: real,
+     source: byu_homecoming, note: "In the Wilkinson Student Center ballroom, 7–10 pm.", effects: {occasion: {kind: homecoming_dance}}}
   - {id: uvu_fall_break, label: UVU fall break, date: [2026-10-15, 2026-10-18], kind: break, basis: real, source: uvu_fall,
      effects: {no_class: [UVU]}}
   - {id: halloween, label: Halloween, date: 2026-10-31, kind: holiday, basis: rule}
@@ -189,8 +311,8 @@ items:
   - {id: byu_monday_instruction, label: "BYU Monday instruction (Tuesday after Presidents' Day)", date: 2027-02-16, kind: school, basis: rule,
      note: "BYU holds Monday classes the day after Presidents' Day; the catalog's table lists this row but is garbled.",
      effects: {monday_instruction: true}}
-  - {id: uvu_spring_break, label: UVU spring break, date: [2027-03-15, 2027-03-20], kind: break, basis: hypothetical,
-     note: "UVU's spring break is mid-March; exact 2027 week not confirmed.", effects: {no_class: [UVU]}}
+  - {id: uvu_spring_break, label: UVU spring break, date: [2027-03-15, 2027-03-21], kind: break, basis: real, source: uvu_spring,
+     effects: {no_class: [UVU]}}
   - {id: conference_apr, label: General Conference, date: [2027-04-03, 2027-04-04], kind: conference, basis: rule,
      note: "The first weekend of April.", effects: {conference: true}}
 
@@ -207,6 +329,7 @@ items:
 
 # Weekly items whose dates are published for a term: these dates and labels replace the rule's weeks (rules.yaml weekly)
 # in the named terms. Winter 2027's devotional schedule wasn't published yet (retrieved 2026-10-21), so the rule stands.
+# October 6 is Homecoming's opening ceremony instead (an item above, at 11:00).
 published_weekly:
   devotional:
     terms: [BYU.Fall]
@@ -216,7 +339,6 @@ published_weekly:
       2026-09-15: BYU devotional
       2026-09-22: BYU devotional
       2026-09-29: BYU forum
-      2026-10-06: BYU devotional
       2026-10-13: BYU devotional
       2026-10-20: BYU devotional
       2026-10-27: BYU devotional

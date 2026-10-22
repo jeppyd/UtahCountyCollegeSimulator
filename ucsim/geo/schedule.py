@@ -19,12 +19,15 @@ UVU (provo-orem-student-life-research-2026-10-21.zip, its `uvu/` folder copied t
 2026-10-21 from UVU's public Banner class search) holds Fall 2026 (202640): every section with its subject, course
 number, credits, mode and enrollment, every meeting with building, room, days and HHMM times, and 17 main-campus
 building centres matched to OpenStreetMap outlines (estimates, not surveyed points). Kept: in-person sections in those
-17 buildings, in the same columns as BYU's. Left out: online, livestream and to-be-arranged sections, concurrent
-enrollment at high schools, other sites (Lehi, Heber, the airport) and the main-campus buildings the package has no
-point for (Pope Science, McKay Education, Health Professions, Digital Transformation): 53% of the in-person seats are
-kept (most of the rest are high-school concurrent enrollment). UVU publishes no room floors; a room's floor comes from
-its number (1xx the ground floor, 2xx the next; 0xx, the lower level, counts as the ground floor; a building whose
-lowest room is 3xx or higher — Gunther Technology, Sparks, Computer Science, the Noorda Center — numbers from its
+buildings, in the same columns as BYU's. The round 3 package (provo-orem-round3-2026-10-22.zip, its `uvu/` folder copied
+over the same folder) adds Spring 2027 (202720, in `spring_2027/`), points for five more buildings (Pope Science, which
+shares the Science Building's outline; McKay Education, Health Professions, Digital Transformation, Nellesen) and
+published storey counts for seven (buildings_extra.csv). Spring was collected in October with registration barely open,
+so its enrollment is estimated from Fall's fill (`_fill_spring`). Left out: online, livestream and to-be-arranged
+sections, concurrent enrollment at high schools and other sites (Lehi, Heber, the airport): about 62% of Fall's in-person
+seats are kept (most of the rest are high-school concurrent enrollment). UVU publishes no room floors; a room's floor
+comes from its number (1xx the ground floor, 2xx the next; 0xx, the lower level, counts as the ground floor; a building
+whose lowest room is 3xx or higher — Gunther Technology, Sparks, Computer Science, the Noorda Center — numbers from its
 ground floor up): an estimate. Each building's room points are its centre.
 """
 from __future__ import annotations
@@ -43,7 +46,9 @@ TERMS = {"20265": "Fall", "20271": "Winter"}
 UVU_SRC = ROOT / "data" / "external" / "uvu_campus"
 UVU_OUT = Path(__file__).resolve().parent / "data" / "uvu_schedule.parquet"
 UVU_DEPTS = Path(__file__).resolve().parents[1] / "config" / "places" / "uvu_departments.yaml"
-UVU_TERMS = {"202640": "Fall"}
+UVU_TERMS = {"202640": "Fall", "202720": "Spring"}
+UVU_TERM_DIRS = {"202640": "", "202720": "spring_2027"}       # subfolders of uvu_campus/ (Fall sits at its top)
+UVU_STOREYS = "buildings_extra.csv"                           # round 3: more building points, published storey counts
 UVU_IN_PERSON = ("Face to Face", "Face to Face Lab", "Face to Face and Online", "Face to Face and Livestream")
 DAY_BITS = {"M": 0, "T": 1, "W": 2, "R": 3, "F": 4, "S": 5, "U": 6}
 WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
@@ -138,24 +143,60 @@ def uvu_floors(buildings: list, rooms: list) -> list:
     return [max(k - (low[b] if low[b] >= 3 else 1), 0) for b, k in zip(buildings, st)]
 
 
-def build_uvu_sections() -> pl.DataFrame:
-    S = _csv("sections.csv", UVU_SRC)
-    S = S.filter(pl.col("term").is_in(list(UVU_TERMS)) & pl.col("mode").is_in(list(UVU_IN_PERSON)))
+def uvu_buildings() -> pl.DataFrame:
+    """UVU building points: the first package's, plus round 3's for the buildings it lacked (Pope Science, McKay
+    Education, Health Professions, Digital Transformation, Nellesen), and round 3's published storey counts."""
+    B = _csv("buildings.csv", UVU_SRC).select("building", pl.col("longitude").cast(pl.Float64, strict=False),
+                                             pl.col("latitude").cast(pl.Float64, strict=False))
+    B = B.filter(pl.col("longitude").is_not_null() & pl.col("latitude").is_not_null())
+    if (UVU_SRC / UVU_STOREYS).exists():
+        X = _csv(UVU_STOREYS, UVU_SRC).select("building", pl.col("longitude").cast(pl.Float64, strict=False),
+                                              pl.col("latitude").cast(pl.Float64, strict=False),
+                                              pl.col("floors_above_ground").cast(pl.Int32, strict=False).alias("storeys"))
+        B = pl.concat([B, X.filter(~pl.col("building").is_in(B["building"].implode())).drop("storeys")])
+        B = B.join(X.select("building", "storeys"), on="building", how="left")
+    else:
+        B = B.with_columns(pl.lit(None, pl.Int32).alias("storeys"))
+    return B.filter(pl.col("longitude").is_not_null() & pl.col("latitude").is_not_null())
+
+
+def _uvu_term(term: str, B: pl.DataFrame) -> pl.DataFrame | None:
+    src = UVU_SRC / UVU_TERM_DIRS[term]
+    if not (src / "sections.csv").exists():
+        return None
+    S = _csv("sections.csv", src)
+    S = S.filter((pl.col("term") == term) & pl.col("mode").is_in(list(UVU_IN_PERSON)))
     S = S.with_columns(pl.col("enrollment").cast(pl.Int32, strict=False).fill_null(0),
                        pl.col("class_size").cast(pl.Int32, strict=False).alias("seats"),
                        pl.col("credit_hours").str.extract(r"([\d.]+)").cast(pl.Float32, strict=False).fill_null(0.0))   # "1-3": the low end
-    S = S.filter(pl.col("enrollment") > 0)
-    B = _csv("buildings.csv", UVU_SRC).with_columns(pl.col("longitude").cast(pl.Float64, strict=False),
-                                                    pl.col("latitude").cast(pl.Float64, strict=False))
-    B = B.filter(pl.col("longitude").is_not_null() & pl.col("latitude").is_not_null())
-    M = _csv("meetings.csv", UVU_SRC).with_row_index("meeting_id")
+    M = _csv("meetings.csv", src).with_row_index("meeting_id")
     M = M.with_columns(_hhmm("begin_time").alias("start_minute"), _hhmm("end_time").alias("end_minute"))
     M = M.filter(pl.col("days").is_not_null() & pl.col("start_minute").is_not_null() & pl.col("end_minute").is_not_null()
                  & (pl.col("end_minute") > pl.col("start_minute")))
     M = M.join(B.select("building", pl.col("longitude").alias("lon"), pl.col("latitude").alias("lat")), on="building")
     main = _main_meeting(M)
-    D = S.join(main.select("section_id", "days", pl.col("start_minute").alias("start"), pl.col("end_minute").alias("end"),
-                           "building", "room", "lon", "lat"), on="section_id")
+    return S.join(main.select("section_id", "days", pl.col("start_minute").alias("start"), pl.col("end_minute").alias("end"),
+                              "building", "room", "lon", "lat"), on="section_id")
+
+
+def _fill_spring(D: pl.DataFrame, fall: pl.DataFrame) -> pl.DataFrame:
+    """Spring 2027 was collected in October, with registration barely open (9% of its seats taken). Its enrollment is
+    estimated: the section's seats times the share Fall's sections of the same course filled (the share all of Fall's
+    filled for a course Fall lacks), and never below the enrollment already published."""
+    f = fall.filter(pl.col("seats") > 0)
+    share = f.group_by("department", "catalog_number").agg((pl.col("enrollment").sum() / pl.col("seats").sum()).clip(0, 1).alias("share"))
+    overall = float(f["enrollment"].sum() / f["seats"].sum())
+    D = D.join(share, on=["department", "catalog_number"], how="left")
+    est = (pl.col("seats").fill_null(0) * pl.col("share").fill_null(overall)).round(0).cast(pl.Int32)
+    return D.with_columns(pl.max_horizontal(pl.col("enrollment"), est).alias("enrollment")).drop("share")
+
+
+def build_uvu_sections() -> pl.DataFrame:
+    B = uvu_buildings()
+    parts = {t: _uvu_term(t, B) for t in UVU_TERMS}
+    if parts.get("202720") is not None and parts.get("202640") is not None:
+        parts["202720"] = _fill_spring(parts["202720"], parts["202640"])
+    D = pl.concat([d for d in parts.values() if d is not None]).filter(pl.col("enrollment") > 0)
     dep = departments(UVU_DEPTS)
     num = D["catalog_number"].str.extract(r"(\d+)").cast(pl.Int32, strict=False).fill_null(0)
     D = D.with_columns(pl.col("term").replace_strict(UVU_TERMS),
@@ -167,17 +208,46 @@ def build_uvu_sections() -> pl.DataFrame:
 
 
 def raise_uvu_floors(D: pl.DataFrame):
-    """UVU's buildings get the floors their rooms are on (the building layer mostly guesses one storey there)."""
+    """UVU's buildings get the floors their rooms are on (the building layer mostly guesses one storey there), or their
+    published storey count (round 3: Clarke and Fulton Library five, Keller and Smith Engineering four…) if higher."""
     from ..engine import places
     from .buildings import OUT
     from .homes import raise_floors
     if not places.available():
         return
-    pts = D.unique(["building", "floor"])
+    pts = D.unique(["building", "floor"]).select("building", "floor", "lon", "lat")
+    if UVU_SRC.exists():
+        B = uvu_buildings().filter(pl.col("storeys") > 0)
+        pts = pl.concat([pts, B.select("building", (pl.col("storeys") - 1).cast(pl.Int8).alias("floor"),
+                                       pl.col("longitude").alias("lon"), pl.col("latitude").alias("lat"))])
     _, _, row = places.settle(pts["lon"].to_numpy(), pts["lat"].to_numpy())
     ids = pl.read_parquet(OUT, columns=["building_id"])["building_id"].to_numpy()
     ok = row >= 0
     raise_floors(pl.DataFrame({"building_id": ids[row[ok]], "floor": pts["floor"].to_numpy()[ok].astype(np.int64)}))
+
+
+def name_uvu_buildings():
+    """UVU footprints the building layer has no name for (McKay Education, Nellesen) take the package's name."""
+    from ..engine import places
+    from .buildings import OUT, write_web
+    if not (places.available() and UVU_SRC.exists()):
+        return
+    names = pl.concat([_csv("buildings.csv", UVU_SRC).select("building", "name"),
+                       _csv(UVU_STOREYS, UVU_SRC).select("building", "name")] if (UVU_SRC / UVU_STOREYS).exists() else
+                      [_csv("buildings.csv", UVU_SRC).select("building", "name")]).unique("building", keep="last")
+    B = uvu_buildings().join(names, on="building")
+    _, _, row = places.settle(B["longitude"].to_numpy(), B["latitude"].to_numpy())
+    b = pl.read_parquet(OUT)
+    nm = b["name"].to_list()
+    hits = [(int(r), n) for r, n in zip(row, B["name"].to_list()) if r >= 0 and nm[int(r)] is None]
+    if not hits:
+        return
+    for r, n in hits:
+        nm[r] = n
+    b = b.with_columns(name=pl.Series(nm, dtype=pl.String))
+    b.write_parquet(OUT, compression="zstd", compression_level=19)
+    write_web(b)
+    print(f"named {len(hits)} UVU buildings: {', '.join(n for _, n in hits)}")
 
 
 def build_occupancy() -> pl.DataFrame:
@@ -236,6 +306,7 @@ def main():
         print("UVU")
         _report(U)
         raise_uvu_floors(U)
+        name_uvu_buildings()
         print(f"{UVU_OUT.stat().st_size // 1024} KB")
 
 

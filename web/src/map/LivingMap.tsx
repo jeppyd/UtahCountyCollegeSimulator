@@ -25,10 +25,17 @@ const loadGeo = () => (geoCache ??= Promise.all([
 // Its own flat buildings are dropped, since ours stand on top. Offline, the map keeps the bundled roads.
 const BLANK = (bg: string): any => ({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': bg } }] })
 const styleCache: Record<string, Promise<any>> = {}
-const loadStyle = (dark: boolean) => (styleCache[dark ? 'dark' : 'light'] ??= fetch(`https://tiles.openfreemap.org/styles/${dark ? 'dark' : 'positron'}`)
+const loadStyle = (look: 'dark' | 'light' | 'clay') => (styleCache[look] ??= fetch(`https://tiles.openfreemap.org/styles/${look === 'dark' ? 'dark' : 'positron'}`)
   .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
-  .then(st => ({ ...st, layers: st.layers.filter((l: any) => l.id !== 'building' && !l.id.startsWith('building')) })))
+  .then(st => ({ ...st, layers: st.layers.filter((l: any) => l.id !== 'building' && !l.id.startsWith('building'))
+    .map((l: any) => (look === 'clay' && l.type === 'background' ? { ...l, paint: { ...l.paint, 'background-color': CLAY['--map-bg'] } } : l)) })))
 const BOUNDS: [number, number][] = [[-112.0, 40.0], [-111.4, 40.0], [-111.4, 40.55], [-112.0, 40.55]]
+// the clay look (docs/concepts, "City · architectural clay"): warm off-white ground, one pale clay for every building,
+// fine gray lines; the map keeps it whatever the app's theme
+export const CLAY: Record<string, string> = {
+  '--map-bg': '#ecebe6', '--map-road': '#cfccc3', '--map-bldg': '#dedbd2', '--map-clay': '#d9d3c5', '--map-edge': '#a29b8d',
+  '--map-dot': '#2f5d9a', '--text-muted': '#8a8578', '--surface-1': '#fbfaf7', '--text-primary': '#2b2a27',
+}
 type Named = { id: number; name: string; lon: number; lat: number; kind: string; floors: number }
 let namesCache: Promise<Named[]> | null = null
 const loadNames = () => (namesCache ??= fetch(api.geo('building_names.json')).then(r => r.json())
@@ -43,6 +50,7 @@ export type LivingOpts = {
   basemap?: boolean
   pins?: boolean            // occasions happening now, as pins
   daylight?: boolean        // light by the time of day (evening glow, dark night with lit homes)
+  look?: 'clay' | 'theme'   // the clay look (default) or the app's light/dark colors
 }
 export type LivingProps = {
   u: Universe
@@ -65,7 +73,8 @@ export type LivingProps = {
   onFrame?: (p: Precise | null) => void
 }
 
-function kindColor(kind: number, base: [number, number, number], dark: boolean): [number, number, number] {
+function kindColor(kind: number, base: [number, number, number], dark: boolean, clay: boolean): [number, number, number] {
+  if (clay) return base
   const k = KINDS[kind] ?? 'other'
   const tint: Record<string, string> = { campus: '--s1', school: '--s1', church: '--s7', commercial: '--s4', office: '--s4', dorm: '--s3', apartments: '--s3', civic: '--s1', sports: '--s6' }
   const t = tint[k]
@@ -92,7 +101,9 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
   const status = useStore(s => s.status)
   const theme = useStore(s => s.theme)
   const dataVersion = useStore(s => s.dataVersion)
-  const dark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  const look = opts.look ?? 'clay', isClay = look === 'clay'
+  const dark = !isClay && (theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches))
+  const mv = (name: string) => (isClay && CLAY[name] ? CLAY[name] : cssVar(name))      // a map color in the current look
   const view3d = opts.view3d ?? true, xray = opts.xray ?? true, refresh: Refresh = opts.refresh ?? 'auto'
   const when = opts.when ?? 'now', labels = opts.labels ?? true, pins = opts.pins ?? true, basemap = opts.basemap ?? !STATIC
   const [card, setCard] = useState<number | null>(null)              // the person whose card is open
@@ -121,7 +132,7 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
   useEffect(() => {
     if (!el.current) return
     const m = new maplibregl.Map({
-      container: el.current, style: BLANK(cssVar('--map-bg')),
+      container: el.current, style: BLANK(mv('--map-bg')),
       center: CENTER, zoom: 13, pitch: view3d ? 50 : 0, bearing: view3d ? -18 : 0, maxPitch: 75, attributionControl: { compact: true },
     })
     m.on('error', () => { /* tile errors (offline) are non-fatal */ })
@@ -154,19 +165,20 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
     const m = map.current
     if (!m || !ready) return
     let alive = true
-    if (!basemap) { setStreets(false); m.setStyle(BLANK(cssVar('--map-bg')), { diff: false }); return }
-    loadStyle(dark).then(st => { if (alive && map.current) { map.current.setStyle(st, { diff: false }); setStreets(true) } })
-      .catch(() => { delete styleCache[dark ? 'dark' : 'light']; if (alive) setStreets(false) })
+    if (!basemap) { setStreets(false); m.setStyle(BLANK(mv('--map-bg')), { diff: false }); return }
+    const st = isClay ? 'clay' : dark ? 'dark' : 'light'
+    loadStyle(st).then(js => { if (alive && map.current) { map.current.setStyle(js, { diff: false }); setStreets(true) } })
+      .catch(() => { delete styleCache[st]; if (alive) setStreets(false) })
     return () => { alive = false }
-  }, [ready, basemap, dark])
+  }, [ready, basemap, dark, isClay])
   useEffect(() => {
     const m = map.current
     if (!m || !ready || streets) return
-    const bg = hexRgb(cssVar('--map-bg'))
+    const bg = hexRgb(mv('--map-bg'))
     const c = tone === 'day' ? bg : shade(bg, tone, false)
     const paint = () => { if (m.getLayer('bg')) m.setPaintProperty('bg', 'background-color', `rgb(${c.join(',')})`) }
     if (m.isStyleLoaded()) paint(); else m.once('styledata', paint)
-  }, [theme, ready, tone, streets])
+  }, [theme, ready, tone, streets, isClay])
   useEffect(() => {
     const m = map.current
     if (!m || !ready) return
@@ -285,9 +297,9 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
   useEffect(() => {
     if (!overlay.current) return
     const layers: any[] = []
-    const muted = hexRgb(cssVar('--text-muted')), road = hexRgb(cssVar('--map-road')), base = hexRgb(cssVar('--map-bldg'))
-    const surf = hexRgb(cssVar('--surface-1')), text = hexRgb(cssVar('--text-primary')), accent = hexRgb(cssVar('--accent'))
-    const clay = hexRgb(cssVar('--map-clay')), edge = hexRgb(cssVar('--map-edge'))
+    const muted = hexRgb(mv('--text-muted')), road = hexRgb(mv('--map-road')), base = hexRgb(mv('--map-bldg'))
+    const surf = hexRgb(mv('--surface-1')), text = hexRgb(mv('--text-primary')), accent = hexRgb(cssVar('--accent'))
+    const clay = hexRgb(mv('--map-clay')), edge = hexRgb(mv('--map-edge'))
     // evening and night over the street map: a tint (the plain ground is shaded directly)
     if (streets && tone !== 'day') layers.push(new SolidPolygonLayer({
       id: 'tint', data: [BOUNDS], getPolygon: (d: any) => d, getFillColor: tone === 'night' ? [12, 18, 40, dark ? 90 : 120] : [236, 150, 80, 28],
@@ -306,7 +318,7 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
         getElevation: (k: number) => (k === openK ? 0 : bld.height[k]),
         getFillColor: (k: number) => {
           if (k === openK) return [0, 0, 0, 0]
-          const c = shade(kindColor(bld.kind[k], clay, dark), tone, lit?.has(bld.ids[k]) ?? false)
+          const c = shade(kindColor(bld.kind[k], clay, dark, isClay), tone, lit?.has(bld.ids[k]) ?? false)
           return [c[0], c[1], c[2], view3d && xray ? (tone === 'night' && lit?.has(bld.ids[k]) ? 170 : 120) : 235]
         },
         material: { ambient: 0.6, diffuse: 0.55, shininess: 6, specularColor: [40, 40, 40] },
@@ -423,7 +435,7 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
       }))
     }
     overlay.current.setProps({ layers })
-  }, [tone, lit, occs, pins, geo, bld, bCore, bFlat, floorRings, prec, pIdx, colorOf, chosen, focus, view3d, xray, dark, inside, openK, zoom, labels, names, gliding, pace, streets, busy, pick, gap])
+  }, [tone, lit, occs, pins, geo, bld, bCore, bFlat, floorRings, prec, pIdx, colorOf, chosen, focus, view3d, xray, dark, inside, openK, zoom, labels, names, gliding, pace, streets, busy, pick, gap, isClay])
 
   const shown = gliding && glide !== null ? `${BLOCK_NAMES[glide]} (playing the day as time runs)` : prec ? (prec.block >= 0 && prec.block < 5 ? BLOCK_NAMES[prec.block] : '') : ''
   return (
@@ -442,6 +454,7 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
         <button className={`btn small ${list ? 'primary' : ''}`} onClick={() => setList(!list)} disabled={!occs} title="Everything happening at this moment: dates, dinners, parties, games…">Right now{occs ? ` · ${occs.occasions.length}` : ''}</button>
         <label className="inline small lm-chk"><input type="checkbox" checked={pins} onChange={e => setOpts({ ...opts, pins: e.target.checked })} />pins</label>
         <label className="inline small lm-chk" title="The street map underneath: street and place names, parks, water (needs the internet)"><input type="checkbox" checked={basemap} onChange={e => setOpts({ ...opts, basemap: e.target.checked })} />streets</label>
+        <label className="inline small lm-chk" title="The clay look: warm ground and pale clay buildings, whatever the app's theme (off: the app's light or dark colors)"><input type="checkbox" checked={isClay} onChange={e => setOpts({ ...opts, look: e.target.checked ? 'clay' : 'theme' })} />clay</label>
         <label className="inline small lm-chk" title="Light by the time of day: a warm evening, a dark night with homes lit from within"><input type="checkbox" checked={daylight} onChange={e => setOpts({ ...opts, daylight: e.target.checked })} />light</label>
         {children}
       </div>

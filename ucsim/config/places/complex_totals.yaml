@@ -1,0 +1,24 @@
+# Published apartment and bed totals for off-campus complexes the address points under-count (Provo–Orem research,
+# round 3, offcampus_units.csv; retrieved 2026-10-21; field-level sources in that package's evidence.csv). The large
+# Orem complexes have one county address per building, not per apartment, so the simulation had few or no apartments
+# there. ucsim/geo/complex_totals.py writes these into complexes.parquet: `units` becomes the published total and
+# `extra_units` the apartments the address points are missing; `beds_per_unit` sets how many people each of those holds.
+#
+#   complex   the row's name in complexes.parquet; also: other rows that are the same property (their address points
+#             count toward the total)
+#   units, beds  the published totals (operator, issuer, builder or broker; `source`); never summed across sources
+#
+# Wolverine Crossing's 416 was a survey-share guess with no address points behind it, so the published 245
+# replaces it. Raintree (152 vs 155), Glenwood (194 vs 199), Riviera (137 vs 138) and Cinnamon Tree (64) already match.
+# Not in the simulation as named complexes yet: Promenade Place (Orem, 114), Village on the Parkway (72), the Village
+# at South Campus (236).
+complexes:
+  - {complex: The Green, also: [The Green on Campus Drive], units: 450, beds: 1603,
+     source: "Hunt Electric project page (450 units, five residential buildings); Redstone Residential portfolio (1,603 beds)"}
+  - {complex: Wolverine Crossing, units: 245, beds: 1233,
+     source: "Utah tobacco-free housing directory (245 units, five buildings); Redstone Residential portfolio (1,233 beds); an older city study says 258"}
+  - {complex: Axis, also: [Axis Luxury Living], units: 282, beds: 1044, source: "owner (prospera.fund): 282 units, 1,044 beds"}
+  - {complex: Alpine Village, units: 162, beds: 665,
+     source: "LoopNet listing (162 student condo units; a secondary source says 169); Redstone Residential portfolio (665 beds)"}
+  - {complex: Liberty Square, units: 166, beds: 808,
+     source: "Cassidy Turley 2014 transaction report (166 units, historical); Redstone Residential portfolio (808 beds)"}

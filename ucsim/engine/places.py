@@ -41,8 +41,7 @@ def footprints() -> dict:
         from scipy.spatial import cKDTree
         from ..geo.buildings import OUT, ring_lonlat
         cols = ["lon", "lat", "area_m2", "floors", "kind", "name", "ring"]
-        import pyarrow.parquet as pq
-        if "wings" in pq.read_schema(OUT).names:
+        if "wings" in pl.read_parquet_schema(OUT):          # (polars, not pyarrow: the Windows app leaves pyarrow out)
             cols.append("wings")
         b = pl.read_parquet(OUT, columns=cols)
         rings = []

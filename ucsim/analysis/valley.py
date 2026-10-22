@@ -21,13 +21,17 @@ from . import trace as T
 from .person import headline, synthetic_name
 
 # events that keep the books rather than tell a story: never in the feed
-QUIET = {"term_started", "added_to_chat", "left_chat", "muted_chat", "endorsement_renewed", "time_with_family",
+QUIET = {"term_started", "added_to_chat", "left_chat", "muted_chat", "endorsement_renewed",
          "intervention_exposure", "assumed_busy", "low_turnout", "hosting_strain", "counseling_session"}
 # the second half of a two-sided moment, shown through its first half (same day, same two people)
 HALF = {"breakup_received": "breakup_initiated", "dealbreaker_overlooked": "dealbreaker_found"}
 # moments about the follower alone even when another person is named (the host they were left out by, the person
 # they assumed wasn't interested): shown only for the person they happened to, and folded across the people named
 SELF = {"left_out", "felt_ignored", "assumed_not_interested", "homesick"}
+# things that happen to people rather than things they choose: no push to record, so the story says so plainly
+CHANCE = {"death_in_family": "life happens", "parent_ill": "life happens", "sibling_wedding": "family news",
+          "illness": "it was going around", "family_visited": "family came to town", "car_accident": "bad luck",
+          "family_crisis": "trouble back home", "endorsement_withdrawn": "a leader's decision", "honor_reported": "someone reported it"}
 FOLD_DAYS = 7               # the same moment with the same person again within a week is folded into one line
 MIN_CAST, MIN_VALLEY = 0.35, 0.75
 
@@ -107,7 +111,7 @@ def feed(sim, people: list[int] | None = None, since: int | None = None, limit: 
         line = {"event": e, "day": d, "date": str(sim.cal.date(d)), "weekday": _wd(sim, d), "type": nm,
                 "label": spec.label, "category": spec.category, "salience": float(sal[t]), "text": W.event_line(e),
                 "people": [{"id": p, "name": W.name(p)} for p in who], "cast": [p for p in who if p in cast],
-                "reasons": rs, "because": S.reason_text(rs), "times": 1, "first_day": d, "first_date": str(sim.cal.date(d)),
+                "reasons": rs, "because": S.reason_text(rs) or CHANCE.get(nm, ""), "times": 1, "first_day": d, "first_date": str(sim.cal.date(d)),
                 "big": bool(sal[t] >= 0.8)}
         folded[fk] = line
         out.append(line)

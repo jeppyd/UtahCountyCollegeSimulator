@@ -75,3 +75,26 @@ decisions:
       base:       {label: "how often app users get a match on a given day", more: "", less: "most days on the apps bring no match"}
       app_hours:  {label: "time spent on the apps", kind: multiplier, more: "on the apps a lot", less: "rarely opens the apps"}
       app_appeal: {label: "how popular the apps are right now", kind: multiplier, more: "the apps are popular right now", less: "the apps are out of favor"}
+  ncmo:
+    label: Whether time together turns into making out with no commitment (NCMO)
+    units: logit
+    outcomes: [made_out]
+    factors:
+      base:       {label: "how often people make out without committing", more: "", less: "most nights out end without it"}
+      interest:   {label: "how open they are to something casual", more: "open to something casual", less: "not into casual"}
+      thrill:     {label: "how much they like a thrill", more: "likes a thrill", less: "cautious"}
+      chastity:   {label: "their commitment to the law of chastity", more: "not strict about chastity", less: "committed to chastity"}
+      attraction: {label: "how drawn they are to each other", more: "really into each other", less: "only mildly into each other"}
+      dance:      {label: "being at a dance", more: "at a dance", less: ""}
+      boundary:   {label: "how far they're comfortable going", more: "comfortable with touch", less: "keeps physical boundaries"}
+  ncmo_app:
+    label: Whether to look for something casual on the apps (today)
+    units: log_rate
+    outcomes: [looked]
+    factors:
+      base:       {label: "how often app users look for something casual", more: "", less: "most app users aren't looking for that"}
+      interest:   {label: "how open they are to something casual", more: "open to something casual", less: "not into casual"}
+      thrill:     {label: "how much they like a thrill", more: "likes a thrill", less: "cautious"}
+      chastity:   {label: "their commitment to the law of chastity", more: "not strict about chastity", less: "committed to chastity"}
+      app_hours:  {label: "time spent on the apps", kind: multiplier, more: "on the apps a lot", less: "rarely opens the apps"}
+      app_appeal: {label: "how popular the apps are right now", kind: multiplier, more: "the apps are popular right now", less: "the apps are out of favor"}

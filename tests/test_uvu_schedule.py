@@ -1,4 +1,4 @@
-"""UVU's real Fall 2026 class schedule (geo/schedule.py): UVU students take real courses at their real buildings, rooms
+"""UVU's real Fall 2026 and Spring 2027 class schedules (geo/schedule.py): UVU students take real courses at their real buildings, rooms
 and times, nobody's classes clash, people in class are drawn in their room's building on a floor it has, and the
 committed table carries no names."""
 import numpy as np
@@ -24,8 +24,23 @@ def test_table_holds_no_names():
     cols = pl.read_parquet_schema(schedule.UVU_OUT)
     assert not any(k in c.lower() for c in cols for k in ("instructor", "name", "title", "_id"))
     U = schedule.load("UVU")
-    assert U.height > 2000 and set(U["term"].unique()) == {"Fall"}
+    assert U.height > 2000 and set(U["term"].unique()) == {"Fall", "Spring"}
     assert not U["building"].str.starts_with("HS").any()          # no high-school concurrent enrollment
+
+
+def test_spring_and_round3_buildings():
+    """Spring 2027 is real too (its enrollment estimated from Fall's fill, at about Fall's size), and the buildings the
+    first package had no point for (Pope Science, McKay Education, Health Professions…) hold classes now."""
+    U = schedule.load("UVU")
+    fall, spring = (U.filter(pl.col("term") == t) for t in ("Fall", "Spring"))
+    assert spring.height > 2000 and 0.8 < spring["enrollment"].sum() / fall["enrollment"].sum() < 1.2
+    assert {"PS", "ME", "HP", "DX"} <= set(fall["building"]) and {"PS", "HP"} <= set(spring["building"])
+    s = new_simulation(scale=0.05, seed=6)
+    s.systems["academics"].start_term("UVU", term="Spring")
+    ac = s.systems["academics"]
+    uvu = np.flatnonzero(ac.sec_school == 2)
+    real = set(zip(spring["dept"] + " " + spring["catalog"], spring["building"] + " " + spring["room"]))
+    assert len(uvu) > 30 and all((ac.sec_course[k], ac.sec_where[k]) in real for k in uvu)
 
 
 def test_floors_from_room_numbers():

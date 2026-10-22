@@ -4,10 +4,57 @@ from __future__ import annotations
 import numpy as np
 from scipy.special import expit
 
+from .. import clock
 from ..provenance import chance, link, pick, state_ref
 
 MWF = 0b10101
 TTH = 0b01010
+SEC_FIELDS = {"sec_school": (np.int8, 0), "sec_days": (np.uint8, 0), "sec_block": (np.int8, 0), "sec_bldg": (np.int16, 0),
+              "sec_area": (np.int16, -1), "sec_room": (np.int32, -1), "sec_start": (np.int16, -1), "sec_end": (np.int16, -1),
+              "sec_lon": (np.float64, np.nan), "sec_lat": (np.float64, np.nan), "sec_floor": (np.int8, -1),
+              "sec_place": (np.int32, -1), "sec_course": (object, ""), "sec_where": (object, "")}
+
+_REAL: dict = {}
+
+
+def real_schedule(term: str | None, areas: list) -> dict | None:
+    """BYU's real sections for a Fall or Winter term (ucsim/geo/schedule.py; the 2026–27 schedule stands in for every
+    year) as arrays, with each room matched to the floor plans' classrooms and each point to its building; None for
+    Spring/Summer or when the schedule file is absent (then sections are drawn). area_code: the study area's index,
+    −1 university-wide courses, −2 religion."""
+    if term not in ("Fall", "Winter"):
+        return None
+    if term not in _REAL:
+        import polars as pl
+
+        from ...geo import schedule
+        from .. import places
+        D = schedule.load()
+        if D is None:
+            _REAL[term] = None
+            return None
+        D = D.filter(pl.col("term") == term)
+        R = places.classrooms(1) if places.available() else None
+        rooms = {(c, str(r)): i for i, (c, r) in enumerate(zip(R["code"], R["room"]))} if R is not None else {}
+        code_of = {a: i for i, a in enumerate(areas)} | {"religion": -2}
+        out = {c: D[c].to_numpy() for c in ("level", "credits", "enrollment", "days", "start", "end", "lon", "lat")}
+        out["floor"] = D["floor"].to_numpy().astype(np.int8)
+        out["area_code"] = np.array([code_of.get(a, -1) for a in D["area"].to_list()], np.int16)
+        out["room_row"] = np.array([rooms.get((b, r), -1) for b, r in zip(D["building"].to_list(), D["room"].to_list())], np.int32)
+        out["course"] = np.array([f"{d} {c}" for d, c in zip(D["dept"].to_list(), D["catalog"].to_list())], object)
+        out["where"] = np.array([f"{b} {r}" for b, r in zip(D["building"].to_list(), D["room"].to_list())], object)
+        place = np.full(D.height, -1, np.int32)
+        if places.available():                        # the package's room centroid, moved inside its building
+            out["lon"], out["lat"], b = places.settle(out["lon"], out["lat"])
+            place = np.asarray(b, np.int32)
+        if R is not None:                             # a floor-plan room: its building, floor and spot
+            has = out["room_row"] >= 0
+            rr = out["room_row"][has]
+            place[has], out["floor"][has] = R["building"][rr], R["floor"][rr]
+            out["lon"][has], out["lat"][has] = R["lon"][rr], R["lat"][rr]
+        out["place"] = place
+        _REAL[term] = out
+    return _REAL[term]
 
 
 class Academics:
@@ -20,6 +67,15 @@ class Academics:
         self.sec_bldg = np.zeros(0, np.int16)
         self.sec_area = np.zeros(0, np.int16)
         self.sec_room = np.zeros(0, np.int32)          # classroom (row of places.classrooms()), −1: none known
+        # real sections (BYU's class schedule, geo/schedule.py); drawn ones have start −1, no point, no course
+        self.sec_start = np.zeros(0, np.int16)         # clock minutes
+        self.sec_end = np.zeros(0, np.int16)
+        self.sec_lon = np.zeros(0, np.float64)
+        self.sec_lat = np.zeros(0, np.float64)
+        self.sec_floor = np.zeros(0, np.int8)          # −1: not known
+        self.sec_place = np.zeros(0, np.int32)         # building (engine/places.py row), −1: not known
+        self.sec_course = np.zeros(0, object)          # "A HTG 100"
+        self.sec_where = np.zeros(0, object)           # "KMBL 250"
 
     def init(self):
         P = self.sim.w.P
@@ -33,12 +89,13 @@ class Academics:
                 self.start_term(school, initial=True)
 
     # ------------------------------------------------------------------ sections
-    def start_term(self, school: str, initial: bool = False):
+    def start_term(self, school: str, initial: bool = False, term: str | None = None):
+        """Enroll the school's students and give them sections; `term` (Fall, Winter…) defaults to today's."""
         sim, w = self.sim, self.sim.w
         P = w.P
         n = P.n
         code = P.code("school", school)
-        term = sim.cal.term(school, w.day)
+        term = term or sim.cal.term(school, w.day)
         rng = np.random.default_rng([w.seed, 77, w.day, code])
         # who enrolls this term
         stud = (P["school"] == code) & P["present"] & ~P["graduated"] & np.isin(P["role"], [P.code("role", "byu_student"), P.code("role", "uvu_student")])
@@ -60,12 +117,9 @@ class Academics:
             remap = np.full(len(keep), -1, np.int64)
             remap[keep] = np.arange(keep.sum())
             self.stu_secs = np.where(self.stu_secs >= 0, remap[np.maximum(self.stu_secs, 0)], -1)
-        self.sec_school, self.sec_days = self.sec_school[keep], self.sec_days[keep]
-        self.sec_block, self.sec_bldg, self.sec_area = self.sec_block[keep], self.sec_bldg[keep], self.sec_area[keep]
-        if len(self.sec_room) == len(keep):
-            self.sec_room = self.sec_room[keep]
-        else:
-            self.sec_room = np.full(int(keep.sum()), -1, np.int32)
+        for f, (dt, fill) in SEC_FIELDS.items():
+            a = getattr(self, f)
+            setattr(self, f, a[keep] if len(a) == len(keep) else np.full(int(keep.sum()), fill, dt))
         self.stu_secs[ids] = -1
         if len(ids) == 0:
             return
@@ -81,6 +135,14 @@ class Academics:
         n_cls = np.clip(np.round(credits / 3.3), 1, 5).astype(int)
         n_ge = np.minimum(np.where(P["class_standing"][ids] <= P.code("class_standing", "sophomore"), 2, 1), n_cls)
         n_major = n_cls - n_ge
+        S = real_schedule(term, list(P.specs["study_area"].categories)) if school == "BYU" else None
+        if S is not None:                             # BYU's real courses, rooms and times (Fall and Winter)
+            self._real_sections(S, ids, credits, n_ge, rng, code)
+            P.internal["sched_count"][ids] = 0
+            P.internal["attend_count"][ids] = 0
+            if not initial:
+                sim.emit("term_started", ids, mech="academics.term")
+            return
         # GE sections: large lectures mixing majors; major sections: by study area, smaller
         new_school, new_days, new_block, new_bldg, new_area = [], [], [], [], []
         base = len(self.sec_school)
@@ -119,16 +181,97 @@ class Academics:
             for person, slot, s in zip(people, slots, secs):
                 if slot < 5:
                     self.stu_secs[person, slot] = s
-        self.sec_school = np.r_[self.sec_school, np.array(new_school, np.int8)]
-        self.sec_days = np.r_[self.sec_days, np.array(new_days, np.uint8)]
-        self.sec_block = np.r_[self.sec_block, np.array(new_block, np.int8)]
-        self.sec_bldg = np.r_[self.sec_bldg, np.array(new_bldg, np.int16)]
-        self.sec_area = np.r_[self.sec_area, np.array(new_area, np.int16)]
-        self.sec_room = np.r_[self.sec_room, self._rooms_for(np.arange(base - len(new_school), base), code)]
+        k = len(new_school)
+        self._append({"sec_school": new_school, "sec_days": new_days, "sec_block": new_block, "sec_bldg": new_bldg,
+                      "sec_area": new_area}, k)
+        self.sec_room[base - k:] = self._rooms_for(np.arange(base - k, base), code)
         P.internal["sched_count"][ids] = 0
         P.internal["attend_count"][ids] = 0
         if not initial:
             sim.emit("term_started", ids, mech="academics.term")
+
+    def _append(self, cols: dict, k: int):
+        """Add k sections: the given columns, every other section field at its 'not known' value."""
+        for f, (dt, fill) in SEC_FIELDS.items():
+            new = np.asarray(cols[f], dt) if f in cols else np.full(k, fill, dt)
+            setattr(self, f, np.r_[getattr(self, f), new] if dt is not object else np.concatenate([getattr(self, f), new]))
+
+    def _real_sections(self, S: dict, ids: np.ndarray, credits: np.ndarray, n_ge: np.ndarray, rng, code: int):
+        """Students take BYU's real sections (geo/schedule.py): as many as their credits fill at the schedule's mean
+        credits a seat (2.5: labs and one- and two-credit classes count; at most five); undergraduates a religion class
+        at the schedule's rate (religion's share of seats × their classes: about two in three take one), n_ge
+        general-education classes (100- and 200-level courses of any department) and the rest in their study area;
+        graduate students their area's 500-level and up. Sections are drawn in proportion to their real
+        enrollment until the simulated students fill them at real class sizes (so a small world has fewer sections,
+        not emptier ones), and the students are shuffled into the seats. A class that clashes with one already on the
+        student's schedule is swapped for another drawn section of the same kind, or dropped."""
+        P = self.sim.w.P
+        areas = list(P.specs["study_area"].categories)
+        enr = S["enrollment"].astype(np.float64)
+        rel, ge = S["area_code"] == -2, (S["level"] < 300) & (S["area_code"] != -2)
+        pools = [np.flatnonzero(rel), np.flatnonzero(ge)]            # pool 0 religion, 1 GE, 2+2a area a, 3+2a its graduate
+        for a in range(len(areas)):
+            m = S["area_code"] == a
+            pools.append(np.flatnonzero(m) if m.any() else pools[1])
+            g = m & (S["level"] >= 500)
+            pools.append(np.flatnonzero(g) if g.any() else pools[-1])
+        n = len(ids)
+        grad = P.is_("class_standing", "graduate")[ids]
+        area = P["study_area"][ids].astype(np.int64)
+        n_cls = np.clip(np.round(credits / (S["credits"] * enr).sum() * enr.sum()), 1, 5).astype(np.int64)
+        k = np.arange(5)[None, :]
+        rel_share = enr[rel].sum() / enr.sum()
+        n_rel = np.where(~grad & (n_cls >= 2) & (rng.random(n) < rel_share * n_cls), 1, 0)[:, None]
+        n_ge_ = np.where(grad, 0, np.minimum(n_ge, n_cls - n_rel[:, 0]))[:, None]
+        kind = np.where(k < n_rel, 0, np.where(k < n_rel + n_ge_, 1, 2 + 2 * area[:, None] + grad[:, None]))
+        kind = np.where(k < n_cls[:, None], kind, -1)
+        A = np.full((n, 5), -1, np.int64)                             # real section row per (student, slot)
+        drawn = {}
+        for pid in np.unique(kind[kind >= 0]):
+            r, c = np.nonzero(kind == pid)
+            rows = pools[int(pid)]
+            if not len(rows):
+                continue
+            w = enr[rows]
+            order = rows[np.argsort(-rng.random(len(rows)) ** (1 / w))]
+            cum = np.cumsum(enr[order])
+            take = order[: int(np.searchsorted(cum, len(r))) + 1]
+            cap = enr[take].astype(np.int64) * max(1, int(np.ceil(len(r) / cum[-1])))
+            seats = np.repeat(take, cap)[: len(r)]
+            A[r, c] = seats[rng.permutation(len(r))]
+            drawn[int(pid)] = take
+        st, en, dy = S["start"].astype(np.int64), S["end"].astype(np.int64), S["days"].astype(np.int64)
+
+        def clash(i, j, row):
+            o = A[i, :j]
+            o = o[o >= 0]
+            return bool(((o == row) | (((dy[o] & dy[row]) > 0) & (st[o] < en[row]) & (st[row] < en[o]))).any())
+
+        for j in range(1, 5):                                         # clashes: swap, else drop
+            a, o = A[:, j:j + 1], A[:, :j]
+            ok = (a >= 0) & (o >= 0)
+            sa, so = np.maximum(a, 0), np.maximum(o, 0)
+            bad = (ok & ((o == a) | (((dy[so] & dy[sa]) > 0) & (st[so] < en[sa]) & (st[sa] < en[so])))).any(axis=1)
+            for i in np.flatnonzero(bad):
+                cand = drawn[int(kind[i, j])]
+                for row in cand[rng.integers(0, len(cand), 8)]:
+                    if not clash(i, j, row):
+                        A[i, j] = row
+                        break
+                else:
+                    A[i, j] = -1
+        used, inv = np.unique(A[A >= 0], return_inverse=True)
+        base = len(self.sec_school)
+        stu = np.full((n, 5), -1, np.int64)
+        stu[A >= 0] = base + inv
+        self.stu_secs[ids] = stu
+        start = S["start"][used]
+        self._append({"sec_school": np.full(len(used), code), "sec_days": S["days"][used],
+                      "sec_block": clock.block_of(np.maximum(start, clock.DAY_START)), "sec_bldg": np.zeros(len(used)),
+                      "sec_area": np.maximum(S["area_code"][used], -1), "sec_room": S["room_row"][used],
+                      "sec_start": start, "sec_end": S["end"][used], "sec_lon": S["lon"][used], "sec_lat": S["lat"][used],
+                      "sec_floor": S["floor"][used], "sec_place": S["place"][used], "sec_course": S["course"][used],
+                      "sec_where": S["where"][used]}, len(used))
 
     def _rooms_for(self, secs: np.ndarray, school: int) -> np.ndarray:
         """A real classroom for each new section (BYU floor plans; engine/places.py): in a building of its study area
@@ -164,7 +307,8 @@ class Academics:
         return out
 
     def section_point(self, secs: np.ndarray):
-        """Where each section meets: (lon, lat, floor, building) — its classroom, else its campus building's anchor."""
+        """Where each section meets: (lon, lat, floor, building) — its floor-plan classroom, else a real section's room
+        (the schedule's point and floor), else its campus building's anchor."""
         from .. import places
         act = self.sim.systems["activity"]
         secs = np.asarray(secs, np.int64)
@@ -179,6 +323,10 @@ class Academics:
                 pts = act.bldg[s_]
                 lon[m], lat[m] = pts[sb[m] % len(pts), 0], pts[sb[m] % len(pts), 1]
                 bld[m] = act.bldg_id[s_][sb[m] % len(act.bldg_id[s_])]
+        if len(self.sec_place) > int(secs.max(initial=-1)):      # a real section's room, inside its building
+            real = self.sec_place[secs] >= 0
+            lon[real], lat[real] = self.sec_lon[secs[real]], self.sec_lat[secs[real]]
+            floor[real], bld[real] = self.sec_floor[secs[real]], self.sec_place[secs[real]]
         rm = self.sec_room[secs] if len(self.sec_room) > int(secs.max(initial=-1)) else np.full(len(secs), -1)
         has = rm >= 0
         if has.any() and places.available():
@@ -186,6 +334,13 @@ class Academics:
             lon[has], lat[has] = R["lon"][rm[has]], R["lat"][rm[has]]
             floor[has], bld[has] = R["floor"][rm[has]], R["building"][rm[has]]
         return lon, lat, floor, bld
+
+    def floor_known(self, secs: np.ndarray) -> np.ndarray:
+        """Whether a section's floor is known (a floor-plan room, or a real section's room)."""
+        secs = np.asarray(secs, np.int64)
+        if len(self.sec_room) <= int(secs.max(initial=-1)):
+            return np.zeros(len(secs), bool)
+        return (self.sec_room[secs] >= 0) | (self.sec_place[secs] >= 0)
 
     def section_now(self, wd: int, b: int) -> np.ndarray:
         P = self.sim.w.P

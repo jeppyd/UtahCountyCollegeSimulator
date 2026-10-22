@@ -199,9 +199,10 @@ class Activity:
 
     def class_times(self, secs) -> tuple[np.ndarray, np.ndarray]:
         """Clock times of class sections inside their block (for shifts, plans and agendas; who is where is still
-        resolved per block). Morning sections start on the hour 8–11, afternoon ones 1–4 pm, evening ones 5:30 or
-        6:30 pm; MWF classes run 50 minutes, Tuesday/Thursday 75, evening 110 — the usual BYU/UVU pattern, assigned
-        by section number (no random draws)."""
+        resolved per block). Real sections (BYU Fall and Winter) at their scheduled times. Drawn ones: morning
+        sections start on the hour 8–11, afternoon ones 1–4 pm, evening ones 5:30 or 6:30 pm; MWF classes run 50
+        minutes, Tuesday/Thursday 75, evening 110 — the usual BYU/UVU pattern, assigned by section number (no random
+        draws)."""
         acad = self.sim.systems["academics"]
         secs = np.maximum(np.asarray(secs, np.int64), 0)
         blk = acad.sec_block[secs].astype(np.int64)
@@ -209,7 +210,11 @@ class Activity:
                           17 * 60 + 30 + 60 * (secs % 2))
         mwf = acad.sec_days[secs] == 0b10101
         dur = np.where(blk == 2, 110, np.where(mwf, 50, 75))
-        return start.astype(np.int32), (start + dur).astype(np.int32)
+        end = start + dur
+        if len(acad.sec_start) == len(acad.sec_block):           # real sections keep their own times
+            rs, re_ = acad.sec_start[secs].astype(np.int64), acad.sec_end[secs].astype(np.int64)
+            start, end = np.where(rs >= 0, rs, start), np.where(rs >= 0, re_, end)
+        return start.astype(np.int32), end.astype(np.int32)
 
     def _after_classes(self, ids: np.ndarray) -> np.ndarray:
         """Earliest shift start per weekday for students: 15 minutes after their last class that day ends."""

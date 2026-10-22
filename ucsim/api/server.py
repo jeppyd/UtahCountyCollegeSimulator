@@ -137,6 +137,7 @@ class Workspace:
         self.sweep_result = None
         self.unc = None
         self.compare_cache = None
+        self.checkpoint = None   # the Original as it was before your last change in it ({"sim", "day", "label"}); one deep
         self.world_id = 0
         self.fork_id = 0      # bumped whenever the What-if world is replaced (cache tags must never match across experiments)
         self.plans: dict[str, dict] = {}   # compiled What-if plans by id (natural-language What-ifs)
@@ -247,6 +248,7 @@ class Workspace:
                 sim.step_day()
             with self.lock:
                 self.base, self.alt, self.divergence, self.compare_cache = sim, None, [], None
+                self.checkpoint = None
                 self.world_id += 1
                 self._index = None
             TELEMETRY.new_world(scale, seed, int(sim.w.P.n), time.time() - t_build, warmup)
@@ -389,7 +391,8 @@ async def status():
     workspace lock) and reads without locking, so the clock and the pause button keep working during a long run."""
     b, alt = WS.base, WS.alt_now
     out = {"job": dict(WS.job), "last_job": WS.last_job, "has_alt": alt is not None, "has_world": b is not None,
-           "world_id": WS.world_id, "scale_agents_per_unit": 60000}
+           "world_id": WS.world_id, "scale_agents_per_unit": 60000,
+           "checkpoint": None if WS.checkpoint is None else {k: v for k, v in WS.checkpoint.items() if k != "sim"}}
     if b is None:
         return jresp(out)
     try:

@@ -1217,8 +1217,11 @@ class Occasions:
         if fresh.any():
             self._walk_keys = np.r_[self._walk_keys, key[fresh]]
             arrive = np.maximum(starts[j][fresh], int(clock.START[b])).astype(np.int32)
-            self.book.attend(occ[fresh], who[fresh], arrive=arrive, day=self.sim.w.day,
-                             inv_ids=self._inv_lookup(occ[fresh], who[fresh]))
+            inv_ids = self._inv_lookup(occ[fresh], who[fresh])
+            # a housemate who said no is home, so they're there, but they don't count toward the turnout
+            I = self.book.inv
+            said_no = (inv_ids >= 0) & (I.get("response", np.maximum(inv_ids, 0), default=-1) == RESPONSE_ID["no"])
+            self.book.attend(occ[fresh], who[fresh], arrive=arrive, day=self.sim.w.day, inv_ids=inv_ids, count=~said_no)
 
     def _mark_day(self):
         """Once a day, before anything new is planned: where today's rows begin in the occasion and invitation tables

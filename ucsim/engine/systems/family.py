@@ -226,7 +226,6 @@ class Family:
         P.cols["trips_home"][x] += 1
         P.internal["family_turn"][x[married]] ^= 1
         P.internal["family_turn"][partner[married]] ^= 1
-        sim.emit("time_with_family", x, mech="family.trip", cause=ev)
 
     def _returns(self, day: int):
         sim, w = self.sim, self.sim.w
@@ -240,7 +239,11 @@ class Family:
         u = sim.streams.uniform("family_homesick", day, len(back))
         sad = u < 0.1 + 0.35 * P["family_closeness"][back] * (P["home_drive_hours"][back] > 3)
         if sad.any():
-            sim.emit("homesick", back[sad], mech="family.trip")
+            who = back[sad]
+            # the trip they came back from (event ids grow with time, so the largest is the latest)
+            trip = np.full(P.n, -1, np.int64)
+            np.maximum.at(trip, self.trips["person"].astype(np.int64), self.trips["event"].astype(np.int64))
+            sim.emit("homesick", who, cause=trip[who], mech="family.trip")
 
     def _decide(self, ids: np.ndarray, day: int, nights: int, reason: str, extra: float | np.ndarray = 0.0):
         sim, w = self.sim, self.sim.w

@@ -98,12 +98,17 @@ class Intimacy:
         P = w.P
         single = P["partner_id"][: P.n] < 0
         P.cols["intimacy_level"][: P.n][single] = 0
+        self._bishop_porn()
+
+    def couples_week(self):
+        """Each couple's week of physical intimacy and discovered dealbreakers, on the couple's own day."""
         ids, j, keys, eix = self._couples()
+        turn = self.sim.my_turn(ids)
+        ids, j, keys, eix = ids[turn], j[turn], keys[turn], eix[turn]
         self._married(ids, j, eix)
         if len(ids):
             crossed = self._steps(ids, j, keys, eix)
             self._dealbreakers(ids, j, keys, eix, crossed)
-        self._bishop_porn()
 
     def _married(self, ids, j, eix):
         sim, w = self.sim, self.sim.w

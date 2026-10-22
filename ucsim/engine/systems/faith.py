@@ -204,9 +204,56 @@ class Faith:
         P["faith_certainty"] = np.where(lds, np.clip(cert + d_c, 0.02, 0.99), cert).astype(np.float32)
         # identity follows practice slowly
         P["religious_identity"] = np.where(lds, np.clip(ident + 0.01 * (P["attend_rate"] - ident) + 0.005 * (new_b - ident), 0.01, 0.99), ident).astype(np.float32)
-        # ---- faith crisis onset & resolution
+        # ---- activity category from attendance
+        old = P["activity"].copy()
+        rate = P["attend_rate"]
+        # hysteresis bands: active ↔ less active at 0.55/0.65, less active ↔ inactive at 0.10/0.20
+        new = old.copy()
+        new = np.where((old == 3) & (rate < 0.55), 2, new)
+        new = np.where((old == 2) & (rate > 0.65), 3, new)
+        new = np.where((old == 2) & (rate < 0.10), 1, new)
+        new = np.where((old == 1) & (rate > 0.20), 2, new)
+        new = np.where(P["lds_member"], np.maximum(new, 1), 0).astype(np.uint8)
+        P["activity"] = np.where(P["present"], new, old).astype(np.uint8)
+        stopped = P["present"] & (old >= 2) & (new == 1)
+        back = P["present"] & (old <= 2) & (old >= 1) & (new == 3)
+        if stopped.any():
+            ids = np.where(stopped)[0]
+            sim.emit("stopped_attending", ids, mech="faith.attend", decision=self._attendance_change(ids, 0, ap))
+        if back.any():
+            ids = np.where(back)[0]
+            ev = sim.emit("returned_to_activity", ids, mech="faith.attend", decision=self._attendance_change(ids, 1, ap))
+            plans = sim.systems.get("plans")
+            if plans is not None:
+                link(sim, ev, "event", plans.formed_event(ids, "return_to_church"), 0.6, "intention")
+        # temple recommend gained/lost
+        # a practice the Church permits no longer costs a recommend
+        clean = (((P["coffee"] == 0) | bool(w.env.get("coffee_permitted"))) & ((P["alcohol"] == 0) | bool(w.env.get("alcohol_permitted")))
+                 & ~P["premarital_sex_current"])
+        eligible = P["lds_member"] & (P["activity"] == 3) & (P["faith_belief"] > 0.6) & clean & (P["age"] >= 18)
+        if "recommend_hold_until" in P.internal:            # not while the bishop is holding it back
+            eligible &= P.internal["recommend_hold_until"][: P.n] < 0
+        gain = eligible & ~P["temple_recommend"] & (sim.u("tr") < 0.03)
+        lose = P["temple_recommend"] & (~clean | (P["activity"] < 3)) & (sim.u("tr2") < 0.2)
+        P.cols["temple_recommend"][np.where(gain)[0]] = True
+        P.cols["temple_recommend"][np.where(lose)[0]] = False
+        self.practices(np.where(P["present"])[0])
+        self.weekly_other()
+
+    # ------------------------------------------------------------------ non-members
+    def crisis(self):
+        """Faith crises begin and resolve on each person's own day of the week (a weekly chance)."""
+        sim, w = self.sim, self.sim.w
+        P, p = w.P, sim.p
+        n = P.n
+        day = w.day
+        lds = P["lds_member"] & P["present"]
+        belief = P["faith_belief"].astype(np.float64)
+        ident = P["religious_identity"].astype(np.float64)
+        gw = P.internal["guilt_weeks"][:n]
         crisis = P["faith_crisis"]
-        on = lds & ~crisis & (P["faith_certainty"] < p("faith.crisis.certainty_threshold")) & (sim.u("crisis_on") < p("faith.crisis.onset_rate"))
+        turn = sim.my_turn(np.arange(n))
+        on = turn & lds & ~crisis & (P["faith_certainty"] < p("faith.crisis.certainty_threshold")) & (sim.u("crisis_on") < p("faith.crisis.onset_rate"))
         if on.any():
             ids = np.where(on)[0]
             P.cols["faith_crisis"][ids] = True
@@ -215,7 +262,7 @@ class Faith:
             ev = sim.emit("faith_crisis_start", ids, mech="faith.crisis")
             self._why_crisis(ev, ids, gw[ids], belief[ids])
         dur = day - P.internal["crisis_start"][:n]
-        res = lds & crisis & (dur > 60) & (sim.u("crisis_res") < p("faith.crisis.resolution_rate"))
+        res = turn & lds & crisis & (dur > 60) & (sim.u("crisis_res") < p("faith.crisis.resolution_rate"))
         if res.any():
             ids = np.where(res)[0]
             fam = P["family_expectation"][ids]
@@ -265,43 +312,7 @@ class Faith:
                 dis = sim.emit("disaffiliated", lv, cause=cause[outcome == 2], mech="faith.crisis", decision=did[outcome == 2])
                 if len(gone):
                     sim.emit("resigned_membership", gone, cause=dis[resign], mech="faith.crisis")
-        # ---- activity category from attendance
-        old = P["activity"].copy()
-        rate = P["attend_rate"]
-        # hysteresis bands: active ↔ less active at 0.55/0.65, less active ↔ inactive at 0.10/0.20
-        new = old.copy()
-        new = np.where((old == 3) & (rate < 0.55), 2, new)
-        new = np.where((old == 2) & (rate > 0.65), 3, new)
-        new = np.where((old == 2) & (rate < 0.10), 1, new)
-        new = np.where((old == 1) & (rate > 0.20), 2, new)
-        new = np.where(P["lds_member"], np.maximum(new, 1), 0).astype(np.uint8)
-        P["activity"] = np.where(P["present"], new, old).astype(np.uint8)
-        stopped = P["present"] & (old >= 2) & (new == 1)
-        back = P["present"] & (old <= 2) & (old >= 1) & (new == 3)
-        if stopped.any():
-            ids = np.where(stopped)[0]
-            sim.emit("stopped_attending", ids, mech="faith.attend", decision=self._attendance_change(ids, 0, ap))
-        if back.any():
-            ids = np.where(back)[0]
-            ev = sim.emit("returned_to_activity", ids, mech="faith.attend", decision=self._attendance_change(ids, 1, ap))
-            plans = sim.systems.get("plans")
-            if plans is not None:
-                link(sim, ev, "event", plans.formed_event(ids, "return_to_church"), 0.6, "intention")
-        # temple recommend gained/lost
-        # a practice the Church permits no longer costs a recommend
-        clean = (((P["coffee"] == 0) | bool(w.env.get("coffee_permitted"))) & ((P["alcohol"] == 0) | bool(w.env.get("alcohol_permitted")))
-                 & ~P["premarital_sex_current"])
-        eligible = P["lds_member"] & (P["activity"] == 3) & (P["faith_belief"] > 0.6) & clean & (P["age"] >= 18)
-        if "recommend_hold_until" in P.internal:            # not while the bishop is holding it back
-            eligible &= P.internal["recommend_hold_until"][: P.n] < 0
-        gain = eligible & ~P["temple_recommend"] & (sim.u("tr") < 0.03)
-        lose = P["temple_recommend"] & (~clean | (P["activity"] < 3)) & (sim.u("tr2") < 0.2)
-        P.cols["temple_recommend"][np.where(gain)[0]] = True
-        P.cols["temple_recommend"][np.where(lose)[0]] = False
-        self.practices(np.where(P["present"])[0])
-        self.weekly_other()
 
-    # ------------------------------------------------------------------ non-members
     def find_congregations(self, ids: np.ndarray, emit: bool = True):
         """Religious non-members without a congregation pick one of the nearest of their tradition."""
         sim, w = self.sim, self.sim.w

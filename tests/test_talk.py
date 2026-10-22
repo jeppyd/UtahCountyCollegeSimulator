@@ -2,6 +2,7 @@
 a floor), the fact builders, and Ask / Interview end to end through the API on a fake backend (no model is called)."""
 import json
 import time
+import re
 from pathlib import Path
 
 import numpy as np
@@ -136,3 +137,32 @@ def test_status_and_settings(client):
     assert got["interview_backend"] == "claude" and got["sensitive"] is True
     assert client.post("/api/talk/settings", json={"ask_backend": "rm -rf"}).json()["ask_backend"] == "auto"
     assert client.post("/api/talk/ask", json={"question": "x"}, headers={"origin": "https://evil.example"}).status_code == 403
+
+
+def test_narrated_scene_is_held_to_its_beats(ran, monkeypatch, tmp_path):
+    """A story of a get-together: passages must cite real beats and name only people in the scene; a stranger is
+    caught, repaired once, and dropped if it stays."""
+    seen = []
+
+    def fake(feature, stage, system, prompt, schema):
+        assert feature == "narrate" and "## The beats" in prompt
+        seen.append(stage)
+        ids = re.findall(r'"id": "(b\d+)"', prompt)
+        good = [{"text": f"Passage {k}.", "claims": [b]} for k, b in enumerate(ids)]
+        return {"sentences": good + [{"text": "Then Zebulon walked in.", "claims": ["b999"]}]}
+    monkeypatch.setattr(llm, "FAKE", fake)
+    monkeypatch.setattr(llm, "TALK_FILE", tmp_path / "talk.json")
+    saved = (server.WS.base, server.WS.alt)
+    server.WS.base, server.WS.alt = ran, None
+    try:
+        c = TestClient(server.app)
+        O = ran.book.occ
+        oid = int(O["id"][np.flatnonzero(O["n_came"][: O.n] >= 3)[0]])
+        r = _wait(c, c.post("/api/scene/narrate", json={"kind": "occasion", "id": oid}).json()["job"])
+        assert r["state"] == "done", r["error"]
+        res = r["result"]
+        assert res["passages"] and all(p["beats"] for p in res["passages"])
+        assert res["removed"] and "don't exist" in res["removed"][0]["reasons"][0]
+        assert seen == ["answer", "repair"] and res["coverage"] >= 0.6
+    finally:
+        server.WS.base, server.WS.alt = saved

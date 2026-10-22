@@ -70,7 +70,7 @@ export default function App() {
     case 'guide': body = <Guide section={route[1]} />; break
     case 'trends': body = <Overview />; break
     case 'map': body = <MapView initial={route[1]} />; break
-    case 'people': body = <People />; break
+    case 'people': body = STATIC ? <People /> : <Valley />; break
     case 'person': body = <PersonView id={Number(route[1])} tab={route[2]} />; break
     case 'relationships': body = <Relationships tab={route[1]} />; break
     case 'network': body = <NetworkView />; break

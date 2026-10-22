@@ -12,13 +12,16 @@ import { usePersonName } from '../../kit/RefChip'
 export const useMake = create<{ who: number | null; set: (i: number | null) => void }>(set => ({ who: null, set: i => set({ who: i }) }))
 export const openMake = (i: number) => useMake.getState().set(i)
 
-type Kind = 'invite' | 'series' | 'reach_out' | 'introduce' | 'spark'
+type Kind = 'invite' | 'series' | 'reach_out' | 'introduce' | 'spark' | 'ask_out' | 'break_up' | 'go_home'
 const CHOICES: { k: Kind; icon: string; t: string; d: string }[] = [
   { k: 'invite', icon: 'home', t: 'Throw a get-together', d: 'A dinner, game night or party: they invite people and see who comes.' },
   { k: 'series', icon: 'clock', t: 'Start a weekly tradition', d: 'Sunday dinner, Tuesday game night: the same people, every week.' },
   { k: 'reach_out', icon: 'send', t: 'Get in touch with someone', d: 'A text, or dropping by. Only people they know.' },
   { k: 'introduce', icon: 'people', t: 'Meet someone new', d: 'You set it up: the two of them meet for a bit.' },
+  { k: 'ask_out', icon: 'rings', t: 'Ask someone out', d: 'Today, someone they know. The answer is the other person\'s.' },
   { k: 'spark', icon: 'heart', t: 'Fall for someone', d: 'Give them feelings for someone they know. Whether they ask, and the answer, is up to them.' },
+  { k: 'break_up', icon: 'close', t: 'End it', d: 'Break up with the person they\'re seeing.' },
+  { k: 'go_home', icon: 'key', t: 'Go home for a bit', d: 'A few days with family. They\'re away from Provo until they\'re back.' },
 ]
 const KINDS = [['dinner', 'a dinner'], ['game_night', 'a game night'], ['party', 'a party'], ['gathering', 'a hangout'], ['study_group', 'a study group']]
 const GROUPS = [['friends', 'their friends'], ['close_friends', 'their close friends'], ['roommates', 'their roommates'], ['housemates', 'everyone in their apartment'], ['neighbors', 'their neighbors']]
@@ -37,11 +40,14 @@ export function MakeItHappen() {
   if (who === null) return null
   const me = name(who), first = me.split(' ')[0]
   const reset = () => setRes(null)
-  const needOther = k === 'reach_out' || k === 'introduce' || k === 'spark'
+  const needOther = k === 'reach_out' || k === 'introduce' || k === 'spark' || k === 'ask_out'
   const action = (): any => {
     if (k === 'invite' || k === 'series') return { action: k, as: who, kind: f.kind, people: f.group, weekday: f.weekday, start: f.start }
     if (k === 'reach_out') return { action: 'reach_out', as: who, to: other?.id, channel: f.channel }
     if (k === 'introduce') return { action: 'introduce', a: who, b: other?.id }
+    if (k === 'ask_out') return { action: 'ask_out', as: who, to: other?.id }
+    if (k === 'break_up') return { action: 'break_up', as: who }
+    if (k === 'go_home') return { action: 'go_home', as: who, nights: f.nights ?? 2 }
     return { action: 'spark', from: who, to: other?.id, strength: 0.8 }
   }
   const run = async (doIt: boolean) => {
@@ -82,9 +88,12 @@ export function MakeItHappen() {
             {' '}{k === 'series' ? 'every' : 'on'} <select value={f.weekday} onChange={e => { setF({ ...f, weekday: e.target.value }); reset() }}>{DAYS.map(d => <option key={d} value={d}>{d[0].toUpperCase() + d.slice(1)}</option>)}</select>
             {' '}at <input type="time" value={f.start} onChange={e => { setF({ ...f, start: e.target.value }); reset() }} />
           </p>}
+          {k === 'break_up' && <p className="mk-sentence">{first} ends things with the person they're seeing. Press Check to see who.</p>}
+          {k === 'go_home' && <p className="mk-sentence">{first} goes home for <select value={f.nights ?? 2} onChange={e => { setF({ ...f, nights: Number(e.target.value) }); reset() }}>
+            {[1, 2, 3, 5, 7, 14].map(n => <option key={n} value={n}>{n} night{n === 1 ? '' : 's'}</option>)}</select>, starting today</p>}
           {needOther && <div className="mk-sentence">
             {k === 'reach_out' ? <>{first} <select value={f.channel} onChange={e => { setF({ ...f, channel: e.target.value }); reset() }}><option value="text">texts</option><option value="in_person">drops by to see</option></select></>
-              : k === 'introduce' ? <>{first} meets</> : <>{first} falls for</>}
+              : k === 'introduce' ? <>{first} meets</> : k === 'ask_out' ? <>{first} asks out</> : <>{first} falls for</>}
             {' '}{other ? <span className="pill">{other.name} <button className="bx-icon" onClick={() => { setOther(null); reset() }}>{G.close}</button></span>
               : <span className="mk-find"><FindPerson onPick={(id, nm) => { setOther({ id, name: nm }); reset() }} /></span>}
           </div>}

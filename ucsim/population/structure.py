@@ -1,6 +1,7 @@
 """Couples, housing, wards, workplaces and the seed social network."""
 from __future__ import annotations
 
+import itertools
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -495,6 +496,47 @@ def build_fhe_groups(P: PersonTable, unit_of: np.ndarray, ward_kind: np.ndarray,
 JOB_TYPES = ["none", "campus", "food_retail", "tech", "health", "office", "sales", "trades", "teaching", "faculty", "staff"]
 
 
+# Names for work groups, so a story reads "works at the Creamery" rather than a numbered placeholder. Typical student
+# and Provo-Orem jobs (illustrative, not a roster); a repeated name gets a number.
+WORK_NAMES = {
+    "byu": ["the Creamery", "the Wilkinson Center", "the library (HBLL)", "BYU Dining Services", "the Testing Center",
+            "Custodial Services", "the BYU Store", "the MTC", "a research lab", "Cannon Commons", "the Cougareat",
+            "Grounds", "BYU Broadcasting", "the Writing Center", "the Math Lab", "the IT help desk", "the Fieldhouse",
+            "the Museum of Art", "the Bean Museum", "Ticket Office"],
+    "uvu": ["the Fulton Library", "UVU Dining", "the Wolverine Store", "the Testing Center", "the Writing Center",
+            "the IT help desk", "Student Life", "the UCCU Center", "the Fitness Center", "Advisement"],
+    "tech": ["a software company", "a startup", "a marketing agency", "a tech support center", "a fintech company",
+             "a data company", "a web agency", "a call center"],
+    "health": ["a dental office", "a pediatric clinic", "a physical therapy clinic", "an urgent care",
+               "a family practice", "a pharmacy", "an eye clinic", "a care home"],
+    "office": ["an insurance office", "a property management office", "a law office", "an accounting firm",
+               "a title company", "a credit union branch"],
+    "sales": ["a pest control sales team", "a solar sales team", "a security systems sales team",
+              "a furniture store", "a phone store"],
+    "trades": ["a landscaping crew", "a roofing crew", "an HVAC company", "a framing crew", "a cleaning company"],
+    "byu_dept": ["the Department of Psychology", "the Marriott School", "the Department of Chemistry",
+                 "the College of Engineering", "the Department of English", "the School of Music",
+                 "the Department of Ancient Scripture", "the College of Nursing", "the Department of History",
+                 "the Department of Mathematics", "the School of Family Life", "the Department of Economics"],
+    "uvu_dept": ["the School of Business", "the Department of Computer Science", "the Department of Nursing",
+                 "the School of Education", "the Department of Biology", "the Department of Communication",
+                 "the Department of Behavioral Science", "the College of Engineering and Technology"],
+    "univ_office": ["Admissions", "the Registrar", "Financial Aid", "Housing Services", "Physical Facilities",
+                    "the Office of IT", "Human Resources", "Alumni Relations"],
+}
+
+
+def _namer(kind: str):
+    """A name for the next work group of this kind: the list in order, then the same names numbered."""
+    pool, count = WORK_NAMES[kind], itertools.count()
+
+    def name(_k):
+        n = next(count)
+        base = pool[n % len(pool)]
+        return base if n < len(pool) else f"{base} (#{n // len(pool) + 1})"
+    return name
+
+
 def build_workplaces(P: PersonTable, venues: pl.DataFrame, rng, scale: float):
     """Create employers (department/store-sized work groups) and assign employed agents."""
     sites = pl.read_parquet(GEO / "work_sites.parquet")
@@ -527,6 +569,8 @@ def build_workplaces(P: PersonTable, venues: pl.DataFrame, rng, scale: float):
     vi = iter(rng.permutation(len(vlon)).tolist() * 50)
     si = iter(rng.permutation(len(slon)).tolist() * 50)
 
+    name_tech, name_health, name_office, name_sales, name_trades = (_namer(k) for k in ("tech", "health", "office", "sales", "trades"))
+
     def campus(c):
         return lambda: (c[0] + rng.normal(0, 0.003), c[1] + rng.normal(0, 0.003))
 
@@ -544,28 +588,28 @@ def build_workplaces(P: PersonTable, venues: pl.DataFrame, rng, scale: float):
     u = rng.random(len(stu))
     is_byu = np.isin(stu, np.where(byu)[0])
     campus_job = np.where(is_byu, u < 0.48, u < 0.18)
-    assign(stu[campus_job & is_byu], "campus", 18, campus(BYU), lambda k: f"BYU campus dept {k}")
-    assign(stu[campus_job & ~is_byu], "campus", 15, campus(UVU), lambda k: f"UVU campus dept {k}")
+    assign(stu[campus_job & is_byu], "campus", 18, campus(BYU), _namer("byu"))
+    assign(stu[campus_job & ~is_byu], "campus", 15, campus(UVU), _namer("uvu"))
     rest = stu[~campus_job]
     u2 = rng.random(len(rest))
     assign(rest[u2 < 0.45], "food_retail", 12, venue_site, lambda k: "")
-    assign(rest[(u2 >= 0.45) & (u2 < 0.68)], "tech", 20, office_site, lambda k: f"Tech/office {k}")
-    assign(rest[(u2 >= 0.68) & (u2 < 0.80)], "health", 15, office_site, lambda k: f"Clinic {k}")
-    assign(rest[(u2 >= 0.80) & (u2 < 0.90)], "office", 12, office_site, lambda k: f"Office {k}")
-    assign(rest[u2 >= 0.90], "sales", 15, office_site, lambda k: f"Sales floor {k}")
+    assign(rest[(u2 >= 0.45) & (u2 < 0.68)], "tech", 20, office_site, name_tech)
+    assign(rest[(u2 >= 0.68) & (u2 < 0.80)], "health", 15, office_site, name_health)
+    assign(rest[(u2 >= 0.80) & (u2 < 0.90)], "office", 12, office_site, name_office)
+    assign(rest[u2 >= 0.90], "sales", 15, office_site, name_sales)
     other = np.where(employed & np.isin(role, [r("young_adult"), r("spouse"), r("community")]))[0]
     u3 = rng.random(len(other))
     assign(other[u3 < 0.25], "food_retail", 12, venue_site, lambda k: "")
-    assign(other[(u3 >= 0.25) & (u3 < 0.55)], "tech", 25, office_site, lambda k: f"Tech/office {k}")
-    assign(other[(u3 >= 0.55) & (u3 < 0.70)], "health", 15, office_site, lambda k: f"Clinic {k}")
-    assign(other[(u3 >= 0.70) & (u3 < 0.85)], "office", 15, office_site, lambda k: f"Office {k}")
-    assign(other[u3 >= 0.85], "trades", 12, office_site, lambda k: f"Trades crew {k}")
+    assign(other[(u3 >= 0.25) & (u3 < 0.55)], "tech", 25, office_site, name_tech)
+    assign(other[(u3 >= 0.55) & (u3 < 0.70)], "health", 15, office_site, name_health)
+    assign(other[(u3 >= 0.70) & (u3 < 0.85)], "office", 15, office_site, name_office)
+    assign(other[u3 >= 0.85], "trades", 12, office_site, name_trades)
     fac = np.where(role == r("faculty"))[0]
     fac_school = P["school"][fac]
-    assign(fac[fac_school == P.code("school", "BYU")], "faculty", 12, campus(BYU), lambda k: f"BYU department {k}")
-    assign(fac[fac_school != P.code("school", "BYU")], "faculty", 12, campus(UVU), lambda k: f"UVU department {k}")
+    assign(fac[fac_school == P.code("school", "BYU")], "faculty", 12, campus(BYU), _namer("byu_dept"))
+    assign(fac[fac_school != P.code("school", "BYU")], "faculty", 12, campus(UVU), _namer("uvu_dept"))
     staff = np.where(role == r("staff"))[0]
-    assign(staff, "staff", 15, campus(BYU), lambda k: f"University office {k}")
+    assign(staff, "staff", 15, campus(BYU), _namer("univ_office"))
     # restaurant employers take the venue's name
     names = np.array(emp_name, dtype=object)
     for e in np.where(names == "")[0]:

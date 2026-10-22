@@ -113,3 +113,39 @@ def test_spark_and_acting_in_the_original(ran):
         assert c.get("/api/scene/pair", params={"a": x, "b": y}).json()["beats"]
     finally:
         server.WS.base, server.WS.alt = keep
+
+
+def test_ask_out_break_up_and_go_home_in_the_original(ran):
+    from ucsim.api import server
+    keep = server.WS.base, server.WS.alt
+    try:
+        server.WS.base, server.WS.alt = copy.deepcopy(ran), None
+        sim = server.WS.base
+        P = sim.w.P
+        c = TestClient(server.app)
+        names = sim.reg.event_names
+        # asking someone out: the answer is theirs, and the ask points at what you did
+        x, y = _knowers(sim)
+        r = c.post("/api/act", json={"action": "ask_out", "as": x, "to": y, "world": "original"}).json()
+        assert r["ok"] and r["asked"] and names[int(sim.log["type"][r["event"]])] == "asked_out"
+        assert r["yes"] == (P.internal["date_planned"][x] >= sim.w.day)
+        # breaking up: the couple is single afterwards, and the one you chose ended it
+        a = int(np.flatnonzero(P.isin("rel_status", ["dating", "engaged"]) & (P["partner_id"] >= 0) & P["present"])[0])
+        b = int(P["partner_id"][a])
+        r = c.post("/api/act", json={"action": "break_up", "as": a, "world": "original"}).json()
+        assert r["ok"] and r["ended"] and P["partner_id"][a] == -1 and P["partner_id"][b] == -1
+        assert int(sim.log["a"][r["event"]]) == a
+        assert not c.post("/api/act", json={"action": "break_up", "as": a, "world": "original"}).json()["ok"]  # nobody left
+        # going home: away until they come back
+        g = int(np.flatnonzero(P["present"] & (P["home_drive_hours"] > 1) & (P["home_drive_hours"] < 6))[0])
+        r = c.post("/api/act", json={"action": "go_home", "as": g, "nights": 3, "world": "original"}).json()
+        assert r["ok"] and r["went"] and not P["present"][g]
+        assert names[int(sim.log["type"][r["event"]])] == "went_home"
+        # undo puts the world back as it was just before the last change (one step)
+        assert "goes home" in c.get("/api/status").json()["checkpoint"]["label"]
+        u = c.post("/api/act/undo").json()
+        assert u["ok"] and server.WS.base is not sim and server.WS.base.w.P["present"][g]
+        assert server.WS.base.w.P["partner_id"][a] == -1            # the breakup before it stays
+        assert c.post("/api/act/undo").status_code == 400          # the copy is used up
+    finally:
+        server.WS.base, server.WS.alt = keep

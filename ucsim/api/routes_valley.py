@@ -2,9 +2,10 @@
 followed people right now. Read-only: nothing here changes either world."""
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Body, HTTPException, Request
 
 from .routes_story import _call
+from .routes_trace import _server
 
 router = APIRouter()
 
@@ -47,3 +48,27 @@ def scene_pair(a: int, b: int, u: str = "base"):
     """Two people's history as a text thread: check-ins, invitations, asking out, dates, silences, breakups."""
     from ..analysis import script as SC
     return _call(u, SC.pair_script, a, b)
+
+
+@router.post("/api/scene/narrate")
+def scene_narrate(request: Request, body: dict = Body(...)):
+    """Tell a scene as a story with the owner's model login: {kind: occasion, id} or {kind: pair, a, b}, pov?, u?.
+    Poll /api/talk/ask/{job}. The story is checked against the scene's recorded beats."""
+    from ..llm.talk import narrate
+    from .routes_talk import _guard
+    _guard(request)
+    WS, jresp = _server()
+    if WS.base is None:
+        raise HTTPException(409, "build a world first")
+    kind = body.get("kind")
+    if kind == "occasion":
+        ref = {"kind": "occasion", "id": int(body["id"])}
+    elif kind == "pair":
+        ref = {"kind": "pair", "a": int(body["a"]), "b": int(body["b"])}
+    else:
+        raise HTTPException(400, "say which scene: {kind: occasion, id} or {kind: pair, a, b}")
+    u = "alt" if body.get("u") == "alt" else "base"
+    WS.sim(u)
+    pov = body.get("pov")
+    job = narrate.start(WS, ref, None if pov in (None, "") else int(pov), u=u)
+    return jresp({"job": job.id})

@@ -329,6 +329,62 @@ class Romance:
             P.internal["date_planned"][yi] = dd
             P.internal["date_planned"][yt] = dd
 
+    def ask_now(self, a: int, b: int, k: int) -> dict:
+        """Someone asks someone out because the user made it happen (social action k). The answer is the model's own
+        (the same terms as any ask, with a draw keyed on the action so the Original's numbers never move); a yes books
+        a date like any other."""
+        sim, w = self.sim, self.sim.w
+        P, E, p = w.P, w.E, sim.p
+        day = w.day
+        ids, tgt = np.array([a], np.int64), np.array([b], np.int64)
+        eix = E.find(EdgeStore.make_keys(ids, tgt))
+        if eix[0] < 0:
+            return {"asked": False}
+        a_ji = E.attraction_from(eix, tgt)
+        a_ij = E.attraction_from(eix, ids)
+        first_date = E["dates"][eix] == 0
+        taken = P.isin("rel_status", ["dating", "engaged", "married"])[tgt] | (P.is_("rel_status", "talking")[tgt] & (P["partner_id"][tgt] != ids))
+        planned_t = P.internal["date_planned"][: P.n][tgt] >= day
+        acc_terms = {"attraction": p("romance.accept.attraction") * a_ji,
+                     "politeness": np.where(first_date, p("romance.accept.politeness") * (P["accepts_first_dates"][tgt] - 2) / 2, 0),
+                     "motivation": p("romance.accept.motivation") * (P["dating_motivation"][tgt] - 0.4),
+                     "picky": -(p("romance.accept.picky") * (P["picky"][tgt] - 2) / 2),
+                     "taken": -(3.0 * taken), "busy": -(1.5 * planned_t)}
+        acc = expit(total(p("romance.accept.base"), acc_terms))
+        from .occasions import _pair_u
+        yes = np.array([_pair_u(w.seed, b, 8_000_009 * (k + 1) + a, 41) < float(acc[0])])
+        D = sim.decisions
+        acc_did = D.record("accept_date", day, tgt, np.where(yes, 0, 1), acc_terms, base=p("romance.accept.base"),
+                           prob=np.where(yes, acc, 1 - acc), other=ids, refs={"attraction": ("person", ids)})
+        ask_ev = sim.emit("asked_out", ids, b=tgt, value=a_ij, mech="romance.ask", causes=[("action", [k], 1.0)], salt=5201 + k)
+        link(sim, ask_ev, "decision", acc_did, 1.0, "answer")
+        mind = sim.systems["mind"]
+        mind.learn_ask(ids, yes)
+        mind.reveal(eix, ids, tgt, np.where(yes, 0.4, 1.0))
+        if not yes[0]:
+            P.cols["rejections_recent"][ids] += 1
+            sim.emit("rejected", ids, b=tgt, cause=ask_ev, mech="romance.accept",
+                     ev={"recent_rejections": np.log1p(P["rejections_recent"][ids])}, decision=acc_did)
+            E.set_attraction_from(eix, ids, np.clip(a_ij - 0.2, -1, 1))
+            return {"asked": True, "yes": False, "event": int(ask_ev[0]), "chance": round(float(acc[0]), 3)}
+        dd = self._next_date_day(w.env["weekday"], np.array([_pair_u(w.seed, a, 8_000_017 * (k + 1) + b, 43)]))
+        self.queue.append((int(dd[0]), a, b, self._date_type(ids, tgt)[0], bool(first_date[0]), int(ask_ev[0])))
+        P.internal["date_planned"][ids] = dd
+        P.internal["date_planned"][tgt] = dd
+        return {"asked": True, "yes": True, "event": int(ask_ev[0]), "date_day": int(dd[0]), "chance": round(float(acc[0]), 3)}
+
+    def end_now(self, a: int, k: int) -> dict:
+        """Someone ends their relationship because the user made it happen (social action k)."""
+        P = self.sim.w.P
+        b = int(P["partner_id"][a])
+        if b < 0:
+            return {"ended": False}
+        kind = "talking" if P.is_("rel_status", "talking")[a] else "breakup"
+        # _end makes the less-attracted partner the one who ends it: here that is whoever the user chose
+        ev = self._end(np.array([a]), np.array([b]), np.zeros(1), np.ones(1), kind=kind,
+                       why=[("action", np.array([k]), 1.0, None)])
+        return {"ended": True, "event": int(ev[0]), "partner": b}
+
     def _date_type(self, a: np.ndarray, b: np.ndarray) -> list[str]:
         sim = self.sim
         P = sim.w.P
@@ -428,9 +484,12 @@ class Romance:
         P, p = w.P, sim.p
         if len(pool) < 10:
             return
-        lean = expit(p("romance.ncmo.app_base") + p("romance.ncmo.interest") * (P["ncmo_interest"][pool] - 1.5)
-                     + 0.5 * sim.z("sensation_seeking")[pool] - p("romance.ncmo.chastity") * (P["chastity_commitment"][pool] - 0.5))
-        want = sim.u("app_ncmo")[pool] < p("romance.ncmo.app_rate") * P["app_hours"][pool] / 7.0 * w.env["app_appeal"] * lean
+        T = {"interest": p("romance.ncmo.interest") * (P["ncmo_interest"][pool] - 1.5),
+             "thrill": 0.5 * sim.z("sensation_seeking")[pool],
+             "chastity": -p("romance.ncmo.chastity") * (P["chastity_commitment"][pool] - 0.5)}
+        lean = expit(p("romance.ncmo.app_base") + sum(T.values()))
+        rate = p("romance.ncmo.app_rate") * P["app_hours"][pool] / 7.0 * w.env["app_appeal"] * lean
+        want = sim.u("app_ncmo")[pool] < rate
         ids = pool[want]
         open_ = pool[lean > 0.2]
         if not len(ids) or len(open_) < 5:
@@ -447,9 +506,18 @@ class Romance:
         tgt = cand[np.arange(len(ids)), best]
         hit = sc[np.arange(len(ids)), best] > 0
         ids, tgt = ids[hit], tgt[hit]
+        if not len(ids):
+            return
+        # the choice to look for something casual on the apps, recorded for the meet-up to point at
+        k = np.flatnonzero(want)[hit]
+        did = sim.decisions.record("ncmo_app", w.day, ids, "looked", {
+            **{n: v[k] for n, v in T.items()},
+            "app_hours": np.log(np.maximum(P["app_hours"][ids], 1e-3) / 7.0),
+            "app_appeal": np.full(len(ids), np.log(max(float(w.env["app_appeal"]), 1e-6)))},
+            base=float(p("romance.ncmo.app_base")), prob=np.clip(rate[k], 0, 1), other=tgt)
         u = sim.u("app_ncmo_when")[ids]
-        for a_, b_, uu in zip(ids.tolist(), tgt.tolist(), u.tolist()):
-            self.ncmo_queue.append((w.day + int(uu * 4), a_, b_, int(uu * 1000) % 3, -1))
+        for a_, b_, uu, d_ in zip(ids.tolist(), tgt.tolist(), u.tolist(), did.tolist()):
+            self.ncmo_queue.append((w.day + int(uu * 4), a_, b_, int(uu * 1000) % 3, d_))
 
     def _app_ncmo_meetups(self):
         """Tonight's app meet-ups (both still single and in town)."""
@@ -463,9 +531,10 @@ class Romance:
         a = np.array([q[1] for q in due], np.int64)
         b = np.array([q[2] for q in due], np.int64)
         place = np.array([q[3] for q in due], np.float64)
+        did = np.array([q[4] for q in due], np.int64)
         seek = self.seeking_mask()
         ok = seek[a] & seek[b] & P["present"][a].astype(bool) & P["present"][b].astype(bool)
-        a, b, place = a[ok], b[ok], place[ok]
+        a, b, place, did = a[ok], b[ok], place[ok], did[ok]
         if not len(a):
             return
         eix = E.upsert(EdgeStore.make_keys(a, b))
@@ -475,7 +544,9 @@ class Romance:
         for x, y in ((a, b), (b, a)):
             P.cols["n_ncmo"][x] += 1
             P.cols["n_kissed"][x[new_k]] += 1
-            sim.emit("ncmo", x, b=y, value=place, block=3, mech="romance.ncmo")
+        # the one who went looking on the app made the choice; the match shows up as its other person
+        sim.emit("ncmo", a, b=b, value=place, block=3, mech="romance.ncmo", decision=did)
+        sim.emit("ncmo", b, b=a, value=place, block=3, mech="romance.ncmo", decision=did)
 
     # ------------------------------------------------------------------ dates
     def _run_dates(self):
@@ -581,7 +652,7 @@ class Romance:
             ghost_s = np.where(att_ab[dud] < att_ba[dud], a[dud], b[dud])
             g = rng.random(len(ghost_r)) < p("romance.ghosting.rate")
             if g.any():
-                sim.emit("ghosted", ghost_r[g], b=ghost_s[g], mech="romance.ghosting")
+                sim.emit("ghosted", ghost_r[g], b=ghost_s[g], cause=date_ev[dud][g], mech="romance.ghosting")
 
     def _kiss(self, a, b, eix, cause, venue):
         sim, w = self.sim, self.sim.w
@@ -630,33 +701,44 @@ class Romance:
         mutual = np.minimum(E.attraction_from(eix, a), E.attraction_from(eix, b))
         comp = self.compatible(a, b) & self.compatible(b, a)
         chast = (P["chastity_commitment"][a] + P["chastity_commitment"][b]) / 2
-        pn = expit(p("romance.ncmo.base") + p("romance.ncmo.interest") * ((P["ncmo_interest"][a] + P["ncmo_interest"][b]) / 2 - 1.5)
-                   + 0.5 * (sim.z("sensation_seeking")[a] + sim.z("sensation_seeking")[b]) / 2
-                   - p("romance.ncmo.chastity") * (chast - 0.5) + 2.0 * mutual
-                   + 0.4 * (loc[a] == CTX_ID["dance"])
-                   - (sim.p("intimacy.ncmo.boundary") * ((P["ok_stage_touch"][a].astype(float) + P["ok_stage_touch"][b]) / 2 - 1)
-                      if "intimacy" in sim.systems else 0.0))
+        T = {"interest": p("romance.ncmo.interest") * ((P["ncmo_interest"][a] + P["ncmo_interest"][b]) / 2 - 1.5),
+             "thrill": 0.5 * (sim.z("sensation_seeking")[a] + sim.z("sensation_seeking")[b]) / 2,
+             "chastity": -p("romance.ncmo.chastity") * (chast - 0.5),
+             "attraction": 2.0 * mutual,
+             "dance": 0.4 * (loc[a] == CTX_ID["dance"]),
+             "boundary": (-sim.p("intimacy.ncmo.boundary") * ((P["ok_stage_touch"][a].astype(float) + P["ok_stage_touch"][b]) / 2 - 1)
+                          if "intimacy" in sim.systems else np.zeros(len(a)))}
+        base = p("romance.ncmo.base")
+        pn = expit(base + sum(T.values()))
         hit = comp & (mutual > 0.1) & (sim.u("ncmo")[a] < pn)
         if not hit.any():
             return
         a, b, eix = a[hit], b[hit], eix[hit]
+        both = np.r_[a, b]
+        did = sim.decisions.record("ncmo", w.day, both, "made_out", {k: np.tile(v[hit], 2) for k, v in T.items()},
+                                   base=base, prob=np.tile(pn[hit], 2), other=np.r_[b, a], block=2)
         new_k = (E["flags"][eix] & Tie.KISSED) == 0
         E.cols["flags"][eix] |= Tie.NCMO | Tie.KISSED
         for x, y in ((a, b), (b, a)):
             P.cols["n_ncmo"][x] += 1
             P.cols["n_kissed"][x[new_k]] += 1
-            sim.emit("ncmo", x, b=y, value=np.full(len(x), 3.0), block=2, mech="romance.ncmo")
+        for x, y, d in ((a, b, did[: len(a)]), (b, a, did[len(a):])):
+            sim.emit("ncmo", x, b=y, value=np.full(len(x), 3.0), block=2, mech="romance.ncmo", decision=d)
 
     # ------------------------------------------------------------------ weekly relationship dynamics
     def weekly(self):
+        self._crushes()
+
+    def couples_week(self):
+        """Each couple's week (satisfaction, commitment, engagement, breakups, cheating), on the couple's own day."""
         sim, w = self.sim, self.sim.w
         P, E, p = w.P, w.E, sim.p
         day = w.day
-        self._crushes()
         part = P["partner_id"]
         st = P["rel_status"]
         n = P.n
         ids = np.where((part >= 0) & (np.arange(n) < part) & P["present"])[0]
+        ids = ids[sim.my_turn(ids)]
         if len(ids) == 0:
             return
         j = part[ids].astype(np.int64)

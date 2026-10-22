@@ -54,14 +54,29 @@ def test_published_events(cal):
     by_id = {it.id: it for it in items}
     assert by_id["fb_utah_tech"].time == "18:00" and by_id["fb_iowa_state"].time == "20:15"
     fall = [it for it in items if it.kind == "devotional" and D(2026, 9, 1) <= it.start <= D(2026, 12, 31)]
-    assert len(fall) == 13 and all(it.basis == "real" for it in fall)
+    assert len(fall) == 12 and all(it.basis == "real" for it in fall)
     assert D(2026, 11, 24) not in {it.start for it in fall}
+    assert D(2026, 10, 6) not in {it.start for it in fall}               # Homecoming's opening ceremony instead
     assert {it.label for it in fall} == {"BYU devotional", "BYU forum"}
     winter = [it for it in items if it.kind == "devotional" and it.start.year == 2027]
     assert winter and all(it.basis == "rule" for it in winter)        # Winter 2027's schedule isn't published
     games = [it for it in items if it.kind == "basketball"]
     assert len(games) > 20 and all(it.time and it.place for it in games)
     assert {it.effects["occasion"]["kind"] for it in games} == {"basketball_game", "uvu_basketball_game"}
+
+
+def test_round3_events(cal):
+    """Round 3 research: the published Homecoming week (its opening ceremony at 11:00, socials and the formal dance as
+    occasions), BYU women's home games, UVU's real spring break and Summer semester."""
+    items = cal.items_between(D(2026, 8, 1), D(2027, 7, 31))
+    by_id = {it.id: it for it in items}
+    assert by_id["byu_homecoming"].basis == "real" and by_id["byu_homecoming"].start == D(2026, 10, 6)
+    assert by_id["hc_opening"].time == "11:00" and by_id["hc_opening"].effects["occasion"]["kind"] == "devotional"
+    assert by_id["hc_dance"].effects["occasion"]["kind"] == "homecoming_dance" and by_id["hc_dance"].start == D(2026, 10, 10)
+    women = [it for it in items if it.kind == "womens_sports"]
+    assert len(women) > 35 and all(it.time and it.place and it.basis == "real" for it in women)
+    assert cal.no_class("UVU", D(2027, 3, 21)) and cal.term("UVU", D(2027, 5, 10)) == "Summer"
+    assert cal.term("UVU", D(2027, 8, 13)) == "Summer"
 
 def test_rule_years_are_plausible(cal):
     for y in (2027, 2028, 2031):

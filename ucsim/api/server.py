@@ -366,6 +366,17 @@ async def _log_requests(request: Request, call_next):
     return resp
 
 
+@app.middleware("http")
+async def _cache_rules(request: Request, call_next):
+    """The page and the map files are re-checked on every load, so an update shows its new interface at once (the app
+    window keeps a disk cache between runs); the bundled scripts carry a content hash and never change."""
+    resp = await call_next(request)
+    path = request.url.path
+    if not path.startswith("/api/") and "cache-control" not in resp.headers:
+        resp.headers["Cache-Control"] = "public, max-age=31536000, immutable" if path.startswith("/assets/") else "no-cache"
+    return resp
+
+
 # ----------------------------------------------------------------------------- meta
 @app.get("/api/registry")
 def registry():

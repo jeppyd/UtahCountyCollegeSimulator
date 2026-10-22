@@ -192,6 +192,7 @@ def occasion_script(sim, oid: int) -> dict:
             txt = f"{who['name']} wanders in with a friend, uninvited"
         elif p.get("response") == "no" and (trip.get("minutes") or 0) <= 1:
             txt = f"{who['name']} said no, but it's their place too: they end up in the living room anyway"
+            how, late = [], 0
         elif p.get("response") == "no":
             txt = f"{who['name']} said no, but changes their mind and comes"
         if late >= 15:

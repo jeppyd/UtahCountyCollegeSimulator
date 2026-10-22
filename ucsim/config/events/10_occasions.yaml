@@ -59,6 +59,15 @@ events:
       - {var: mood, mag: 0.01, sd: 0.4, half_life: 2}
     evidence: hypothetical
     desc: "Someone set up a meeting between two people (a social action)."
+  spark:
+    label: Started to have feelings for someone
+    story: "{a} started to have feelings for {b}"
+    category: romance
+    salience: 0.5
+    effects:
+      - {var: romantic_longing, mag: 0.02, sd: 0.4, half_life: 7}
+    evidence: hypothetical
+    desc: "The world editor gave one person feelings for another they know (a social action); what follows is the model's own romance."
   reached_out:
     label: Reached out
     story: "{a} reached out to {b}"

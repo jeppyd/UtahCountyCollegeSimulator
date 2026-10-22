@@ -77,3 +77,20 @@ def test_install_verifies_then_runs_the_installer_and_quits(gh, monkeypatch, tmp
         assert (tmp_path / "updates" / "ProvoOremSimulator-Setup-0.1.60.exe").read_bytes() == PAYLOAD
     else:
         assert not ran and not quit_ and updater.STATE["state"] == "error"
+
+
+def test_page_and_map_files_are_rechecked_after_an_update():
+    """The app window keeps a disk cache between runs: the page and map files must be re-checked on every load (else
+    an update keeps showing the old interface), while hashed bundles may be cached for good."""
+    from fastapi.testclient import TestClient
+
+    from ucsim.api import server
+
+    c = TestClient(server.app)
+    assert c.get("/geo/cities.json").headers["cache-control"] == "no-cache"
+    if server.WEB_DIST.exists():
+        assert c.get("/").headers["cache-control"] == "no-cache"
+        js = next((server.WEB_DIST / "assets").glob("*.js"), None)
+        if js is not None:
+            assert "immutable" in c.get(f"/assets/{js.name}").headers["cache-control"]
+    assert "immutable" not in c.get("/api/registry").headers.get("cache-control", "")

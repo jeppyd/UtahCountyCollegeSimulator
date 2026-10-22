@@ -161,6 +161,23 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
 
 ## Session log (newest first)
 
+### 2026-10-22 (4) — Claude Code (cloud session) — living map: street map, clay buildings, floors; stale-page fix
+
+- **Why the owner saw only dots:** the installed app showed a cached copy of an old page. The app window
+  (pywebview/WebView2, persistent storage in `%LOCALAPPDATA%\ProvoOremSimulator\webview`) cached `index.html` (no
+  Cache-Control) and the old hashed bundles stayed on disk after updating. Verified the 0.1.45 release itself
+  contains the 3D map. Fix: `_cache_rules` middleware in `ucsim/api/server.py` (page + `/geo/*` no-cache, `/assets/*`
+  immutable; test in `tests/test_updater.py`) and `[InstallDelete]` of `web\dist` in `packaging/installer.iss`.
+  Workaround for an existing install: delete the `webview` folder once.
+- **Living map (`web/src/map/LivingMap.tsx`):** the classic map's OpenFreeMap street map underneath (`streets`
+  checkbox, `opts.basemap`, default on except STATIC; its flat buildings dropped; bundled roads when offline; evening/
+  night tint as a deck layer); clay buildings (`--map-clay`, `--map-edge` tokens) with edges; a thin line per storey
+  on standing buildings at zoom ≥ 15.5 in 3D; busiest named places labelled "name · people inside" when zoomed out;
+  an opened building's floor picker lights that slab, and "separate floors" stacks or pulls apart the floors.
+- Concept art: 4 of 9 images (dorm night, person card, right now, workbench) were never saved; notes survive.
+- Next: hover card for a building; terrain/hillshade; trees/parks like the concept art; classic overlays (neighborhoods,
+  venues, complexes/wards) as layers on the living map.
+
 ### 2026-10-22 (3) — Claude Code (cloud session) — UVU's real schedule, real game and devotional times
 - Owner supplied `provo-orem-student-life-research-2026-10-21.zip` (public-source research: UVU's Fall 2026 class
   schedule, a 2026–27 events list, BYU housing notes for Wymount/Riviera/LISR/Helaman, 15 off-campus complexes with

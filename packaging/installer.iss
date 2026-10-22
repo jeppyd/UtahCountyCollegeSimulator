@@ -30,6 +30,11 @@ RestartApplications=no
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"
 
+[InstallDelete]
+; the previous version's page bundles (names carry a content hash, so new ones never overwrite them)
+Type: filesandordirs; Name: "{app}\_internal\web\dist"
+Type: filesandordirs; Name: "{app}\web\dist"
+
 [Files]
 Source: "..\dist\ProvoOremSimulator\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 

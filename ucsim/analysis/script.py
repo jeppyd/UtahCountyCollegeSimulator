@@ -299,7 +299,7 @@ MET_WORDS = {"unit": "as roommates", "complex": "in their apartment complex", "c
 PAIR_EVENTS = {"asked_out", "rejected", "first_date", "date", "talking_started", "relationship_started", "first_kiss_with",
                "engaged", "wedding", "breakup_initiated", "breakup_received", "new_friend", "close_friend", "friendship_faded",
                "ghosted", "dealbreaker_found", "dealbreaker_overlooked", "intimacy_step", "ncmo", "app_match",
-               "felt_ignored", "assumed_busy", "assumed_not_interested"}
+               "felt_ignored", "assumed_busy", "assumed_not_interested", "spark", "reached_out", "introduced"}
 
 
 def pair_script(sim, a: int, b: int, limit: int = 120) -> dict:
@@ -345,6 +345,10 @@ def pair_script(sim, a: int, b: int, limit: int = 120) -> dict:
             items.append((d, 3, {"kind": "text", "who": {"id": x, "name": W.name(x)}, "line": _pick(ENGAGED, e), "source": "engagement", "ref": src}))
         elif nm in ("felt_ignored", "assumed_busy", "assumed_not_interested"):
             items.append((d, 6, {"kind": "thought", "who": {"id": x, "name": W.name(x)}, "text": W.event_line(e) + ".", "why": why, "source": "how they read the silence", "ref": src}))
+        elif nm == "spark":
+            items.append((d, 0, {"kind": "thought", "who": {"id": x, "name": W.name(x)},
+                                 "text": f"{W.name(x).split()[0]} can't stop thinking about {W.name(y).split()[0]}.", "why": "you made it happen",
+                                 "source": "feelings you gave them", "ref": src}))
         elif nm == "date":
             items.append((d, 3, {"kind": "stage", "text": W.event_line(e) + ".", "source": "a date", "ref": src, "fold": "date"}))
         else:
@@ -391,7 +395,7 @@ def pair_script(sim, a: int, b: int, limit: int = 120) -> dict:
     # how they met
     E = sim.w.E
     e0 = E.find(E.make_keys(np.array([a]), np.array([b])))[0]
-    if e0 >= 0 and E["first_day"][e0] >= 0:
+    if e0 >= 0 and (E["first_day"][e0] >= 0 or E["flags"][e0] & Tie.PREEXISTING):
         from ..engine.state import CTX
         ctx = CTX[int(E["origin_ctx"][e0])] if int(E["origin_ctx"][e0]) < len(CTX) else ""
         intro = int(E["introducer"][e0])
@@ -399,7 +403,7 @@ def pair_script(sim, a: int, b: int, limit: int = 120) -> dict:
         txt = f"They met {where}" + (f", introduced by {W.name(intro)}" if intro >= 0 else "") + "."
         if E["flags"][e0] & Tie.PREEXISTING:
             txt = "They already knew each other when the story began."
-        items.append((int(E["first_day"][e0]), -1, {"kind": "stage", "text": txt, "source": "where their tie began"}))
+        items.append((max(int(E["first_day"][e0]), 0), -1, {"kind": "stage", "text": txt, "source": "where their tie began"}))
     items.sort(key=lambda x: (x[0], x[1]))
     beats, folded = [], None
     for d, _o, bt in items:

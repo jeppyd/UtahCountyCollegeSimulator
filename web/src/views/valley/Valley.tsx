@@ -82,6 +82,8 @@ function Plans({ p, today }: { p: CastNow; today: number }) {
         <span key={x.occasion} className={`vl-plan ${x.status}`}>
           <span className="vl-plan-t">{when(x.day)} {x.time.split('–')[0]} · {x.label}{x.hosting ? ' (hosting)' : x.answer && x.status === 'planned' ? ` · ${x.answer}` : ''}</span>
           {x.status === 'happened' && <span role="button" tabIndex={0} className="vl-watch" onClick={e => { e.stopPropagation(); openScene({ kind: 'occasion', id: x.occasion }, p.id) }}>{G.play} watch</span>}
+          {x.status === 'planned' && x.day === today && <span role="button" tabIndex={0} className="vl-watch live" title="Open it now and watch it unfold as time runs"
+            onClick={e => { e.stopPropagation(); openScene({ kind: 'occasion', id: x.occasion }, p.id) }}>● watch live</span>}
         </span>
       ))}
     </span>

@@ -526,7 +526,7 @@ export type Beat = {
   ref?: { kind: string; id: string | number } | null; channel?: string; category?: string; day?: number; date?: string
 }
 export type Script = {
-  kind: 'occasion' | 'pair'; title?: string; place?: string; date?: string; weekday?: string; time?: string; status?: string
+  kind: 'occasion' | 'pair'; id?: number; title?: string; place?: string; date?: string; weekday?: string; time?: string; status?: string
   organizer?: { id: number; name: string } | null; cast?: { id: number; name: string }[]
   a?: { id: number; name: string }; b?: { id: number; name: string }; tie?: any; beats: Beat[]; note: string
 }
@@ -542,5 +542,7 @@ export const valleyApi = {
   ripple: (ref: string, u: Universe = 'base'): Promise<any> => j(`/api/story/ripple?ref=${encodeURIComponent(ref)}&u=${u}&depth=4`),
   act: (action: any, world: 'original' | 'whatif'): Promise<any> => post('/api/act', { ...action, world }),
   check: (action: any, world: 'original' | 'whatif'): Promise<any> => post('/api/act/check', { ...action, u: world === 'original' ? 'base' : undefined }),
+  narrate: (ref: { kind: 'occasion'; id: number } | { kind: 'pair'; a: number; b: number }, pov: number | null, u: Universe = 'base'): Promise<{ job: string }> =>
+    post('/api/scene/narrate', { ...ref, pov, u }),
   undo: (): Promise<{ ok: boolean; undone: string; date: string; days_lost: number }> => post('/api/act/undo', {}),
 }

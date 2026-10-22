@@ -150,3 +150,12 @@
 .vl-watch { flex: none; color: var(--accent); display: inline-flex; align-items: center; gap: 2px; cursor: pointer; font-weight: 600; }
 .vl-watch svg { width: 10px; height: 10px; }
 .vl-watch:hover { text-decoration: underline; }
+
+/* a scene told as a story */
+.sc-story p { margin: 0 0 12px; line-height: 1.65; font-size: 15px; color: var(--text); }
+.sc-story p.said { padding-left: 14px; border-left: 2px solid var(--border); }
+.sc-story em { color: var(--text-secondary); }
+
+/* watching a get-together as it happens */
+.vl-watch.live, .sc-live { color: var(--serious); font-weight: 600; }
+.sc-live { margin-right: 6px; }

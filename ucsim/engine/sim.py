@@ -28,7 +28,7 @@ BLOCKS = list(clock.BLOCK_NAMES)
 class Simulation:
     def __init__(self, world: World, interventions: list | None = None, name: str = "baseline",
                  record: bool = True):
-        from .systems import (academics, activity, economy, emotion, encounters, environment, faith, groups, housing,
+        from .systems import (academics, activity, cycle, economy, emotion, encounters, environment, faith, groups, housing,
                               family, history, honor, institutions, intimacy, lifecourse, messaging, mind, coping, culture, network,
                               norms, occasions, plans, recorder, romance, routine)
         self.w = world
@@ -53,6 +53,7 @@ class Simulation:
         self.systems = {
             "environment": environment.Environment(self),
             "lifecourse": lifecourse.LifeCourse(self),
+            "cycle": cycle.Cycle(self),
             "academics": academics.Academics(self),
             "activity": activity.Activity(self),
             "groups": groups.Groups(self),
@@ -84,7 +85,7 @@ class Simulation:
         from . import places
         if places.available():
             places.settle_world(self.w)          # every place inside its real building (the map shows it there)
-        for name in ("environment", "housing", "activity", "groups", "network", "academics", "encounters", "economy",
+        for name in ("environment", "cycle", "housing", "activity", "groups", "network", "academics", "encounters", "economy",
                      "romance", "intimacy", "faith", "norms", "mind", "coping", "plans", "routine", "emotion", "culture", "occasions",
                      "institutions", "family", "honor", "messaging", "lifecourse", "recorder"):
             sysobj = self.systems[name]
@@ -247,6 +248,7 @@ class Simulation:
         if phase == "start":
             self._run("environment", S["environment"].daily)
             self._run("lifecourse", S["lifecourse"].daily)
+            self._run("cycle", S["cycle"].daily)
             self._run("family", S["family"].daily)
             self._run("honor", S["honor"].daily)
             self._run("academics", S["academics"].daily)

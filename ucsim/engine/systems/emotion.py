@@ -214,6 +214,9 @@ class Emotion:
             # rumination keeps recent negative memories active (memory.py; Nolen-Hoeksema 2000)
             load = P.internal["neg_load"][:n] if "neg_load" in P.internal else np.zeros(n)
             T["rumination"] = -p("mood.rumination.beta") * P["rumination"] * np.clip(load, 0, 3) / 3
+        cyc = sim.systems.get("cycle")
+        if cyc is not None and s in ("mood", "fatigue", "anxiety"):
+            T["cycle"] = cyc.term(s)        # menstrual cycle (cycle.py): small, scaled by her own sensitivity
         return T
 
     # ------------------------------------------------------------------ daily

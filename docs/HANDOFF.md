@@ -74,6 +74,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [family-homes](workstreams/family-homes.md) (wave 2) | **done, merged** | working branch | open issues below |
 | Real class schedules (`geo/schedule.py`, academics `_real_sections`) | BYU Fall/Winter, UVU Fall and Spring 2027 **merged** (#28) | branch `claude/project-thread-2pvunp` | BYU Spring/Summer and UVU Summer when published; cross-listed sections share a room |
 | Valley home, scenes, make it happen (design review, [DESIGN_REVIEW.md](DESIGN_REVIEW.md)) | **merged (#26, round 2 #29)** | branch `claude/project-thread-q87n1i` | world events as verbs; stagger the remaining Sunday systems; recalibrate |
+| Menstrual cycle (owner-directed, 2026-10-23) | in review | branch `claude/project-thread-tlb20b` | owner tuning after play |
 | [survey-followups](workstreams/survey-followups.md) | audits designed, interrupted | — | needs the raw survey files in `data/raw/` |
 | [integration](workstreams/integration.md) | ongoing | — | after each merge |
 | living-map (owner-directed, 2026-10-21) | in progress | `claude/clever-wright-3fh95g` | speed/logs, buildings, bedrooms, 3D map, cards, bedroom-mates done; 2026-10-22: sync check (99.6%+), real places in the backend, Heritage + Wyview + classrooms from BYU plans; next: Wymount/Riviera/LISR plans, elevation, then dashboards |
@@ -161,6 +162,17 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-23 (1) — Claude Code (cloud session) — menstrual cycle
+- Owner asked for cycle mechanics (mood/drive depth, nuance to intimacy). New system `engine/systems/cycle.py`
+  (runs at the start of each day), variables `config/variables/14_cycle.yaml` (cycle phase/day/length, sensitivity,
+  hormonal birth control; sensitive, so interviews leave them out), mechanisms `config/mechanisms/21_cycle.yaml`.
+- Effects are small and per-person on purpose (research: modest on average, large for a few): emotion terms
+  `mood.cycle`, `fatigue.cycle`, `anxiety.cycle` (emotion.terms adds them when the system exists) and a `cycle`
+  factor in the `intimacy_step` decision (fertile window up, period down). Birth control flattens to 0.3. All
+  magnitudes hypothetical except the cycle clock (Bull 2019, Wilcox 1995). Per-person values come from the id
+  (`hash_uniform`), the only stream is `cycle_jitter`. No events, no explicit content. Run outputs differ from before.
+- Not touched: romance, appraisal, messaging (another thread is changing them).
 
 ### 2026-10-22 (7) — Claude Code (cloud session) — design review round 2: removals, noise, stagger, verbs, narration
 - Removals in one revertible commit (Story/Ripple/Why tools; People page out of the live menus; Overview hero map and

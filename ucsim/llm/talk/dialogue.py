@@ -267,8 +267,11 @@ def _run():
         if j is None:
             _wake.wait(timeout=30)
             _wake.clear()
-            if not _heap:
-                return
+            global _worker
+            with _lock:
+                if not _heap:
+                    _worker = None
+                    return
             continue
         try:
             res = realize(j)

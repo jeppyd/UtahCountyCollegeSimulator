@@ -32,8 +32,11 @@ RUNS = Path(os.environ.get("UCSIM_RUNS") or Path(__file__).resolve().parents[2] 
 
 def new_simulation(scale: float = 0.3, seed: int = 1, interventions: list | None = None,
                    overrides: dict | None = None, name: str = "baseline") -> Simulation:
+    import uuid
     world = build_world(scale=scale, seed=seed, overrides=overrides)
-    return Simulation(world, interventions=interventions, name=name)
+    sim = Simulation(world, interventions=interventions, name=name)
+    sim.lineage = uuid.uuid4().hex[:12]     # one world's history (kept by its forks and undo): the wording cache's scope
+    return sim
 
 
 def fork(sim: Simulation, interventions: list, name: str = "intervention", start_now: bool = True) -> Simulation:

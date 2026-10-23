@@ -253,6 +253,20 @@ def group_lines(sim, viewer: int, t: int, since: int | None = None, until: int |
     out.sort(key=lambda x: (x[0], x[1], x[2]))
     T = M.threads
     p = T.pos([int(t)])[0]
+    # everyday chatter isn't stored message by message: a summary line stands in for each stretch between kept messages
+    vol = float(T.cols["volume"][p]) if p >= 0 else 0.0
+    if vol >= 0.5 and out:
+        filled, prev = [], None
+        for x in out:
+            if prev is not None and x[0] - prev >= 2:
+                n = int(round(vol * (x[0] - prev)))
+                filled.append((prev, 3, -1, D.line(None, -1, "chatter", "group_chat", prev, 3,
+                                                   {"text": f"{x[0] - prev - 1 or 1} day{'s' if x[0] - prev > 2 else ''} of everyday "
+                                                            f"chatter (about {n} messages at the chat's recent pace), summarized"},
+                                                   kind="stage", absent=True)))
+            filled.append(x)
+            prev = x[0]
+        out = filled
     info = {"spans": [{"joined": a, "left": (b if b < 10 ** 9 else None)} for a, b in spans], "hidden_before_joining": hidden,
             "volume": round(float(T.cols["volume"][p]), 1) if p >= 0 else 0.0}
     return [x[3] for x in out], info

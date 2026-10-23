@@ -280,3 +280,74 @@ def test_whatif_plan_with_a_social_change_compiles(world):
                                                                   "start": "19:30"}}]}
     v2 = validate(bad, world)
     assert not v2["ok"] and any("doesn't know" in e for e in v2["errors"])
+
+
+def test_falling_out_and_making_up(world):
+    sim = copy.deepcopy(world)
+    occ, E = sim.systems["occasions"], sim.w.E
+    h = _host_with_roommates(sim)
+    b = _friend(sim, h)[0]
+    e = E.find(EdgeStore.make_keys(np.array([h]), np.array([b])))[0]
+    hurt0 = float(E["hurt"][e])
+    assert "editor" in SA.check(sim, {"action": "fall_out", "as": h, "a": h, "b": b})["problems"][0]
+    assert "don't know" in SA.check(sim, {"action": "fall_out", "a": h, "b": _stranger(sim, h)})["problems"][0]
+    res = SA.apply_action(occ, 5, _social(action="fall_out", a=h, b=b, how="big"))
+    assert res["ok"] and E["hurt"][e] > hurt0
+    assert sim.reg.event_names[int(sim.log["type"][res["event"]])] == "conflict"
+    hurt1 = float(E["hurt"][e])
+    res = SA.apply_action(occ, 6, _social(action="make_up", **{"as": h}, to=b))
+    assert res["ok"] and res["decision"] >= 0 and 0 < res["chance"] < 1
+    d = sim.decisions.get(res["decision"])
+    assert d["kind"] == "forgive" and d["outcome"] in ("forgave", "still_hurt")
+    ev = sim.reg.event_names[int(sim.log["type"][res["event"]])]
+    if res["forgiven"]:
+        assert ev == "made_up" and E["hurt"][e] < hurt1
+    else:
+        assert ev == "apology_refused" and E["hurt"][e] == pytest.approx(hurt1)
+
+
+def test_blind_date_mutual_feelings_and_something_happening(world):
+    sim = copy.deepcopy(world)
+    occ, E = sim.systems["occasions"], sim.w.E
+    h = _host_with_roommates(sim)
+    s = _stranger(sim, h)
+    res = SA.apply_action(occ, 7, _social(action="set_up", a=h, b=s, open=0.4, day_offset=1, start="20:00"))
+    assert res["ok"] and occ.setups[res["occasion"]] == pytest.approx(0.4)
+    assert sim.book.describe(res["occasion"])["kind"] == "introduction"
+    b = _friend(sim, h)[0]
+    res = SA.apply_action(occ, 8, _social(action="spark", **{"from": h}, to=b, strength=0.9, mutual=True))
+    assert res["ok"] and res["event_back"] >= 0
+    e = np.array([E.find(EdgeStore.make_keys(np.array([h]), np.array([b])))[0]] * 2)
+    assert (E.attraction_from(e, np.array([h, b])) >= 0.9 - 1e-6).all()
+    assert "isn't something" in SA.check(sim, {"action": "happen", "who": h, "event": "wedding"})["problems"][0]
+    res = SA.apply_action(occ, 9, _social(action="happen", who=h, event="family_crisis", severity=2))
+    assert res["ok"] and sim.reg.event_names[int(sim.log["type"][res["event"]])] == "family_crisis"
+    assert int(sim.log["a"][res["event"]]) == h
+
+
+def test_people_finder(world):
+    from ucsim.analysis import find as F
+    from ucsim.analysis.person import synthetic_name
+    sim = world
+    P = sim.w.P
+    assert all(F.names(P, np.array([i]))[0] == synthetic_name(P, i) for i in range(40))
+    h = _host_with_roommates(sim)
+    r = F.find(sim, around=h, relation="roommates")
+    assert r["total"] >= 2 and all("roommate" in x["tie"] for x in r["rows"])
+    known = set(_friend(sim, h))
+    r = F.find(sim, around=h, relation="knows", limit=100)
+    assert {x["id"] for x in r["rows"]} <= known and r["counts"]["knows"] == r["total"]
+    r = F.find(sim, around=h, relation="strangers", sort="nearest", limit=5)
+    assert not {x["id"] for x in r["rows"]} & known and h not in [x["id"] for x in r["rows"]]
+    km = [x["km"] for x in r["rows"]]
+    assert km == sorted(km)
+    women = F.find(sim, filter=[{"var": "sex", "op": "eq", "value": "F"}, {"var": "age", "op": "between", "value": [19, 22]}],
+                   sort="loneliness", limit=10)
+    assert women["total"] > 0 and all(x["sex"] == "F" and 19 <= x["age"] <= 22 for x in women["rows"])
+    vals = [x["value"] for x in women["rows"]]
+    assert vals == sorted(vals, reverse=True)
+    nm = women["rows"][0]["name"]
+    assert any(x["name"] == nm for x in F.find(sim, q=nm.split()[1].lower(), limit=100)["rows"])
+    with pytest.raises(ValueError):
+        F.find(sim, relation="friends")
+    assert F.workplaces(sim, h, 3)[0]["km"] <= F.workplaces(sim, h, 3)[-1]["km"]

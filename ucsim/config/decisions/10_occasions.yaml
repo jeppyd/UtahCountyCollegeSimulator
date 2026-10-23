@@ -99,3 +99,12 @@ decisions:
       has_job:   {label: "already working", more: "", less: "already has a job"}
       hours:     {label: "how many hours it asks", more: "a few hours", less: "too many hours"}
       schedule:  {label: "the shifts clash with classes", kind: constraint, less: "the shifts clash with classes"}
+  forgive:
+    label: Whether to let it go when someone comes to make up
+    units: logit
+    outcomes: [forgave, still_hurt]
+    factors:
+      base:      {label: "how readily people accept an apology", more: "", less: ""}
+      close:     {label: "how close they are", more: "close", less: "not close"}
+      agreeable: {label: "how easygoing they are", more: "easygoing", less: "holds on to things"}
+      hurt:      {label: "how much it hurt", more: "", less: "it hurt a lot"}

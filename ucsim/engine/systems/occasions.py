@@ -81,6 +81,7 @@ class Occasions:
         self._seen_occ_id, self._seen_day = 0, 0
         self.occ_extra: dict[int, dict] = {}          # occasion id -> extra attend_occasion factors (user actions)
         self.introductions: dict[int, tuple] = {}     # occasion id -> (a, b, introducer, action index)
+        self.setups: dict[int, float] = {}            # blind dates (introductions): occasion id -> how open both arrive
         self._aud_cache: dict[tuple[int, int], np.ndarray] = {}
         self.trips = Table({"inv": (np.int64, -1), "minutes": (np.int16, -1), "mode": (np.int8, -1), "late": (np.int16, 0),
                             "origin": (np.int8, -1)}, capacity=1 << 12)
@@ -1439,6 +1440,7 @@ class Occasions:
         for o in [o for o in self.occ_extra if self.book.occ.get("day", [o], default=-1)[0] <= day]:
             self.occ_extra.pop(o, None)
             self.introductions.pop(o, None)
+            getattr(self, "setups", {}).pop(o, None)
 
     def _introduced(self, ids: np.ndarray):
         """Introductions a user arranged that happened: if both came, they talk (the point of being introduced), the
@@ -1457,6 +1459,13 @@ class Occasions:
             enc.apply(x, y, np.array([OCC], np.uint8), np.array([o], np.int64), clock.EVENING[0], enc.similarity(x, y),
                       np.zeros(1, bool))
             e = E.find(key)[0]
+            opn = getattr(self, "setups", {}).pop(o, 0.0)
+            if opn and e >= 0:      # a blind date: both arrive open to it, on top of what each feels on meeting
+                rom = sim.systems["romance"]
+                xy, yx = np.array([a, b], np.int64), np.array([b, a], np.int64)
+                ee = np.array([e, e])
+                now = E.attraction_from(ee, xy)
+                E.set_attraction_from(ee, xy, np.clip(now + opn * rom.compatible(xy, yx), -1, 1).astype(np.float32))
             if new and e >= 0 and by >= 0:
                 E.cols["introducer"][e] = by
                 E.cols["flags"][e] |= Tie.INTRODUCED

@@ -77,3 +77,23 @@ events:
       - {var: loneliness, mag: -0.01, sd: 0.4, half_life: 5}
     evidence: hypothetical
     desc: "A deliberate message or visit to someone they know (a social action)."
+  made_up:
+    label: Made up
+    story: "{a} made up with {b}"
+    category: social
+    salience: 0.4
+    effects:
+      - {var: stress, mag: -0.03, sd: 0.4, half_life: 3}
+      - {var: mood, mag: 0.03, sd: 0.4, half_life: 3}
+    evidence: hypothetical
+    desc: "Someone went to make things right with a person they had fallen out with, and it was accepted (a social action)."
+  apology_refused:
+    label: Tried to make up and was turned away
+    story: "{a} tried to make up with {b}, who wasn't ready"
+    category: social
+    salience: 0.4
+    effects:
+      - {var: mood, mag: -0.03, sd: 0.4, half_life: 3}
+      - {var: self_esteem, mag: -0.02, sd: 0.4, half_life: 4}
+    evidence: hypothetical
+    desc: "Someone went to make things right and the other person wasn't ready to let it go (a social action)."

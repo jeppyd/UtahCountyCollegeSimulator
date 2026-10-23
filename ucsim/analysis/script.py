@@ -465,7 +465,8 @@ def pair_script(sim, a: int, b: int, limit: int = 120) -> dict:
             continue
         bt["day"], bt["date"] = d, str(sim.cal.date(d))
         if bt.get("fold") == "date":
-            bt["n"], bt["since"] = 1, sim.cal.date(d).strftime("%b %-d")
+            dt = sim.cal.date(d)
+            bt["n"], bt["since"] = 1, f"{dt:%b} {dt.day}"  # Windows strftime rejects the no-padding flag
             folded = bt
         beats.append(bt)
     E = sim.w.E

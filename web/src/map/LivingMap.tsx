@@ -50,7 +50,7 @@ const fetchJson = (url: string) => fetch(url).then(r => { if (!r.ok) throw new E
 const probe = (src: string) => fetch(IMAGERY[src].tiles.replace('{z}', '12').replace('{y}', '1547').replace('{x}', '777'), { mode: 'no-cors' })
 const noBuildings = (st: any) => st.layers.filter((l: any) => !l.id.startsWith('building'))
 const raster = (src: string, extra: any = null): any => ({
-  version: 8, glyphs: extra?.glyphs, sprite: extra?.sprite,
+  version: 8, ...(extra ? { glyphs: extra.glyphs, sprite: extra.sprite } : {}),
   sources: { ...(extra?.sources ?? {}), [src]: { type: 'raster', tiles: [IMAGERY[src].tiles], tileSize: 256, maxzoom: IMAGERY[src].maxzoom, attribution: IMAGERY[src].attribution } },
   layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#55594f' } }, { id: src, type: 'raster', source: src, paint: { 'raster-fade-duration': 150 } },
     ...(extra ? extra.layers : [])],

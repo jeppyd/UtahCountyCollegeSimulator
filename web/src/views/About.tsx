@@ -49,7 +49,7 @@ export default function About() {
             <li>Four local student surveys (Provo stats, college life, dating, culture &amp; lifestyle) — used only as <b>aggregate</b> statistics with small cells (&lt;10) suppressed. Raw responses are not in the repository or this app.</li>
             <li>BYU / UVU enrollment and housing figures, LDS ward structure conventions, Utah wage and rent indices (configured in <code>world.yaml</code>).</li>
             <li>UGRC open GIS layers: parcels, buildings, address points, places of worship, parks, roads, municipal boundaries.</li>
-            <li>OpenStreetMap / Nominatim for named apartment complexes; OpenFreeMap basemap tiles.</li>
+            <li>OpenStreetMap / Nominatim for named apartment complexes; OpenFreeMap basemap tiles; map styles: USGS The National Map aerial imagery and topo (public domain), Esri World Imagery (personal use).</li>
             <li>Published research for mechanism forms (friendship hours, complex contagion, investment model, faith transitions, loneliness dynamics, etc.) — cited on each mechanism page.</li>
           </ul>
         </div>

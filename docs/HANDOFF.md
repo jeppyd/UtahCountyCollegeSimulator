@@ -188,7 +188,7 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
 - Measured (scale 0.15, 30 days, seed 1; same machine): 0.272 → 0.288 s/day (social 0.009, its capture hook in
   encounters ~0.014); pickle 115.5 → 124.3 MB; 39k exchanges, 8k readings, 1.4k beliefs, 134 app matches → 35 dates
   set on the app + 16 taken offline (old fixed conversion 0.35; now ≈ 0.38 overall). Speed budget 0.88×.
-- Tests: `tests/test_conversations.py` (the 14 acceptance checks, fake model only); full suite 327 passed.
+- Tests: `tests/test_conversations.py` (the 14 acceptance checks, fake model only); full suite 334 passed.
   `scripts/sensitivity.py` is opt-in (needs SALib; not installed here, not run).
 - Assumptions and limits: every social magnitude is hypothetical; ordinary talk is a sample (1 pair-block in 6, kept
   14 days); the model wording was never run against a real model here; the checker's patterns are English-only and

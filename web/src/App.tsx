@@ -32,6 +32,8 @@ import World from './views/World'
 import Valley from './views/valley/Valley'
 import { ScenePlayer } from './views/valley/Scene'
 import { MakeItHappen } from './views/valley/MakeItHappen'
+import { PhoneView } from './views/valley/Phone'
+import { ListenView } from './views/valley/Listen'
 import { WorldSetupPage } from './views/WorldSetup'
 import { AiSetup } from './kit/AiSetup'
 
@@ -104,6 +106,8 @@ export default function App() {
       <ChangeDrawer />
       <ScenePlayer />
       <MakeItHappen />
+      <PhoneView />
+      <ListenView />
     </div>
   )
 }

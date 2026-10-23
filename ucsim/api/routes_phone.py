@@ -33,7 +33,8 @@ def _plan(sim, view: dict) -> tuple[list[dict], dict]:
         return PH.app_lines(sim, int(view["id"]))
     if k == "listen":
         c = PH.conversations(sim, people=view.get("people") or None, occ=view.get("occ"), days=int(view.get("days", 2)))
-        return [s for g in c["conversations"] for s in g["lines"]], {}
+        gs = [g for g in c["conversations"] if not view.get("conv") or g["key"] == view["conv"]]
+        return [s for g in gs for s in g["lines"]], {}
     raise ValueError("say which view: {kind: dm, a, b} | {kind: group, viewer, t} | {kind: app, id} | {kind: listen, ...}")
 
 

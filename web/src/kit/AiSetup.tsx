@@ -7,6 +7,7 @@ import { create } from 'zustand'
 import { api, STATIC } from '../api'
 import { G, useAsync } from '../game'
 import './aisetup.css'
+import { BackendPick } from '../bench/tools/Ask'
 
 type Backend = 'claude' | 'codex' | 'openai' | 'anthropic' | 'openai_api'
 export const BACKEND_NAME: Record<string, string> = {
@@ -326,6 +327,13 @@ export function AiSetup() {
             <Connect b={b} s={s} refresh={bump} checking={st.loading} />
           </>}
           {step === 2 && b && <Test key={`${b}-${auto}`} b={b} auto={auto} onDone={hide} onChange={() => setStep(0)} />}
+          {step === 2 && <div className="ai-routes">
+            <b className="small">Which model does what</b>
+            {([['ask', 'Ask the world'], ['interview', 'Interviews'], ['narrate', 'Scenes told as stories'], ['dialogue', 'Words of texts and conversations']] as const).map(([f, w]) => (
+              <label key={f} className="ai-route"><span>{w}</span><BackendPick feature={f} /></label>
+            ))}
+            <p className="ai-note">Words of texts and conversations are written only when you ask (or never, if it's off), checked against what the simulation recorded, and saved so they never change. A model on this computer is recommended for them.</p>
+          </div>}
         </div>
         {step === 1 && <div className="ai-foot"><button className="btn ghost" onClick={() => setStep(0)}>Back</button><span className="spacer" /><button className="btn primary" onClick={() => { setAuto(true); setStep(2) }}>Next: test it</button></div>}
       </div>

@@ -101,8 +101,9 @@ export type TalkResult = {
 }
 export type TalkJob = { id: string; kind: string; state: 'queued' | 'running' | 'done' | 'error' | 'cancelled'; steps: { t: number; kind: string; text: string }[]
   result: TalkResult | null; error: string | null; backend: string; elapsed: number }
-export type TalkStatus = { settings: { ask_backend: string; interview_backend: string; sensitive: boolean }; using: Record<'ask' | 'interview', string>
-  available: Record<string, boolean>; local_model: string | null; recommended: Record<'ask' | 'interview', string> }
+type TalkFeature = 'ask' | 'interview' | 'narrate' | 'dialogue'
+export type TalkStatus = { settings: { ask_backend: string; interview_backend: string; narrate_backend: string; dialogue_backend: string; sensitive: boolean }
+  using: Record<TalkFeature, string>; available: Record<string, boolean>; local_model: string | null; recommended: Record<TalkFeature, string> }
 export const talkApi = {
   status: (): Promise<TalkStatus> => j('/api/talk/status'),
   settings: (s: Partial<TalkStatus['settings']>) => post('/api/talk/settings', s),
@@ -545,4 +546,39 @@ export const valleyApi = {
   narrate: (ref: { kind: 'occasion'; id: number } | { kind: 'pair'; a: number; b: number }, pov: number | null, u: Universe = 'base'): Promise<{ job: string }> =>
     post('/api/scene/narrate', { ...ref, pov, u }),
   undo: (): Promise<{ ok: boolean; undone: string; date: string; days_lost: number }> => post('/api/act/undo', {}),
+}
+
+// ---------------------------------------------------------------- phones, dating apps, listening in (routes_phone.py)
+export type Who = { id: number; name: string }
+export type PLine = {
+  id: string; speaker: number | null; speaker_name: string | null; to: number | null; act: string; act_words: string
+  channel: string; day: number; date: string; block: number; time: string | null; text: string; absent: boolean
+  kind: string; ex: number | null; msg: number | null; inv: number | null; ref: { kind: string; id: number } | null; note: string | null
+}
+export type Wording = { source: 'model' | 'structured'; state: string; job: string | null; removed: number; key: string; realizable: boolean }
+export type PView = { lines: PLine[]; wording: Wording; day: number; [k: string]: any }
+export type InboxDM = { id: number; name: string; last_day: number; date: string | null; n: number; preview?: string; preview_me?: boolean; waiting?: boolean }
+export type InboxGroup = { id: number; kind: string; name: string; n: number; member: boolean; joined: number; left: number | null; muted: boolean; last_day: number; volume: number }
+export type AppItem = { id: number; with: Who; stage: string; words: string; matched: number; last_day: number; date_day: number | null; ended_by_them: boolean; ended_by_me: boolean }
+export type Inbox = { person: number; name: string; today: number; kept_since: number; dms: InboxDM[]; groups: InboxGroup[]; apps: AppItem[]; style: string; style_note: string; note: string }
+export type Conversation = { key: string; day: number; date: string; block: number; block_name: string; where: string; people: Who[]; lines: PLine[]; wording: Wording; exchanges: number[]; occasion: number | null }
+export type Listen = { conversations: Conversation[]; day: number; hour: number; block: number | null; last_ex: number; note: string }
+export type Story = { kind: string; title: string; summary: string; people: number[]; who: Who[]; day: number; date: string; score: number; links: { exchange?: number; concern?: number; app?: number; belief?: number } }
+type V = { kind: 'dm'; a: number; b: number; since?: number } | { kind: 'group'; viewer: number; t: number } | { kind: 'app'; id: number } | { kind: 'listen'; people?: number[]; occ?: number; days?: number; conv?: string }
+export type PhoneViewRef = V
+
+export const phoneApi = {
+  inbox: (i: number, u: Universe = 'base'): Promise<Inbox> => j(`/api/phone/inbox/${i}?u=${u}`),
+  dm: (a: number, b: number, u: Universe = 'base'): Promise<PView> => j(`/api/phone/dm?a=${a}&b=${b}&u=${u}`),
+  group: (viewer: number, t: number, u: Universe = 'base'): Promise<PView> => j(`/api/phone/group?viewer=${viewer}&t=${t}&u=${u}`),
+  app: (id: number, u: Universe = 'base'): Promise<PView> => j(`/api/phone/app/${id}?u=${u}`),
+  profile: (i: number, u: Universe = 'base'): Promise<any> => j(`/api/phone/profile/${i}?u=${u}`),
+  listen: (q: { people?: number[]; occ?: number; since_ex?: number; days?: number }, u: Universe = 'base'): Promise<Listen> =>
+    j(`/api/listen?u=${u}&people=${(q.people ?? []).join(',')}${q.occ != null ? `&occ=${q.occ}` : ''}&since_ex=${q.since_ex ?? -1}&days=${q.days ?? 2}`),
+  perspective: (ex: number, u: Universe = 'base'): Promise<any> => j(`/api/phone/perspective/${ex}?u=${u}`),
+  realize: (view: V, u: Universe = 'base', priority = 0): Promise<{ state: string; job?: string; key: string }> => post('/api/phone/realize', { ...view, u, priority }),
+  realizeStatus: (job: string): Promise<{ state: string; error: string | null; steps: { text: string }[]; result: any }> => j(`/api/phone/realize/${job}`),
+  cancel: (job: string) => j(`/api/phone/realize/${job}`, { method: 'DELETE' }),
+  stories: (people: number[] = [], u: Universe = 'base'): Promise<{ stories: Story[]; found: Record<string, number>; note: string }> =>
+    j(`/api/stories?u=${u}&people=${people.join(',')}`),
 }

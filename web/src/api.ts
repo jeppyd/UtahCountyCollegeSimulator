@@ -546,7 +546,17 @@ export const valleyApi = {
   narrate: (ref: { kind: 'occasion'; id: number } | { kind: 'pair'; a: number; b: number }, pov: number | null, u: Universe = 'base'): Promise<{ job: string }> =>
     post('/api/scene/narrate', { ...ref, pov, u }),
   undo: (): Promise<{ ok: boolean; undone: string; date: string; days_lost: number }> => post('/api/act/undo', {}),
+  find: (q: FindQuery, u: Universe = 'base'): Promise<FindResult> => post('/api/people/find', { ...q, u }),
+  workplaces: (i: number, u: Universe = 'base'): Promise<{ id: number; name: string; type: string; km: number }[]> =>
+    j(`/api/people/${i}/workplaces?u=${u}`),
 }
+export type FindQuery = { around?: number | null; relation?: string; filter?: any[]; q?: string; sort?: string; desc?: boolean; offset?: number; limit?: number }
+export type FoundPerson = {
+  id: number; name: string; headline: string; age: number; sex: 'F' | 'M'; tie?: string; km?: number
+  closeness?: number; my_interest?: number; their_interest?: number; hurt?: number; value?: string | number | boolean | null
+}
+export type FindResult = { total: number; offset: number; rows: FoundPerson[]; counts: Record<string, number>; sort: string; desc: boolean
+  relations: Record<string, string>; sorts: Record<string, string> }
 
 // ---------------------------------------------------------------- phones, dating apps, listening in (routes_phone.py)
 export type Who = { id: number; name: string }

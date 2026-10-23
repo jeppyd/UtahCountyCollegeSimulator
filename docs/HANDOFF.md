@@ -76,6 +76,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | Valley home, scenes, make it happen (design review, [DESIGN_REVIEW.md](DESIGN_REVIEW.md)) | **merged (#26, round 2 #29)** | branch `claude/project-thread-q87n1i` | world events as verbs; stagger the remaining Sunday systems; recalibrate |
 | [conversations](workstreams/conversations.md): phones, dating apps, listening in, perspectives, developing stories, model wording | **PR open** (not merged) | branch `claude/project-thread-v1aefl` | owner review; first real runs of model wording (only tested with a fake model) |
 | Map: paint by any field (owner-directed, 2026-10-23) | merged (#32); follow-ups **PR open** | branch `claude/project-thread-54extr` | owner review |
+| Make it happen: people finder + new verbs (owner-directed, 2026-10-23) | **merged** (auto-merge authorized) | branch `claude/project-thread-v6a979` | find by relation/filters/sort (`analysis/find.py`, `/api/people/find`); set_up, fall_out, make_up, happen, mutual spark, job offer in the panel |
 | Menstrual cycle (owner-directed, 2026-10-23) | in review | branch `claude/project-thread-tlb20b` | owner tuning after play |
 | [survey-followups](workstreams/survey-followups.md) | audits designed, interrupted | — | needs the raw survey files in `data/raw/` |
 | [integration](workstreams/integration.md) | ongoing | — | after each merge |
@@ -164,6 +165,16 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-23 — Make it happen: finding people and more verbs (cloud session, branch claude/project-thread-v6a979)
+- People finder inside Make it happen: how they stand with the person (friends, roommates, ward, classmates, exes,
+  hasn't met, into them, tense…), any app filter (CondEditor), a name, sort by closeness, distance, interest either
+  way, tension or any variable. `analysis/find.py`, `routes_find.py` (`POST /api/people/find`, workplaces near someone).
+- New social actions: set_up (blind date; `occasions.setups` adds openness to attraction on meeting), fall_out
+  (hurt + conflict on the tie, `conflict` events), make_up (`forgive` decision, `made_up` / `apology_refused`),
+  happen (one person gets an impulse event from `HAPPENINGS`), spark `mutual`; job_offer now in the panel.
+- Split: Make it happen = verbs for specific people (main timeline by default); What-if = rules, policies and
+  population-wide changes to compare. Next: a ride/reschedule picker for planned occasions; group chats as a verb.
 
 ### 2026-10-23 (4) — Claude Code (cloud session) — map follow-ups (owner feedback on #32)
 - Filtering hides: hidden categories and people outside a threshold leave the map (colorOf alpha 0 = not drawn, not

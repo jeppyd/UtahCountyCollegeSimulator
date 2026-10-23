@@ -8,7 +8,12 @@ series), introduce (two people meet at a café through someone), ride (someone d
 reach_out (a text or a visit), job_offer (an employer offers a person a job), spark (the editor gives one person
 feelings for another they know: what happens next — asking out, saying yes — is the model's own romance), ask_out
 (someone asks someone they know out now; the answer is the other person's own), break_up (someone ends their
-relationship), go_home (someone goes home to family for a few days).
+relationship), go_home (someone goes home to family for a few days), set_up (a blind date: two people meet at a café and
+arrive open to it; whether they click is still their own attraction), fall_out (two people who know each other have a
+falling-out: hurt and conflict on their tie, which the model then lives with — avoiding each other, fading friendships,
+breakups), make_up (someone goes to make things right with a person they've hurt or been hurt by; forgiving is the
+other person's decision) and happen (something happens to someone: one of the impulse events a What-if can inject,
+such as an illness, a failed exam or a family crisis, for just that person).
 
 * **Editor** (no "as"): arranges the opportunity. The people involved still decide with the model's usual reasons —
   attend_occasion for an invitation, take_job for an offer, reach_out for a nudge to get in touch.
@@ -33,13 +38,19 @@ from ..ledger import CHANNEL_ID, RESPONSE_ID, STATUS_ID
 from ..state import CTX_ID, EdgeStore, Tie
 
 ACTIONS = ("invite", "series", "reschedule", "introduce", "ride", "reach_out", "job_offer", "spark", "ask_out", "break_up",
-           "go_home")
+           "go_home", "set_up", "fall_out", "make_up", "happen")
 WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 GROUPS = ("roommates", "housemates", "neighbors", "friends", "close_friends")
 ACTION_WORDS = {"invite": "an invitation", "series": "a weekly get-together", "reschedule": "a new time",
                 "introduce": "an introduction", "ride": "a ride", "reach_out": "getting in touch", "job_offer": "a job offer",
                 "spark": "feelings for someone", "ask_out": "asking someone out", "break_up": "a breakup",
-                "go_home": "a trip home"}
+                "go_home": "a trip home", "set_up": "a blind date", "fall_out": "a falling-out", "make_up": "making up",
+                "happen": "something happening to them"}
+# what can happen to one person (`happen`): impulse events that need no bookkeeping from the system that usually emits them
+# (the same ones a What-if may inject into a cohort, minus those that need a second person or a hosting)
+HAPPENINGS = ("illness", "car_accident", "exam_failure", "academic_success", "family_crisis", "death_in_family",
+              "financial_hardship", "spiritual_experience", "faith_challenge")
+FALL_OUT = {"small": 0.35, "real": 0.7, "big": 1.0}       # how bad a falling-out is: words -> severity
 
 
 class Refused(ValueError):
@@ -252,7 +263,8 @@ def _plan(cx: _Ctx) -> dict:
         cx.person(cx.actor, "'as'")
     return {"invite": _plan_invite, "series": _plan_invite, "reschedule": _plan_reschedule, "introduce": _plan_introduce,
             "ride": _plan_ride, "reach_out": _plan_reach_out, "job_offer": _plan_job, "spark": _plan_spark,
-            "ask_out": _plan_ask_out, "break_up": _plan_break_up, "go_home": _plan_go_home}[a](cx)
+            "ask_out": _plan_ask_out, "break_up": _plan_break_up, "go_home": _plan_go_home, "set_up": _plan_set_up,
+            "fall_out": _plan_fall_out, "make_up": _plan_make_up, "happen": _plan_happen}[a](cx)
 
 
 def _plan_invite(cx: _Ctx) -> dict:
@@ -487,6 +499,10 @@ def _plan_spark(cx: _Ctx) -> dict:
     e = E.find(EdgeStore.make_keys(np.array([src]), np.array([dst])))[0]
     if e >= 0 and E["flags"][e] & Tie.EX:
         cx.warnings.append(f"{_first(P, src)} and {_first(P, dst)} used to date: people here rarely ask out an ex, so it may go nowhere")
+    mutual = bool(it.get("mutual"))
+    if mutual:
+        return {"summary": f"{_first(P, src)} and {_first(P, dst)} start to have feelings for each other (who makes a move, "
+                           f"and when, is up to them)", "from": src, "to": dst, "strength": strength, "mutual": True}
     return {"summary": f"{_first(P, src)} starts to have feelings for {_first(P, dst)} (whether they act on it, and how "
                        f"{_first(P, dst)} answers, is up to them)", "from": src, "to": dst, "strength": strength}
 
@@ -559,6 +575,95 @@ def _plan_go_home(cx: _Ctx) -> dict:
     return {"summary": f"{_first(P, i)} goes home for {nights} night{'s' if nights > 1 else ''} ({how})", "who": i, "nights": nights}
 
 
+def _tie(cx: _Ctx, a: int, b: int) -> int:
+    return int(cx.E.find(EdgeStore.make_keys(np.array([a]), np.array([b])))[0])
+
+
+def _plan_set_up(cx: _Ctx) -> dict:
+    """A blind date: an introduction at a café where both arrive open to it. Their attraction is still their own (a
+    poor fit stays a poor fit); being set up only adds `open` to what each would feel on meeting."""
+    it, sim, P = cx.it, cx.sim, cx.P
+    plan = _plan_introduce(cx)
+    a, b = plan["a"], plan["b"]
+    rom = sim.systems["romance"]
+    for x, y in ((a, b), (b, a)):
+        if not rom.compatible(np.array([x]), np.array([y]))[0]:
+            cx.warnings.append(f"{_first(P, x)} isn't attracted to {'men' if P['sex'][y] == P.code('sex', 'M') else 'women'}: "
+                               f"expect a friendly coffee, not a romance")
+        if P.isin("rel_status", ["dating", "engaged", "married"])[x]:
+            cx.warnings.append(f"{_first(P, x)} is {P.labels('rel_status', [P['rel_status'][x]])[0]}: they may not come, "
+                               f"or may not be interested")
+    if _tie(cx, a, b) >= 0:
+        cx.warnings.append(f"{_first(P, a)} and {_first(P, b)} already know each other: it's a date someone pushed them "
+                           f"into, and being set up won't change how they feel")
+    opn = float(np.clip(float(it.get("open", 0.25)), 0.0, 0.6))
+    plan["open"] = opn
+    plan["summary"] = (f"a blind date: {_first(P, a)} and {_first(P, b)} meet at {plan['where']} on {sim.cal.date(plan['day'])} "
+                       f"at {clock.hhmm(plan['start'])}" + (f", set up by {_first(P, plan['by'])}" if plan["by"] >= 0 else "")
+                       + " (whether they click is up to them)")
+    return plan
+
+
+def _plan_fall_out(cx: _Ctx) -> dict:
+    it, P = cx.it, cx.P
+    if cx.actor is not None:
+        raise Refused("a falling-out isn't something one person decides; make it as the world editor (leave out 'as')")
+    a = cx.person(it.get("a", it.get("from")), "'a'")
+    b = cx.person(it.get("b", it.get("to")), "'b'")
+    if a == b:
+        raise Refused("a falling-out takes two people")
+    e = _tie(cx, a, b)
+    if e < 0:
+        raise Refused(f"{_first(P, a)} and {_first(P, b)} don't know each other, so there's nothing to fall out over")
+    how = str(it.get("how") or "real")
+    if how not in FALL_OUT:
+        raise Refused(f"'{how}' isn't how bad a falling-out is (use small, real or big)")
+    hurt = float(cx.E["hurt"][e])
+    if hurt >= 0.3:
+        cx.warnings.append(f"things are already tense between them (hurt {hurt:.2f}): this adds to it")
+    words = {"small": "have words", "real": "have a real falling-out", "big": "have a blowup"}[how]
+    together = P["unit_id"][a] >= 0 and P["unit_id"][a] == P["unit_id"][b]
+    partner = int(P["partner_id"][a]) == b
+    after = " (they live together, so they'll keep running into it)" if together else (
+        " (couples who fight like this break up more often)" if partner else "")
+    return {"summary": f"{_first(P, a)} and {_first(P, b)} {words}{after}", "a": a, "b": b, "how": how,
+            "severity": FALL_OUT[how]}
+
+
+def _plan_make_up(cx: _Ctx) -> dict:
+    it, P = cx.it, cx.P
+    src = cx.actor if cx.actor is not None else cx.person(it.get("from"), "'from'")
+    dst = cx.person(it.get("to"), "'to'")
+    if src == dst:
+        raise Refused("make up with someone else")
+    e = _tie(cx, src, dst)
+    if e < 0:
+        cx.problems.append(f"{_first(P, src)} doesn't know {_name(P, dst)}")
+        return {"summary": "", "from": src, "to": dst}
+    hurt, conflict = float(cx.E["hurt"][e]), float(cx.E["conflict"][e])
+    if hurt < 0.02 and conflict < 0.05:
+        cx.warnings.append("there's nothing between them to make up for: it'll just be a friendly visit")
+    return {"summary": f"{_first(P, src)} goes to {_first(P, dst)} to make things right (whether {_first(P, dst)} lets it go "
+                       f"is up to them; hurt between them now {hurt:.2f})", "from": src, "to": dst}
+
+
+def _plan_happen(cx: _Ctx) -> dict:
+    it, sim, P = cx.it, cx.sim, cx.P
+    if cx.actor is not None:
+        raise Refused("this is something that happens to someone: make it as the world editor (leave out 'as')")
+    i = cx.person(it.get("who", it.get("to")), "'who'")
+    ev = str(it.get("event") or "")
+    if ev not in HAPPENINGS:
+        raise Refused(f"'{ev}' isn't something that can happen to one person here (use one of: {', '.join(HAPPENINGS)})")
+    sev = float(np.clip(float(it.get("severity", 1.0)), 0.25, 4.0))
+    if ev in ("exam_failure", "academic_success") and not P["enrolled"][i]:
+        cx.warnings.append(f"{_first(P, i)} isn't taking classes right now")
+    lab = sim.reg.events[ev].label.lower()
+    how = "" if sev == 1.0 else (" (milder than usual)" if sev < 1 else " (harder than usual)" if ev not in
+                                 ("academic_success", "spiritual_experience") else " (stronger than usual)")
+    return {"summary": f"{_name(P, i)}: {lab}{how}", "who": i, "event": ev, "severity": sev}
+
+
 # ---------------------------------------------------------------------- apply
 def apply_action(occ, k: int, it: dict) -> dict:
     """Lower intervention item k (target_type 'social') into the world. Returns what happened, with any refusal."""
@@ -573,7 +678,8 @@ def apply_action(occ, k: int, it: dict) -> dict:
     a = it["action"]
     fn = {"invite": _do_invite, "series": _do_invite, "reschedule": _do_reschedule, "introduce": _do_introduce,
           "ride": _do_ride, "reach_out": _do_reach_out, "job_offer": _do_job, "spark": _do_spark,
-          "ask_out": _do_ask_out, "break_up": _do_break_up, "go_home": _do_go_home}[a]
+          "ask_out": _do_ask_out, "break_up": _do_break_up, "go_home": _do_go_home, "set_up": _do_set_up,
+          "fall_out": _do_fall_out, "make_up": _do_make_up, "happen": _do_happen}[a]
     res = fn(occ, k, it, plan, cx)
     return {"ok": True, "summary": plan.get("summary"), "warnings": cx.warnings, **res}
 
@@ -695,7 +801,14 @@ def _do_spark(occ, k, it, plan, cx) -> dict:
     E.cols["last_day"][e] = np.maximum(E["last_day"][e], w.day)
     ev = sim.emit("spark", np.array([src]), b=np.array([dst]), value=plan["strength"], mech="occasions.action",
                   salt=5101 + k, causes=[("action", [k], 1.0)])
-    return {"sparked": True, "event": int(ev[0]), "before": round(now, 3)}
+    out = {"sparked": True, "event": int(ev[0]), "before": round(now, 3)}
+    if plan.get("mutual"):
+        back = float(E.attraction_from(e, np.array([dst]))[0])
+        E.set_attraction_from(e, np.array([dst]), np.array([max(back, plan["strength"])], np.float32))
+        ev2 = sim.emit("spark", np.array([dst]), b=np.array([src]), value=plan["strength"], mech="occasions.action",
+                       salt=5107 + k, causes=[("action", [k], 1.0)])
+        out.update(event_back=int(ev2[0]), before_back=round(back, 3))
+    return out
 
 
 def _do_job(occ, k, it, plan, cx) -> dict:
@@ -763,3 +876,67 @@ def _do_go_home(occ, k, it, plan, cx) -> dict:
     from ..provenance import link
     link(sim, [ev], "action", [k], 1.0)
     return {"went": True, "event": ev, "back_day": day + plan["nights"]}
+
+
+def _do_set_up(occ, k, it, plan, cx) -> dict:
+    P = occ.sim.w.P
+    it = {**it, "occasion_name": it.get("occasion_name") or f"Blind date: {_first(P, plan['a'])} and {_first(P, plan['b'])}"}
+    res = _do_introduce(occ, k, it, plan, cx)
+    occ.setups[res["occasion"]] = plan["open"]
+    return res
+
+
+def _do_fall_out(occ, k, it, plan, cx) -> dict:
+    """Hurt and conflict on the tie (what the model already reads: friendships fade, people skip each other's
+    get-togethers, couples break up), a little less liking, and a falling-out for each of them."""
+    sim, w = occ.sim, occ.sim.w
+    E, p = w.E, sim.p
+    a, b, sev = plan["a"], plan["b"], plan["severity"]
+    key = EdgeStore.make_keys(np.array([a]), np.array([b]))
+    e = E.find(key)
+    E.cols["hurt"][e] = np.clip(E["hurt"][e] + p("occasions.action.fallout_hurt") * sev, 0, 1)
+    E.cols["conflict"][e] = np.clip(E["conflict"][e] + 0.4 * sev, 0, 1)
+    E.cols["liking"][e] = np.clip(E["liking"][e] - 0.1 * sev, -1, 1)
+    E.cols["last_day"][e] = np.maximum(E["last_day"][e], w.day)
+    ev = sim.emit("conflict", [a, b], b=[b, a], value=[-sev, -sev], block=clock.EVENING[0], mech="occasions.action",
+                  scale=sev, salt=5303 + k, causes=[("action", [k, k], 1.0)])
+    from ..provenance import link
+    link(sim, ev, "tie", np.r_[key, key], 1.0, "the_tie")
+    return {"event": int(ev[0]), "hurt": round(float(E["hurt"][e][0]), 3)}
+
+
+def _do_make_up(occ, k, it, plan, cx) -> dict:
+    """They see each other in person; the other decides whether to let it go (closeness and agreeableness for, the
+    hurt against). Forgiven: most of the hurt and conflict lift. Not: the visit happened, the hurt stays."""
+    sim, w = occ.sim, occ.sim.w
+    E, p = w.E, sim.p
+    src, dst = plan["from"], plan["to"]
+    e = E.find(EdgeStore.make_keys(np.array([src]), np.array([dst])))
+    hurt = float(E["hurt"][e][0])
+    F = {"close": p("occasions.action.forgive_close") * float(E["closeness"][e][0]),
+         "agreeable": 0.6 * float(sim.z("agreeableness")[dst]),
+         "hurt": -p("occasions.action.forgive_hurt") * hurt}
+    base = p("occasions.action.forgive_base")
+    pr = float(expit(base + sum(F.values())))
+    from .occasions import _pair_u
+    yes = bool(_pair_u(w.seed, dst, 7_100_019 * (k + 1) + src, 47) < pr)
+    did = sim.decisions.record("forgive", w.day, [dst], "forgave" if yes else "still_hurt", F, base=base,
+                               prob=pr if yes else 1 - pr, other=[src], refs={"close": ("person", [src])})
+    enc = sim.systems["encounters"]
+    a, b = np.array([src], np.int64), np.array([dst], np.int64)
+    if yes:
+        E.cols["hurt"][e] = E["hurt"][e] * 0.3
+        E.cols["conflict"][e] = E["conflict"][e] * 0.5
+    enc.apply(a, b, np.array([CTX_ID["hangout"]], np.uint8), np.full(1, -1, np.int64), clock.EVENING[0], enc.similarity(a, b),
+              np.zeros(1, bool))
+    ev = sim.emit("made_up" if yes else "apology_refused", a, b=b, block=clock.EVENING[0], mech="occasions.action",
+                  salt=5311 + k, decision=did, causes=[("action", [k], 1.0), ("person", b, 0.5)])
+    return {"forgiven": yes, "event": int(ev[0]), "decision": int(did[0]), "chance": round(pr, 3),
+            "hurt_before": round(hurt, 3), "hurt": round(float(E["hurt"][e][0]), 3)}
+
+
+def _do_happen(occ, k, it, plan, cx) -> dict:
+    sim = occ.sim
+    ev = sim.emit(plan["event"], [plan["who"]], mech="occasions.action", scale=plan["severity"], salt=5401 + k,
+                  causes=[("action", [k], 1.0)])
+    return {"event": int(ev[0])}

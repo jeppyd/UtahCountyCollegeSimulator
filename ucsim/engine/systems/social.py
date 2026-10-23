@@ -69,7 +69,7 @@ INTENTS = ("none", "connect", "inform", "decline_gently", "keep_door_open", "che
            "keep_private")
 INTENT = {k: i for i, k in enumerate(INTENTS)}
 APP_STAGES = ("matched", "opened", "chatting", "asked", "date_set", "declined", "unanswered", "ghosted", "faded",
-              "no_opener", "closed")
+              "no_opener", "closed", "offline")
 APP = {k: i for i, k in enumerate(APP_STAGES)}
 SOCIAL_KINDS = ("dinner", "gathering", "game_night", "party", "movie_night", "hangout", "study_group")
 DIRECT = 1 << 24
@@ -1277,6 +1277,17 @@ class Social:
         hours = lambda x: np.log(np.maximum(P["app_hours"][x], 0.05))    # noqa: E731
         # ---- nobody can carry on: one of them left, or got into a relationship (that thread just stops)
         stop = gone | (taken_a & taken_b)
+        # ---- they already went out, or have a date coming, arranged another way: the app thread is done (no second
+        # "first" date from the app)
+        pending = {(min(q[1], q[2]), max(q[1], q[2])) for q in rom.queue}
+        offline = ok & ((E["flags"][ei] & Tie.DATED) > 0)
+        if pending:
+            offline |= np.fromiter(((min(x, y), max(x, y)) in pending for x, y in zip(a.tolist(), b.tolist())), bool, len(a))
+        offline &= ~stop & (stage <= APP["asked"])
+        if offline.any():
+            T.cols["stage"][live[offline]] = APP["offline"]
+            T.cols["ended_day"][live[offline]] = day
+            stop = stop | offline
         # ---- matched: an opener, from whoever is keener (men more often, by the norm), or nothing
         m0 = (stage == APP["matched"]) & ~stop
         if m0.any():
@@ -1412,7 +1423,7 @@ class Social:
                             keep=True, tone=np.minimum(att_ab[j[g]], att_ba[j[g]]))
                 del mutual_att
         # ---- asked: the answer (the same accept terms as any date), and a date booked once through romance's queue
-        m3 = (stage == APP["asked"]) & (T["last_day"][live] < day)
+        m3 = (stage == APP["asked"]) & (T["last_day"][live] < day) & ~offline
         if m3.any():
             j = np.flatnonzero(m3)
             rows = live[j]
@@ -1460,7 +1471,7 @@ class Social:
                 sim.emit("app_date_set", s[g], b=r[g], mech="social.app", block=1, decision=did[g],
                          cause=T["match_event"][rows[g]])
         # threads that stopped because one of them can't carry on
-        st = stop & (stage <= APP["chatting"])
+        st = stop & ~offline & (stage <= APP["chatting"])
         if st.any():
             T.cols["stage"][live[st]] = APP["closed"]
             T.cols["ended_day"][live[st]] = day

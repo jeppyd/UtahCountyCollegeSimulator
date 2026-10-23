@@ -346,7 +346,8 @@ def inbox(sim, i: int) -> dict:
 APP_WORDS = {"matched": "matched, nobody has said anything yet", "opened": "waiting for an answer", "chatting": "talking",
              "asked": "asked out, waiting for an answer", "date_set": "a date is set", "declined": "said no to a date",
              "unanswered": "the first message was never answered", "ghosted": "one of them stopped answering",
-             "faded": "it fizzled out", "no_opener": "matched, but nobody ever wrote", "closed": "ended (one of them is seeing someone or left)"}
+             "faded": "it fizzled out", "no_opener": "matched, but nobody ever wrote", "closed": "ended (one of them is seeing someone or left)",
+             "offline": "they took it off the app (they went out, or set a date, another way)"}
 
 
 def app_list(sim, i: int) -> list[dict]:

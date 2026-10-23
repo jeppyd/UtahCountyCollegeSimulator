@@ -575,6 +575,7 @@ class Romance:
         occ_ids = occ_ids[keep]
         keys = EdgeStore.make_keys(a, b)
         eix = E.upsert(keys)
+        first &= E["dates"][eix] == 0            # a pair's first date happens once (two asks can queue two "firsts")
         rng = sim.streams.gen("date_outcome", day)
         pref = np.zeros(len(a))
         for k, t in enumerate(dtypes):

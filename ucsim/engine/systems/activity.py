@@ -477,7 +477,7 @@ class Activity:
             out = present & ~self.asleep_now & ((ctype != CTX_ID["unit"]) | (cid != unit) | (act == A["with_partner"])
                                                  | (act == A["gathering"]))
             I["out_late"][:n] |= out
-        sim.systems["mind"].observe_block(act, ctype, fresh=fresh, social=occ.social_now(ctype, cid))
+        sim.systems["mind"].observe_block(act, ctype, fresh=fresh, social=occ.social_now(ctype, cid) | self._get_together(act, ctype, cid))
         rt = sim.systems.get("routine")
         if rt is not None:
             rt.observe(b, wd, free, self.last_choice)
@@ -983,6 +983,22 @@ class Activity:
         self.last_choice[idx] = choice
         # ---- past visiting hours (recorded once a night)
         self._past_curfew(idx, choice, b, wd, ctype, cid)
+
+    def _get_together(self, act, ctype, cid) -> np.ndarray:
+        """Who is at a get-together this hour: an apartment with at least two friends dropping by (the visitors and
+        the residents who are up). A friend stopping by alone is ordinary time, not a social event (social_events_month
+        counts gatherings, dances, ward activities and FHE, as the survey asked)."""
+        P = self.sim.w.P
+        n = P.n
+        unit = P["unit_id"][:n]
+        at_unit = ctype[:n] == CTX_ID["unit"]
+        visitor = at_unit & (act[:n] == A["gathering"]) & (cid[:n] != unit) & (cid[:n] >= 0)
+        if not visitor.any():
+            return np.zeros(n, bool)
+        c = np.bincount(cid[:n][visitor].astype(np.int64), minlength=int(max(cid[:n].max(), unit.max())) + 1)
+        party = c >= 2
+        here = at_unit & (cid[:n] >= 0) & ~self.asleep_now[:n]
+        return here & party[np.clip(cid[:n], 0, len(party) - 1).astype(np.int64)]
 
     def _together(self, idx, choice, V, avail, pos, b, ctype, cid, act):
         """Someone heading out for food, the outdoors or the gym asks a partner or a close friend who is up and free;

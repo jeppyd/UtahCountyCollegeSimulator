@@ -478,7 +478,7 @@ def conversations(sim, people: list[int] | None = None, occ: int | None = None, 
         g = groups.get(key)
         if g is None:
             g = groups[key] = {"key": f"{d}.{blk}.{key[2]}", "day": d, "date": str(sim.cal.date(d)), "block": blk,
-                               "block_name": clock.BLOCK_NAMES[blk] if 0 <= blk < len(clock.BLOCK_NAMES) else "",
+                               "block_name": clock.PARTS[blk] if 0 <= blk < len(clock.PARTS) else "",
                                "where": _place_words(sim, ctx, place), "people": [], "lines": [], "exchanges": [],
                                "occasion": place if 0 <= ctx < len(CTX) and CTX[ctx] == "occasion" else None}
         for w in (a, b):
@@ -488,7 +488,7 @@ def conversations(sim, people: list[int] | None = None, occ: int | None = None, 
         g["lines"].extend(_in_person(sim, r))
     convs = sorted(groups.values(), key=lambda g: (g["day"], g["block"], g["exchanges"][0]))[-limit:]
     # the parts of today already resolved (blocks run when the clock reaches them; nothing later is shown)
-    done = [b for b, hh in enumerate(clock.BLOCK_HOUR) if hh <= sim.w.hour]
+    done = [k for k, m in enumerate(clock.PART_START) if m <= sim.w.hour * 60]
     now_block = done[-1] if done else None
     last_ex = int(X.ids[rows[-1]]) if len(rows) else since_ex
     return {"conversations": convs, "day": day, "hour": int(sim.w.hour), "block": now_block, "last_ex": last_ex,

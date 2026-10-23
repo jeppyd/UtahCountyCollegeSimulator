@@ -14,6 +14,7 @@ decisions:
       within_lines: {label: "whether the step is within both partners' own limits for this stage", more: "both think it's fine at this stage", less: "it goes past a line one of them has set"}
       self_control: {label: "self-control", more: "", less: "self-controlled"}
       sensation:    {label: "sensation seeking", more: "adventurous", less: "cautious"}
+      late_nights:  {label: "late nights alone together this week", more: "late nights together, caught up in the moment", less: ""}
       cycle:        {label: "where she is in her menstrual cycle", more: "her fertile days, when desire tends to be higher", less: "her period"}
   dealbreaker_reaction:
     label: Whether finding out ends the relationship

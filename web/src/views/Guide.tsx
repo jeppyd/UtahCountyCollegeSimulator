@@ -250,7 +250,7 @@ export default function Guide({ section }: { section?: string }) {
 
           <Sec id="time" title="How time works" lede="Each system updates on its natural rhythm. Not everything changes every hour.">
             <div className="ribbon">
-              <div><b>Hours</b>Each day has a morning (8am), afternoon (1pm) and evening (6pm) block: class, work, church, gym, dates, parties. People move on the map.</div>
+              <div><b>Hours</b>Each day runs hour by hour, 6 am to 6 am. Class, work, church, games and dances keep their times; everything else (sleep included) is chosen each hour from who they are, how tired they are, what's open and who's around, so a 2 am food run or a skipped class can happen. People move on the map.</div>
               <div><b>Days</b>Feelings update every night; friends reach out; dates happen; sleep and fatigue shift.</div>
               <div><b>Weeks</b>On Sunday nights friendships level up or fade, faith and church habits update, couples progress or break up.</div>
               <div><b>Months</b>Money and jobs, rent and moves, mission calls, babies, life satisfaction.</div>

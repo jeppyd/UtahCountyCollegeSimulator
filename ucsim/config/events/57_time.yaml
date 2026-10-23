@@ -1,0 +1,39 @@
+# Events from the hour-by-hour day (engine/systems/activity.py, sleep.py). Small, hypothetical effects: the time
+# itself (sleep lost, hours together) already acts through fatigue, contact hours and ties.
+events:
+  late_night_out:
+    label: Out late together
+    story: "{a} and {b} were out after midnight"
+    category: social
+    salience: 0.3
+    effects:
+      - {var: mood, mag: 0.01, sd: 0.4, half_life: 2}
+    evidence: hypothetical
+    desc: "A spontaneous plan after 10 pm that ran past midnight: a food run, a drive, a walk, staying up talking at someone's place."
+  skipped_class:
+    label: Skipped class
+    story: "{a} skipped class to stay with {b}"
+    category: academics
+    salience: 0.15
+    effects:
+      - {var: academic_pressure, mag: 0.008, sd: 0.4, half_life: 5}
+    evidence: hypothetical
+    desc: "Missed a class because something else pulled harder at that hour (time with a partner or friends)."
+  overslept:
+    label: Overslept
+    story: "{a} slept through the alarm"
+    category: academics
+    salience: 0.12
+    effects:
+      - {var: stress, mag: 0.008, sd: 0.4, half_life: 2}
+    evidence: hypothetical
+    desc: "Slept through an alarm set for a class, a shift or church, and missed it (or the start of it)."
+  stayed_past_visiting_hours:
+    label: Stayed past visiting hours
+    story: "{a} stayed at {b}'s apartment past visiting hours"
+    category: romance
+    salience: 0.3
+    effects:
+      - {var: guilt, mag: 0.01, sd: 0.5, half_life: 4}
+    evidence: hypothetical
+    desc: "Still in an opposite-sex apartment in BYU-contracted housing after visiting hours (midnight; 1:30 am on Friday nights). Guilt depends on how much they hold to the rule."

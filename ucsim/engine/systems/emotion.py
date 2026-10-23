@@ -232,13 +232,11 @@ class Emotion:
             P["close_contact_hours"] = (1 - a) * P["close_contact_hours"] + a * 7 * P.internal["close_hours_today"][:n]
             P.internal["hours_today"][:n] = 0
             P.internal["close_hours_today"][:n] = 0
-            # sleep responds to stress, exams and new babies
-            base = P.internal["sleep_base"][:n]
-            noise = sim.streams.normal("sleep", day, n) * 0.5
-            newborn = P.internal["newborn_until"][:n] > day if "newborn_until" in P.internal else np.zeros(n, bool)
-            P["sleep_hours"] = np.clip(base - 0.9 * np.clip(P["stress"] - 0.35, 0, None) - 1.2 * newborn + noise + sim.nudge("sleep"), 3.5, 11)
-            dated = P["activity_now"] == 7
+            # sleep_hours is what they actually slept today (engine/systems/sleep.py: stress keeps people awake,
+            # new babies wake them, late nights cut it short)
+            dated = P.internal["dated_today"][:n]
             P.internal["last_date_day"][:n][dated] = day
+            dated[:] = False
         totals = sim.effects.totals(day, n) if not settle else {s: np.zeros(n) for s in STATE_ORDER}
         self.transient = totals
         phi = 0.8

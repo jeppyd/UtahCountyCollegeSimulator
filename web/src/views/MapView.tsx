@@ -34,7 +34,7 @@ type Mode = 'people' | 'homes' | 'complexes' | 'wards' | 'day' | 'months'
 const MODE_LABEL: Record<Mode, string> = { people: 'Right now', homes: 'Homes', complexes: 'Complexes', wards: 'Wards', day: '▶ A day', months: '▶ Over months' }
 // measures exported for the read-only snapshot's months replay (keep in sync with scripts/export_static.py)
 const STATIC_FRAME_VARS = ['rel_status', 'activity', 'living', 'affiliation', 'loneliness', 'faith_belief', 'outsider']
-const DAY_LABELS = ['Morning · 8 am–12:30', 'Afternoon · 12:30–5:30', 'Evening · 5:30–8:15', 'Late evening · 8:15–11:30', 'Night · home']
+import { BLOCK_NAMES as DAY_LABELS } from '../map/LivingMap'     // the day's hours, 6 am to 5 am
 const MODE_HINT: Record<Mode, string> = {
   day: 'Replays the last full simulated day: watch everyone glide from home to class and work, out for the evening, and home again. Colors show what each person is doing.',
   months: 'Replays the weeks so far, one snapshot every two weeks: homes colored by the measure you pick. Watch couples move in together, faith shift, loneliness spread or ease.',
@@ -164,7 +164,7 @@ export default function MapView({ initial }: { initial?: string }) {
     const tick = (now: number) => {
       const dt = Math.min(0.1, (now - last) / 1000); last = now
       setT(x => {
-        const nx = Math.min(x, pb.K) + dt * speed * (pb.kind === 'day' ? 0.6 : 0.9)
+        const nx = Math.min(x, pb.K) + dt * speed * (pb.kind === 'day' ? 2.4 : 0.9)
         if (pb.kind === 'day') return nx >= pb.K ? 0 : nx
         if (nx >= pb.K - 1) { setPlaying(false); return pb.K - 1 }
         return nx

@@ -182,8 +182,9 @@ class _Ctx:
             m = clock.parse_hhmm(v)
         except (ValueError, TypeError):
             raise Refused(f"'{v}' isn't a clock time (use e.g. \"19:30\" or \"7:30 pm\")") from None
-        if not 6 * 60 <= m <= clock.DAY_END - 15:
-            raise Refused(f"{clock.hhmm(m)} is outside the hours the model follows (6 am to 11:15 pm)")
+        m = clock.day_minute(m)            # 1 am is the small hours of the same day
+        if not 6 * 60 <= m <= 26 * 60:
+            raise Refused(f"{clock.hhmm(m)} is too late to start something (the latest is 2 am)")
         return m
 
     def place(self, host: int, kind: str, near=None) -> tuple[int, float, float, str]:
@@ -778,11 +779,11 @@ def _do_reach_out(occ, k, it, plan, cx) -> dict:
     ctx = CTX_ID["online"] if plan["channel"] == "text" else CTX_ID["hangout"]
     enc = sim.systems["encounters"]
     a, b = np.array([src], np.int64), np.array([dst], np.int64)
-    enc.apply(a, b, np.array([ctx], np.uint8), np.full(1, -1, np.int64), clock.EVENING[0], enc.similarity(a, b), np.zeros(1, bool))
+    enc.apply(a, b, np.array([ctx], np.uint8), np.full(1, -1, np.int64), 2, enc.similarity(a, b), np.zeros(1, bool))
     plans = sim.systems.get("plans")
     if plans is not None:
         plans.contacted(a, b)
-    ev = sim.emit("reached_out", a, b=b, block=clock.EVENING[0], mech="occasions.action", salt=5003 + k,
+    ev = sim.emit("reached_out", a, b=b, block=2, mech="occasions.action", salt=5003 + k,
                   decision=did, causes=[("action", [k], 1.0), ("person", b, 0.5)])
     return {"reached_out": True, "event": int(ev[0]), "decision": None if did is None else int(did[0])}
 
@@ -898,7 +899,7 @@ def _do_fall_out(occ, k, it, plan, cx) -> dict:
     E.cols["conflict"][e] = np.clip(E["conflict"][e] + 0.4 * sev, 0, 1)
     E.cols["liking"][e] = np.clip(E["liking"][e] - 0.1 * sev, -1, 1)
     E.cols["last_day"][e] = np.maximum(E["last_day"][e], w.day)
-    ev = sim.emit("conflict", [a, b], b=[b, a], value=[-sev, -sev], block=clock.EVENING[0], mech="occasions.action",
+    ev = sim.emit("conflict", [a, b], b=[b, a], value=[-sev, -sev], block=2, mech="occasions.action",
                   scale=sev, salt=5303 + k, causes=[("action", [k, k], 1.0)])
     from ..provenance import link
     link(sim, ev, "tie", np.r_[key, key], 1.0, "the_tie")
@@ -927,9 +928,9 @@ def _do_make_up(occ, k, it, plan, cx) -> dict:
     if yes:
         E.cols["hurt"][e] = E["hurt"][e] * 0.3
         E.cols["conflict"][e] = E["conflict"][e] * 0.5
-    enc.apply(a, b, np.array([CTX_ID["hangout"]], np.uint8), np.full(1, -1, np.int64), clock.EVENING[0], enc.similarity(a, b),
+    enc.apply(a, b, np.array([CTX_ID["hangout"]], np.uint8), np.full(1, -1, np.int64), 2, enc.similarity(a, b),
               np.zeros(1, bool))
-    ev = sim.emit("made_up" if yes else "apology_refused", a, b=b, block=clock.EVENING[0], mech="occasions.action",
+    ev = sim.emit("made_up" if yes else "apology_refused", a, b=b, block=2, mech="occasions.action",
                   salt=5311 + k, decision=did, causes=[("action", [k], 1.0), ("person", b, 0.5)])
     return {"forgiven": yes, "event": int(ev[0]), "decision": int(did[0]), "chance": round(pr, 3),
             "hurt_before": round(hurt, 3), "hurt": round(float(E["hurt"][e][0]), 3)}

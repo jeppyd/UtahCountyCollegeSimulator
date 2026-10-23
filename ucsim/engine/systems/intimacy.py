@@ -109,6 +109,8 @@ class Intimacy:
         if len(ids):
             crossed = self._steps(ids, j, keys, eix)
             self._dealbreakers(ids, j, keys, eix, crossed)
+        if "late_alone_h" in self.sim.w.P.internal:
+            self.sim.w.P.internal["late_alone_h"][np.r_[ids, j]] = 0
 
     def _married(self, ids, j, eix):
         sim, w = self.sim, self.sim.w
@@ -172,7 +174,10 @@ class Intimacy:
              "alone_time": -p("intimacy.step.alone") * (P.is_("living", "contracted")[a] & P.is_("living", "contracted")[b]),
              "within_lines": np.where(ok_a & ok_b, p("intimacy.step.within"), -p("intimacy.step.cross") * cross_cost),
              "self_control": -0.5 * (sim.z("self_control")[a] + sim.z("self_control")[b]) / 2,
-             "sensation": 0.4 * (sim.z("sensation_seeking")[a] + sim.z("sensation_seeking")[b]) / 2}
+             "sensation": 0.4 * (sim.z("sensation_seeking")[a] + sim.z("sensation_seeking")[b]) / 2,
+             # late nights alone together since their last week's turn (activity: time with a partner after 10 pm)
+             "late_nights": p("intimacy.step.late") * np.log1p((P.internal["late_alone_h"][a] + P.internal["late_alone_h"][b]) / 2)
+             if "late_alone_h" in P.internal else np.zeros(len(a))}
         cyc = sim.systems.get("cycle")
         if cyc is not None:             # where she is in her cycle this week (cycle.py): a modest nudge either way
             T["cycle"] = p("cycle.desire.beta") * (cyc.desire(a) + cyc.desire(b))

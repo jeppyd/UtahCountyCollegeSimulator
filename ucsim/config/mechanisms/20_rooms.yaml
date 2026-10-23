@@ -3,8 +3,8 @@ mechanisms:
   housing.bedroom:
     label: Bedroom-mates
     target: [edge.liking, edge.closeness, edge.conflict]
-    sources: [room, conscientiousness, sleep_hours]
-    form: "Each night, people sharing a bedroom (not spouses) talk before sleep with probability talk_rate: one more at-home conversation (the usual valence and length) on top of their daytime time at home, so bedroom-mates grow close faster. Clearly mismatched habits sour it: valence − tidy·max(0, |Δ conscientiousness (z)| − 1.2) − sleep·max(0, |Δ sleep hours| − 2)."
+    sources: [room, conscientiousness, chronotype]
+    form: "Each night, people sharing a bedroom (not spouses) talk before sleep with probability talk_rate: one more at-home conversation (the usual valence and length) on top of their daytime time at home, so bedroom-mates grow close faster. Clearly mismatched habits sour it: valence − tidy·max(0, |Δ conscientiousness (z)| − 1.2) − sleep·max(0, |Δ chronotype (hours)| − 1.5): a night owl sharing a room with an early riser."
     params:
       talk_rate: {value: 0.6, range: [0.2, 0.9]}
       tidy: {value: 0.45, range: [0.0, 0.9]}

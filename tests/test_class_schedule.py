@@ -36,7 +36,7 @@ def test_sections_are_real(fall):
         assert (ac.sec_course[s], ac.sec_where[s], int(ac.sec_start[s])) in real
     st, en = fall.systems["activity"].class_times(byu)
     assert (st == ac.sec_start[byu]).all() and (en == ac.sec_end[byu]).all()
-    assert (ac.sec_block[byu] == np.maximum(clock.block_of(np.maximum(st, clock.DAY_START)), 0)).all()
+    assert (ac.sec_block[byu] == np.minimum(clock.part_of(st), 2)).all()      # its time band: morning, afternoon, evening
     ids = np.flatnonzero((P["school"][: P.n] == 1) & P["enrolled"][: P.n])
     h = ac.stu_secs[ids]
     assert 4.0 < (h >= 0).sum(axis=1).mean() <= 5
@@ -62,9 +62,10 @@ def test_buildings_fill_like_byu(fall):
     rows = []
     for wd in range(5):
         meets = ((ac.sec_days[byu] >> wd) & 1).astype(bool)
-        for b in range(clock.N_BLOCKS):
-            ov = clock.overlap(ac.sec_start[byu].astype(np.int32), (ac.sec_end[byu] - ac.sec_start[byu]).astype(np.int32), b)
-            v = size * ov * meets / (clock.END[b] - clock.START[b])
+        for b in range(clock.N_PARTS):          # the package's occupancy is by part of the day
+            s0, e0 = ac.sec_start[byu].astype(np.int32), ac.sec_end[byu].astype(np.int32)
+            ov = np.clip(np.minimum(e0, clock.PART_END[b]) - np.maximum(s0, clock.PART_START[b]), 0, None)
+            v = size * ov * meets / (clock.PART_END[b] - clock.PART_START[b])
             rows += [(c, wd, b, float(v[code == c].sum())) for c in np.unique(code)]
     sim_ = pl.DataFrame(rows, schema=["building", "wd", "block", "sim"], orient="row")
     occ = schedule.occupancy().filter((pl.col("term") == "Fall") & (pl.col("wd") < 5)).with_columns(

@@ -21,7 +21,8 @@ const STRAT: Record<string, string> = {
 const STRAT_SHORT: Record<string, string> = { support: 'Reach out', active: 'Tackle it', religious: 'Faith', distraction: 'Keep busy', withdrawal: 'Pull back' }
 const STATUS_TONE: Record<string, string> = { kept: 'good', abandoned: 'bad', lapsed: 'mid', active: 'neutral' }
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const BLOCKS = ['morning', 'afternoon', 'evening']
+// the waking hours of the routine table (routines are kept hour by hour, 6 am to 6 am)
+const BLOCKS = ['7 am', '8 am', '9 am', '10 am', '11 am', '12 pm', '1 pm', '2 pm', '3 pm', '4 pm', '5 pm', '6 pm', '7 pm', '8 pm', '9 pm', '10 pm', '11 pm', '12 am', '1 am']
 const fmtDate = (d?: string) => (d ? new Date(d + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '')
 const n2 = (x: any) => (x === null || x === undefined ? '—' : Number(x).toFixed(2))
 

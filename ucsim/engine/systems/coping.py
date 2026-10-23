@@ -191,7 +191,7 @@ class Coping:
         relig = np.where(P["lds_member"], P["faith_belief"], P["own_religiosity"])
         r[m] = p("coping.relief.religious") * np.clip(relig[m], 0, 1)
         m = strat == S["distraction"]
-        did = (P["activity_now"] == 5) | (P.internal["fun_week"][:n] > 2) if "fun_week" in P.internal else np.zeros(n, bool)
+        did = ((P.internal["gym_week"][:n] > 1) | (P.internal["fun_week"][:n] > 2)) if "fun_week" in P.internal else np.zeros(n, bool)
         r[m] = p("coping.relief.distraction") * np.where(did[m], 1.0, 0.4)
         m = strat == S["withdrawal"]
         r[m] = p("coping.relief.withdrawal")

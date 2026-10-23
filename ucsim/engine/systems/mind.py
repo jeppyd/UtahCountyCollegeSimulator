@@ -35,7 +35,7 @@ MOTIVE_LABEL = {"connection": "friends & belonging", "partnership": "love & part
                 "health": "fitness & health"}
 # activity codes (activity.ACT) that count as fun outings, workouts and social events
 _FUN = (6, 7, 8, 9, 12)          # gathering, date, venue, outdoors, club
-_SOCIAL = (6, 10, 12)            # gathering, ward activity, club/team
+_SOCIAL = (10, 12)               # ward activity, club/team (a visit counts when it's a get-together: activity passes it)
 _GYM = 5
 # contexts whose interaction quality teaches people what to expect from social situations
 SOCIAL_CTX = ("gathering", "venue", "dance", "hangout", "complex", "club", "team", "fhe", "unit", "outdoors")

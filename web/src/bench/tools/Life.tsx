@@ -144,7 +144,7 @@ function LifeTool({ sel, setSel, opts, setOpts }: PanelProps) {
                 <text x={0} y={y + 4} className="bd-sub" style={{ fontSize: 11 }}>{catLabel(c)}</text>
                 <line x1={LEFT} x2={LEFT + plotW} y1={y} y2={y} stroke="var(--grid)" />
                 {d.ev.filter(e => e.category === c).map(e => (
-                  <circle key={e.id} cx={X(e.day + e.block / 4 + 0.12)} cy={y} r={2.5 + 4 * e.salience}
+                  <circle key={e.id} cx={X(e.day + e.block / 5 + 0.1)} cy={y} r={2.5 + 4 * e.salience}
                     fill={catVar(c)} stroke={focusId === e.id ? 'var(--text-primary)' : 'var(--surface-1)'} strokeWidth={focusId === e.id ? 2 : 1}
                     opacity={0.35 + 0.65 * e.salience} style={{ cursor: 'pointer' }}
                     onPointerDown={ev => ev.stopPropagation()}

@@ -270,7 +270,7 @@ class Academics:
         self.stu_secs[ids] = stu
         start = S["start"][used]
         self._append({"sec_school": np.full(len(used), code), "sec_days": S["days"][used],
-                      "sec_block": clock.block_of(np.maximum(start, clock.DAY_START)), "sec_bldg": np.zeros(len(used)),
+                      "sec_block": np.minimum(clock.part_of(start), 2), "sec_bldg": np.zeros(len(used)),
                       "sec_area": np.maximum(S["area_code"][used], -1), "sec_room": S["room_row"][used],
                       "sec_start": start, "sec_end": S["end"][used], "sec_lon": S["lon"][used], "sec_lat": S["lat"][used],
                       "sec_floor": S["floor"][used], "sec_place": S["place"][used], "sec_course": S["course"][used],
@@ -345,7 +345,19 @@ class Academics:
             return np.zeros(len(secs), bool)
         return (self.sec_room[secs] >= 0) | (self.sec_place[secs] >= 0)
 
-    def section_now(self, wd: int, b: int) -> np.ndarray:
+    def _hour_masks(self) -> np.ndarray:
+        """Bit mask of the hours (clock steps) each section's meeting fills (≥ 30 minutes of the hour, or its largest
+        part), from its clock times; cached until sections change."""
+        k = len(self.sec_days)
+        if getattr(self, "_mask_k", -1) != k:
+            st, en = self.sim.systems["activity"].class_times(np.arange(k))
+            self._masks = clock.block_mask(st, np.maximum(en - st, 1)) if k else np.zeros(0, np.uint32)
+            self._mask_k = k
+        return self._masks
+
+    def meeting_now(self, wd: int, b: int) -> tuple[np.ndarray, np.ndarray]:
+        """Per person: the section meeting in hour b (−1 none, only in term) and whether hour b is that meeting's first
+        hour (attendance is decided once, as the class starts)."""
         P = self.sim.w.P
         n = P.n
         if self.stu_secs.shape[0] < n:
@@ -354,20 +366,30 @@ class Academics:
             self.stu_secs = grown
         secs = self.stu_secs[:n]
         out = np.full(n, -1, np.int64)
+        first = np.zeros(n, bool)
         if len(self.sec_days) == 0:
-            return out
+            return out, first
+        masks = self._hour_masks()
         bit = np.uint8(1 << wd)
+        hb = np.uint32(1 << b)
+        prev = np.uint32(1 << (b - 1)) if b > 0 else np.uint32(0)
         enrolled = P["enrolled"]
         for k in range(5):
             s = secs[:, k]
             valid = s >= 0
             ss = np.maximum(s, 0)
-            hit = valid & ((self.sec_days[ss] & bit) > 0) & (self.sec_block[ss] == b) & enrolled
-            out = np.where((out < 0) & hit, s, out)
+            mk = masks[ss]
+            hit = valid & ((self.sec_days[ss] & bit) > 0) & ((mk & hb) > 0) & enrolled
+            new = (out < 0) & hit
+            first = np.where(new, (mk & prev) == 0, first)
+            out = np.where(new, s, out)
         # only during a term for that school
         env = self.sim.w.env
         in_term = np.where(P["school"] == 1, bool(env.get("term_BYU")), bool(env.get("term_UVU")))
-        return np.where(in_term, out, -1)
+        return np.where(in_term, out, -1), first & in_term
+
+    def section_now(self, wd: int, b: int) -> np.ndarray:
+        return self.meeting_now(wd, b)[0]
 
     def record_attendance(self, scheduled: np.ndarray, attended: np.ndarray):
         P = self.sim.w.P

@@ -317,6 +317,9 @@ class Occasions:
             jit[m] = steps[rng.integers(0, 4, P.n)][h[m]]
             djit[m] = steps[rng.integers(0, 4, P.n)][h[m]]
         start = self.k_start[kind] + jit + np.where((self._weekdays(tday) == 5) & (kind == self.book.kind_id["party"]), 30, 0)
+        # night owls host evening things later (a 9:30 game night, a party that gets going at 10)
+        owl = np.where(self.k_start[kind] >= 18 * 60, np.clip(np.round(20 * P["chronotype"][h] / 15) * 15, -45, 60), 0).astype(np.int64)
+        start = start + owl
         dur = self.k_dur[kind] + djit
         unit = P["unit_id"][h]
         home = np.array([self.k_where[c] == "home" for c in kind], bool)
@@ -333,8 +336,8 @@ class Occasions:
         # (something starting during it can't be fixed by moving it later: then they don't host that day)
         move = (f["conflict"] | (f["free_from"] > start - 15)) & (f["free_from"] >= 0)
         start2 = np.where(move, np.maximum(_rup15(f["free_from"] + 30), start), start).astype(np.int32)
-        dur = np.minimum(dur, 24 * 60 - start2)          # wrapped up by midnight
-        ok = (start2 <= self.k_latest[kind]) & ~(f["conflict"] & ~move)
+        dur = np.minimum(dur, 25 * 60 - start2)          # wrapped up by 1 am
+        ok = (start2 <= self.k_latest[kind] + owl) & ~(f["conflict"] & ~move)
         leave = f["leave"].astype(np.int64)
         mv = np.where(move & ok)[0]
         if len(mv):        # check the new time (only for those who moved it)
@@ -1328,6 +1331,10 @@ class Occasions:
         dur = np.array([DATE_TIMES.get(m[0], (19 * 60, 150))[1] for m in meta], np.int32)
         if wd >= 5:     # weekends: some dates earlier in the day
             pref = np.where(np.isin([m[0] for m in meta], ["museum", "hike", "picnic", "pickleball"]), pref - 120, pref)
+        # two night owls go out later; the latest start moves with them
+        owl = np.clip(np.round(15 * (P["chronotype"][a] + P["chronotype"][b]) / 2 / 15) * 15, -30, 60).astype(np.int32)
+        pref = np.where(pref >= 18 * 60, pref + owl, pref).astype(np.int32)
+        latest = 21 * 60 + 30 + np.maximum(owl, 0)
         both = np.r_[a, b]
         two = lambda x: np.r_[x, x]   # noqa: E731
         f = self._feasible(both, day, two(pref), two(dur), two(lon), two(lat), firm=True)
@@ -1335,17 +1342,17 @@ class Occasions:
         ff = np.maximum(f["free_from"][:k], f["free_from"][k:])
         later = np.where(ff > pref - 15, _rup15(ff + 30), pref)
         fl = self._feasible(both, day, two(later), two(dur), two(lon), two(lat), firm=True)
-        ok_l = ~(fl["conflict"][:k] | fl["conflict"][k:]) & (later <= 21 * 60 + 30)
+        ok_l = ~(fl["conflict"][:k] | fl["conflict"][k:]) & (later <= latest)
         # … or before one of them has to be somewhere (a shift at 6: an afternoon date)
         lv = np.minimum(f["leave"][:k], f["leave"][k:])
         early = (lv - dur - 15) // 15 * 15
         early = np.where(early >= np.maximum(12 * 60 if wd >= 5 else 15 * 60, ff + 30), early, pref)
         start = np.where(ok_l, later, early).astype(np.int32)
-        dur = np.minimum(dur, 24 * 60 - start)       # home by midnight
+        dur = np.minimum(dur, 25 * 60 - start)       # home by 1 am
         f2 = self._feasible(both, day, two(start), two(dur), two(lon), two(lat), firm=True)
         ill = P["ill"][both]
         # a date needs the whole stretch: nobody leaves early for a class or a shift, nobody comes very late
-        blocked = (f2["conflict"] | f2["cant"] | ill | (two(start) > 21 * 60 + 30) | (f2["leave"] < two(start + dur) - 15)
+        blocked = (f2["conflict"] | f2["cant"] | ill | (two(start) > two(latest)) | (f2["leave"] < two(start + dur) - 15)
                    | (f2["late"] > 20))
         bad = blocked[:k] | blocked[k:]
         sick = ill[:k] | ill[k:]
@@ -1456,7 +1463,7 @@ class Occasions:
             x, y = np.array([a], np.int64), np.array([b], np.int64)
             key = EdgeStore.make_keys(x, y)
             new = E.find(key)[0] < 0
-            enc.apply(x, y, np.array([OCC], np.uint8), np.array([o], np.int64), clock.EVENING[0], enc.similarity(x, y),
+            enc.apply(x, y, np.array([OCC], np.uint8), np.array([o], np.int64), 2, enc.similarity(x, y),
                       np.zeros(1, bool))
             e = E.find(key)[0]
             opn = getattr(self, "setups", {}).pop(o, 0.0)
@@ -1471,7 +1478,7 @@ class Occasions:
                 E.cols["flags"][e] |= Tie.INTRODUCED
             causes = [("action", [k, k], 1.0), ("occasion", [o, o], 1.0)] + ([("person", [by, by], 0.5)] if by >= 0 else [])
             pl = int(self.book.occ.get("place", [o])[0])
-            sim.emit("introduced", [a, b], b=[b, a], place=[pl, pl], block=clock.EVENING[0], mech="occasions.action",
+            sim.emit("introduced", [a, b], b=[b, a], place=[pl, pl], block=2, mech="occasions.action",
                      salt=5021 + k, causes=causes)
 
     def _hosts(self, ids: np.ndarray):
@@ -1498,7 +1505,7 @@ class Occasions:
         causes = [("occasion", ids, 1.0)]
         if user.any():      # arranged by a user action
             causes.append(("action", np.where(user, book.occ.cols["org_id"][pos], -1), 1.0))
-        hev = sim.emit("hosted_gathering", org, value=guests, block=clock.EVENING[0], decision=np.where(did >= 0, did, -1),
+        hev = sim.emit("hosted_gathering", org, value=guests, block=2, decision=np.where(did >= 0, did, -1),
                        causes=causes)
         unit = P["unit_id"][org]
         hu = home & (unit >= 0)
@@ -1520,11 +1527,11 @@ class Occasions:
             P.cols["savings"][org] = np.maximum(P["savings"][org] - spend, 0)
         strain = burden > p("occasions.burden.threshold")
         if strain.any():
-            sim.emit("hosting_strain", org[strain], value=burden[strain], cause=hev[strain], block=clock.EVENING[-1],
+            sim.emit("hosting_strain", org[strain], value=burden[strain], cause=hev[strain], block=3,
                      causes=[("occasion", ids[strain], 1.0)], mech="occasions.burden")
         flop = (invited >= 3) & (guests <= 1)
         if flop.any():
-            sim.emit("low_turnout", org[flop], value=guests[flop], cause=hev[flop], block=clock.EVENING[-1],
+            sim.emit("low_turnout", org[flop], value=guests[flop], cause=hev[flop], block=3,
                      causes=[("occasion", ids[flop], 1.0)], mech="occasions.burden")
         self._last_burden = dict(zip(ids.tolist(), burden.tolist()))
         # traditions: keep a series going (or not); turn a good one-off into a weekly thing (or not)
@@ -1738,16 +1745,16 @@ class Occasions:
         return f"free ({trip})" if f["travel"][j] >= 1 else "free"
 
     def free_window(self, i: int, day: int) -> list[dict]:
-        """Free stretches of a person's day between 8 am and 11:30 pm (firm commitments only)."""
+        """Free stretches of a person's waking day, 7 am to 1 am (firm commitments only)."""
         r, cs, ce, _, _, ck = self._commitments(np.array([int(i)]), np.array([int(day)]), None, False)
         iv = sorted(zip(cs.tolist(), ce.tolist()))
-        out, t = [], clock.DAY_START
+        out, t, t_end = [], 7 * 60, 25 * 60
         for s, e in iv:
             if s > t:
                 out.append({"start": t, "end": int(s), "label": f"{clock.hhmm(t)}–{clock.hhmm(s)}"})
             t = max(t, int(e))
-        if t < clock.DAY_END:
-            out.append({"start": t, "end": clock.DAY_END, "label": f"{clock.hhmm(t)}–{clock.hhmm(clock.DAY_END)}"})
+        if t < t_end:
+            out.append({"start": t, "end": t_end, "label": f"{clock.hhmm(t)}–{clock.hhmm(t_end)}"})
         return out
 
     def committed_at(self, i: int, b: int) -> str | None:
@@ -1793,7 +1800,8 @@ class Occasions:
         if wd == 0 and P.internal["fhe_group"][i] >= 0:
             com.append({"kind": "fhe", "what": "family home evening", "start": 19 * 60, "end": 20 * 60 + 30, "firm": False})
         if wd == 6 and P["lds_member"][i] and P.internal["attend_prob"][i] >= 0.5:
-            com.append({"kind": "church", "what": "church", "start": 9 * 60, "end": 12 * 60, "firm": False})
+            ms = int(sim.systems["faith"].meeting_start([i])[0])
+            com.append({"kind": "church", "what": "church", "start": ms, "end": ms + 120, "firm": False})
         occs = []
         book = self.book
         I, O = book.inv, book.occ

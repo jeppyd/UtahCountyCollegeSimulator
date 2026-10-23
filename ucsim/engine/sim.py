@@ -2,7 +2,7 @@
 
 Timescales
 ----------
-blocks (morning/afternoon/evening/late evening, engine/clock.py): activity choice → co-presence → encounters
+hourly  : 24 hours from 6 am to 6 am (engine/clock.py): waking and sleep, activity choice → co-presence → encounters
 daily   : occasions (hosting, invitations, attendance), romance decisions & dates, emotional states, sleep, illness
 weekly  : tie stages & closeness, faith & practice, norms diffusion, relationships, study
 monthly : finances, jobs, housing market, fertility, missions, life-event hazards
@@ -22,7 +22,7 @@ from .world import World
 
 EMOTION_STATES = ["mood", "stress", "loneliness", "anxiety", "belonging", "self_esteem", "guilt", "fatigue",
                   "purpose", "financial_stress", "academic_pressure", "romantic_longing"]
-BLOCKS = list(clock.BLOCK_NAMES)
+BLOCKS = list(clock.BLOCK_NAMES)       # the hours of the day, as clock text
 
 
 class Simulation:
@@ -30,7 +30,7 @@ class Simulation:
                  record: bool = True):
         from .systems import (academics, activity, cycle, economy, emotion, encounters, environment, faith, groups, housing,
                               family, history, honor, institutions, intimacy, lifecourse, messaging, mind, coping, culture, network,
-                              norms, occasions, plans, recorder, romance, routine, social)
+                              norms, occasions, plans, recorder, romance, routine, sleep, social)
         self.w = world
         self.name = name
         self.reg = world.reg
@@ -68,6 +68,7 @@ class Simulation:
             "coping": coping.Coping(self),
             "plans": plans.Plans(self),
             "routine": routine.Routine(self),
+            "sleep": sleep.Sleep(self),
             "culture": culture.Culture(self),
             "economy": economy.Economy(self),
             "occasions": occasions.Occasions(self),
@@ -87,7 +88,7 @@ class Simulation:
         if places.available():
             places.settle_world(self.w)          # every place inside its real building (the map shows it there)
         for name in ("environment", "cycle", "housing", "activity", "groups", "network", "academics", "encounters", "economy",
-                     "romance", "intimacy", "faith", "norms", "mind", "coping", "plans", "routine", "emotion", "culture", "occasions",
+                     "romance", "intimacy", "faith", "norms", "mind", "coping", "plans", "routine", "emotion", "sleep", "culture", "occasions",
                      "institutions", "family", "honor", "messaging", "social", "lifecourse", "recorder"):
             sysobj = self.systems[name]
             if hasattr(sysobj, "init"):
@@ -236,7 +237,7 @@ class Simulation:
 
     # ------------------------------------------------------------------ stepping
     # Phases of a day, keyed by the clock hour at which they run.
-    PHASES = (("start", 6), *((f"block{b}", h) for b, h in enumerate(clock.BLOCK_HOUR)), ("end", 23))
+    PHASES = (("start", 6), *((f"block{b}", h) for b, h in enumerate(clock.BLOCK_HOUR)), ("end", 30))
 
     def _run(self, name, fn, *args):
         t0 = time.perf_counter()
@@ -255,6 +256,7 @@ class Simulation:
             self._run("academics", S["academics"].daily)
             self._run("groups", S["groups"].daily)
             self._run("faith", S["faith"].daily)
+            self._run("sleep", S["sleep"].plan_day)
             self._run("romance", S["romance"].plan_day)
             self._run("institutions", S["institutions"].plan_day)
             self._run("occasions", S["occasions"].plan_day)
@@ -263,8 +265,6 @@ class Simulation:
             w.hour = clock.BLOCK_HOUR[b]
             self._run("activity", S["activity"].choose, b)
             self._run("encounters", S["encounters"].run, b)
-            if b == clock.EVENING[-1]:      # the evening is over: dates and what happened at parties and dances
-                self._run("romance", S["romance"].evening)
         else:
             self._end_of_day()
 
@@ -273,6 +273,9 @@ class Simulation:
         w = self.w
         d = w.day
         wd = self.cal.weekday(d)
+        # the night is over: how the day's dates went, and what happened at parties and dances
+        self._run("romance", S["romance"].evening)
+        self._run("sleep", S["sleep"].end_of_day)
         self._run("encounters", S["encounters"].friend_contact)
         self._run("occasions", S["occasions"].end_of_day)
         self._run("institutions", S["institutions"].end_of_day)
@@ -310,7 +313,7 @@ class Simulation:
             self._run("emotion", S["emotion"].monthly)
         self._run("housing", S["housing"].daily)
         self._run("activity", S["activity"].night)
-        self._run("encounters", S["encounters"].bedroom)   # bedroom-mates talk before sleep (rooms settled above)
+        self._run("encounters", S["encounters"].bedroom)   # bedroom-mates talked before sleep (rooms settled above)
         self.clamp()
         if self.record:
             self._run("recorder", S["recorder"].daily)
@@ -348,7 +351,8 @@ class Simulation:
         self.w.hour = 6
 
     def advance_hours(self, hours: int):
-        """Advance the clock hour by hour, running each phase when its hour is reached."""
+        """Advance the clock hour by hour (6 … 29: the small hours belong to the day), running each phase when its
+        hour is reached; at 6 am the day ends and the next begins."""
         for _ in range(hours):
             done = getattr(self, "_phases_done", 0)
             nxt_hour = self.w.hour + 1
@@ -359,12 +363,7 @@ class Simulation:
                 self._phase(self.PHASES[done][0])
                 done += 1
             self._phases_done = done
-            if done == len(self.PHASES) and nxt_hour >= 24:
-                self._phases_done = 0
-                self.w.day += 1
-                self.w.hour = 6
-            else:
-                self.w.hour = nxt_hour
+            self.w.hour = nxt_hour
 
     def run_days(self, n: int, progress=None):
         for i in range(n):

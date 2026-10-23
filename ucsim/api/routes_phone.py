@@ -58,7 +58,7 @@ def _render(sim, specs: list[dict]) -> tuple[list[dict], dict]:
         out.append({"id": D.lid(s), "speaker": s["speaker"], "speaker_name": _name(sim, s["speaker"]) if s["speaker"] is not None else None,
                     "to": s["to"], "act": s["act"], "act_words": D.label_act(s["act"]), "channel": s["channel"],
                     "day": s["day"], "date": str(sim.cal.date(s["day"])), "block": blk,
-                    "time": clock.hhmm(clock.BLOCK_HOUR[blk] * 60) if 0 <= blk < len(clock.BLOCK_HOUR) else None,
+                    "time": clock.hhmm(clock.PART_HOUR[blk] * 60) if 0 <= blk < len(clock.PART_HOUR) else None,
                     "text": t, "absent": bool(s.get("absent")), "kind": s.get("kind", "line"), "ex": s.get("ex"),
                     "msg": s.get("msg"), "inv": s.get("inv"), "ref": s.get("ref"), "note": s.get("note") or None})
     st = TD.status(key)

@@ -14,7 +14,8 @@ import { useStore } from '../store'
 import { type BuildingInside, type Buildings, type NowOccasions, type NowPerson, type Precise, type Refresh, clock, KINDS, loadBuilding, loadBuildings3d, loadCore, loadNowOccasions, loadNowPerson, loadPrecise, refreshKey, toLonLat } from './data'
 
 const CENTER: [number, number] = [-111.672, 40.262]
-export const BLOCK_NAMES = ['Morning', 'Afternoon', 'Evening', 'Late evening', 'Night']
+// the simulated day runs hour by hour from 6 am to 6 am (the small hours belong to the night before)
+export const BLOCK_NAMES = ['6 am', '7 am', '8 am', '9 am', '10 am', '11 am', '12 pm', '1 pm', '2 pm', '3 pm', '4 pm', '5 pm', '6 pm', '7 pm', '8 pm', '9 pm', '10 pm', '11 pm', '12 am', '1 am', '2 am', '3 am', '4 am', '5 am']
 const collide = new CollisionFilterExtension()   // labels that would overlap give way to the more important one
 const GAP = 5            // metres added between floors when a building is opened up
 let geoCache: Promise<{ roads: any; cities: any }> | null = null
@@ -198,7 +199,8 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
   // light by the time of day shown: a warm evening, a dark night with homes lit from within
   const daylight = opts.daylight ?? true
   const shownBlock = glide ?? prec?.block ?? -1        // glide is set only while gliding
-  const tone: Tone = !daylight ? 'day' : shownBlock === 2 ? 'evening' : shownBlock >= 3 ? 'night' : 'day'
+  // dusk from 5 pm (and the hour before dawn), dark from 8 pm to 6 am
+  const tone: Tone = !daylight || shownBlock < 0 ? 'day' : shownBlock >= 14 ? 'night' : shownBlock >= 11 || shownBlock === 0 ? 'evening' : 'day'
   const lit = useMemo(() => {
     if (tone !== 'night' || !prec) return null
     const s2 = new Set<number>()
@@ -242,7 +244,7 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
     const k = `${u}:${b}:${b === 'now' ? key : status?.perf?.day ?? status?.day}:${dataVersion}`
     frames.current[k] ??= loadPrecise(u, b)
     const ks = Object.keys(frames.current)
-    if (ks.length > 14) for (const old of ks.slice(0, ks.length - 14)) delete frames.current[old]
+    if (ks.length > 30) for (const old of ks.slice(0, ks.length - 30)) delete frames.current[old]
     return frames.current[k]
   }
   useEffect(() => {
@@ -251,14 +253,14 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
     get(when).then(p => { if (alive) { setPrec(p); setErr('') } }).catch(e => { if (alive) setErr(String(e.message ?? e)) })
     return () => { alive = false }
   }, [u, when, key, dataVersion, gliding])
-  // while time runs at a slower speed: play the day just finished, part by part, over the time a day takes
+  // while time runs at a slower speed: play the day just finished, hour by hour, over the time a day takes
   useEffect(() => {
     if (!gliding) { setGlide(null); return }
     let alive = true
     const timers: number[] = []
-    Promise.all([0, 1, 2, 3, 4].map(b => get(b))).then(fs => {
+    Promise.all(BLOCK_NAMES.map((_, b) => get(b))).then(fs => {
       if (!alive) return
-      const step = Math.max(250, (pace * 1000) / 5)
+      const step = Math.max(120, (pace * 1000) / BLOCK_NAMES.length)
       fs.forEach((f, b) => timers.push(window.setTimeout(() => { if (alive) { setPrec(f); setGlide(b) } }, b * step)))
     }).catch(() => {})
     return () => { alive = false; timers.forEach(t => window.clearTimeout(t)) }
@@ -512,7 +514,7 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
     lastPrec.current = prec
   }, [tone, lit, occs, pins, pinKind, geo, bld, bCore, bFlat, floorRings, prec, pIdx, colorOf, chosen, focus, view3d, xray, dark, inside, openK, zoom, labels, names, gliding, pace, streets, busy, pick, gap, isClay])
 
-  const shown = gliding && glide !== null ? `${BLOCK_NAMES[glide]} (playing the day as time runs)` : prec ? (prec.block >= 0 && prec.block < 5 ? BLOCK_NAMES[prec.block] : '') : ''
+  const shown = gliding && glide !== null ? `${BLOCK_NAMES[glide]} (playing the day as time runs)` : prec ? (prec.block >= 0 && prec.block < BLOCK_NAMES.length ? BLOCK_NAMES[prec.block] : '') : ''
   return (
     <div className="lm">
       <div className="lm-map" ref={el} />
@@ -636,7 +638,7 @@ function NowCard({ i, u, k, onClose, onPerson, onOccasion, onBuilding, following
       <div className="lm-card-b">
         {err && <p className="small">{err}</p>}
         {d && <>
-          <div className="lm-now-doing">{d.present ? d.doing[0].toUpperCase() + d.doing.slice(1) : 'Away from Provo'}{d.block >= 0 && d.block < 5 ? <small> · {BLOCK_NAMES[d.block].toLowerCase()}</small> : null}</div>
+          <div className="lm-now-doing">{d.present ? d.doing[0].toUpperCase() + d.doing.slice(1) : 'Away from Provo'}{d.block >= 0 && d.block < BLOCK_NAMES.length ? <small> · {BLOCK_NAMES[d.block]}</small> : null}</div>
           {d.place.words && <div className="small">{d.place.words}{d.place.building !== null && <> · <button className="lm-link" onClick={() => onBuilding(d.place.building!)}>open the building</button></>}</div>}
           {d.occasion && (
             <div className="lm-occ">
@@ -669,7 +671,7 @@ function RightNow({ d, kind, setKind, onClose, onPick }: { d: NowOccasions; kind
   return (
     <div className="lm-card lm-list">
       <div className="lm-card-h">
-        <div><b>Right now</b><small>{new Date(d.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}{d.block >= 0 && d.block < 5 ? ` · ${BLOCK_NAMES[d.block].toLowerCase()}` : ''} · {d.occasions.length} occasions, {d.occasions.reduce((s, o) => s + o.n, 0).toLocaleString()} people</small></div>
+        <div><b>Right now</b><small>{new Date(d.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}{d.block >= 0 && d.block < BLOCK_NAMES.length ? ` · ${BLOCK_NAMES[d.block]}` : ''} · {d.occasions.length} occasions, {d.occasions.reduce((s, o) => s + o.n, 0).toLocaleString()} people</small></div>
         <button className="bx-icon" onClick={onClose} aria-label="Close">✕</button>
       </div>
       <div className="lm-card-b">

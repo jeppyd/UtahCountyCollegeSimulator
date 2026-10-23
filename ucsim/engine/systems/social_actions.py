@@ -899,7 +899,7 @@ def _do_fall_out(occ, k, it, plan, cx) -> dict:
     E.cols["conflict"][e] = np.clip(E["conflict"][e] + 0.4 * sev, 0, 1)
     E.cols["liking"][e] = np.clip(E["liking"][e] - 0.1 * sev, -1, 1)
     E.cols["last_day"][e] = np.maximum(E["last_day"][e], w.day)
-    ev = sim.emit("conflict", [a, b], b=[b, a], value=[-sev, -sev], block=clock.EVENING[0], mech="occasions.action",
+    ev = sim.emit("conflict", [a, b], b=[b, a], value=[-sev, -sev], block=2, mech="occasions.action",
                   scale=sev, salt=5303 + k, causes=[("action", [k, k], 1.0)])
     from ..provenance import link
     link(sim, ev, "tie", np.r_[key, key], 1.0, "the_tie")
@@ -928,9 +928,9 @@ def _do_make_up(occ, k, it, plan, cx) -> dict:
     if yes:
         E.cols["hurt"][e] = E["hurt"][e] * 0.3
         E.cols["conflict"][e] = E["conflict"][e] * 0.5
-    enc.apply(a, b, np.array([CTX_ID["hangout"]], np.uint8), np.full(1, -1, np.int64), clock.EVENING[0], enc.similarity(a, b),
+    enc.apply(a, b, np.array([CTX_ID["hangout"]], np.uint8), np.full(1, -1, np.int64), 2, enc.similarity(a, b),
               np.zeros(1, bool))
-    ev = sim.emit("made_up" if yes else "apology_refused", a, b=b, block=clock.EVENING[0], mech="occasions.action",
+    ev = sim.emit("made_up" if yes else "apology_refused", a, b=b, block=2, mech="occasions.action",
                   salt=5311 + k, decision=did, causes=[("action", [k], 1.0), ("person", b, 0.5)])
     return {"forgiven": yes, "event": int(ev[0]), "decision": int(did[0]), "chance": round(pr, 3),
             "hurt_before": round(hurt, 3), "hurt": round(float(E["hurt"][e][0]), 3)}

@@ -75,6 +75,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | Real class schedules (`geo/schedule.py`, academics `_real_sections`) | BYU Fall/Winter, UVU Fall and Spring 2027 **merged** (#28) | branch `claude/project-thread-2pvunp` | BYU Spring/Summer and UVU Summer when published; cross-listed sections share a room |
 | Valley home, scenes, make it happen (design review, [DESIGN_REVIEW.md](DESIGN_REVIEW.md)) | **merged (#26, round 2 #29)** | branch `claude/project-thread-q87n1i` | world events as verbs; stagger the remaining Sunday systems; recalibrate |
 | [conversations](workstreams/conversations.md): phones, dating apps, listening in, perspectives, developing stories, model wording | **PR open** (not merged) | branch `claude/project-thread-v1aefl` | owner review; first real runs of model wording (only tested with a fake model) |
+| Map: paint by any field (owner-directed, 2026-10-23) | **PR open** (not merged) | branch `claude/project-thread-54extr` | owner review |
 | Menstrual cycle (owner-directed, 2026-10-23) | in review | branch `claude/project-thread-tlb20b` | owner tuning after play |
 | [survey-followups](workstreams/survey-followups.md) | audits designed, interrupted | — | needs the raw survey files in `data/raw/` |
 | [integration](workstreams/integration.md) | ongoing | — | after each merge |
@@ -163,6 +164,18 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-23 (3) — Claude Code (cloud session) — map: paint by any field
+- Map tool (`bench/tools/Map.tsx`, new `bench/tools/mapPaint.tsx`): everyone one color until a field is picked; the
+  picker now lists every person field (not only `map`-flagged ones) and sits in the map's own bar, so the Valley home
+  map has it too (its panel options were hidden under the map). Categories get distinct colors (series colors up to 8,
+  evenly spread hues beyond, so no repeats or "other"), with counts; click categories to show only some. Numbers:
+  Colors (ramp), Fade (one color, higher solid, lower see-through) or Threshold (at least / at most / between /
+  outside, slider plus number, with how many people match); "lower values strongest" flips ramp and fade. Settings
+  are remembered per field in the panel options (`opts.paint[field]`).
+- `LivingMap` takes rgba from `colorOf` (alpha sets how strongly a dot shows; strong dots draw on top). Occasion pins
+  are one color; picking a kind in the Right now list makes its pins stand out and fades the rest.
+- Next: owner review; maybe a searchable field picker if the 280-entry dropdown feels long.
 
 ### 2026-10-23 (2) — Claude Code (cloud session) — conversation layers: phones, dating apps, listening in
 - Spec and audit: `docs/workstreams/conversations.md` (keep/extend/add map, schema, research-engine decisions).

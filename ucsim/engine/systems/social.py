@@ -1098,39 +1098,52 @@ class Social:
         """What ordinary talk is about, from the shared context only (no new facts): the class, the shift, the
         apartment, church, the get-together they're at, plans they both said yes to, exams, the weather."""
         sim, w = self.sim, self.sim.w
-        name = {CTX_ID.get(k, -1): t for k, t in (("class", "class"), ("work", "work"), ("unit", "home"), ("complex", "home"),
-                                                  ("ward", "church"), ("fhe", "church"), ("congregation", "church"),
-                                                  ("institute", "church"), ("gym", "fitness"), ("team", "team"),
-                                                  ("club", "club"), ("outdoors", "outing"), ("venue", "outing"),
-                                                  ("occasion", "occasion"), ("gathering", "occasion"), ("hangout", "outing"),
-                                                  ("dance", "occasion"))}
-        topic = np.array([TOPIC[name.get(int(c), "none")] for c in ctx.tolist()], np.int8)
+        lut = getattr(self, "_topic_lut", None)
+        if lut is None:
+            name = {"class": "class", "work": "work", "unit": "home", "complex": "home", "ward": "church", "fhe": "church",
+                    "congregation": "church", "institute": "church", "gym": "fitness", "team": "team", "club": "club",
+                    "outdoors": "outing", "venue": "outing", "occasion": "occasion", "gathering": "occasion",
+                    "hangout": "outing", "dance": "occasion"}
+            lut = np.full(max(CTX_ID.values()) + 2, TOPIC["none"], np.int8)
+            for k, t in name.items():
+                if k in CTX_ID:
+                    lut[CTX_ID[k]] = TOPIC[t]
+            self._topic_lut = lut
+        topic = lut[np.clip(ctx.astype(np.int64), 0, len(lut) - 1)]
         ref = np.where(ctx == CTX_ID["occasion"], place, -1).astype(np.int64)
         rk = np.where(ref >= 0, CAUSE_ID["occasion"], -1).astype(np.int8)
         P = w.P
         exams = np.where(P["school"][a] == 1, bool(w.env.get("exam_week_BYU")), bool(w.env.get("exam_week_UVU"))) \
             & P["enrolled"][a] & P["enrolled"][b]
         topic = np.where(exams & (topic != TOPIC["occasion"]), TOPIC["exam"], topic)
-        # plans they both said yes to (coordination): the next upcoming occasion with both on its yes list
+        # plans they both said yes to (coordination): an upcoming occasion with both on its yes list
         I = sim.book.inv
-        if I.n:
-            O = sim.book.occ
-            m = (I["response"] == RESPONSE_ID["yes"])
-            od = O.get("day", I["occ"][m], default=-1)
-            fut = od >= w.day
-            pk = (I["occ"][m][fut].astype(np.int64) << 24) | I["person"][m][fut].astype(np.int64)
+        cand = np.flatnonzero(topic != TOPIC["occasion"])
+        if I.n and len(cand):
+            c = getattr(self, "_yes", None)
+            if c is None or c[0] != (w.day, I.n):
+                m = I["response"] == RESPONSE_ID["yes"]
+                occ, per = I["occ"][m].astype(np.int64), I["person"][m].astype(np.int64)
+                fut = sim.book.occ.get("day", occ, default=-1) >= w.day
+                occ, per = occ[fut], per[fut]
+                o = np.lexsort((occ, per))
+                c = self._yes = ((w.day, I.n), per[o], occ[o], np.sort((occ << 24) | per))
+            _, per_s, occ_s, pk = c
             if len(pk):
-                pk = np.sort(pk)
-                occs = np.unique(I["occ"][m][fut]).astype(np.int64)
-                # bounded: captured talk is a small sample; check each pair against occasions they could share
-                for jj in np.flatnonzero(topic != TOPIC["occasion"]).tolist()[:200]:
-                    ka = (occs << 24) | int(a[jj])
-                    kb = (occs << 24) | int(b[jj])
-                    ia = np.clip(np.searchsorted(pk, ka), 0, len(pk) - 1)
-                    ib = np.clip(np.searchsorted(pk, kb), 0, len(pk) - 1)
-                    both = occs[(pk[ia] == ka) & (pk[ib] == kb)]
-                    if len(both):
-                        topic[jj], ref[jj], rk[jj] = TOPIC["plans"], int(both[0]), CAUSE_ID["occasion"]
+                ac, bc = a[cand].astype(np.int64), b[cand].astype(np.int64)
+                lo = np.searchsorted(per_s, ac)
+                cnt = np.searchsorted(per_s, ac, side="right") - lo
+                found = np.full(len(cand), -1, np.int64)
+                for t in range(min(int(cnt.max()), 8)):       # bounded: a person's upcoming yeses are few
+                    ok = (cnt > t) & (found < 0)
+                    if not ok.any():
+                        break
+                    oc = occ_s[np.minimum(lo + t, len(occ_s) - 1)]
+                    key = (oc << 24) | bc
+                    hit = ok & (pk[np.clip(np.searchsorted(pk, key), 0, len(pk) - 1)] == key)
+                    found[hit] = oc[hit]
+                h = found >= 0
+                topic[cand[h]], ref[cand[h]], rk[cand[h]] = TOPIC["plans"], found[h], CAUSE_ID["occasion"]
         return topic, ref, rk
 
     def _raise(self, rows, a, b, ctx, place, block, v) -> np.ndarray:

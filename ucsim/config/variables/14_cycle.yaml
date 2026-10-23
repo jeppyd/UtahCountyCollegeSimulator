@@ -1,0 +1,45 @@
+# Menstrual cycle (engine/systems/cycle.py). Women aged 12–51 who are not pregnant or recently postpartum have a cycle
+# day that advances daily; each woman has her own cycle length, her own sensitivity to it and may be on hormonal birth
+# control, which flattens it. Per-person values are fixed draws from the person's id (the same in every world). The
+# cycle enters the model only as small mood, energy and desire terms (config/mechanisms/21_cycle.yaml).
+# Shown with the other intimacy fields; sensitive, so interviews leave it out.
+entity: person
+defaults: {domain: values_sexuality, evidence: hypothetical, source: [model], flags: [filter, chart, sensitive]}
+variables:
+  cycle_phase:
+    label: Cycle phase
+    kind: state
+    dtype: cat
+    update: daily
+    categories: [none, period, follicular, fertile window, luteal, premenstrual, steady (birth control)]
+    desc: "Where she is in her menstrual cycle today: none (men, girls, after menopause, pregnant or a new mother), period, follicular (after the period), fertile window (the six days ending at ovulation), luteal, premenstrual (the last days before the next period), or steady (hormonal birth control, apart from the monthly withdrawal bleed shown as a period)."
+    init: "engine/systems/cycle.py: a starting day spread evenly across the cycle"
+  cycle_day:
+    label: Cycle day
+    kind: state
+    dtype: u1
+    update: daily
+    range: [0, 45]
+    units: days
+    desc: "Day of the current cycle (day 1 is the first day of the period; 0 when there is no cycle)."
+  cycle_length:
+    label: Cycle length
+    kind: state
+    dtype: u1
+    update: daily
+    range: [0, 45]
+    units: days
+    evidence: literature
+    desc: "Length of the current cycle in days (0 when there is no cycle). Each woman has her own typical length (about 29 days on average, most between 24 and 35) and each cycle varies by a day or two around it (Bull et al. 2019)."
+  cycle_sensitivity:
+    label: Cycle sensitivity
+    kind: trait
+    dtype: f4
+    range: [0, 1]
+    desc: "How strongly her mood, energy and anxiety follow her cycle (0 for men). Most women feel little; about one in five noticeably (premenstrual syndrome) and a few percent strongly (PMDD) (Yonkers et al. 2008; Romans et al. 2012)."
+  hormonal_contraception:
+    label: On hormonal birth control
+    kind: state
+    dtype: bool
+    update: daily
+    desc: "Uses a method that stops ovulation (pill, patch, ring, implant or shot), which flattens the cycle's ups and downs to about a third. A model draw (more common among married women and non-members), not a survey answer."

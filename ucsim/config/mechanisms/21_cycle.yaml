@@ -1,0 +1,49 @@
+system: cycle
+# Menstrual cycle (engine/systems/cycle.py; person variables in config/variables/14_cycle.yaml). Research finds cycle
+# effects on mood and desire that are real for some women but modest on average and very different between people, so
+# every effect here is small, scaled by the woman's own sensitivity, and flattened by hormonal birth control. The
+# mood/fatigue/anxiety terms are additive terms of the emotion system's states (ids "<state>.<term>").
+mechanisms:
+  cycle.rhythm:
+    label: Menstrual cycle clock
+    target: [cycle_day, cycle_phase, cycle_length]
+    sources: [sex, age, pregnant]
+    form: "cycle day +1 each day; a new cycle starts after her typical length ± up to 2 days; the fertile window is the six days ending at ovulation (length − 14); premenstrual = the last 5 days. No cycle for men, under 12 or over 51, while pregnant or for 120 days after a birth."
+    params:
+      jitter: {value: 2, range: [0, 4]}
+    evidence: literature
+    refs: ["Bull et al. (2019) npj Digital Medicine: 600,000 tracked cycles, mean length 29.3 days, ovulation day varies", "Wilcox, Weinberg & Baird (1995) NEJM: the fertile window is the six days ending on ovulation"]
+  mood.cycle:
+    label: Premenstrual days → lower mood (for sensitive women)
+    target: mood
+    sources: [cycle_phase, cycle_sensitivity, hormonal_contraception]
+    form: "−β·sensitivity·premenstrual(day), where premenstrual rises over the last 6 days and fades over the first 2 days of the period; × 0.3 on hormonal birth control"
+    params: {beta: {value: 0.12, range: [0.0, 0.2]}}
+    evidence: hypothetical
+    desc: "Most women barely move (median sensitivity ≈ 0.06 → under 0.01 of mood); the most sensitive few percent drop about 0.1, like a hard week."
+    refs: ["Romans et al. (2012) Gender Medicine: in general-population studies mood rarely tracks the cycle", "Yonkers, O'Brien & Eriksson (2008) Lancet: PMDD in 3–8%, clinically meaningful PMS in about 20%"]
+  fatigue.cycle:
+    label: Period cramps and premenstrual days → more tired
+    target: fatigue
+    sources: [cycle_phase, cycle_sensitivity, hormonal_contraception]
+    form: "β·(0.3 + 0.7·sensitivity)·(period(day) + 0.5·premenstrual(day)); period weighs days 1–3 (1, 0.8, 0.4); × 0.3 on hormonal birth control"
+    params: {beta: {value: 0.06, range: [0.0, 0.12]}}
+    evidence: hypothetical
+    refs: ["Ju, Jones & Mishra (2014) Epidemiologic Reviews: painful periods are common in young women", "Baker & Driver (2007) Sleep Medicine: poorer sleep premenstrually and early in the period"]
+  anxiety.cycle:
+    label: Premenstrual days → more anxious and on edge (for sensitive women)
+    target: anxiety
+    sources: [cycle_phase, cycle_sensitivity, hormonal_contraception]
+    form: "β·sensitivity·premenstrual(day); × 0.3 on hormonal birth control"
+    params: {beta: {value: 0.06, range: [0.0, 0.12]}}
+    evidence: hypothetical
+    refs: ["Yonkers, O'Brien & Eriksson (2008) Lancet: irritability and tension are core premenstrual symptoms"]
+  cycle.desire:
+    label: Cycle phase → interest in physical intimacy
+    target: intimacy_level
+    sources: [cycle_phase, hormonal_contraception]
+    form: "each woman's desire shift = amplitude·(fertile(day) − 0.7·on her period − 0.15·luteal), fertile peaking the day before ovulation; amplitude a fixed 0.3–1 per woman, × 0.3 on hormonal birth control; adds β·(her shift) to a couple's weekly chance of a next step"
+    params: {beta: {value: 0.35, range: [0.0, 0.8]}}
+    evidence: hypothetical
+    desc: "A modest nudge on the week it falls in, far smaller than the couple's limits, drive and time alone."
+    refs: ["Roney & Simmons (2013) Hormones and Behavior: women's sexual desire rises before ovulation and falls in the luteal phase (within-person, modest)", "Wilcox et al. (2004) Obstetrics & Gynecology: intercourse is somewhat more frequent in the fertile window and less during menses"]

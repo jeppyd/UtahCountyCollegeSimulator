@@ -173,6 +173,9 @@ class Intimacy:
              "within_lines": np.where(ok_a & ok_b, p("intimacy.step.within"), -p("intimacy.step.cross") * cross_cost),
              "self_control": -0.5 * (sim.z("self_control")[a] + sim.z("self_control")[b]) / 2,
              "sensation": 0.4 * (sim.z("sensation_seeking")[a] + sim.z("sensation_seeking")[b]) / 2}
+        cyc = sim.systems.get("cycle")
+        if cyc is not None:             # where she is in her cycle this week (cycle.py): a modest nudge either way
+            T["cycle"] = p("cycle.desire.beta") * (cyc.desire(a) + cyc.desire(b))
         base = p("intimacy.step.base")
         h = expit(total(base, T))
         u = sim.streams.uniform("intimacy_step", day, len(a))

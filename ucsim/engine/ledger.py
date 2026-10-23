@@ -29,7 +29,7 @@ CAUSE_KINDS = ("event", "decision", "occasion", "person", "tie", "state", "calen
                "message", "trip", "place")
 CAUSE_ID = {k: i for i, k in enumerate(CAUSE_KINDS)}
 
-CHANNELS = ("in_person", "text", "group_chat", "announcement", "family", "app")
+CHANNELS = ("in_person", "text", "group_chat", "announcement", "family", "app", "confided")
 CHANNEL_ID = {k: i for i, k in enumerate(CHANNELS)}
 RESPONSES = ("pending", "yes", "no", "no_reply", "maybe")
 RESPONSE_ID = {k: i for i, k in enumerate(RESPONSES)}
@@ -371,7 +371,9 @@ class OccasionBook:
                           "channel": (np.int8, 0), "thread": (np.int32, -1), "sent_day": (np.int32, -1),
                           "sent_block": (np.int8, 0), "seen_day": (np.int32, -1), "response": (np.int8, 0),
                           "decided_day": (np.int32, -1), "decision": (np.int64, -1), "attended": (np.bool_, False),
-                          "arrive": (np.int16, -1), "ride_by": (np.int32, -1), "walk_in": (np.bool_, False)},
+                          "arrive": (np.int16, -1), "ride_by": (np.int32, -1), "walk_in": (np.bool_, False),
+                          # a no's message (1 said why, 2 a brief no) and its reason (social.WHY), from social.on_declines
+                          "said": (np.int8, 0), "why": (np.int8, 0)},
                          capacity=1 << 14)
         self.series = Table({"kind": (np.int16, -1), "label": (np.int32, -1), "organizer": (np.int32, -1),
                              "org_kind": (np.int8, 0), "org_id": (np.int32, -1), "ctx": (np.uint8, 255),

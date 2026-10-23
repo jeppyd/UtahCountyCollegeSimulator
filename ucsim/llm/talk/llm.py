@@ -15,9 +15,10 @@ from .. import backends
 from ..compiler import HOME, load_settings
 
 TALK_FILE = HOME / "talk.json"
-FEATURES = ("ask", "interview")
+FEATURES = ("ask", "interview", "narrate", "dialogue")
 CHOICES = ("auto", "claude", "codex", "openai", "anthropic", "openai_api")
-DEFAULTS = {"ask_backend": "auto", "interview_backend": "auto", "sensitive": False}
+DEFAULTS = {"ask_backend": "auto", "interview_backend": "auto", "narrate_backend": "auto", "dialogue_backend": "auto",
+            "auto_dialogue": False, "sensitive": False}
 FAKE = None          # tests: FAKE(feature, stage, system, prompt, schema) -> dict
 PROMPTS = Path(__file__).resolve().parents[1] / "prompts"
 
@@ -35,9 +36,9 @@ def load() -> dict:
 def save(new: dict) -> dict:
     s = load()
     for k, v in (new or {}).items():
-        if k in ("ask_backend", "interview_backend") and v in CHOICES:
+        if k in ("ask_backend", "interview_backend", "narrate_backend", "dialogue_backend") and v in CHOICES + ("off",):
             s[k] = v
-        elif k == "sensitive":
+        elif k in ("sensitive", "auto_dialogue"):
             s[k] = bool(v)
     HOME.mkdir(parents=True, exist_ok=True)
     TALK_FILE.write_text(json.dumps(s, indent=2), encoding="utf-8")
@@ -56,7 +57,7 @@ def resolve(feature: str, ts: dict | None = None, cs: dict | None = None) -> str
     choice = ts.get(f"{feature}_backend", "auto")
     if choice != "auto":
         return choice
-    if feature == "interview" and _local_ready(cs):
+    if feature in ("interview", "dialogue") and _local_ready(cs):
         return "openai"
     return cs["backend"] if cs["backend"] != "openai" or _local_ready(cs) else "claude"
 
@@ -66,9 +67,12 @@ def status() -> dict:
     from ..compiler import status as cstatus
     st = cstatus()
     return {"settings": ts, "using": {f: resolve(f, ts, cs) for f in FEATURES},
+            "features": {"ask": "Ask the world", "interview": "Interviews", "narrate": "Tell a scene as a story",
+                         "dialogue": "Wording of conversations and texts"},
             "available": {"claude": bool(st["claude"]), "codex": bool(st["codex"]), "openai": bool(st["openai_models"]) or _local_ready(cs),
                           "anthropic": bool(cs.get("anthropic_key")), "openai_api": bool(cs.get("openai_api_key"))},
-            "local_model": cs.get("openai_model") or (st["openai_models"] or [None])[0], "recommended": {"ask": "claude", "interview": "openai"}}
+            "local_model": cs.get("openai_model") or (st["openai_models"] or [None])[0],
+            "recommended": {"ask": "claude", "interview": "openai", "narrate": "claude", "dialogue": "openai"}}
 
 
 def _pack(feature: str, system: str) -> Path:

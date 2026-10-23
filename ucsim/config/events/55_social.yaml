@@ -1,0 +1,50 @@
+# Events from engine/systems/social.py. Small, hypothetical effects (hurt and beliefs are changed by the mechanism
+# itself, so these carry no second copy of that effect).
+events:
+  clarified:
+    label: Cleared things up
+    story: "{a} cleared things up with {b}"
+    category: social
+    salience: 0.35
+    effects:
+      - {var: belonging, mag: 0.012, sd: 0.4, half_life: 7}
+    evidence: hypothetical
+    desc: "A clarification or an answer that changed how they had read the other person (a late reply, explaining a run of no's, talking it out)."
+  late_reply:
+    label: Answered late
+    story: "{a} finally answered {b}'s text"
+    category: social
+    salience: 0.12
+    effects: []
+    evidence: hypothetical
+  confided:
+    label: Confided in a friend
+    story: "{a} told {b} what they're going through"
+    category: social
+    salience: 0.4
+    effects:
+      - {var: loneliness, mag: -0.02, sd: 0.4, half_life: 5}
+    evidence: hypothetical
+    refs: ["Pennebaker (1997): disclosure and well-being"]
+  promise_kept:
+    label: Came, as promised
+    story: "{a} made it to {b}'s this time, as promised"
+    category: social
+    salience: 0.25
+    effects: []
+    evidence: hypothetical
+  promise_broken:
+    label: Said no again
+    story: "{a} said no to {b} again after promising next time"
+    category: social
+    salience: 0.25
+    effects: []
+    evidence: hypothetical
+  app_date_set:
+    label: Set up a date from an app
+    story: "{a} and {b} set up a date after talking on an app"
+    category: romance
+    salience: 0.3
+    effects:
+      - {var: mood, mag: 0.01, sd: 0.4, half_life: 2}
+    evidence: hypothetical

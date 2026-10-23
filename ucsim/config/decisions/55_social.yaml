@@ -1,0 +1,110 @@
+# Decisions from engine/systems/social.py (conversations, beliefs, open concerns, dating-app conversations).
+decisions:
+  decline_message:
+    label: Whether to say why they can't come
+    units: logit
+    outcomes: [explained, brief]
+    factors:
+      closeness:     {label: "how close they are to the host", more: "close to the host", less: "not that close"}
+      agreeableness: {label: "how considerate they are", more: "considerate", less: "blunt"}
+      has_a_reason:  {label: "having a real reason to give", more: "a shift, class or clash to name", less: "no reason they'd name"}
+      outgoing:      {label: "how outgoing they are", more: "outgoing", less: "reserved"}
+  read_decline:
+    label: How the host read a short "can't"
+    units: logit
+    outcomes: [not_interested]
+    factors:
+      declined_before:  {label: "how often they've said no lately", more: "said no several times", less: ""}
+      explained_before: {label: "earlier no's that came with a reason", more: "", less: "they explained before"}
+      sensitive:        {label: "the host's sensitivity to rejection", more: "takes things personally", less: "thick-skinned"}
+      closeness:        {label: "how close they are", more: "", less: "close friends give the benefit of the doubt"}
+  read_silence:
+    label: How an unanswered text was read
+    units: logit
+    outcomes: [ignoring_me, busy]
+    factors:
+      sensitive:       {label: "sensitivity to rejection", more: "takes silence personally", less: "doesn't read into it"}
+      knows_busy:      {label: "knowing they're busy", more: "", less: "knows they're working or swamped"}
+      usually_answers: {label: "how often this friend answers", more: "", less: "they usually answer"}
+      silent_before:   {label: "earlier unanswered texts", more: "they've gone quiet before", less: ""}
+  late_reply:
+    label: Answering a text late
+    units: logit
+    outcomes: [answered]
+    factors:
+      closeness:     {label: "how close they are", more: "close", less: ""}
+      conscientious: {label: "how conscientious they are", more: "follows up", less: "lets things slide"}
+      mood:          {label: "their mood", more: "in a good mood", less: "feeling low"}
+      depression:    {label: "a depressive episode", more: "", less: "withdrawn while depressed"}
+  disclose_struggle:
+    label: Telling a friend what they're going through
+    units: logit
+    outcomes: [disclosed, deflected]
+    factors:
+      closeness: {label: "how close they are", more: "close", less: "not that close"}
+      trust:     {label: "how much they trust them", more: "trusts them", less: ""}
+      private:   {label: "how private it is", more: "", less: "a private matter"}
+      burden:    {label: "not wanting to be a burden", more: "", less: "doesn't want to be a burden"}
+      openness:  {label: "how outgoing they are", more: "open", less: "reserved"}
+  left_out_response:
+    label: What to do about being left out
+    units: utility
+    outcomes: [clarify, withdraw, let_go]
+    factors:
+      closeness:           {label: "how close they are to the host", more: "close to the host", less: ""}
+      sensitive:           {label: "sensitivity to rejection", more: "takes it personally", less: ""}
+      thinks_they_misread: {label: "thinking the host misread their no's", more: "thinks the host assumed they weren't interested", less: ""}
+      felt_excluded:       {label: "feeling left out on purpose", more: "feels excluded", less: ""}
+  concern_next:
+    label: What to do after a text went unanswered
+    units: utility
+    outcomes: [check_again, ask_whats_up, withdraw, wait]
+    factors:
+      closeness: {label: "how close they are", more: "close", less: ""}
+      sensitive: {label: "sensitivity to rejection", more: "takes it personally", less: ""}
+  raise_concern:
+    label: Bringing it up in person
+    units: logit
+    outcomes: [raised, avoided]
+    factors:
+      closeness:  {label: "how close they are", more: "close", less: ""}
+      assertive:  {label: "how outgoing they are", more: "outgoing", less: "reserved"}
+      importance: {label: "how much it matters to them", more: "it matters", less: ""}
+      withdrew:   {label: "having pulled back", more: "", less: "had pulled back"}
+      sensitive:  {label: "sensitivity to rejection", more: "", less: "afraid of how it would go"}
+  app_opener:
+    label: Sending the first message on an app
+    units: logit
+    outcomes: [sent]
+    factors:
+      attraction: {label: "how drawn they are to the match", more: "drawn to them", less: ""}
+      motivation: {label: "how much they want to date", more: "keen to date", less: ""}
+      app_hours:  {label: "time on the apps", more: "on the apps a lot", less: ""}
+      boldness:   {label: "how outgoing they are", more: "outgoing", less: "reserved"}
+  app_reply:
+    label: Answering a match's first message
+    units: logit
+    outcomes: [will_reply, no_reply]
+    factors:
+      attraction: {label: "how drawn they are to the match", more: "drawn to them", less: "not into them"}
+      motivation: {label: "how much they want to date", more: "keen to date", less: ""}
+      app_hours:  {label: "time on the apps", more: "on the apps a lot", less: "rarely opens the app"}
+      taken:      {label: "already seeing someone", more: "", less: "seeing someone"}
+  app_ask:
+    label: Asking a match out
+    units: logit
+    outcomes: [asked]
+    factors:
+      attraction: {label: "how drawn they are to the match", more: "drawn to them", less: ""}
+      chatting:   {label: "how long they've been talking", more: "talking for days", less: ""}
+      motivation: {label: "how much they want to date", more: "keen to date", less: ""}
+      boldness:   {label: "how outgoing they are", more: "outgoing", less: "reserved"}
+  app_answer:
+    label: Saying yes to a date with a match
+    units: logit
+    outcomes: ["yes", "no"]
+    factors:
+      attraction: {label: "how drawn they are to the match", more: "drawn to them", less: "not into them"}
+      politeness: {label: "saying yes to first dates to be polite", more: "says yes to be nice", less: ""}
+      motivation: {label: "how much they want to date", more: "keen to date", less: ""}
+      picky:      {label: "how picky they are", more: "", less: "picky"}

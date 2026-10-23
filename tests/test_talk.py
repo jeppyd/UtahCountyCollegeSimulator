@@ -132,7 +132,9 @@ def test_dossier_leaves_sensitive_fields_out(ran):
 
 def test_status_and_settings(client):
     s = client.get("/api/talk/status").json()
-    assert set(s["using"]) == {"ask", "interview"} and s["recommended"] == {"ask": "claude", "interview": "openai"}
+    assert set(s["using"]) == {"ask", "interview", "narrate", "dialogue"}
+    assert s["recommended"] == {"ask": "claude", "interview": "openai", "narrate": "claude", "dialogue": "openai"}
+    assert client.post("/api/talk/settings", json={"dialogue_backend": "off"}).json()["dialogue_backend"] == "off"
     got = client.post("/api/talk/settings", json={"interview_backend": "claude", "sensitive": True}).json()
     assert got["interview_backend"] == "claude" and got["sensitive"] is True
     assert client.post("/api/talk/settings", json={"ask_backend": "rm -rf"}).json()["ask_backend"] == "auto"

@@ -71,11 +71,27 @@ audience at message time, date windows, gap notes), `analysis/stories.py` (devel
 `Phone`, scene player Listen in + perspectives, valley "Developing" tab.
 
 ## Retention and scale
-* In-person capture records every consequential exchange (a first meeting at an occasion, a conflict, a raised
-  concern, a disclosure) and a deterministic hash-thinned sample of ordinary talk (`social.capture.ordinary_every`),
-  so volume grows with people, not with pairs. Exchanges older than `sim.detail_days` thin to the ones that carry a
-  belief, a concern or a salient event. Beliefs and concerns are capped per person.
-* Recording draws no random numbers; viewing, generating wording or cancelling never touches a world.
+* In-person capture records every consequential exchange (a conflict, a raised concern, a disclosure, a
+  clarification) and a deterministic hash-thinned sample of ordinary talk among people who know each other:
+  `social.capture.ordinary_every` = 6 (one pair-block in six; couples and first meetings at get-togethers one in
+  three). Volume grows with people, not with pairs. No random numbers are drawn; nothing in behavior reads the
+  exchange log, so the sample size can change without changing any life.
+* Ordinary talk older than 14 days thins away (Listen in is about now); consequential exchanges, app messages,
+  readings, closed concerns and revised beliefs stay for `sim.detail_days` (120). Beliefs fade (half-life 35 days)
+  and are capped at 6 per person.
+* Viewing, generating wording or cancelling never touches a world (tested: a world watched every day ends identical
+  to one never watched).
+
+## Model wording (llm/talk/dialogue.py)
+* A view's planned lines (who, to whom, act, licensed facts) are fixed by the records; the model only words them.
+  `DialogueChecker` judges meaning per line: polarity, reasons kept back, names, numbers, days and times, and no
+  invitation, promise, accusation, relationship, secret, condition or psychologizing the plan doesn't license. One
+  repair round; lines that still fail keep the structured wording.
+* Cache key: (world lineage, content hash of the planned lines, schema). Lineage is a uuid set when a world is built
+  and kept by forks and undo; a branch whose lines differ gets a different content hash. 600 entries, LRU.
+* Queue: one worker, a bounded priority heap (24), deduplicated by key, cancellable; the plan is built under the
+  world lock, the model runs without it. Routing: Settings → Models → "Words of texts and conversations" (a model on
+  this computer is recommended; Off keeps the plain wording).
 
 ## Engine adoption decisions (research list)
 | Candidate | Decision | Why |
@@ -90,5 +106,8 @@ audience at message time, date windows, gap notes), `analysis/stories.py` (devel
 | pyABC, Concordia, AgentSociety, AgentTorch, FLAME GPU, Neighborly | **defer** | no informative data or measured need yet. |
 
 ## Acceptance (from the request) and where each is tested
-See `tests/test_social.py`, `tests/test_phone.py`, `tests/test_dialogue.py`, `tests/test_app_threads.py`,
-`tests/test_stories.py` and the measurements in the HANDOFF session log.
+All in `tests/test_conversations.py` (fake model only): 1 observation invariance, 2 historical integrity, 3 both
+phones and group audiences, 4 cache across undo/fork/new worlds, 5 differentiation, 6 checker cases, bad model
+output and the queue, 7 ordinary and positive life, 8 live append, 9 dating integrity, 11 belief revision, 12
+promises, 13 developing stories, 14 ablations (no explained declines, no clarifying), plus the API end to end. 10
+(scale) is the speed budget (`tests/test_speed_budget.py`) and the measurements in the HANDOFF session log.

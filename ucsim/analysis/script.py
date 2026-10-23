@@ -74,10 +74,6 @@ TIRED = ["honestly I'm so tired, next time!", "I'm dead tonight 😴 next time",
 MODE_WORDS = {"walk": "on foot", "bike": "by bike", "car": "by car", "transit": "by bus", "ride": "by ride"}
 ELSEWHERE = {"left_out", "felt_ignored", "assumed_busy", "assumed_not_interested"}
 ARRIVE = ["{a} arrives", "{a} walks in", "{a} shows up", "{a} gets there"]
-CHECKIN = ["hey! how's your week going?", "how are you doing?", "hiii how's life", "thinking about you, how are things?",
-           "hey stranger, how are you?"]
-REPLY = ["good! busy but good. you?", "so good to hear from you!", "honestly kind of a week haha. you?",
-         "I'm good! we should hang out soon", "aw thanks for checking in"]
 ASK_OUT = ["would you want to go out sometime this week?", "hey, would you want to get dinner friday?",
            "this is random but would you want to go on a date?", "want to grab ice cream sometime?"]
 SAID_NO = ["oh that's so nice of you, but I don't think so", "I'm actually seeing someone right now, sorry!",
@@ -109,31 +105,32 @@ def _no_line(dec: dict | None, key) -> str:
 DATE_YES = ["yes! I'd love that", "sure, sounds fun :)", "okay yes!", "I'd like that", "yes, I'm free"]
 
 
-def _date_dynamics(sim, beat, ids, start, end):
-    """How a date goes, from the two people's attraction and chemistry (recorded on their tie)."""
-    P, E = sim.w.P, sim.w.E
+def _date_dynamics(sim, beat, ids, start, end, day):
+    """How a date went, from the quality the simulation recorded for it that evening (the first_date or date event).
+    A date that hasn't happened yet says nothing: how it will go isn't known."""
+    log = sim.log
     x, y = int(ids[0]), int(ids[1])
-    e = E.find(E.make_keys(np.array([x]), np.array([y])))[0]
-    if e < 0:
+    n = log.n
+    lo = int(np.searchsorted(log["day"][:n], day))
+    hi = int(np.searchsorted(log["day"][:n], day, side="right"))
+    t = log["type"][lo:hi]
+    kinds = [sim.reg.event_ids[k] for k in ("first_date", "date")]
+    m = np.isin(t, kinds) & (((log["a"][lo:hi] == x) & (log["b"][lo:hi] == y)) | ((log["a"][lo:hi] == y) & (log["b"][lo:hi] == x)))
+    rows = lo + np.flatnonzero(m)
+    if not len(rows):
         return
-    fx = float(E.attraction_from(np.array([e]), np.array([x]))[0])
-    fy = float(E.attraction_from(np.array([e]), np.array([y]))[0])
-    chem = float(E["chemistry"][e])
+    e = int(rows[0])
+    q = float(log["value"][e])
     mid = start + max(end - start, 30) // 2
-    X, Y = _first(P, x), _first(P, y)
-    ref = {"kind": "tie", "id": f"{min(x, y)}-{max(x, y)}"}
-    if min(fx, fy) >= 0.35 and chem >= 0.3:
-        beat("stage", "The conversation is easy. They lose track of time.", minute=mid, source="mutual attraction and chemistry", ref=ref)
-    elif min(fx, fy) >= 0.3:
-        beat("stage", "They like each other, you can tell, but there are a few long pauses.", minute=mid, source="attraction without much chemistry yet", ref=ref)
-    elif max(fx, fy) >= 0.3:
-        s_, o_ = (X, Y) if fx >= fy else (Y, X)
-        beat("stage", f"{s_} is clearly into it. {o_} is friendly, and checks the time once or twice.", minute=mid,
-             source="one-sided attraction", ref=ref)
+    ref = {"kind": "event", "id": e}
+    if q >= 0.6:
+        beat("stage", "The conversation is easy. They lose track of time.", minute=mid, source="how the date went (recorded that night)", ref=ref)
+    elif q >= 0.1:
+        beat("stage", "They like each other, you can tell, but there are a few long pauses.", minute=mid, source="how the date went (recorded that night)", ref=ref)
+    elif q >= -0.4:
+        beat("stage", "It's pleasant, a little polite.", minute=mid, source="how the date went (recorded that night)", ref=ref)
     else:
-        beat("stage", "It's pleasant, a little polite. Neither of them feels much.", minute=mid, source="little attraction either way", ref=ref)
-    if float(E["conflict"][e]) >= 0.3:
-        beat("stage", "Something from before hangs over it.", minute=mid + 15, source="unresolved conflict between them", ref=ref)
+        beat("stage", "It never quite clicks. Both of them check the time.", minute=mid, source="how the date went (recorded that night)", ref=ref)
 
 
 # --------------------------------------------------------------------------------------------------- occasion scenes
@@ -259,7 +256,7 @@ def occasion_script(sim, oid: int) -> dict:
     # the room: who is drawn to whom, old friends, tension, who hangs back
     ids = [p["person"]["id"] for p in came]
     if kind == "date" and len(ids) == 2:
-        _date_dynamics(sim, beat, ids, start, int(sc["end"]))
+        _date_dynamics(sim, beat, ids, start, int(sc["end"]), int(sc["day"]))
     elif len(ids) >= 2:
         a_, b_ = np.triu_indices(len(ids), 1)
         A, B = np.array(ids)[a_], np.array(ids)[b_]
@@ -433,27 +430,20 @@ def pair_script(sim, a: int, b: int, limit: int = 120) -> dict:
             place = "" if first and str(row["place"]).startswith(first) else f", {row['place']}"
             items.append((int(row["day"]), 2, {"kind": "stage", "text": f"Both at {whose} ({row['time'].split('–')[0]}{place}).",
                                                "source": "an occasion they both came to", "ref": {"kind": "occasion", "id": int(o)}}))
-    M = sim.systems.get("messaging")
-    if M is not None and M.acts.n:
-        from ..engine.systems.messaging import ACTS
-        A = M.acts
-        s, t = A.cols["sender"][: A.n], A.cols["to"][: A.n]
-        m = ((s == a) & (t == b)) | ((s == b) & (t == a))
-        for r in np.flatnonzero(m).tolist():
-            k = ACTS[int(A.cols["kind"][r])]
-            d = int(A.cols["day"][r])
-            snd = int(s[r])
-            who = {"id": snd, "name": W.name(snd)}
-            if k == "checkin":
-                items.append((d, 0, {"kind": "text", "who": who, "line": _pick(CHECKIN, r), "source": "a check-in text"}))
-            elif k == "reply":
-                items.append((d, 1, {"kind": "text", "who": who, "line": _pick(REPLY, r), "source": "a reply"}))
-            elif k == "silence":
-                items.append((d, 1, {"kind": "silence", "who": who, "text": f"{who['name'].split()[0]} sees it and doesn't reply.", "source": "seen, no reply"}))
-            elif k == "invite":
-                ref = int(A.cols["ref"][r])
-                items.append((d, 0, {"kind": "text", "who": who, "line": _pick(INVITE["_"], r).format(t="tonight"), "source": "an invitation",
-                                     "ref": {"kind": "occasion", "id": ref} if ref >= 0 else None}))
+    # their texts: the same planned lines, and the same words, as on their phones (analysis/phone.py)
+    from . import dialogue as D
+    from . import phone as PH
+    from ..llm.talk import dialogue as TD
+    specs = PH.dm_lines(sim, a, b, since=max(0, sim.w.day - 60))
+    texts, _ = TD.apply(sim, specs, (TD.lineage(sim), D.content_key(specs), D.SCHEMA))
+    for k, (sp, txt) in enumerate(zip(specs, texts)):
+        who = {"id": sp["speaker"], "name": W.name(sp["speaker"])} if sp["speaker"] is not None else None
+        ref = {"kind": "exchange", "id": sp["ex"]} if sp.get("ex") is not None else sp.get("ref")
+        if sp.get("absent") or sp.get("kind") == "stage":
+            items.append((sp["day"], 1, {"kind": "silence", "who": who, "text": txt, "source": D.label_act(sp["act"]), "ref": ref}))
+        else:
+            items.append((sp["day"], 0, {"kind": "text", "who": who, "line": txt, "source": D.label_act(sp["act"]), "ref": ref,
+                                         "order": k}))
     # how they met
     E = sim.w.E
     e0 = E.find(E.make_keys(np.array([a]), np.array([b])))[0]

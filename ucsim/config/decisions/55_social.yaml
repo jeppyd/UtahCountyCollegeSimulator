@@ -108,3 +108,9 @@ decisions:
       politeness: {label: "saying yes to first dates to be polite", more: "says yes to be nice", less: ""}
       motivation: {label: "how much they want to date", more: "keen to date", less: ""}
       picky:      {label: "how picky they are", more: "", less: "picky"}
+      taken:      {label: "seeing someone else", kind: constraint, less: "already seeing someone"}
+      already_planned: {label: "a date already planned", kind: constraint, less: "another date already planned"}
+  reply_message:
+    extend: true
+    factors:
+      asked_directly: {label: "asked directly what's up", more: "they asked straight out", less: ""}

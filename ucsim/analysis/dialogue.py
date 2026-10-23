@@ -34,8 +34,8 @@ REASON_WORDS = {"work": "I'm working", "class": "I have class then", "clash": "I
                 "hurt": "I can't tonight", "not_feeling_it": "I can't tonight", "none": "I can't tonight"}
 REASON_SHORT = {"work": "work", "class": "class", "clash": "another thing", "ill": "being sick", "far": "getting there",
                 "tired": "being tired", "exam": "studying", "partner": "plans", "hurt": "", "not_feeling_it": "", "none": ""}
-OCC_WORDS = {"dinner": "dinner", "gathering": "people over", "game_night": "game night", "party": "a party",
-             "movie_night": "movie night", "hangout": "hanging out", "study_group": "a study group", "date": "a date"}
+OCC_WORDS = {"dinner": "dinner", "gathering": "a get-together", "game_night": "game night", "party": "a party",
+             "movie_night": "movie night", "hangout": "a hangout", "study_group": "a study group", "date": "a date"}
 TOPIC_SMALL = {
     "class": (["how's {course} going for you?", "did you get the reading done?", "this class is going to be the death of me",
                "are you ready for the next assignment?"],
@@ -95,6 +95,12 @@ def style_words(st: dict) -> str:
     return ", ".join(b for b in bits if b)
 
 
+APP_CHAT = [("so what are you studying?", ["honestly still figuring it out, you?", "nursing! it's a lot but I love it", "business, for now haha"]),
+            ("what do you do for fun?", ["hiking when it's not freezing, you?", "honestly mostly board games lol", "I'm always down for a good movie"]),
+            ("how was your weekend?", ["pretty chill, yours?", "busy! but fun", "lowkey just caught up on sleep haha"]),
+            ("where are you from originally?", ["out of state, so Provo is still new", "born and raised here haha", "kind of all over"]),
+            ("ok important question: favorite place to eat around here?", ["oh that's hard. anywhere with tacos", "anywhere with good fries",
+                                                                           "I'll eat anything honestly"])]
 SOFT_ACTS = {"decline_explained", "decline_brief", "late_reply", "apologize", "clarify", "ask_clarify", "disclose", "deflect",
              "support", "reassure", "promise", "date_no", "plan_change", "checkin_again"}
 SOFT_EMOJI = ["🙁", "😅", "🙏"]
@@ -118,7 +124,7 @@ def shape(text: str, st: dict, key, channel: str = "text") -> str:
             t = t[:-1]
         if st["emoji"] > 0.55 and not any(ord(ch) > 0x2000 for ch in t) and _h(key, "em") % 3 == 0:
             act = key[-1] if isinstance(key, tuple) and key and isinstance(key[-1], str) else ""
-            bank = SOFT_EMOJI if act in SOFT_ACTS else ["🙂", "😊", "🙌", "😄", "❤️"]
+            bank = SOFT_EMOJI if act in SOFT_ACTS else ["🙂", "😊", "🙌", "😄"]
             t = t + " " + bank[_h(key, "e2") % len(bank)]
     else:
         t = t[0].upper() + t[1:]
@@ -300,8 +306,9 @@ def fallback(sim, spec: dict, styles: dict | None = None) -> str:
         t = pick(["hey! sorry, just seeing this. pretty good, you?", "hi! not bad, slow week. you?"] if sl.get("late") else
                  ["hey! pretty good, you?", "hi! good, what about you?", "haha hi :) good week so far"], st, *key)
     elif a == "app_chat":
-        t = pick(["so what are you studying?", "that's awesome", "haha no way, same", "what do you do for fun?", "ok that's funny"],
-                 st, *key)
+        # one question and its answer per chatting day (both lines share the exchange, so they stay a pair)
+        q, answers = APP_CHAT[_h(spec.get("ex"), "q") % len(APP_CHAT)]
+        t = pick(answers, st, *key) if spec.get("sub") == 2 else q
     elif a == "ask_date":
         t = pick([f"would you want to get {sl.get('date_words') or 'dinner'} sometime?", "want to grab food this week?",
                   "would you want to go out sometime?"], st, *key)

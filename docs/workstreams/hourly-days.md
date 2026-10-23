@@ -64,12 +64,14 @@ Intimacy: hours alone with a partner after 10 pm since the couple's last weekly 
 
 Friends 6.37 → 6.44, loneliness 0.274 → 0.262, dates in 30 days 2.73 → 2.75, first dates 4152 → 4316, NCMOs 1226 →
 1266, conflicts 49 → 48, sleep 6.82 → 6.86 h, class attendance 0.804 → 0.788, social hours a week 32.6 → 34.4,
-social events a month 8.4 → 10.9 (more evening hours to drop by a friend's place), weekday bedtimes mostly 11 pm–1 am
+social events a month 8.4 → 6.9 (singles 9.4 → 7.9; ProvoStats about 8: a visit counts as a social event only at a
+get-together of two or more visitors), weekday bedtimes mostly 11 pm–1 am
 (about 45% asleep at midnight, 82% by 2 am; later on weekends).
 
 ## Open issues
 
 - The building-occupancy table (`geo/schedule.py`, committed parquet) is still by the old four blocks, read as parts.
-- `social_events_month` runs about 25% above the old model; visits count as social events every time.
+- `scripts/validate.py --scale 0.15 --seed 1`: 89 pass · 26 warn · 17 fail (main: 86 · 27 · 19); engaged students'
+  social events still run high (about 7 vs 4.8), as before.
 - About twice the time per simulated day (hourly utilities and encounters); the budget was re-recorded.
 - Early shifts (custodial 4–6 am) aren't drawn yet.

@@ -181,7 +181,9 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   `57_time.yaml`. Intimacy gets `intimacy.step.late` (late nights alone together). Bedroom-mate friction now uses
   mismatched body clocks instead of last night's sleep (which is noisy now).
 - Calibrated against main (scale 0.08, 60 days, seed 1): friends, dates, loneliness, conflicts, sleep and class
-  attendance match within a few percent; social events a month 8.4 → 10.9 (open issue). Table in the spec.
+  attendance match within a few percent. A visit counts as a social event only at a get-together (two or more
+  visitors), which brings social events back to ProvoStats. `scripts/validate.py` re-run: 89 pass · 26 warn · 17
+  fail (main 86 · 27 · 19); docs/VALIDATION.md regenerated. Full suite 334 passed.
 - Speed: about 1.9× main per simulated day (activity and encounters run 24 times a day); budget re-recorded with
   `scripts/perf.py --update "hour-by-hour days"`. Run outputs differ from before.
 - Not done: the building-occupancy parquet is still by the old blocks (read as parts); early-morning shifts.

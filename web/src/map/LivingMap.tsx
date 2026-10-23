@@ -10,7 +10,6 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { api, STATIC, type Universe } from '../api'
 import { cssVar, hexRgb } from '../components'
 import { useStore } from '../store'
-import { catRgb } from '../kit/Bits'
 import { type BuildingInside, type Buildings, type NowOccasions, type NowPerson, type Precise, type Refresh, clock, KINDS, loadBuilding, loadBuildings3d, loadCore, loadNowOccasions, loadNowPerson, loadPrecise, refreshKey, toLonLat } from './data'
 
 const CENTER: [number, number] = [-111.672, 40.262]
@@ -56,8 +55,8 @@ export type LivingProps = {
   u: Universe
   opts: LivingOpts
   setOpts: (o: LivingOpts) => void
-  /** color of person i (rgb), given the positions frame */
-  colorOf: (i: number, p: Precise) => [number, number, number] | null
+  /** color of person i (rgb, or rgba to set how strongly they show), given the positions frame */
+  colorOf: (i: number, p: Precise) => [number, number, number] | [number, number, number, number] | null
   /** 1 = chosen (drawn strong), 0 = faint; null = everyone the same */
   chosen?: Uint8Array | null
   focus?: number | null
@@ -110,6 +109,7 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
   const [follow, setFollow] = useState<number | null>(null)          // the person the camera stays on
   const [occs, setOccs] = useState<NowOccasions | null>(null)
   const [list, setList] = useState(false)                            // the 'right now' list
+  const [pinKind, setPinKind] = useState<string | null>(null)       // the kind of occasion picked there (its pins stand out)
   const el = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const overlay = useRef<MapboxOverlay | null>(null)
@@ -284,9 +284,13 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
     if (!prec) return []
     const out: number[] = []
     for (let i = 0; i < prec.n; i++) if (!Number.isNaN(prec.lon[i])) out.push(i)
-    if (chosen) out.sort((a, b) => chosen[a] - chosen[b])
+    // strong dots are drawn last, so the faint ones never cover them
+    const a = (i: number) => (chosen ? chosen[i] * 1000 : 0) + (colorOf(i, prec)?.[3] ?? 220)
+    const key = new Float32Array(prec.n)
+    for (const i of out) key[i] = a(i)
+    out.sort((x, y) => key[x] - key[y])
     return out
-  }, [prec, chosen])
+  }, [prec, chosen, colorOf])
   const openK = open !== null && bld ? bld.byId.get(open) ?? -1 : -1
   const gap = sep ? GAP : 0
   const zOf = (i: number) => {
@@ -379,16 +383,19 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
       }))
     }
     if (pins && occs) {
+      const pinRgb = text
       const big = occs.occasions.filter(o => o.n >= (zoom >= 16 ? 2 : zoom >= 14.5 ? 4 : 12))
       layers.push(new ScatterplotLayer({
         id: 'pins', data: big, getPosition: (o: any) => [o.lon, o.lat, 0.2], getRadius: (o: any) => 4 + 2.2 * Math.sqrt(o.n), radiusUnits: 'pixels',
-        filled: true, getFillColor: (o: any) => [...catRgb(o.category), 50], stroked: true, getLineColor: (o: any) => [...catRgb(o.category), 230], lineWidthMinPixels: 2,
+        filled: true, getFillColor: (o: any) => [...pinRgb, pinKind && o.label !== pinKind ? 12 : 50], stroked: true,
+        getLineColor: (o: any) => (pinKind && o.label !== pinKind ? [...pinRgb, 60] : [...(pinKind ? accent : pinRgb), 230]), lineWidthMinPixels: 2,
+        updateTriggers: { getFillColor: [pinKind, isClay, dark], getLineColor: [pinKind, isClay, dark] },
         pickable: true, parameters: { depthCompare: 'always' },
         onClick: (info: any) => { if (info.object) onOccasion?.(info.object.id, info.object.name ?? info.object.label) },
         onHover: (info: any) => onHover?.(null),
       }))
       layers.push(new TextLayer({
-        id: 'pin-labels', data: big.filter(o => o.n >= (zoom >= 16.5 ? 2 : 8)).slice(0, 300),
+        id: 'pin-labels', data: big.filter(o => (!pinKind || o.label === pinKind) && o.n >= (zoom >= 16.5 ? 2 : 8)).slice(0, 300),
         getText: (o: any) => `${o.name ?? o.label} · ${o.n}`, getPosition: (o: any) => [o.lon, o.lat, 0.3],
         getPixelOffset: (o: any) => [0, -(8 + 2.2 * Math.sqrt(o.n))], getSize: 11, getColor: [...text, 230], fontFamily: 'system-ui, sans-serif', fontWeight: 600,
         billboard: true, outlineWidth: 2, outlineColor: [...surf, 240], fontSettings: { sdf: true, fontSize: 64, buffer: 6 }, characterSet: 'auto',
@@ -399,12 +406,12 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
       layers.push(new ScatterplotLayer({
         id: 'people', data: pIdx, getPosition: (i: number) => [prec.lon[i], prec.lat[i], zOf(i)],
         billboard: true, radiusUnits: 'meters', getRadius: (i: number) => (chosen && chosen[i] ? 0.75 : 0.6), radiusMinPixels: 1.8, radiusMaxPixels: 10,
-        getFillColor: (i: number) => { const c = colorOf(i, prec) ?? muted; return [c[0], c[1], c[2], chosen ? (chosen[i] ? 245 : 30) : 220] },
-        stroked: true, getLineColor: [...surf, 220], lineWidthMinPixels: 0.5, lineWidthMaxPixels: 1.2,
+        getFillColor: (i: number) => { const c = colorOf(i, prec) ?? muted; return [c[0], c[1], c[2], chosen ? (chosen[i] ? Math.max(c[3] ?? 245, 120) : 30) : c[3] ?? 220] },
+        stroked: true, getLineColor: (i: number) => [...surf, Math.min(220, colorOf(i, prec)?.[3] ?? 220)], lineWidthMinPixels: 0.5, lineWidthMaxPixels: 1.2,
         parameters: view3d && xray ? { depthCompare: 'always' } : {},
         pickable: true, autoHighlight: true, highlightColor: [255, 255, 255, 230],
         transitions: { getPosition: { duration: gliding ? Math.max(200, (pace * 1000) / 5 * 0.85) : 700 } },
-        updateTriggers: { getFillColor: [colorOf, chosen, prec], getRadius: [chosen], getPosition: [prec, open] },
+        updateTriggers: { getFillColor: [colorOf, chosen, prec], getLineColor: [colorOf, prec], getRadius: [chosen], getPosition: [prec, open] },
         onHover: (info: any) => onHover?.(info.object === undefined || info.object === null ? null : { x: info.x, y: info.y, i: info.object, p: prec }),
         onClick: (info: any) => { if (info.object !== undefined && info.object !== null) pickPerson(info.object) },
       }))
@@ -435,7 +442,7 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
       }))
     }
     overlay.current.setProps({ layers })
-  }, [tone, lit, occs, pins, geo, bld, bCore, bFlat, floorRings, prec, pIdx, colorOf, chosen, focus, view3d, xray, dark, inside, openK, zoom, labels, names, gliding, pace, streets, busy, pick, gap, isClay])
+  }, [tone, lit, occs, pins, pinKind, geo, bld, bCore, bFlat, floorRings, prec, pIdx, colorOf, chosen, focus, view3d, xray, dark, inside, openK, zoom, labels, names, gliding, pace, streets, busy, pick, gap, isClay])
 
   const shown = gliding && glide !== null ? `${BLOCK_NAMES[glide]} (playing the day as time runs)` : prec ? (prec.block >= 0 && prec.block < 5 ? BLOCK_NAMES[prec.block] : '') : ''
   return (
@@ -462,7 +469,7 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
       {card !== null && <NowCard i={card} u={u} k={`${prec?.day}:${prec?.block}`} onClose={() => { setCard(null); setFollow(null) }} onPerson={pickPerson} onOccasion={onOccasion}
         following={follow === card} onFollow={() => setFollow(follow === card ? null : card)}
         onBuilding={b => openBuilding(b)} />}
-      {list && occs && <RightNow d={occs} onClose={() => setList(false)} onPick={o => { flyTo(o.lon, o.lat); onOccasion?.(o.id, o.name ?? o.label) }} />}
+      {list && occs && <RightNow d={occs} kind={pinKind} setKind={setPinKind} onClose={() => { setList(false); setPinKind(null) }} onPick={o => { flyTo(o.lon, o.lat); onOccasion?.(o.id, o.name ?? o.label) }} />}
       <div className="lm-when">{prec ? <>{new Date(prec.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}{shown ? ` · ${shown}` : ''}{running && refresh !== 'live' && !gliding ? ' · updates ' + (refreshKey(refresh, status).startsWith('d:') ? 'once a day' : 'when paused') : ''}</> : null}</div>
       {err && !prec && <div className="lm-over small">{err.includes('404') ? 'Run time forward a little and people appear.' : err}</div>}
       {!prec && !err && <div className="lm-over small muted">Placing people…</div>}
@@ -586,8 +593,7 @@ function NowCard({ i, u, k, onClose, onPerson, onOccasion, onBuilding, following
 }
 
 /** Everything happening at this moment, by kind; click one to go there. */
-function RightNow({ d, onClose, onPick }: { d: NowOccasions; onClose: () => void; onPick: (o: NowOccasions['occasions'][number]) => void }) {
-  const [kind, setKind] = useState<string | null>(null)
+function RightNow({ d, kind, setKind, onClose, onPick }: { d: NowOccasions; kind: string | null; setKind: (k: string | null) => void; onClose: () => void; onPick: (o: NowOccasions['occasions'][number]) => void }) {
   const rows = kind ? d.occasions.filter(o => o.label === kind) : d.occasions
   return (
     <div className="lm-card lm-list">
@@ -598,11 +604,10 @@ function RightNow({ d, onClose, onPick }: { d: NowOccasions; onClose: () => void
       <div className="lm-card-b">
         <div className="lm-kinds">
           <button className={kind === null ? 'on' : ''} onClick={() => setKind(null)}>Everything</button>
-          {d.counts.map(c => <button key={c.label} className={kind === c.label ? 'on' : ''} onClick={() => setKind(c.label)}><i className="bx-catdot" style={{ background: `rgb(${catRgb(c.category).join(',')})` }} />{c.label}<small> {c.occasions} · {c.people} people</small></button>)}
+          {d.counts.map(c => <button key={c.label} className={kind === c.label ? 'on' : ''} onClick={() => setKind(kind === c.label ? null : c.label)} title="Show only these on the map">{c.label}<small> {c.occasions} · {c.people} people</small></button>)}
         </div>
         {rows.slice(0, 150).map(o => (
           <button key={o.id} className="lm-occ-row" onClick={() => onPick(o)}>
-            <i className="bx-catdot" style={{ background: `rgb(${catRgb(o.category).join(',')})` }} />
             <span>{o.name ?? o.label}</span><small>{clock(o.start)}–{clock(o.start + o.dur)} · {o.n} {o.n === 1 ? 'person' : 'people'}</small>
           </button>
         ))}

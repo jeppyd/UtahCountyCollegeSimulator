@@ -60,7 +60,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 
 | Workstream | State | Where the code is | Next step |
 |---|---|---|---|
-| Foundation: ledgers (decisions, causes, occasions), 4-block clock, travel interface, contracts, auto-registered routers and workbench tools, CSV survey loader, privacy guard test | **done** | working branch | — |
+| Foundation: ledgers (decisions, causes, occasions), clock (hourly since 2026-10-23), travel interface, contracts, auto-registered routers and workbench tools, CSV survey loader, privacy guard test | **done** | working branch | — |
 | [time-occasions](workstreams/time-occasions.md) (option B) | **done, merged** | working branch | open issues below |
 | [provenance-trace](workstreams/provenance-trace.md) | **done, merged** | working branch | open issues below |
 | [workbench](workstreams/workbench.md) | **done, merged** | working branch | open issues below |
@@ -77,6 +77,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [conversations](workstreams/conversations.md): phones, dating apps, listening in, perspectives, developing stories, model wording | **PR open** (not merged) | branch `claude/project-thread-v1aefl` | owner review; first real runs of model wording (only tested with a fake model) |
 | Map: paint by any field (owner-directed, 2026-10-23) | merged (#32); follow-ups **PR open** | branch `claude/project-thread-54extr` | owner review |
 | Make it happen: people finder + new verbs (owner-directed, 2026-10-23) | **merged** (auto-merge authorized) | branch `claude/project-thread-v6a979` | find by relation/filters/sort (`analysis/find.py`, `/api/people/find`); set_up, fall_out, make_up, happen, mutual spark, job offer in the panel |
+| [hourly-days](workstreams/hourly-days.md): 24 hourly steps, sleep, every free hour chosen (owner-directed, 2026-10-23) | **PR open** (not merged) | branch `claude/project-thread-j337lt` | owner play-testing; occupancy table by part; early shifts |
 | Menstrual cycle (owner-directed, 2026-10-23) | in review | branch `claude/project-thread-tlb20b` | owner tuning after play |
 | [survey-followups](workstreams/survey-followups.md) | audits designed, interrupted | — | needs the raw survey files in `data/raw/` |
 | [integration](workstreams/integration.md) | ongoing | — | after each merge |
@@ -165,6 +166,25 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-23 (4) — Claude Code (cloud session) — hour-by-hour days
+- Spec: `docs/workstreams/hourly-days.md`. The day is now 24 hourly steps from 6 am to 6 am (`engine/clock.py`);
+  records carry the part of the day (`clock.PARTS`, five parts), not the hour. Everything that read the four-block
+  day (activity, encounters, occasions, routine (168 slots), academics, faith, social actions, phone, trace, fields,
+  placement, schedule, the web map, day replay, routine table, guide) was moved to hours.
+- New system `sleep` (`engine/systems/sleep.py`): body clock, going to bed as an hourly option, falling asleep,
+  alarms and sleeping through them. `sleep_hours` is now last night's actual sleep; new variables `chronotype`,
+  `bedtime`, `wake_time`, `late_nights_week`; `activity_now` gains `sleep` and `with_partner`.
+- Activity: hour curves, carrying on, partner time, visits only to friends who are home and up, asking someone along
+  (`late_night_plan`), skipping class for something better (`skip_class`), visiting hours as a choice against the
+  heat of the moment (`past_visiting_hours`). Mechanisms `config/mechanisms/22_time.yaml`, events and decisions
+  `57_time.yaml`. Intimacy gets `intimacy.step.late` (late nights alone together). Bedroom-mate friction now uses
+  mismatched body clocks instead of last night's sleep (which is noisy now).
+- Calibrated against main (scale 0.08, 60 days, seed 1): friends, dates, loneliness, conflicts, sleep and class
+  attendance match within a few percent; social events a month 8.4 → 10.9 (open issue). Table in the spec.
+- Speed: about 1.9× main per simulated day (activity and encounters run 24 times a day); budget re-recorded with
+  `scripts/perf.py --update "hour-by-hour days"`. Run outputs differ from before.
+- Not done: the building-occupancy parquet is still by the old blocks (read as parts); early-morning shifts.
 
 ### 2026-10-23 — Make it happen: finding people and more verbs (cloud session, branch claude/project-thread-v6a979)
 - People finder inside Make it happen: how they stand with the person (friends, roommates, ward, classmates, exes,

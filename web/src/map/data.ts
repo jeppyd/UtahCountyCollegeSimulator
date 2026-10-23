@@ -90,11 +90,11 @@ export const toLonLat = (d: { origin: [number, number]; m_per_deg: [number, numb
   [d.origin[0] + p[0] / d.m_per_deg[0], d.origin[1] + p[1] / d.m_per_deg[1]]
 
 /** How often the map redraws people while time runs: frozen (only when paused), once per simulated day, or after
- *  every part of the day. 'auto' = every part of the day at the slower speeds, once a day at top speed. */
+ *  every hour. 'auto' = every hour at the slower speeds, once a day at top speed. */
 export type Refresh = 'auto' | 'paused' | 'daily' | 'live'
 export const REFRESH_WORDS: Record<Refresh, string> = {
-  auto: 'Automatic: every part of the day at speeds 1–2, once a day at top speed',
-  live: 'After every part of the day (morning, afternoon, evening, late evening, night)',
+  auto: 'Automatic: every hour at speeds 1–2, once a day at top speed',
+  live: 'After every simulated hour (6 am through the small hours)',
   daily: 'Once per simulated day',
   paused: 'Only when time is paused',
 }

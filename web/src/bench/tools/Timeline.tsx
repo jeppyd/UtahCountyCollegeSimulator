@@ -115,7 +115,7 @@ function TimelineTool({ sel, setSel, opts, setOpts }: PanelProps) {
                       onClick={() => focusItem(setSel, { kind: 'person', id: i, label: name(i) })}>{name(i).slice(0, 18)}</text>
                     <line x1={LEFT} x2={LEFT + plotW} y1={y} y2={y} stroke="var(--grid)" />
                     {(byPerson.get(i) ?? []).map(e => (
-                      <circle key={e.id} cx={X(e.day + e.block / 4 + 0.12)} cy={y} r={2 + 3.5 * e.salience} fill={catVar(e.category)}
+                      <circle key={e.id} cx={X(e.day + e.block / 5 + 0.1)} cy={y} r={2 + 3.5 * e.salience} fill={catVar(e.category)}
                         stroke={focusId === e.id ? 'var(--text-primary)' : 'none'} strokeWidth={2} opacity={0.35 + 0.65 * e.salience}
                         style={{ cursor: 'pointer' }} onPointerDown={ev => ev.stopPropagation()}
                         onClick={() => focusItem(setSel, { kind: 'event', id: e.id, label: e.label, u })}

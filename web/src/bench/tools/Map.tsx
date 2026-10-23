@@ -103,7 +103,7 @@ function MapTool({ sel, setSel, opts, setOpts }: PanelProps) {
     <div className="bm">
       <PanelOptions>
         <select value={refresh} onChange={e => set({ live: { ...live, refresh: e.target.value as Refresh } })} title="How often people move on the map while time runs">
-          {(Object.keys(REFRESH_WORDS) as Refresh[]).map(k => <option key={k} value={k} title={REFRESH_WORDS[k]}>{k === 'auto' ? 'Updates: automatic' : k === 'live' ? 'Updates: every part of the day' : k === 'daily' ? 'Updates: once a day' : 'Updates: when paused'}</option>)}
+          {(Object.keys(REFRESH_WORDS) as Refresh[]).map(k => <option key={k} value={k} title={REFRESH_WORDS[k]}>{k === 'auto' ? 'Updates: automatic' : k === 'live' ? 'Updates: every hour' : k === 'daily' ? 'Updates: once a day' : 'Updates: when paused'}</option>)}
         </select>
       </PanelOptions>
       <LivingMap u={u} opts={live} setOpts={o => set({ live: o })} colorOf={colorOf} chosen={chosen} focus={focus}

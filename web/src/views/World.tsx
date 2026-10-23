@@ -9,7 +9,9 @@ import { timeCtl } from '../hud'
 import { Cond, Pin, useLens, useStore } from '../store'
 import { CATEGORY_LABEL, FollowButton, Story } from '../ui'
 
-const BLOCK_LABEL = ['8 am · classes and work', '1 pm · afternoon', '6 pm · evenings out', 'Night · home']
+// the hours the little map cycles through (day frames are hour by hour from 6 am)
+const SHOWN = [2, 7, 12, 15, 18]
+const BLOCK_LABEL = ['8 am · classes and work', '1 pm · afternoon', '6 pm · evenings out', '9 pm · late evening', 'Midnight · most are home']
 const WEEK_KEYS: [string, string, string][] = [
   ['first_date', 'first dates', 'romance'], ['relationship_started', 'new exclusive couples', 'romance'], ['engaged', 'engagements', 'romance'], ['wedding', 'weddings', 'family'],
   ['breakup_received', 'breakups', 'romance'], ['new_friend', 'new friendships', 'social'], ['close_friend', 'close friendships', 'social'], ['baptized', 'baptisms', 'religion'],
@@ -79,7 +81,7 @@ export default function World() {
           <div className="card">
             <h3>{G.clock} A day in Provo</h3>
             <p className="hint">{p?.day_blocks_date ? `Where everyone was on ${new Date(p.day_blocks_date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}.` : 'Run a day to see what people do.'}</p>
-            {(p?.day_blocks ?? []).slice(0, 3).map((b: any) => <DayBlock key={b.block} b={b} />)}
+            {(p?.day_blocks ?? []).map((b: any) => <DayBlock key={b.block} b={b} />)}
           </div>
         </div>
       </div>
@@ -390,13 +392,14 @@ function LivingMap() {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       if (frames?.lon0) {
         const el = reduced ? HOLD / 2 + PER : Math.max(0, (now - t0) / 1000)
-        const cyc = el % (PER * 4)
+        const cyc = el % (PER * SHOWN.length)
         const k0 = Math.floor(cyc / PER), inBlock = cyc - k0 * PER
         const a = inBlock < HOLD ? 0 : (inBlock - HOLD) / GLIDE
         const e = a < 0.5 ? 2 * a * a : 1 - (-2 * a + 2) ** 2 / 2
-        const k1 = (k0 + 1) % 4
-        const L0 = frames[`lon${k0}`].data, A0 = frames[`lat${k0}`].data, L1 = frames[`lon${k1}`].data, A1 = frames[`lat${k1}`].data
-        const act = frames[`act${a < 0.5 ? k0 : k1}`].data
+        const k1 = (k0 + 1) % SHOWN.length
+        const h0 = SHOWN[k0], h1 = SHOWN[k1]
+        const L0 = frames[`lon${h0}`].data, A0 = frames[`lat${h0}`].data, L1 = frames[`lon${h1}`].data, A1 = frames[`lat${h1}`].data
+        const act = frames[`act${a < 0.5 ? h0 : h1}`].data
         const blk = a < 0.5 ? k0 : k1
         if (blk !== lastBlock) { lastBlock = blk; setLabel(BLOCK_LABEL[blk]) }
         const r = Math.max(1.3, Math.min(2.4, W / 700))

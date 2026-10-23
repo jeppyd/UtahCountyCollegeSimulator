@@ -20,10 +20,10 @@ def test_hosts_plan_kinds_and_times_and_invite(ran):
     hosted = np.isin(O["kind"], [_kind(ran, k) for k in ("gathering", "dinner", "game_night", "party", "study_group")])
     assert hosted.sum() > 50
     assert (O["organizer"][hosted] >= 0).all() and (O["n_invited"][hosted] > 0).mean() > 0.9
-    # start times are clock times in the evening (moved later to fit the host's day, never past the kind's latest start)
+    # start times are clock times in the evening (moved later to fit the host's day and for night owls), wrapped up by 1 am
     st = O["start"][hosted]
-    assert (st >= 15 * 60).all() and (st <= 22 * 60).all()
-    assert (O["start"][hosted] + O["dur"][hosted] <= 24 * 60).all()
+    assert (st >= 15 * 60).all() and (st <= 23 * 60).all() and np.median(st) <= 20 * 60
+    assert (O["start"][hosted] + O["dur"][hosted] <= 25 * 60).all()
     # every hosted occasion has the host's recorded decision, with the kind chosen and why
     dec = O["decision"][hosted]
     assert (dec >= 0).mean() > 0.9
@@ -74,11 +74,11 @@ def test_attendance_follows_the_clock(ran):
     du = O.cols["dur"][pos[ok]].astype(np.int32)
     arr = I["arrive"][att][ok].astype(np.int32)
     assert (arr >= st - 1).mean() > 0.99 and (arr <= st + du).all()
-    # dances are Friday and Saturday nights at 9 pm, in the late-evening block
+    # dances are Friday and Saturday nights at 9 pm, in the late evening
     dance = O["kind"] == _kind(ran, "dance")
     assert dance.any()
     assert set(ran.cal.weekday(int(d)) for d in O["day"][dance]) <= {4, 5}
-    assert all(clock.main_blocks(int(s), int(d)) == [3] for s, d in zip(O["start"][dance], O["dur"][dance]))
+    assert all(set(clock.PART[clock.main_blocks(int(s), int(d))].tolist()) == {3} for s, d in zip(O["start"][dance], O["dur"][dance]))
 
 
 def test_dates_are_occasions_at_a_venue_with_both(ran):
@@ -271,21 +271,21 @@ def test_plans_made_weeks_ahead_still_count(fresh):
 
 
 def test_couples_and_quiet_evenings_show_in_the_choice(ran):
-    """Free-time terms for the two evening blocks: a serious relationship pulls evenings away from friends, and someone
-    who stayed in for the early evening rarely heads out after 8:15."""
+    """Free-time terms in the evening: a serious relationship pulls evenings away from friends (and toward the partner),
+    and someone who has settled in at home leans toward staying in."""
     sim = copy.deepcopy(ran)
     P = sim.w.P
     act = sim.systems["activity"]
     i = int(np.where(P["present"] & (P["n_friends"] > 0))[0][0])
     P.cols["rel_status"][i] = P.code("rel_status", "engaged")
-    ch = act.explain_choice(i, 2)
+    ch = act.explain_choice(i, 13)                    # 7 pm
     visit = next(o for o in ch["options"] if o["option"] == 6)
     assert any(t["term"] == "partner" and t["value"] < 0 for t in visit["terms"])
-    n = P.n
-    act._prev = (np.zeros(n, np.uint8), np.zeros(n, np.uint8), np.full(n, -1, np.int64), np.zeros(n, np.uint8))
-    late = act.explain_choice(i, 3)
-    visit = next(o for o in late["options"] if o["option"] == 6)
-    assert any(t["term"] == "settled" and t["value"] < 0 for t in visit["terms"])
+    from ucsim.engine.systems.activity import O_HOME
+    act.cur_opt[i], act.cur_h[i] = O_HOME, 2
+    late = act.explain_choice(i, 15)                  # 9 pm, home since 7
+    home = next(o for o in late["options"] if o["option"] == O_HOME)
+    assert any(t["term"] == "continue" and t["value"] > 0 for t in home["terms"])
 
 
 def test_scene_agenda_and_choice(ran):
@@ -303,8 +303,8 @@ def test_scene_agenda_and_choice(ran):
     org = sc["organizer"]["id"]
     ag = ran.systems["occasions"].agenda(org, int(sc["day"]))
     assert any(o["id"] == oid and o["role"] == "organizer" for o in ag["occasions"])
-    assert len(ag["blocks"]) == 4 and ag["free"]
-    ch = ran.systems["activity"].explain_choice(org, 2)
+    assert len(ag["blocks"]) == 24 and ag["free"]
+    ch = ran.systems["activity"].explain_choice(org, 13)
     assert ch["computed_now"] and ch["options"][0]["terms"]
     assert abs(sum(o["prob"] for o in ch["options"]) - 1) < 1e-2
 
@@ -326,9 +326,9 @@ def test_occasion_endpoints(ran):
         i = int(ran.book.attendees(oid)[0])
         assert c.get("/api/occasions", params={"person": i}).json()["n"] >= 1
         d = c.get(f"/api/person/{i}/day").json()
-        assert d["person"] == i and len(d["blocks"]) == 4
-        ch = c.get(f"/api/person/{i}/choice", params={"block": 3}).json()
-        assert ch["block"] == 3 and ch["options"]
+        assert d["person"] == i and len(d["blocks"]) == 24
+        ch = c.get(f"/api/person/{i}/choice", params={"block": 15}).json()
+        assert ch["block"] == 15 and ch["part"] == "late" and ch["options"]
     finally:
         server.WS.base, server.WS.alt = keep
 

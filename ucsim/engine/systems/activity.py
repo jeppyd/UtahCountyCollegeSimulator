@@ -68,6 +68,11 @@ HOUR_CURVE = {
                          -0.8, -0.7, -0.6, -0.5, -0.3, 0.0, 0.3, 0.5, 0.7, 0.8, 0.7, 0.4]),
 }
 SHIFTED = (O_FOOD, O_OUT, O_VISIT, O_COMPLEX, O_PARTNER)
+_CURVES = np.zeros((NOPT, 24))                  # the curves as one table (options without one stay flat)
+for _c, _t in HOUR_CURVE.items():
+    _CURVES[_c] = _t
+_FIXED = np.array([c for c in HOUR_CURVE if c not in SHIFTED])
+_SHIFTED = np.array(SHIFTED)
 
 
 def _wide(B, k: int) -> np.ndarray:
@@ -571,11 +576,13 @@ class Activity:
         # Friday and Saturday nights (the small hours belong to the evening before them)
         late = p("activity.hourly.weekend_later") if (wd in (4, 5) and clock.PART[b] >= 2) else 0.0
         out = np.zeros((len(idx), NOPT))
-        for c, tab in HOUR_CURVE.items():
-            if c in SHIFTED:
-                out[:, c] = curve(tab, hour - p("activity.hourly.shift") * tau - late)
-            else:
-                out[:, c] = curve(tab, np.full(len(idx), hour))
+        out[:, _FIXED] = curve(_CURVES[_FIXED].T, hour)
+        # the going-out curves read at each person's own shifted hour (linear between the table's hours, wrapping)
+        h = np.mod(hour - p("activity.hourly.shift") * tau - late, 24.0)
+        i0 = np.floor(h).astype(np.int64)
+        f = (h - i0)[:, None]
+        T = _CURVES[_SHIFTED]
+        out[:, _SHIFTED] = T[:, i0].T * (1 - f) + T[:, (i0 + 1) % 24].T * f
         return p("activity.hourly.hour_weight") * np.nan_to_num(out, nan=0.0)
 
     def _utilities(self, idx: np.ndarray, b: int, wd: int, explain: bool = False, busy: np.ndarray | None = None):
@@ -834,7 +841,9 @@ class Activity:
         n = P.n
         idx = np.flatnonzero(free)
         U, avail = self._utilities(idx, b, wd, busy=~free)
-        g = sim.streams.gen(f"disc{b}", w.day).gumbel(size=(P.n, NOPT))[idx]
+        # Gumbel noise from uniforms drawn for everyone (so a person's draw doesn't depend on who else is free)
+        u_ = sim.streams.gen(f"disc{b}", w.day).random((P.n, NOPT), dtype=np.float32)[idx]
+        g = -np.log(-np.log(np.clip(u_, 1e-7, 1 - 1e-7).astype(np.float64)))
         V = U + g
         choice = np.argmax(V, axis=1)
         pos = np.full(n, -1, np.int64)

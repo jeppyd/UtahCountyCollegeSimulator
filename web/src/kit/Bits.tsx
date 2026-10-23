@@ -42,7 +42,7 @@ export function useWorldDays(): { start: string | undefined; today: number } {
 /** "Sep 14" (short) or "Mon, Sep 14" for a simulation day. */
 export const dayWords = (start: string | undefined, d: number, long = false) =>
   dayLabel(start, d, long ? { weekday: 'short', month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric' })
-export const BLOCK_WORDS = ['morning', 'afternoon', 'evening', 'late evening']
+export const BLOCK_WORDS = ['morning', 'afternoon', 'evening', 'late evening', 'night']      // the part of the day an event is recorded in
 
 // ---------------------------------------------------------------- layout
 /** The width of an element, kept current as its panel is resized. A callback ref, so it also works for an element

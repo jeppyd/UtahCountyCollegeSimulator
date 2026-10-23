@@ -49,7 +49,7 @@ TOPIC_SMALL = {
                ["good to see you too!", "pretty good, you?", "maybe, depends on homework"]),
     "occasion": (["this is fun", "how do you know everyone here?", "did you try the food?"],
                  ["right? glad I came", "a few people, mostly through friends", "yes, so good"]),
-    "outing": (["this was a good idea", "we should do this more often", "how's your week been?"],
+    "outing": (["this was a good idea", "this was so fun", "how's your week been?"],
                ["agreed", "for real", "busy, but this helps"]),
     "fitness": (["you here every day?", "leg day?"], ["trying to be", "unfortunately"]),
     "team": (["good game today", "are you coming to practice?"], ["thanks! you too", "yeah, see you there"]),
@@ -358,6 +358,7 @@ def in_person_lines(sim, row: dict) -> list[dict]:
         if topic == "plans" and row.get("occ"):
             o = row["occ"]
             q = f"you're coming to {o.get('host') + chr(39) + 's ' if o.get('host') else ''}{o.get('what', 'it')} {o.get('when', '')}?".replace("  ", " ")
+            sl.update({k: o.get(k) for k in ("when", "time", "host", "what", "weekday") if o.get(k)})
             L(a, b, "plans_talk", q, 1, plans=True)
             L(b, a, "plans_talk", pick(["yeah! see you there", "planning on it", "I said yes, so yes"], None, *key, "p"), 2, plans=True)
             return out

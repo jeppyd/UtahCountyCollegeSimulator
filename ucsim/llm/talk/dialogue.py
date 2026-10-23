@@ -43,7 +43,7 @@ ACCEPT_RX = re.compile(r"\b(i'?ll be there|count me in|i'?m in\b|see you (there|
                        r"yes+!*|i'?d love (to|that)|sure thing)\b", re.I)
 DECLINE_RX = re.compile(r"\b(can'?t|cannot|won'?t (make|be able)|not going to make|no thanks|i'?ll pass|going to pass|"
                         r"don'?t think so|not interested)\b", re.I)
-INVITE_RX = re.compile(r"\b(come over|want to come|wanna come|you should come|are you free|join us|come hang|come by|"
+INVITE_RX = re.compile(r"(?<!n't )(?<!not )\b(come over|want to come|wanna come|you should come|are you free|join us|come hang|come by|"
                        r"let'?s (get|grab|go|hang|do)|we should (get|grab|go|hang|do))\b", re.I)
 PROMISE_RX = re.compile(r"\b(i promise|promise|next time for sure|i'?ll (definitely |totally )?come next time|"
                         r"next time,? (i|for sure)|rain ?check)\b", re.I)
@@ -55,12 +55,15 @@ SECRET_RX = re.compile(r"\b(secret|pregnan\w*|engaged|fianc\w*|boyfriend|girlfri
                        r"mission call|divorc\w*|cheat\w*|affair)\b", re.I)
 DIAGNOSIS_RX = re.compile(r"\b(depress\w*|anxiety|panic attack\w*|therap\w*|counsel\w*|medication|meds|diagnos\w*|"
                           r"suicid\w*|self[- ]harm)\b", re.I)
-ACCUSE_RX = re.compile(r"\b(you always|you never|you ignored|you'?re ignoring|on purpose|you excluded|you left me out|"
+ACCUSE_RX = re.compile(r"\b(you always|you never|you ignored|you'?re ignoring|you\b[^.?!]{0,30}\bon purpose|you excluded|you left me out|"
                        r"you don'?t care|you lied)\b", re.I)
 PSYCH_RX = re.compile(r"\b(i feel (rejected|abandoned|invalidated)|my attachment|my anxiety|projecting|"
                       r"i'?m processing|triggered|boundaries)\b", re.I)
 FUTURE_RX = re.compile(r"\b(tomorrow|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next week|"
                        r"this weekend|weekend|next month)\b", re.I)
+# acts that answer an invitation (their "tonight" is the invitation's), and acts whose reasons the record fixes
+ANSWER_ACTS = {"accept", "maybe", "decline_explained", "decline_brief", "promise", "date_yes", "date_no"}
+REASON_ACTS = ANSWER_ACTS | {"clarify", "late_reply", "apologize", "reassure"}
 NUMBER_WORDS = re.compile(r"\b(two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|hundred|thousand)\b", re.I)
 
 
@@ -73,6 +76,11 @@ class DialogueChecker:
         self.specs = {lid(s): s for s in specs if s.get("kind") != "stage" and not s.get("absent")}
         self.names = names
         self.allowed = {n.lower() for n in allowed_names}
+        # names the plan itself mentions (a host, the person being introduced) are allowed too
+        for sp in self.specs.values():
+            for v in (sp.get("slots") or {}).values():
+                if isinstance(v, str):
+                    self.allowed |= {w.lower() for w in re.findall(r"\b[A-Z][a-z]+\b", v)}
 
     def check_line(self, sid: str, text: str) -> list[str]:
         from ...analysis.person import FIRST_F, FIRST_M
@@ -96,7 +104,7 @@ class DialogueChecker:
             why.append("turns a yes into a no")
         # reasons: a brief no keeps its reason private; an explained no gives only its own reason
         reason = sl.get("reason") or "none"
-        for r, rx in REASON_WORDS.items():
+        for r, rx in (REASON_WORDS.items() if act in REASON_ACTS else ()):
             if re.search(rx, low) and not (act == "decline_explained" and r == reason) and not (act == "clarify" and r == reason) \
                     and not (act == "small_talk" and sl.get("topic") in (r, "exam" if r == "exam" else "", "work" if r == "work" else "",
                                                                           "class" if r == "class" else "")):
@@ -109,7 +117,7 @@ class DialogueChecker:
             why.append("makes a promise that wasn't made")
         if ACCUSE_RX.search(t):
             why.append("makes an accusation that wasn't made")
-        if SECRET_RX.search(t) and not (lic.get("news") and re.search(lic["news"].split("_")[0][:5], low)):
+        if SECRET_RX.search(t) and not lic.get("news"):          # news is the one place life events are told
             why.append("mentions a relationship or secret that isn't in the record")
         if DIAGNOSIS_RX.search(t):
             why.append("names a condition or treatment the record doesn't give")
@@ -121,7 +129,8 @@ class DialogueChecker:
             if w in firsts and w.lower() not in self.allowed:
                 why.append(f"names someone who isn't part of it ({w})")
                 break
-        allowed_nums = set(re.findall(r"\d+", " ".join(str(v) for v in (sl.get("time"), sl.get("when"), sl.get("school")) if v)))
+        allowed_nums = set(re.findall(r"\d+", " ".join(str(v) for v in (sl.get("time"), sl.get("when"), sl.get("school"),
+                                                                        sl.get("line")) if v)))
         nums = set(re.findall(r"\d+", t))
         if nums - allowed_nums:
             why.append(f"gives a number the record doesn't ({', '.join(sorted(nums - allowed_nums))})")
@@ -131,6 +140,8 @@ class DialogueChecker:
         for m in FUTURE_RX.findall(t):
             m = m.lower()
             ok = m in when or (m == "tonight" and "tonight" in when) or (act == "ask_date" and m in ("this weekend", "weekend")) \
+                or (act in ANSWER_ACTS and m in ("tonight", "tomorrow")) \
+                or (act in ("app_chat", "opener") and m in ("tonight", "weekend", "this weekend")) \
                 or (act in ("small_talk",) and m in ("tonight", "weekend", "this weekend"))
             if not ok:
                 why.append(f"sets a time the record doesn't ({m})")

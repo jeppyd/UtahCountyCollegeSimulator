@@ -558,6 +558,9 @@ READ_WORDS = {"busy": "they're just busy", "not_interested": "they aren't intere
 PROP_WORDS = {"not_interested": "{o} isn't interested in coming", "excluded_me": "{o} left them out on purpose",
               "thinks_im_not_interested": "{o} thinks they aren't interested", "busy": "{o} is just busy",
               "ignoring_me": "{o} is ignoring them", "cares": "{o} cares about them", "interested": "{o} is interested"}
+# acts whose `withheld` is a flag (they kept something back) rather than a reason code
+FLAG_KEPT = {"deflect": "that they've been having a hard time", "withdraw": "that they felt hurt",
+             "avoid": "what was bothering them"}
 WITHHELD_WORDS = {1: "work", 2: "class", 3: "another commitment", 4: "being sick", 5: "not being able to get there",
                   6: "being tired", 7: "studying for a test", 8: "plans with their partner", 9: "a hurt between them",
                   10: "just not feeling it"}
@@ -591,7 +594,7 @@ def perspective(sim, ex_id: int) -> dict:
     speaker = {"who": spk, "act": act, "act_words": D.label_act(act),
                "intent": INTENT_WORDS.get(S.INTENTS[int(g("intent"))], "") or None,
                "communicated": _communicated(sim, p),
-               "kept_back": (WITHHELD_WORDS.get(withheld, "how they really felt") if withheld else None) if act not in ("disclose",) else None,
+               "kept_back": (FLAG_KEPT.get(act) or WITHHELD_WORDS.get(withheld, "how they really felt")) if withheld and act != "disclose" else None,
                "decision": _dec_view(dec), "beliefs": _beliefs_then(sim, sp, to, d) if to >= 0 else []}
     reads = []
     for r in soc.reads.of(int(ex_id)).tolist():

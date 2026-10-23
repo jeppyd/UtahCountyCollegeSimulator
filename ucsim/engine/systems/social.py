@@ -1125,6 +1125,7 @@ class Social:
                 m = I["response"] == RESPONSE_ID["yes"]
                 occ, per = I["occ"][m].astype(np.int64), I["person"][m].astype(np.int64)
                 fut = sim.book.occ.get("day", occ, default=-1) >= w.day
+                fut &= sim.book.occ.get("kind", occ, default=-1) != sim.book.kind_id.get("date", -2)   # a date isn't group plans
                 occ, per = occ[fut], per[fut]
                 o = np.lexsort((occ, per))
                 c = self._yes = ((w.day, I.n), per[o], occ[o], np.sort((occ << 24) | per))

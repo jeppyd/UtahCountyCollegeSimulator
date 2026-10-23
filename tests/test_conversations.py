@@ -65,6 +65,14 @@ def _pairs_with_texts(sim, k=5):
     return out
 
 
+def _pair_with_lines(sim):
+    """Two people whose text thread has messages to word (not only silences)."""
+    for i, j in _pairs_with_texts(sim, 40):
+        if any(s.get("kind") != "stage" and not s.get("absent") for s in PH.dm_lines(sim, i, j, since=max(0, sim.w.day - 60))):
+            return i, j
+    raise AssertionError("no text thread with messages")
+
+
 def _echo(feature, stage, system, prompt, schema):
     """A fake model that rewords every line with its draft (always passes)."""
     plan = [json.loads(x) for x in prompt.split("## Lines to write")[1].split("\n") if x.startswith("{")]
@@ -222,6 +230,23 @@ def test_checker_accepts_faithful_lines(ran):
     assert ck.check_line("x99", "hi") == ["isn't a planned line"]
 
 
+def test_structured_wording_always_passes_the_checker(ran):
+    """The checker must not reject the record's own plain wording (no false alarms on what's true)."""
+    def check(specs, names):
+        ck = TD.DialogueChecker(specs, names, set(names.values()))
+        for s in specs:
+            if s.get("kind") != "stage" and not s.get("absent"):
+                t = D.fallback(ran, s)
+                assert ck.check_line(D.lid(s), t) == [], (s["act"], t)
+    for a, b in _pairs_with_texts(ran, 80):
+        check(PH.dm_lines(ran, a, b), {p: PH._name(ran, p).split()[0] for p in (a, b)})
+    for g in PH.conversations(ran, days=7, limit=80)["conversations"]:
+        check(g["lines"], {p["id"]: p["name"].split()[0] for p in g["people"]})
+    for t in _soc(ran).app.t.ids[:40].tolist():
+        lines, info = PH.app_lines(ran, t)
+        check(lines, {info[k]["id"]: info[k]["name"].split()[0] for k in ("a", "b")})
+
+
 def test_bad_model_output_falls_back_line_by_line(ran, monkeypatch, tmp_path):
     calls = []
 
@@ -234,7 +259,7 @@ def test_bad_model_output_falls_back_line_by_line(ran, monkeypatch, tmp_path):
         return {"lines": out}
     monkeypatch.setattr(llm, "FAKE", bad)
     monkeypatch.setattr(llm, "TALK_FILE", tmp_path / "talk.json")
-    i, j = _pairs_with_texts(ran, 1)[0]
+    i, j = _pair_with_lines(ran)
     specs = PH.dm_lines(ran, i, j)
     names = {p: PH._name(ran, p).split()[0] for p in (i, j)}
     for s in specs:
@@ -407,7 +432,7 @@ def client(ran, monkeypatch, tmp_path):
 
 
 def test_phone_api_end_to_end(client, ran):
-    i, j = _pairs_with_texts(ran, 1)[0]
+    i, j = _pair_with_lines(ran)
     n0 = ran.log.n
     ib = client.get(f"/api/phone/inbox/{i}").json()
     assert any(c["id"] == j for c in ib["dms"]) and ib["note"]

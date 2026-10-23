@@ -1,7 +1,8 @@
 // How the Map paints people. Everyone starts as the same dot; pick any field and decide how it shows:
 // a category field gives each category its own color (click categories to show only some),
 // a number field can be a color ramp, a fade (one color, higher values solid, lower ones see-through) or a threshold
-// (only the people past a value you set stand out). The settings live in the panel's options, so they persist.
+// (only the people past a value you set are on the map). Hidden categories and people outside a threshold leave the
+// map altogether (alpha 0: the map skips them). The settings live in the panel's options, so they persist.
 import { quantile } from '../../analysis'
 import { type Column } from '../../api'
 import { cssVar, hexRgb, seqColor } from '../../components'
@@ -22,6 +23,7 @@ export type Paint = {
 export type Stats = { min: number; max: number; lo: number; hi: number; med: number; int: boolean }
 
 const FAINT = 50, SOLID = 225
+const HIDDEN: Rgba = [0, 0, 0, 0]
 
 /** n colors as distinct from one another as we can make them: the app's eight series colors when they suffice, else
  *  n hues spread evenly around the wheel with alternating lightness, so a field with 20 categories still has 20
@@ -58,7 +60,7 @@ export function passes(x: number, p: Paint, st: Stats) {
 
 /** The painter for one field: person i → rgba, plus what the legend needs. */
 export function painter(col: Column, spec: VarSpec | undefined, p: Paint, base: [number, number, number], other: [number, number, number]) {
-  const faint: Rgba = [...base, FAINT]
+  const faint: Rgba = [...base, FAINT]          // no value (and not filtered out)
   if (col.categories || col.bool) {
     const cats = col.categories ?? ['no', 'yes']
     const pal = distinctColors(cats.length)
@@ -67,7 +69,7 @@ export function painter(col: Column, spec: VarSpec | undefined, p: Paint, base: 
     const counts = new Array(cats.length).fill(0)
     for (let i = 0; i < col.data.length; i++) { const k = col.data[i]; if (k < cats.length) counts[k]++ }
     return {
-      fn: (i: number): Rgba => { const k = col.data[i]; return k < cats.length ? (show[k] ? [...pal[k], SOLID] : faint) : faint },
+      fn: (i: number): Rgba => { const k = col.data[i]; return k < cats.length ? (show[k] ? [...pal[k], SOLID] : HIDDEN) : only ? HIDDEN : faint },
       legend: { kind: 'cat' as const, cats: cats.map((c, k) => ({ key: c, label: pretty(c), color: pal[k], n: counts[k], on: show[k] })) },
     }
   }
@@ -82,7 +84,7 @@ export function painter(col: Column, spec: VarSpec | undefined, p: Paint, base: 
     ? (i: number): Rgba => { const x = col.data[i] as number; return Number.isNaN(x) ? [...other, FAINT] : [...seqColor(t(x)), SOLID] }
     : mode === 'fade'
       ? (i: number): Rgba => { const x = col.data[i] as number; return Number.isNaN(x) ? [...base, 8] : [...base, Math.round(14 + 241 * t(x) ** 1.3)] }
-      : (i: number): Rgba => { const x = col.data[i] as number; return !Number.isNaN(x) && passes(x, p, st) ? [...hit, 245] : faint }
+      : (i: number): Rgba => { const x = col.data[i] as number; return !Number.isNaN(x) && passes(x, p, st) ? [...hit, 245] : HIDDEN }
   return { fn, legend: { kind: 'num' as const, st, mode, n, total: col.data.length, hit } }
 }
 
@@ -106,7 +108,7 @@ export function PaintLegend({ title, spec, legend, paint, setPaint, base }:
             <i className="bx-catdot" style={{ background: rgbCss(c.color) }} />{c.label}<small className="muted"> {c.n.toLocaleString()}</small>
           </button>))}
         </div>
-        <small className="muted">Click a category to show only it; click more to add them.</small>
+        <small className="muted">Click a category to show only it; click more to add them. Hidden ones leave the map.</small>
       </div>
     )
   }

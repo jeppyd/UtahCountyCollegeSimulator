@@ -5,6 +5,7 @@
 // evening and night at the slower speeds, and the map updates once a day (at the evening) at top speed.
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import { GeoJsonLayer, PathLayer, ScatterplotLayer, SolidPolygonLayer, TextLayer } from '@deck.gl/layers'
+import { CollisionFilterExtension } from '@deck.gl/extensions'
 import maplibregl from 'maplibre-gl'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { api, STATIC, type Universe } from '../api'
@@ -14,6 +15,7 @@ import { type BuildingInside, type Buildings, type NowOccasions, type NowPerson,
 
 const CENTER: [number, number] = [-111.672, 40.262]
 export const BLOCK_NAMES = ['Morning', 'Afternoon', 'Evening', 'Late evening', 'Night']
+const collide = new CollisionFilterExtension()   // labels that would overlap give way to the more important one
 const GAP = 5            // metres added between floors when a building is opened up
 let geoCache: Promise<{ roads: any; cities: any }> | null = null
 const loadGeo = () => (geoCache ??= Promise.all([
@@ -61,6 +63,8 @@ export type LivingProps = {
   chosen?: Uint8Array | null
   focus?: number | null
   onPerson?: (i: number) => void
+  /** the person card was closed (the parent drops its focus on them) */
+  onCardClose?: (i: number) => void
   /** an occasion was picked (a pin, a card) */
   onOccasion?: (id: number, label: string) => void
   onHover?: (h: { x: number; y: number; i: number; p: Precise } | null) => void
@@ -96,7 +100,7 @@ function shade(c: [number, number, number], tone: Tone, glow: boolean): [number,
   return mix(c, [24, 32, 52], 0.45)
 }
 
-export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, onOccasion, onHover, children, mapRef, onFrame }: LivingProps) {
+export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, onCardClose, onOccasion, onHover, children, mapRef, onFrame }: LivingProps) {
   const status = useStore(s => s.status)
   const theme = useStore(s => s.theme)
   const dataVersion = useStore(s => s.dataVersion)
@@ -277,18 +281,34 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
     if (!prec || !names.length) return [] as Busy[]
     const n = new Map<number, number>()
     for (let i = 0; i < prec.n; i++) { const b = prec.building[i]; if (b >= 0) n.set(b, (n.get(b) ?? 0) + 1) }
-    return names.filter(nm => (n.get(nm.id) ?? 0) > 0).map(nm => ({ ...nm, n: n.get(nm.id)!, h: bld?.byId.has(nm.id) ? bld.height[bld.byId.get(nm.id)!] : 8 }))
-      .sort((a, b) => b.n - a.n)
+    // the buildings of one complex ("Heritage Halls Building 4", "… Building 7") are one label from afar
+    const g = new Map<string, Busy>()
+    for (const nm of names) {
+      const k = n.get(nm.id) ?? 0
+      if (!k) continue
+      const key = nm.name.replace(/\s+(Building|Bldg\.?)\s+\S+$/i, '')
+      const h = bld?.byId.has(nm.id) ? bld.height[bld.byId.get(nm.id)!] : 8
+      const b = g.get(key)
+      if (!b) { g.set(key, { ...nm, name: key, n: k, h }); continue }
+      b.lon = (b.lon * b.n + nm.lon * k) / (b.n + k); b.lat = (b.lat * b.n + nm.lat * k) / (b.n + k)
+      b.n += k; b.h = Math.max(b.h, h)
+    }
+    return [...g.values()].sort((a, b) => b.n - a.n)
   }, [prec, names, bld])
   const pIdx = useMemo(() => {
     if (!prec) return []
+    // people filtered out by the coloring (alpha 0) are left off the map; strong dots are drawn last, so the faint
+    // ones never cover them
     const out: number[] = []
-    for (let i = 0; i < prec.n; i++) if (!Number.isNaN(prec.lon[i])) out.push(i)
-    // strong dots are drawn last, so the faint ones never cover them
-    const a = (i: number) => (chosen ? chosen[i] * 1000 : 0) + (colorOf(i, prec)?.[3] ?? 220)
     const key = new Float32Array(prec.n)
-    for (const i of out) key[i] = a(i)
-    out.sort((x, y) => key[x] - key[y])
+    for (let i = 0; i < prec.n; i++) {
+      if (Number.isNaN(prec.lon[i])) continue
+      const a = colorOf(i, prec)?.[3] ?? 220
+      if (a === 0) continue
+      key[i] = (chosen ? chosen[i] * 1000 : 0) + a
+      out.push(i)
+    }
+    out.sort((x, y) => key[x] - key[y] || x - y)
     return out
   }, [prec, chosen, colorOf])
   const openK = open !== null && bld ? bld.byId.get(open) ?? -1 : -1
@@ -298,8 +318,10 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
     return p.z[i] + (open !== null && p.building[i] === open ? p.floor[i] * gap : 0)
   }
   useEffect(() => { setPick('all') }, [open])
+  const lastPrec = useRef<Precise | null>(null)                    // the frame drawn last (to tell time moving from a redraw)
   useEffect(() => {
     if (!overlay.current) return
+    const timeMoved = lastPrec.current !== prec          // a new positions frame since the last draw
     const layers: any[] = []
     const muted = hexRgb(mv('--text-muted')), road = hexRgb(mv('--map-road')), base = hexRgb(mv('--map-bldg'))
     const surf = hexRgb(mv('--surface-1')), text = hexRgb(mv('--text-primary')), accent = hexRgb(cssVar('--accent'))
@@ -394,12 +416,13 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
         onClick: (info: any) => { if (info.object) onOccasion?.(info.object.id, info.object.name ?? info.object.label) },
         onHover: (info: any) => onHover?.(null),
       }))
-      layers.push(new TextLayer({
+      if (labels) layers.push(new TextLayer({
         id: 'pin-labels', data: big.filter(o => (!pinKind || o.label === pinKind) && o.n >= (zoom >= 16.5 ? 2 : 8)).slice(0, 300),
         getText: (o: any) => `${o.name ?? o.label} · ${o.n}`, getPosition: (o: any) => [o.lon, o.lat, 0.3],
         getPixelOffset: (o: any) => [0, -(8 + 2.2 * Math.sqrt(o.n))], getSize: 11, getColor: [...text, 230], fontFamily: 'system-ui, sans-serif', fontWeight: 600,
         billboard: true, outlineWidth: 2, outlineColor: [...surf, 240], fontSettings: { sdf: true, fontSize: 64, buffer: 6 }, characterSet: 'auto',
         parameters: { depthCompare: 'always' }, getTextAnchor: 'middle', getAlignmentBaseline: 'bottom',
+        collisionEnabled: true, getCollisionPriority: (o: any) => o.n, extensions: [collide], collisionTestProps: { sizeScale: 1.4 },
       }))
     }
     if (prec) {
@@ -410,7 +433,8 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
         stroked: true, getLineColor: (i: number) => [...surf, Math.min(220, colorOf(i, prec)?.[3] ?? 220)], lineWidthMinPixels: 0.5, lineWidthMaxPixels: 1.2,
         parameters: view3d && xray ? { depthCompare: 'always' } : {},
         pickable: true, autoHighlight: true, highlightColor: [255, 255, 255, 230],
-        transitions: { getPosition: { duration: gliding ? Math.max(200, (pace * 1000) / 5 * 0.85) : 700 } },
+        // people glide only when time moved them; a change of coloring or selection redraws them in place
+        transitions: timeMoved ? { getPosition: { duration: gliding ? Math.max(200, (pace * 1000) / 5 * 0.85) : 700 } } : {},
         updateTriggers: { getFillColor: [colorOf, chosen, prec], getLineColor: [colorOf, prec], getRadius: [chosen], getPosition: [prec, open] },
         onHover: (info: any) => onHover?.(info.object === undefined || info.object === null ? null : { x: info.x, y: info.y, i: info.object, p: prec }),
         onClick: (info: any) => { if (info.object !== undefined && info.object !== null) pickPerson(info.object) },
@@ -424,11 +448,11 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
       }
     }
     // from afar: the busiest named places, with how many people are inside right now
-    if (labels && busy.length && zoom < 15.3 && zoom >= 12.5) layers.push(new TextLayer({
-      id: 'busy', data: busy.filter(b => b.n >= (zoom >= 14 ? 10 : 30)).slice(0, zoom >= 14 ? 60 : 25), getText: (b: Busy) => `${b.name} · ${b.n}`,
+    if (labels && busy.length && zoom < 15.3 && zoom >= 13) layers.push(new TextLayer({
+      id: 'busy', data: busy.filter(b => b.n >= (zoom >= 14 ? 15 : 60)).slice(0, zoom >= 14 ? 40 : 12), getText: (b: Busy) => `${b.name} · ${b.n}`,
       getPosition: (b: Busy) => [b.lon, b.lat, view3d ? b.h + 2 : 0], getSize: 11.5, getColor: [...text, 225], fontFamily: 'system-ui, sans-serif', fontWeight: 600,
       billboard: true, outlineWidth: 2, outlineColor: [...surf, 235], fontSettings: { sdf: true, fontSize: 64, buffer: 6 }, characterSet: 'auto',
-      collisionEnabled: true, getCollisionPriority: (b: Busy) => b.n, extensions: [],
+      collisionEnabled: true, getCollisionPriority: (b: Busy) => b.n, extensions: [collide], collisionTestProps: { sizeScale: 1.6 },
       parameters: { depthCompare: 'always' },
     }))
     if (labels && names.length && zoom >= 15.3) {
@@ -437,11 +461,12 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
         id: 'names', data: big, getText: (d: Named) => d.name, getPosition: (d: Named) => [d.lon, d.lat, view3d ? (bld && bld.byId.has(d.id) ? bld.height[bld.byId.get(d.id)!] + 2 : 8) : 0],
         getSize: 11.5, getColor: [...text, 210], fontFamily: 'system-ui, sans-serif', fontWeight: 600, billboard: true,
         outlineWidth: 2, outlineColor: [...surf, 230], fontSettings: { sdf: true, fontSize: 64, buffer: 6 }, characterSet: 'auto',
-        collisionEnabled: true, getCollisionPriority: (d: Named) => d.floors, extensions: [],
+        collisionEnabled: true, getCollisionPriority: (d: Named) => d.floors, extensions: [collide], collisionTestProps: { sizeScale: 1.4 },
         parameters: { depthCompare: 'always' },
       }))
     }
     overlay.current.setProps({ layers })
+    lastPrec.current = prec
   }, [tone, lit, occs, pins, pinKind, geo, bld, bCore, bFlat, floorRings, prec, pIdx, colorOf, chosen, focus, view3d, xray, dark, inside, openK, zoom, labels, names, gliding, pace, streets, busy, pick, gap, isClay])
 
   const shown = gliding && glide !== null ? `${BLOCK_NAMES[glide]} (playing the day as time runs)` : prec ? (prec.block >= 0 && prec.block < 5 ? BLOCK_NAMES[prec.block] : '') : ''
@@ -460,13 +485,14 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
         </select>
         <button className={`btn small ${list ? 'primary' : ''}`} onClick={() => setList(!list)} disabled={!occs} title="Everything happening at this moment: dates, dinners, parties, games…">Right now{occs ? ` · ${occs.occasions.length}` : ''}</button>
         <label className="inline small lm-chk"><input type="checkbox" checked={pins} onChange={e => setOpts({ ...opts, pins: e.target.checked })} />pins</label>
+        <label className="inline small lm-chk" title="Place and building names (from afar, the busiest places with how many people are there)"><input type="checkbox" checked={labels} onChange={e => setOpts({ ...opts, labels: e.target.checked })} />labels</label>
         <label className="inline small lm-chk" title="The street map underneath: street and place names, parks, water (needs the internet)"><input type="checkbox" checked={basemap} onChange={e => setOpts({ ...opts, basemap: e.target.checked })} />streets</label>
         <label className="inline small lm-chk" title="The clay look: warm ground and pale clay buildings, whatever the app's theme (off: the app's light or dark colors)"><input type="checkbox" checked={isClay} onChange={e => setOpts({ ...opts, look: e.target.checked ? 'clay' : 'theme' })} />clay</label>
         <label className="inline small lm-chk" title="Light by the time of day: a warm evening, a dark night with homes lit from within"><input type="checkbox" checked={daylight} onChange={e => setOpts({ ...opts, daylight: e.target.checked })} />light</label>
         {children}
       </div>
       {open !== null && <BuildingCard d={inside} onClose={() => setOpen(null)} onPerson={pickPerson} floor={pick} setFloor={setPick} sep={sep} setSep={setSep} />}
-      {card !== null && <NowCard i={card} u={u} k={`${prec?.day}:${prec?.block}`} onClose={() => { setCard(null); setFollow(null) }} onPerson={pickPerson} onOccasion={onOccasion}
+      {card !== null && <NowCard i={card} u={u} k={`${prec?.day}:${prec?.block}`} onClose={() => { setCard(null); setFollow(null); onCardClose?.(card) }} onPerson={pickPerson} onOccasion={onOccasion}
         following={follow === card} onFollow={() => setFollow(follow === card ? null : card)}
         onBuilding={b => openBuilding(b)} />}
       {list && occs && <RightNow d={occs} kind={pinKind} setKind={setPinKind} onClose={() => { setList(false); setPinKind(null) }} onPick={o => { flyTo(o.lon, o.lat); onOccasion?.(o.id, o.name ?? o.label) }} />}

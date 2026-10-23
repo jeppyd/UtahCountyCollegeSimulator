@@ -86,7 +86,7 @@ function MapTool({ sel, setSel, opts, setOpts }: PanelProps) {
     if (Math.abs(box.x1 - box.x0) > 4 && Math.abs(box.y1 - box.y0) > 4) {
       const x0 = Math.min(box.x0, box.x1), x1 = Math.max(box.x0, box.x1), y0 = Math.min(box.y0, box.y1), y1 = Math.max(box.y0, box.y1)
       for (let i = 0; i < prec.n; i++) {
-        if (Number.isNaN(prec.lon[i]) || (group.data && !group.data[i])) continue
+        if (Number.isNaN(prec.lon[i]) || (group.data && !group.data[i]) || color?.fn(i)?.[3] === 0) continue
         const pt = m.project([prec.lon[i], prec.lat[i]])
         if (pt.x >= x0 && pt.x <= x1 && pt.y >= y0 && pt.y <= y1) ids.push(i)
       }
@@ -107,7 +107,11 @@ function MapTool({ sel, setSel, opts, setOpts }: PanelProps) {
         </select>
       </PanelOptions>
       <LivingMap u={u} opts={live} setOpts={o => set({ live: o })} colorOf={colorOf} chosen={chosen} focus={focus}
-        onPerson={i => { if (!boxing) focusItem(setSel, { kind: 'person', id: i, label: name(i) }) }} onHover={setHover} mapRef={mapRef} onFrame={setPrec}
+        onPerson={i => { if (!boxing) focusItem(setSel, { kind: 'person', id: i, label: name(i) }) }}
+        onCardClose={i => {                     // closing the card lets go of the person (and their ring on the map)
+          if (subjectPerson(sel) !== i) return
+          setSel({ item: sel.item?.kind === 'person' ? undefined : sel.item, ...(sel.people?.length === 1 ? { people: [] } : {}) })
+        }} onHover={setHover} mapRef={mapRef} onFrame={setPrec}
         onOccasion={(id, label) => { focusItem(setSel, { kind: 'occasion', id, label, u }); useLayout.getState().ensure('occasion') }}>
         <VarPicker value={colorBy === 'none' ? '' : colorBy} onChange={v => set({ color: v || 'none' })} filter={s => s.id !== 'activity_now' && s.id !== 'rel_status'} placeholder="Color: none (everyone the same)" allowEmpty
           lead={[['activity_now', "Color: what they're doing"], ...(reg.variables.rel_status ? [['rel_status', 'Color: relationship status'] as [string, string]] : [])]} />

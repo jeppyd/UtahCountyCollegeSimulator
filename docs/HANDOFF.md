@@ -75,7 +75,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | Real class schedules (`geo/schedule.py`, academics `_real_sections`) | BYU Fall/Winter, UVU Fall and Spring 2027 **merged** (#28) | branch `claude/project-thread-2pvunp` | BYU Spring/Summer and UVU Summer when published; cross-listed sections share a room |
 | Valley home, scenes, make it happen (design review, [DESIGN_REVIEW.md](DESIGN_REVIEW.md)) | **merged (#26, round 2 #29)** | branch `claude/project-thread-q87n1i` | world events as verbs; stagger the remaining Sunday systems; recalibrate |
 | [conversations](workstreams/conversations.md): phones, dating apps, listening in, perspectives, developing stories, model wording | **PR open** (not merged) | branch `claude/project-thread-v1aefl` | owner review; first real runs of model wording (only tested with a fake model) |
-| Map: paint by any field (owner-directed, 2026-10-23) | **PR open** (not merged) | branch `claude/project-thread-54extr` | owner review |
+| Map: paint by any field (owner-directed, 2026-10-23) | merged (#32); follow-ups **PR open** | branch `claude/project-thread-54extr` | owner review |
 | Menstrual cycle (owner-directed, 2026-10-23) | in review | branch `claude/project-thread-tlb20b` | owner tuning after play |
 | [survey-followups](workstreams/survey-followups.md) | audits designed, interrupted | — | needs the raw survey files in `data/raw/` |
 | [integration](workstreams/integration.md) | ongoing | — | after each merge |
@@ -164,6 +164,18 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-23 (4) — Claude Code (cloud session) — map follow-ups (owner feedback on #32)
+- Filtering hides: hidden categories and people outside a threshold leave the map (colorOf alpha 0 = not drawn, not
+  pickable, not box-selected); before they stayed as faint dots in the base blue, which looked like "single".
+- Dots glide only on a new positions frame (`lastPrec` in LivingMap); recoloring or selecting reordered the data and
+  deck.gl's index-based position transition made dots fly.
+- Labels: a "labels" checkbox in the map bar; place labels use `CollisionFilterExtension` (new dependency
+  `@deck.gl/extensions`, it had `collisionEnabled` with no extension so nothing collided); from afar a complex's
+  buildings are one label ("Heritage Halls · 210"), shown from zoom 13 and only for busy places.
+- Closing the person card drops the focus (the ring on the map) via `onCardClose`.
+- Placement: strangers at a park, trailhead or overlook stand a few metres apart with jitter (`PARK_SPREAD`) instead
+  of a 0.8 m sunflower disk.
 
 ### 2026-10-23 (3) — Claude Code (cloud session) — map: paint by any field
 - Map tool (`bench/tools/Map.tsx`, new `bench/tools/mapPaint.tsx`): everyone one color until a field is picked; the

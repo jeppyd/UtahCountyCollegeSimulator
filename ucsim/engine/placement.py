@@ -335,6 +335,7 @@ def campus_buildings(school: int) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------- seats inside buildings
+PARK_SPREAD = 7.0     # strangers outdoors stand this many times further apart than at a table
 AMBIENT = ("venue", "gym", "campus", "complex", "dance", "outdoors")   # the place is shared by strangers
 SEAT_M = 1.0
 
@@ -574,6 +575,15 @@ def place(sim, f: dict) -> dict:
             spacing = np.where(size > 200, 0.55, 0.8)
             ox, oy = seat_offsets(rank, size, 0.8)
             ox, oy = ox * spacing / 0.8, oy * spacing / 0.8
+            # strangers at a park, a trailhead or an overlook spread out over it, a few metres apart and not in a
+            # neat spiral (a group that came together still stands together)
+            park = alone[out] & (ct[out] == CTX_ID["outdoors"])
+            if park.any():
+                h = oi[park].astype(np.uint64) * np.uint64(2654435761)
+                j1 = (h % np.uint64(1000)).astype(np.float64) / 1000 - 0.5
+                j2 = ((h // np.uint64(1000)) % np.uint64(1000)).astype(np.float64) / 1000 - 0.5
+                ox[park] = ox[park] * PARK_SPREAD + j1 * 6
+                oy[park] = oy[park] * PARK_SPREAD + j2 * 6
             tx, ty = table_offsets(px[out], py[out], ctype[oi].astype(np.int64) * (1 << 40) + g[oi] + 1, size)
             x[oi], y[oi] = px[out] + tx + ox, py[out] + ty + oy
             z[oi] = EYE

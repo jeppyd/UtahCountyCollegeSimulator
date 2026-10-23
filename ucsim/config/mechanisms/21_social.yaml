@@ -1,0 +1,188 @@
+system: social
+# Social exchanges, readings, beliefs about particular people, open concerns and dating-app conversations
+# (engine/systems/social.py; docs/workstreams/conversations.md). The structure follows well-studied directions —
+# attribution from available evidence (Kelley 1973; Downey & Feldman 1996 for rejection sensitivity), the reluctance to
+# burden others when seeking support, the intention to repair after a misunderstanding — but every magnitude here is a
+# hypothetical engineering choice: no survey measures these rates for this population.
+mechanisms:
+  social.decline:
+    label: Saying why you can't come
+    target: hurt
+    sources: [closeness, agreeableness, extraversion]
+    form: "P(explain) = logistic(base + closeness·c + agreeableness·z(A) + reason·(a real reason: a shift, a class, a clash, illness, distance, exams) + extraversion·z(E)); otherwise a brief no"
+    params:
+      base: {value: -0.6, range: [-2, 1]}
+      closeness: {value: 2.0, range: [0.5, 3.5]}
+      agreeableness: {value: 0.4, range: [0, 1]}
+      reason: {value: 1.2, range: [0, 2.5]}
+      extraversion: {value: 0.2, range: [0, 0.6]}
+    timescale: daily
+    evidence: hypothetical
+    refs: ["Brown & Levinson (1987): explanations soften refusals (politeness)"]
+  social.read:
+    label: Reading a brief no as disinterest
+    target: hurt
+    sources: [rejection_sensitivity, closeness]
+    form: "P(host reads a brief decline as 'not interested') = logistic(base + repeat·min(brief declines in 30 days, 4) − explained·min(explained declines, 3) + rs·z(host's rejection sensitivity) − closeness·c)"
+    params:
+      base: {value: -2.4, range: [-4, -0.5]}
+      repeat: {value: 0.7, range: [0.2, 1.5]}
+      explained: {value: 0.6, range: [0, 1.5]}
+      rs: {value: 0.5, range: [0, 1.2]}
+      closeness: {value: 1.5, range: [0, 3]}
+    timescale: daily
+    evidence: hypothetical
+    refs: ["Kelley (1973): repeated behavior across occasions is attributed to the person", "Downey & Feldman (1996)"]
+  social.belief:
+    label: Beliefs about a particular person
+    target: closeness
+    sources: []
+    form: "a host invites someone they believe isn't interested less: invitation score − invite_penalty·confidence; beliefs fade with a half-life (days) without new evidence; at most `cap` active beliefs per person"
+    params:
+      invite_penalty: {value: 1.6, range: [0.3, 3]}
+      half_life: {value: 35, range: [10, 120]}
+      cap: {value: 6, range: [3, 12]}
+    timescale: daily
+    evidence: hypothetical
+  social.promise:
+    label: A "next time for sure"
+    target: closeness
+    sources: [closeness, agreeableness]
+    form: "an explained no from someone close (closeness ≥ 0.35) carries a rain check with P = logistic(base + closeness·(c − 0.4) + 0.4·z(A)); while open (days) it adds `pull` to their next yes to that host; coming keeps it, a brief no breaks it, another real reason renegotiates it"
+    params:
+      base: {value: -2.0, range: [-3.5, 0]}
+      closeness: {value: 2.0, range: [0, 4]}
+      pull: {value: 0.8, range: [0, 2]}
+      days: {value: 21, range: [7, 45]}
+    timescale: daily
+    evidence: hypothetical
+  social.leftout:
+    label: How being left out is read
+    target: [hurt, belonging]
+    sources: [rejection_sensitivity, closeness]
+    form: "someone who declined the host twice or more lately reads it as 'they think I'm not interested'; otherwise 'they left me out' with P = logistic(base + rs·z(RS) − closeness·c + hurt·(hurt already on the tie)), else unsure. Hurt on the tie: hurt_excluded / hurt_self_aware / hurt_unsure (replaces the old fixed +0.06)"
+    params:
+      base: {value: -0.6, range: [-2, 1]}
+      rs: {value: 1.0, range: [0, 2]}
+      closeness: {value: 1.0, range: [0, 2.5]}
+      hurt: {value: 1.5, range: [0, 3]}
+      days: {value: 21, range: [7, 45]}
+      hurt_excluded: {value: 0.07, range: [0.02, 0.15]}
+      hurt_self_aware: {value: 0.025, range: [0, 0.08]}
+      hurt_unsure: {value: 0.045, range: [0.01, 0.1]}
+    timescale: daily
+    evidence: hypothetical
+    refs: ["Przybylski et al. (2013): fear of missing out", "Downey & Feldman (1996)"]
+  social.respond:
+    label: What people do about being left out
+    target: [hurt, closeness]
+    sources: [closeness, extraversion, rejection_sensitivity]
+    form: "choice among clarify (text the host why they've been saying no), withdraw, or let it go: utilities clarify + closeness·c + 0.4·z(E) + aware·(believes the host misread them); withdraw + rs·z(RS) + excluded·(believes they were left out on purpose); let go 0. A clarification revises the host's misreading and heals `repair` of the hurt"
+    params:
+      clarify: {value: -1.0, range: [-3, 1]}
+      closeness: {value: 2.0, range: [0, 4]}
+      aware: {value: 1.5, range: [0, 3]}
+      withdraw: {value: -1.2, range: [-3, 1]}
+      rs: {value: 0.6, range: [0, 1.5]}
+      excluded: {value: 1.0, range: [0, 2.5]}
+      repair: {value: 0.5, range: [0.2, 0.9]}
+    timescale: daily
+    evidence: hypothetical
+  social.silence:
+    label: Evidence when a text goes unanswered
+    target: hurt
+    sources: [rejection_sensitivity]
+    form: "adds to messaging.silence: − knows_busy (they believe the friend is busy, or see their schedule: roommates, coworkers) − history·(share of recent texts this friend answered) + history·(recent silences); an 'ignoring me' read opens a concern for wait_days"
+    params:
+      knows_busy: {value: 1.5, range: [0, 3]}
+      history: {value: 0.8, range: [0, 2]}
+      wait_days: {value: 6, range: [3, 14]}
+    timescale: daily
+    evidence: hypothetical
+  social.late:
+    label: Answering late
+    target: hurt
+    sources: [closeness, conscientiousness, mood]
+    form: "a text left unanswered gets a late answer within 1–3 days with P = logistic(base + closeness·c + 0.4·z(C) + mood·(mood − 0.5) − depression); friends closer than apology_closeness apologize; the sender's 'ignoring me' is revised unless they are very sensitive (z(RS) > stay_unsure_rs) and got no apology; repair heals that much hurt"
+    params:
+      base: {value: -1.4, range: [-3, 0]}
+      closeness: {value: 1.5, range: [0, 3]}
+      apology_closeness: {value: 0.4, range: [0.2, 0.8]}
+      stay_unsure_rs: {value: 1.2, range: [0.5, 2]}
+      repair: {value: 0.03, range: [0, 0.06]}
+    timescale: daily
+    evidence: hypothetical
+  social.next:
+    label: After a silence
+    target: hurt
+    sources: [closeness, extraversion, rejection_sensitivity]
+    form: "after two days, the owner of an unanswered concern chooses: check in again (again + closeness·c), ask what's up (ask + 0.5·z(E) + 0.5·closeness), withdraw (withdraw + rs·z(RS)), or wait (0). The friend answers with the reply model plus `direct` when asked directly; another silence worsens it (+worse hurt)"
+    params:
+      again: {value: -1.0, range: [-3, 1]}
+      closeness: {value: 1.5, range: [0, 3]}
+      ask: {value: -1.5, range: [-3, 1]}
+      withdraw: {value: -1.0, range: [-3, 1]}
+      direct: {value: 0.6, range: [0, 1.5]}
+      worse: {value: 0.03, range: [0, 0.08]}
+    timescale: daily
+    evidence: hypothetical
+  social.support:
+    label: Telling a friend what you're going through
+    target: [perceived_support, closeness]
+    sources: [closeness, trust, self_esteem, extraversion]
+    form: "a friend who is struggling (mood < low_mood, a depressive episode, or lonely) answers a check-in by disclosing with P = logistic(base + closeness·c + trust·t − privacy·(0.85 if depressed else 0.3) − burden·max(0, 0.6 − self-esteem) + 0.3·z(E)), else deflects; a disclosure is a confidence (not passed on), and the friend's support deepens the tie (the coping support channel)"
+    params:
+      base: {value: -0.4, range: [-2, 1]}
+      low_mood: {value: 0.38, range: [0.25, 0.5]}
+      closeness: {value: 2.0, range: [0, 4]}
+      trust: {value: 1.0, range: [0, 2]}
+      privacy: {value: 1.5, range: [0, 3]}
+      burden: {value: 1.5, range: [0, 3]}
+    timescale: daily
+    evidence: hypothetical
+    refs: ["Cutrona & Russell (1990): support matching", "Bolger & Amarel (2007): reluctance to burden"]
+  social.raise:
+    label: Bringing it up in person
+    target: hurt
+    sources: [closeness, extraversion, rejection_sensitivity]
+    form: "when two people with an open concern talk, its owner raises it with P = logistic(base + closeness·c + 0.4·z(E) + importance·i − withdrew·(they had withdrawn) − 0.3·z(RS)); it goes badly when the talk's own valence is below worse_below"
+    params:
+      base: {value: -1.2, range: [-3, 0.5]}
+      closeness: {value: 1.5, range: [0, 3]}
+      importance: {value: 1.0, range: [0, 2]}
+      withdrew: {value: 1.0, range: [0, 2.5]}
+      worse_below: {value: -1.0, range: [-2.5, 0]}
+    timescale: block
+    evidence: hypothetical
+  social.capture:
+    label: Which conversations are kept
+    target: closeness
+    sources: []
+    form: "recording only (no behavior): every consequential in-person exchange is kept; ordinary talk between people who know each other is kept when hash(pair, day, block) mod ordinary_every = 0 (half of that for couples and for first meetings at get-togethers)"
+    params:
+      ordinary_every: {value: 6, range: [3, 200]}
+    timescale: block
+    evidence: hypothetical
+  social.app:
+    label: Dating-app conversations
+    target: [attraction_lh, dates_30d]
+    sources: [dating_motivation, app_hours, extraversion]
+    form: "match → opener (whoever is keener, men more often by the norm): P = logistic(open_base + open_attraction·a + (motivation − 0.4) + 0.4·log hours + 0.3·z(E)) within open_days; reply P = logistic(reply_base + reply_attraction·a + (motivation − 0.4) + 0.4·log hours − 2·taken), the slower (1 − prompt_share) of replies 1–3 days late, none after reply_days; chatting → ask P = logistic(ask_base + ask_attraction·a + ask_chat·min(days, 4) + …) or drift P_side = logistic(fade_base − fade_attraction·a + 2·taken + 0.2·days) (one side: ghosting; both: a fade); an ask is answered with the date-acceptance terms + accept_shift. Replaces the old direct conversion (romance.app.date_conversion = 0.35 of matches)"
+    params:
+      open_base: {value: 0.2, range: [-1.5, 1.5]}
+      open_attraction: {value: 2.0, range: [0, 4]}
+      open_days: {value: 3, range: [1, 7]}
+      reply_base: {value: 0.4, range: [-1.5, 1.5]}
+      reply_attraction: {value: 2.0, range: [0, 4]}
+      prompt_share: {value: 0.6, range: [0.2, 0.9]}
+      reply_days: {value: 4, range: [2, 8]}
+      ask_base: {value: -2.2, range: [-4, 0]}
+      ask_attraction: {value: 2.0, range: [0, 4]}
+      ask_chat: {value: 0.45, range: [0, 1]}
+      fade_base: {value: -2.6, range: [-4, -1]}
+      fade_attraction: {value: 2.0, range: [0, 4]}
+      accept_shift: {value: 0.4, range: [-1, 1.5]}
+      quiet_days: {value: 6, range: [3, 14]}
+    timescale: daily
+    evidence: hypothetical
+    refs: ["Dating survey: most common ghosting reasons are forgetting and losing interest", "ProvoStats: ~1/3 of respondents use dating apps"]

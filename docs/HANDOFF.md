@@ -74,6 +74,7 @@ and invitations; the world gains a real Provo calendar, weather, messaging, inst
 | [family-homes](workstreams/family-homes.md) (wave 2) | **done, merged** | working branch | open issues below |
 | Real class schedules (`geo/schedule.py`, academics `_real_sections`) | BYU Fall/Winter, UVU Fall and Spring 2027 **merged** (#28) | branch `claude/project-thread-2pvunp` | BYU Spring/Summer and UVU Summer when published; cross-listed sections share a room |
 | Valley home, scenes, make it happen (design review, [DESIGN_REVIEW.md](DESIGN_REVIEW.md)) | **merged (#26, round 2 #29)** | branch `claude/project-thread-q87n1i` | world events as verbs; stagger the remaining Sunday systems; recalibrate |
+| [conversations](workstreams/conversations.md): phones, dating apps, listening in, perspectives, developing stories, model wording | **PR open** (not merged) | branch `claude/project-thread-v1aefl` | owner review; first real runs of model wording (only tested with a fake model) |
 | Menstrual cycle (owner-directed, 2026-10-23) | in review | branch `claude/project-thread-tlb20b` | owner tuning after play |
 | [survey-followups](workstreams/survey-followups.md) | audits designed, interrupted | — | needs the raw survey files in `data/raw/` |
 | [integration](workstreams/integration.md) | ongoing | — | after each merge |
@@ -162,6 +163,36 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   Studio); see docs/WHATIF_LLM.md. Tests never call a real model.
 
 ## Session log (newest first)
+
+### 2026-10-23 (2) — Claude Code (cloud session) — conversation layers: phones, dating apps, listening in
+- Spec and audit: `docs/workstreams/conversations.md` (keep/extend/add map, schema, research-engine decisions).
+- Engine (`engine/systems/social.py`, system `social`, mechanisms `21_social.yaml`, decisions/events `55_social.yaml`):
+  a semantic exchange log (act, topic, intent, what was said or withheld, tie and moods as of then), readings, beliefs
+  with evidence and revision (capped, fading), concerns (unanswered, left out, promises, app waits) that later
+  choices clarify, repair, keep, miss or let go, and dating-app threads (opener, replies, chat, ask, yes/no, fade,
+  ghost) that feed the existing date queue. Wired into occasions (why a no was given, promises, invite penalty),
+  messaging (late replies, check-ins, silences read from history, disclosures with selective sharing), encounters
+  (captured talk, raising a concern in person) and romance (app matches now go through app threads).
+  New randomness only from new stream names (keyed per pair); recording draws none. Run outputs differ from before.
+- Dating integrity fixes: a pair's first date happens once (two asks used to queue two "first" dates); an app thread
+  stops ("offline") when the pair already went out or has a date coming another way.
+- Views (`analysis/phone.py`, `analysis/dialogue.py`, `analysis/stories.py`, `api/routes_phone.py`): inbox, DMs (the
+  same lines from both phones), group chats limited to membership with chatter summarized, app threads with the
+  self-presented profile, listening in (appends by exchange id), perspectives (both sides and what came of it), and
+  developing stories (observational, labelled not representative). Partner texts in scenes now use the same lines.
+- Model wording (`llm/talk/dialogue.py`, prompt `talk_dialogue.md`): plan → model → semantic checker → one repair →
+  structured wording for what still fails; cache by (lineage, content, schema); bounded deduplicated queue, never
+  holds the world lock while waiting. Settings: "Words of texts and conversations" (local recommended, or Off).
+- UI: Their phone and Listen in on the focused person, a Developing tab in the valley, a Phone workbench tool, model
+  routing in Connect an AI. Checked in light and dark.
+- Measured (scale 0.15, 30 days, seed 1; same machine): 0.272 → 0.288 s/day (social 0.009, its capture hook in
+  encounters ~0.014); pickle 115.5 → 124.3 MB; 39k exchanges, 8k readings, 1.4k beliefs, 134 app matches → 35 dates
+  set on the app + 16 taken offline (old fixed conversion 0.35; now ≈ 0.38 overall). Speed budget 0.88×.
+- Tests: `tests/test_conversations.py` (the 14 acceptance checks, fake model only); full suite 334 passed.
+  `scripts/sensitivity.py` is opt-in (needs SALib; not installed here, not run).
+- Assumptions and limits: every social magnitude is hypothetical; ordinary talk is a sample (1 pair-block in 6, kept
+  14 days); the model wording was never run against a real model here; the checker's patterns are English-only and
+  conservative (it may reject harmless lines, which then keep the plain wording).
 
 ### 2026-10-23 (1) — Claude Code (cloud session) — menstrual cycle
 - Owner asked for cycle mechanics (mood/drive depth, nuance to intimacy). New system `engine/systems/cycle.py`

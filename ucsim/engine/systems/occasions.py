@@ -377,6 +377,9 @@ class Occasions:
             near = ((P["unit_id"][cand] == P["unit_id"][h_rep]) | ((P["complex_id"][cand] == P["complex_id"][h_rep]) & (P["complex_id"][cand] >= 0)))
             gum = -np.log(-np.log(_pair_u(w.seed, cand, okey[seg], salt + 1)))
             score = np.log(0.15 + np.clip(close, 0, 1)) + p("occasions.invite.roommate_boost") * near + gum
+            soc = sim.systems.get("social")
+            if soc is not None:          # a host who believes someone isn't interested invites them less
+                score = score + soc.invite_penalty(h_rep, cand)
             score = np.where(P["present"][cand], score, -np.inf)
             order = np.lexsort((-score, seg))
             rank = np.empty(tot, np.int64)
@@ -514,6 +517,8 @@ class Occasions:
             "place_culture": p("culture.feedback.reputation") * sim.systems["culture"].complex_social_z(cx),
             "intention": sim.systems["plans"].accept_boost()[person],
             "hurt": -p("occasions.attend.hurt") * hurt,
+            # an open "next time for sure" to this host (social.promise)
+            "promised": sim.systems["social"].promised(person, org) if "social" in sim.systems else np.zeros(k),
             # dating and engaged people spend more evenings with their partner (a date itself is not a get-together)
             "partner": -np.where(oc["kind"] == self.date_code, 0.0, self._couple_w(person)),
         }
@@ -554,6 +559,9 @@ class Occasions:
                                    refs={"close_organizer": ("person", org), "hurt": ("person", org)},
                                    constraints={"conflict": conflict, "cant_get_there": cant, "ill": ill}, block=0)
         book.respond(inv_ids, np.where(yes, RESPONSE_ID["yes"], RESPONSE_ID["no"]).astype(np.int8), w.day, did)
+        soc = sim.systems.get("social")
+        if soc is not None:            # what a no said, why, and how the host read it
+            soc.on_declines(inv_ids, person, org, occ, F, conflict, cant, ill, yes)
         self._note_trips(inv_ids, f)
 
     def _couple_w(self, person: np.ndarray) -> np.ndarray:
@@ -1182,6 +1190,9 @@ class Occasions:
         if has.any():
             self.book.attend(R["occ"][rows][has], R["person"][rows][has], arrive=R["arrive"][rows][has],
                              ride_by=R["ride_by"][rows][has], inv_ids=inv[has])
+            soc = self.sim.systems.get("social")
+            if soc is not None:        # a promise to come next time, kept
+                soc.on_attend(R["person"][rows][has].astype(np.int64), R["occ"][rows][has].astype(np.int64))
         if (~has).any():     # organizers: a row of their own (not a walk-in)
             oo, pp = R["occ"][rows][~has], R["person"][rows][~has]
             ids = self.book.attend(oo, pp, arrive=R["arrive"][rows][~has], day=self.sim.w.day,

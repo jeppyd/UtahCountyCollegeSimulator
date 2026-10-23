@@ -9,6 +9,7 @@ decisions:
       ride:      {label: "a ride there", more: "someone offered a ride", less: ""}
       introduced: {label: "someone wants them to meet a person", more: "a friend wants them to meet someone", less: ""}
       partner:   {label: "spending evenings with their partner", more: "", less: "spends evenings with their partner"}
+      promised:  {label: "a promise to come next time", more: "promised to come next time", less: ""}
       ill:       {label: "sick", kind: constraint, less: "sick"}
       full:      {label: "no room left", kind: constraint, less: "it was already full"}
   host_occasion:

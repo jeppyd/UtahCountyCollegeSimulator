@@ -17,16 +17,17 @@ const EXAMPLES = ['Which apartment complexes are loneliest?', 'How many breakups
 export const BACKENDS: [string, string][] = [['auto', 'Automatic'], ['claude', 'Claude (subscription)'], ['anthropic', 'Claude (API key)'],
   ['codex', 'ChatGPT (subscription)'], ['openai_api', 'ChatGPT (API key)'], ['openai', 'Model on this computer']]
 
-export function BackendPick({ feature }: { feature: 'ask' | 'interview' }) {
+export function BackendPick({ feature }: { feature: 'ask' | 'interview' | 'narrate' | 'dialogue' }) {
   const [v, setV] = useState(0)
   const st = useAsync<TalkStatus>(() => talkApi.status(), [v])
   const s = st.data
   if (!s) return null
-  const key = feature === 'ask' ? 'ask_backend' : 'interview_backend'
+  const key = `${feature}_backend` as const
   return (
     <select style={{ maxWidth: 130 }} value={s.settings[key]} title={`Now using: ${s.using[feature]} (recommended: ${s.recommended[feature] === 'openai' ? 'a model on this computer' : 'Claude'})`}
       onChange={e => e.target.value === '__setup' ? useAiSetup.getState().show() : talkApi.settings({ [key]: e.target.value }).then(() => setV(v + 1))}>
       {BACKENDS.map(([k, w]) => <option key={k} value={k} disabled={k !== 'auto' && !s.available[k]}>{w}{k !== 'auto' && !s.available[k] ? ' (not set up)' : ''}</option>)}
+      {(feature === 'dialogue' || feature === 'narrate') && <option value="off">Off (plain wording)</option>}
       <option value="__setup">Connect an AI…</option>
     </select>
   )

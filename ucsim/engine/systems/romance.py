@@ -464,7 +464,12 @@ class Romance:
                                    base=float(np.log(p("romance.app.rate"))), prob=np.clip(rate[ids], 0, 1), other=tgt,
                                    refs={"app_hours": ("state", state_ref(sim, "app_hours", ids))})
         ev = sim.emit("app_match", ids, b=tgt, mech="romance.app", decision=did)
-        # the match turns into a date with probability ~ conversation success
+        soc = sim.systems.get("social")
+        if soc is not None:
+            # the match becomes a conversation on the app (social.py); only an invitation that's accepted books a date
+            soc.app_matched(ids, tgt, ev)
+            return
+        # (without the social layer) the match turns into a date with probability ~ conversation success
         go = sim.u("app_date")[ids] < p("romance.app.date_conversion")
         ids, tgt, ev = ids[go], tgt[go], ev[go]
         dd = self._next_date_day(wd, sim.u("app_dday")[ids])
@@ -570,6 +575,7 @@ class Romance:
         occ_ids = occ_ids[keep]
         keys = EdgeStore.make_keys(a, b)
         eix = E.upsert(keys)
+        first &= E["dates"][eix] == 0            # a pair's first date happens once (two asks can queue two "firsts")
         rng = sim.streams.gen("date_outcome", day)
         pref = np.zeros(len(a))
         for k, t in enumerate(dtypes):

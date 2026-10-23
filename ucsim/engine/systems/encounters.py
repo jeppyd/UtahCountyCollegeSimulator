@@ -442,6 +442,10 @@ class Encounters:
             at = cb == occ_code
             link(sim, ev[at], "occasion", pb[at], 1.0, "scene")
             link(sim, ev[~at], "place", place_ref(ctx_eff[bad][~at], pb[~at]), 1.0, "scene")
+        # ---- conversations worth keeping (observational) and open concerns raised or avoided (social.py)
+        soc = sim.systems.get("social")
+        if soc is not None:
+            soc.in_person(a, b, ctx, place, block, v, idx, new_before, bad)
         # ---- what happened at occasions (the scene): conversations, first meetings, falling-outs
         at = ctx == occ_code
         if at.any():

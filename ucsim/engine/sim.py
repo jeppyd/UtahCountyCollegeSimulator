@@ -30,7 +30,7 @@ class Simulation:
                  record: bool = True):
         from .systems import (academics, activity, cycle, economy, emotion, encounters, environment, faith, groups, housing,
                               family, history, honor, institutions, intimacy, lifecourse, messaging, mind, coping, culture, network,
-                              norms, occasions, plans, recorder, romance, routine)
+                              norms, occasions, plans, recorder, romance, routine, social)
         self.w = world
         self.name = name
         self.reg = world.reg
@@ -72,6 +72,7 @@ class Simulation:
             "economy": economy.Economy(self),
             "occasions": occasions.Occasions(self),
             "messaging": messaging.Messaging(self),
+            "social": social.Social(self),
             "institutions": institutions.Institutions(self),
             "family": family.Family(self),
             "honor": honor.Honor(self),
@@ -87,7 +88,7 @@ class Simulation:
             places.settle_world(self.w)          # every place inside its real building (the map shows it there)
         for name in ("environment", "cycle", "housing", "activity", "groups", "network", "academics", "encounters", "economy",
                      "romance", "intimacy", "faith", "norms", "mind", "coping", "plans", "routine", "emotion", "culture", "occasions",
-                     "institutions", "family", "honor", "messaging", "lifecourse", "recorder"):
+                     "institutions", "family", "honor", "messaging", "social", "lifecourse", "recorder"):
             sysobj = self.systems[name]
             if hasattr(sysobj, "init"):
                 sysobj.init()
@@ -276,6 +277,7 @@ class Simulation:
         self._run("occasions", S["occasions"].end_of_day)
         self._run("institutions", S["institutions"].end_of_day)
         self._run("messaging", S["messaging"].end_of_day)
+        self._run("social", S["social"].daily)
         self._run("romance", S["romance"].daily)
         self._run("mind", S["mind"].daily)
         self._run("coping", S["coping"].daily)

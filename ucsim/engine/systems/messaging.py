@@ -99,7 +99,8 @@ class Messaging:
                               "left": (np.int32, -1), "muted": (np.bool_, False)}, capacity=1 << 14)
         self.acts = Table({"thread": (np.int64, -1), "day": (np.int32, -1), "block": (np.int8, 3), "sender": (np.int32, -1),
                            "kind": (np.int8, -1), "to": (np.int32, -1), "ref": (np.int64, -1), "reply_to": (np.int64, -1),
-                           "replied_day": (np.int32, -1), "event": (np.int64, -1)}, capacity=1 << 14)
+                           "replied_day": (np.int32, -1), "event": (np.int64, -1), "decision": (np.int64, -1)},
+                          capacity=1 << 14)
         self.know = KnowledgeStore()
         self.live_news = {"event": np.empty(0, np.int64), "subject": np.empty(0, np.int64), "day": np.empty(0, np.int32),
                           "shared": np.empty(0, bool)}
@@ -294,6 +295,12 @@ class Messaging:
         eix = E.find(EdgeStore.make_keys(a, b))
         ok = eix >= 0
         a, b, eix = a[ok], b[ok], eix[ok]
+        soc = sim.systems.get("social")
+        if soc is not None:              # someone who pulled back over an open concern doesn't text that person
+            quiet = soc.suppressed(a, b)
+            a, b, eix = a[~quiet], b[~quiet], eix[~quiet]
+            if not len(a):
+                return
         acts = self.acts.append(len(a), thread=-1, day=day, block=2, sender=a, kind=ACT_ID["checkin"], to=b)
         busy = sim.systems["activity"].shift_minutes(1, sim.cal.weekday(day))[b] > 0
         resp = (sim.z("conscientiousness")[b] + sim.z("agreeableness")[b]) / 2
@@ -312,16 +319,19 @@ class Messaging:
             if s.any():
                 did[s] = sim.decisions.record("reply_message", day, b[s], o, {k: v[s] for k, v in T.items()}, base=base,
                                               prob=np.where(rep[s], pr[s], 1 - pr[s]), other=a[s])
+        self.acts.set("decision", acts, did)          # the check-in carries the reply-or-not decision it got
         if rep.any():
             r = np.flatnonzero(rep)
-            self.acts.append(len(r), thread=-1, day=day, block=3, sender=b[r], kind=ACT_ID["reply"], to=a[r], reply_to=acts[r])
+            rid = self.acts.append(len(r), thread=-1, day=day, block=3, sender=b[r], kind=ACT_ID["reply"], to=a[r], reply_to=acts[r],
+                                   decision=did[r])
             self.acts.set("replied_day", acts[r], day)
             E.cols["last_day"][eix[r]] = day
+            if soc is not None:          # a struggling friend tells them, or says they're fine
+                soc.on_checkin_replies(a[r], b[r], rid)
         nr = np.flatnonzero(~rep)
         self._pending = getattr(self, "_pending", np.empty((0, 4), np.int64))
         due = day + int(p("messaging.reply.silence_days"))
         self._pending = np.r_[self._pending, np.c_[a[nr], b[nr], acts[nr], np.full(len(nr), due)]] if len(nr) else self._pending
-        del did
 
     def _silences(self, day: int):
         """Unanswered texts are interpreted: rejection-sensitive people feel ignored, others assume the friend is busy."""
@@ -335,13 +345,21 @@ class Messaging:
             return
         a, b, act = pend[due, 0], pend[due, 1], pend[due, 2]
         self._pending = pend[~due]
+        # answered late in the meantime (social.late_reply): nothing to interpret
+        if len(act):
+            late = self.acts.get("replied_day", act, default=-1) >= 0
+            a, b, act = a[~late], b[~late], act[~late]
         pres = P["present"][a] & P["present"][b]
         a, b, act = a[pres], b[pres], act[pres]
         if not len(a):
             return
         sil = self.acts.append(len(a), thread=-1, day=day, block=3, sender=b, kind=ACT_ID["silence"], to=a, reply_to=act)
-        u = sim.streams.uniform("msg_silence", day, len(a))
-        ignored = u < expit(p("messaging.silence.ignored_base") + p("messaging.silence.rs") * sim.z("rejection_sensitivity")[a])
+        soc = sim.systems.get("social")
+        if soc is not None:          # the reading comes from evidence (social.read_silence) and is recorded with it
+            ignored, _ = soc.read_silence(a, b, act, sil)
+        else:
+            u = sim.streams.uniform("msg_silence", day, len(a))
+            ignored = u < expit(p("messaging.silence.ignored_base") + p("messaging.silence.rs") * sim.z("rejection_sensitivity")[a])
         for m, et in ((ignored, "felt_ignored"), (~ignored, "assumed_busy")):
             if not m.any():
                 continue
@@ -407,10 +425,17 @@ class Messaging:
         ev = sim.emit("left_out", x, b=org, mech="messaging.leftout", block=3, causes=[("occasion", o, 1.0)])
         eix = E.find(EdgeStore.make_keys(x, org))
         okk = eix >= 0
-        E.cols["hurt"][eix[okk]] = np.clip(E["hurt"][eix[okk]] + 0.06, 0, 1)
-        # the host's side: they know this person but aren't close, and didn't think they'd want to come
-        okk_i = np.maximum(eix, 0)
-        thought = okk & (E["stage"][okk_i] >= 2) & (E["closeness"][okk_i] < 0.35)
+        soc = sim.systems.get("social")
+        if soc is not None:
+            # how it is read (excluded on purpose, "they think I'm not interested", unsure) sets the hurt; the host's
+            # side is recorded only when the host actually believed they weren't interested (social.read_decline)
+            hurt, held, _ = soc.on_left_out(x, org, o, ev)
+            E.cols["hurt"][eix[okk]] = np.clip(E["hurt"][eix[okk]] + hurt[okk], 0, 1)
+            thought = held
+        else:
+            E.cols["hurt"][eix[okk]] = np.clip(E["hurt"][eix[okk]] + 0.06, 0, 1)
+            okk_i = np.maximum(eix, 0)
+            thought = okk & (E["stage"][okk_i] >= 2) & (E["closeness"][okk_i] < 0.35)
         if thought.any():
             ev2 = sim.emit("assumed_not_interested", org[thought], b=x[thought], mech="messaging.leftout", block=3,
                            causes=[("occasion", o[thought], 1.0)])

@@ -3,7 +3,7 @@
 // as plain moments with their reasons. Click a name to focus that life (the map follows), a moment to see why it
 // happened and what it led to, "Watch" to play the scene, and "Make it happen" to change what someone does.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { valleyApi, type CastNow, type CastPick, type Moment } from '../../api'
+import { phoneApi, valleyApi, type CastNow, type CastPick, type Moment, type Story } from '../../api'
 import { useBench } from '../../bench/selection'
 import { subjectPerson } from '../../bench/sel'
 import { tool as mapTool } from '../../bench/tools/Map'
@@ -15,6 +15,8 @@ import { usePersonName } from '../../kit/RefChip'
 import { useLens, useStore } from '../../store'
 import { openMake } from './MakeItHappen'
 import { Initials, openScene } from './Scene'
+import { openPhone } from './Phone'
+import { openListen } from './Listen'
 import '../../bench/bench.css'
 import '../../bench/tools.css'
 import './valley.css'
@@ -148,6 +150,8 @@ function FocusCard({ id, followed }: { id: number; followed: boolean }) {
         <div className="row" style={{ marginTop: 8 }}>
           <button className="btn small primary" onClick={() => openMake(p.id)}>{G.spark} Make it happen</button>
           {p.partner && <button className="btn small" onClick={() => openScene({ kind: 'pair', a: p.id, b: p.partner!.id }, p.id)}>{G.send} Texts with {p.partner.name.split(' ')[0]}</button>}
+          <button className="btn small" onClick={() => openPhone(p.id)} title="Their texts, group chats and dating app">{G.send} Their phone</button>
+          <button className="btn small" onClick={() => openListen({ people: [p.id], title: `Listening to ${p.name.split(' ')[0]}` })} title="Hear their conversations as they happen">{G.mind} Listen in</button>
           <button className="btn small" onClick={() => setRoute(['person', String(p.id)])}>{G.id} Their life</button>
           <button className={`btn small ${followed ? 'following' : ''}`} onClick={() => toggleFollow(p.id)}>{followed ? 'Following' : <>{G.plus} Follow</>}</button>
         </div>
@@ -161,13 +165,13 @@ function Feed({ cast, focus }: { cast: number[]; focus: number | null }) {
   const { u } = useLens()
   const dataVersion = useStore(s => s.dataVersion)
   const status = useStore(s => s.status)
-  const [tab, setTab] = useState<'cast' | 'valley'>(cast.length ? 'cast' : 'valley')
+  const [tab, setTab] = useState<'cast' | 'valley' | 'dev'>(cast.length ? 'cast' : 'valley')
   const had = useRef(cast.length)
   useEffect(() => { if (!had.current && cast.length) setTab('cast'); had.current = cast.length }, [cast.length])   // first follow: show their story
-  const t = cast.length ? tab : 'valley'
+  const t = cast.length || tab === 'dev' ? tab : 'valley'
   const only = focus !== null && t === 'cast' && cast.includes(focus) ? [focus] : null
   const people = t === 'cast' ? (only ?? cast) : []
-  const f = useAsync(() => valleyApi.feed(people, u, (status?.day ?? 0) - (t === 'cast' ? 30 : 10)), [people.join(','), u, dataVersion, t])
+  const f = useAsync(() => (t === 'dev' ? Promise.resolve({ today: 0, moments: [], note: '' }) : valleyApi.feed(people, u, (status?.day ?? 0) - (t === 'cast' ? 30 : 10))), [people.join(','), u, dataVersion, t])
   const days = useMemo(() => {
     const out: { day: number; date: string; weekday: string; items: Moment[] }[] = []
     for (const m of f.data?.moments ?? []) {
@@ -185,11 +189,12 @@ function Feed({ cast, focus }: { cast: number[]; focus: number | null }) {
         <button className={t === 'cast' ? 'on' : ''} disabled={!cast.length} onClick={() => setTab('cast')} title={cast.length ? '' : 'Follow someone first'}>
           {only ? name(only[0]).split(' ')[0] : 'Your people'}</button>
         <button className={t === 'valley' ? 'on' : ''} onClick={() => setTab('valley')}>The valley</button>
+        <button className={t === 'dev' ? 'on' : ''} onClick={() => setTab('dev')} title="Situations still unfolding between people: worth following">Developing</button>
         <span className="spacer" />
         {!running && status?.checkpoint && <Undo cp={status.checkpoint} />}
         {!running && <button className="btn small primary" onClick={() => timeCtl.play()} title="Let time run (Space)">{G.play} Run</button>}
       </div>
-      <div className="vl-story">
+      {t === 'dev' ? <Developing cast={cast} /> : <div className="vl-story">
         {f.error && <div className="bx-problem">{f.error}</div>}
         {!f.data && !f.error && <div className="small muted vl-pad">Reading the story…</div>}
         {f.data && !days.length && <div className="vl-pad small muted">{t === 'cast' ? 'Nothing big has happened to them lately. Let time run.' : 'A quiet stretch. Let time run.'}</div>}
@@ -199,7 +204,7 @@ function Feed({ cast, focus }: { cast: number[]; focus: number | null }) {
             {d.items.map(m => <MomentRow key={m.event} m={m} cast={cast} />)}
           </section>
         ))}
-      </div>
+      </div>}
     </aside>
   )
 }
@@ -280,4 +285,34 @@ function Undo({ cp }: { cp: { label: string; date: string; day: number } }) {
     setBusy(false)
   }
   return <button className="btn small ghost" disabled={busy} onClick={go} title={`Put your world back as it was just before: ${cp.label}`}>↶ Undo</button>
+}
+
+/** Developing stories: situations in the records that are still unfolding (story sifting). Picked for interest and
+ * variety, not representative; nothing here changes the world. */
+function Developing({ cast }: { cast: number[] }) {
+  const { u } = useLens()
+  const dataVersion = useStore(s => s.dataVersion)
+  const [mine, setMine] = useState(false)
+  const people = mine ? cast : []
+  const d = useAsync(() => phoneApi.stories(people, u), [people.join(','), u, dataVersion])
+  const rows: Story[] = d.data?.stories ?? []
+  return (
+    <div className="vl-story">
+      <div className="vl-pad small muted">{d.data?.note ?? ''} {cast.length > 0 && <button className="linkish" onClick={() => setMine(!mine)}>{mine ? 'Show the whole valley' : 'Only your people'}</button>}</div>
+      {d.error && <div className="bx-problem">{d.error}</div>}
+      {d.data && !rows.length && <div className="vl-pad small muted">Nothing unfolding yet. Let time run.</div>}
+      {rows.map((s, k) => (
+        <div key={k} className="vl-dev">
+          <span className="vl-dev-k">{s.title}</span>
+          <span>{s.summary}</span>
+          <span className="vl-dev-acts">
+            {s.who.map(w => <button key={w.id} className="linkish" onClick={() => focusPerson(w.id, w.name)}>{w.name.split(' ')[0]}</button>)}
+            {s.links.app != null && <button className="linkish" onClick={() => openPhone(s.people[0], { app: s.links.app })}>{G.send} the app conversation</button>}
+            {s.links.app == null && <button className="linkish" onClick={() => openPhone(s.people[0], { with: s.people[1] })}>{G.send} their texts</button>}
+            <button className="linkish" onClick={() => openListen({ people: s.people, title: s.who.map(w => w.name.split(' ')[0]).join(' & ') })}>{G.mind} listen in</button>
+          </span>
+        </div>
+      ))}
+    </div>
+  )
 }

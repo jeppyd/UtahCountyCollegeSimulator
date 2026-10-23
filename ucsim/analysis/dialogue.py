@@ -307,7 +307,8 @@ def fallback(sim, spec: dict, styles: dict | None = None) -> str:
                  ["hey! pretty good, you?", "hi! good, what about you?", "haha hi :) good week so far"], st, *key)
     elif a == "app_chat":
         # one question and its answer per chatting day (both lines share the exchange, so they stay a pair)
-        q, answers = APP_CHAT[_h(spec.get("ex"), "q") % len(APP_CHAT)]
+        pair = (min(spec["speaker"], spec["to"] or 0), max(spec["speaker"], spec["to"] or 0))
+        q, answers = APP_CHAT[(_h(*pair, "q") + spec["day"]) % len(APP_CHAT)]      # a new question each day
         t = pick(answers, st, *key) if spec.get("sub") == 2 else q
     elif a == "ask_date":
         t = pick([f"would you want to get {sl.get('date_words') or 'dinner'} sometime?", "want to grab food this week?",

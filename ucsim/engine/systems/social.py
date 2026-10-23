@@ -1067,10 +1067,10 @@ class Social:
         every = int(p("social.capture.ordinary_every"))
         rom = (E["flags"][idx] & (Tie.ROMANTIC | Tie.SPOUSE)) > 0
         ordinary = social_ctx & (stage >= 2) & ((h % every) == 0)
-        ordinary |= rom & ((h % max(every // 4, 1)) == 0)
+        ordinary |= rom & ((h % max(every // 2, 1)) == 0)
         # first meetings at get-togethers (thinned the same way: a party can introduce dozens of people)
         meet = new_before & np.isin(ctx, [CTX_ID[k] for k in ("occasion", "gathering", "hangout", "dance", "club", "team")]) \
-            & ((h % max(every // 8, 1)) == 0)
+            & ((h % max(every // 2, 1)) == 0)
         # concerns raised in person (owner decides raise or avoid; only once a day per concern)
         C = self.concerns
         raised = np.zeros(n, bool)
@@ -1409,7 +1409,7 @@ class Social:
                 to = np.where(sp == a[j[g]], b[j[g]], a[j[g]])
                 self.ex.add(sim, len(g), speaker=sp, to=to, act="app_chat", channel="app", thread=tid[j[g]], block=2,
                             topic=TOPIC["match"], intent=INTENT["connect"], ambig=0.2, conv=tid[j[g]],
-                            keep=False, tone=np.minimum(att_ab[j[g]], att_ba[j[g]]))
+                            keep=True, tone=np.minimum(att_ab[j[g]], att_ba[j[g]]))
                 del mutual_att
         # ---- asked: the answer (the same accept terms as any date), and a date booked once through romance's queue
         m3 = (stage == APP["asked"]) & (T["last_day"][live] < day)
@@ -1504,12 +1504,12 @@ class Social:
             self._thin(day)
 
     def _thin(self, day: int):
-        """Ordinary talk older than a month thins away; consequential exchanges (keep) stay for detail_days;
+        """Ordinary talk older than two weeks thins away; consequential exchanges (keep) stay for detail_days;
         closed app threads after detail_days. Recording thins; behavior never reads what thinned."""
         keep_days = getattr(self.sim, "detail_days", 120)
         X = self.ex.t
         if X.n:
-            X.keep((X["day"] >= day - 30) | (X["keep"] & (X["day"] >= day - keep_days)))
+            X.keep((X["day"] >= day - 14) | (X["keep"] & (X["day"] >= day - keep_days)))
         R = self.reads.t
         if R.n:
             R.keep(R["day"] >= day - keep_days)

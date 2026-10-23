@@ -77,7 +77,7 @@ export function PhoneView() {
             {d && tab === 'groups' && (d.groups.length ? d.groups.map(g => (
               <button key={g.id} className={`ph-row ${pick?.kind === 'group' && pick.t === g.id ? 'on' : ''} ${g.member ? '' : 'left'}`} onClick={() => setPick({ kind: 'group', viewer: me, t: g.id })}>
                 <span className="ph-group-ic">{G.people}</span>
-                <span className="ph-row-main"><b>{g.name}</b><span className="ph-prev">{g.n} people · about {Math.round(g.volume)} messages a day{g.muted ? ' · muted' : ''}{!g.member ? ' · they left' : ''}</span></span>
+                <span className="ph-row-main"><b>{g.name}</b><span className="ph-prev">{g.n} {g.n === 1 ? 'person' : 'people'} · about {Math.round(g.volume)} message{Math.round(g.volume) === 1 ? '' : 's'} a day{g.muted ? ' · muted' : ''}{!g.member ? ' · they left' : ''}</span></span>
               </button>
             )) : <div className="small muted ph-pad">In no group chats.</div>)}
             {d && tab === 'app' && <AppList apps={d.apps} pick={pick} setPick={setPick} />}
@@ -120,7 +120,7 @@ export function Thread({ view, me, onBack }: { view: PhoneViewRef; me: number | 
     <div className="ph-t">
       <div className="ph-t-h">
         {onBack && <button className="btn small ghost ph-back" onClick={onBack}>‹</button>}
-        <b className="grow">{view.kind === 'dm' ? other ?? 'Texts' : view.kind === 'group' ? 'Group chat' : d.data?.b ? `${first(d.data.a?.name)} & ${first(d.data.b?.name)}` : 'Dating app'}</b>
+        <b className="grow">{view.kind === 'dm' ? other ?? 'Texts' : view.kind === 'group' ? d.data?.name ?? 'Group chat' : d.data?.b ? `${d.data.a?.name} & ${d.data.b?.name}` : 'Dating app'}</b>
         {view.kind === 'app' && d.data?.b && <span className="small muted">matched {d.data.matched_date} · {d.data.words}</span>}
       </div>
       {view.kind === 'app' && d.data?.b && <Profile id={(d.data.a?.id === me ? d.data.b : d.data.a).id} />}
@@ -162,7 +162,7 @@ export function Line({ l, prev, me, why, setWhy, said }: { l: PLine; prev?: PLin
 }
 
 /** The words' source, and the button that asks the owner's model to word this conversation. */
-export function WordingBar({ w, view, onDone }: { w: Wording; view: PhoneViewRef; onDone: () => void }) {
+export function WordingBar({ w, view, onDone, compact }: { w: Wording; view: PhoneViewRef; onDone: () => void; compact?: boolean }) {
   const { u } = useLens()
   const [job, setJob] = useState<{ state: string; text?: string; error?: string | null } | null>(null)
   const alive = useRef(0)
@@ -184,6 +184,16 @@ export function WordingBar({ w, view, onDone }: { w: Wording; view: PhoneViewRef
     } catch (e: any) { if (alive.current === run) setJob({ state: 'error', error: String(e?.message ?? e) }) }
   }
   const busy = job && (job.state === 'queued' || job.state === 'running')
+  if (compact) {
+    return (
+      <div className="ph-word-c">
+        {w.source === 'model' && <span title="Worded by your model; what happens is recorded">✍ worded by your model</span>}
+        {job?.state === 'error' && <span style={{ color: 'var(--critical)' }} title={job.error ?? ''}>couldn't word it</span>}
+        {busy && <span>{job!.text ?? 'Working'}…</span>}
+        {w.realizable && w.source !== 'model' && !busy && <button className="linkish" onClick={go} title="Your model writes the exact words; it can't change what happens">✍ write it with your model</button>}
+      </div>
+    )
+  }
   return (
     <div className="sc-f ph-f">
       {w.source === 'model'

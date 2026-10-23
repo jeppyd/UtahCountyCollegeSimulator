@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from ..engine.state import Tie
 from ..engine.systems import social as S
 from .phone import PROP_WORDS, WITHHELD_WORDS, _name, _who
 
@@ -106,9 +107,15 @@ def developing(sim, people: list[int] | None = None, limit: int = 12, days: int 
         warm = lo + np.flatnonzero((X["act"][lo:] == S.ACT["warm_moment"]) & mine(X["speaker"][lo:], X["to"][lo:]))
         if len(warm):
             pairs, cnt = np.unique(X["pair"][warm], return_counts=True)
+            E = sim.w.E
             for pk, n in zip(pairs[cnt >= 3].tolist(), cnt[cnt >= 3].tolist()):
                 r = warm[X["pair"][warm] == pk][-1]
                 a, b = int(X.cols["speaker"][r]), int(X.cols["to"][r])
+                e = E.find(E.make_keys(np.array([a]), np.array([b])))[0]
+                if e >= 0 and (int(E["flags"][e]) & (Tie.ROMANTIC | Tie.SPOUSE)):      # a couple isn't a friendship forming
+                    continue
+                if e >= 0 and float(E["closeness"][e]) >= 0.7:                          # already close
+                    continue
                 found.append({"kind": "getting_closer", "people": [a, b], "day": int(X.cols["day"][r]), "score": 0.3 + 0.1 * n,
                               "summary": f"{_first(sim, a)} and {_first(sim, b)} have had {n} good conversations in two weeks.",
                               "links": {"exchange": int(X.ids[r])}})

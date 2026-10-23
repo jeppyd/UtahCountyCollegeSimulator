@@ -95,6 +95,11 @@ def style_words(st: dict) -> str:
     return ", ".join(b for b in bits if b)
 
 
+SOFT_ACTS = {"decline_explained", "decline_brief", "late_reply", "apologize", "clarify", "ask_clarify", "disclose", "deflect",
+             "support", "reassure", "promise", "date_no", "plan_change", "checkin_again"}
+SOFT_EMOJI = ["🙁", "😅", "🙏"]
+
+
 def shape(text: str, st: dict, key, channel: str = "text") -> str:
     """Apply a style to a line deterministically (never adds words that carry meaning)."""
     t = text.strip()
@@ -112,7 +117,9 @@ def shape(text: str, st: dict, key, channel: str = "text") -> str:
         if st["lowercase"] and t.endswith(".") and st["formality"] < 0.45:
             t = t[:-1]
         if st["emoji"] > 0.55 and not any(ord(ch) > 0x2000 for ch in t) and _h(key, "em") % 3 == 0:
-            t = t + " " + ["🙂", "😊", "🙌", "😅", "😂", "❤️"][_h(key, "e2") % 6]
+            act = key[-1] if isinstance(key, tuple) and key and isinstance(key[-1], str) else ""
+            bank = SOFT_EMOJI if act in SOFT_ACTS else ["🙂", "😊", "🙌", "😄", "❤️"]
+            t = t + " " + bank[_h(key, "e2") % len(bank)]
     else:
         t = t[0].upper() + t[1:]
     return t
@@ -356,7 +363,7 @@ def in_person_lines(sim, row: dict) -> list[dict]:
         A, B = _first(sim, a), _first(sim, b)
         host = (row.get("occ") or {}).get("host")
         L(a, b, "introduce", f"hi, I'm {A}", 1, names=True)
-        L(b, a, "introduce", f"{B}. nice to meet you!" if not host else f"{B}. how do you know {host}?", 2, names=True)
+        L(b, a, "introduce", f"Nice to meet you, {B}!" if not host else f"{B}! How do you know {host}?", 2, names=True)
         if host:
             L(a, b, "introduce", pick(["we're in the same ward", "through friends", "we've known each other a while"], None, *key, "h"), 3)
     elif act == "avoid":

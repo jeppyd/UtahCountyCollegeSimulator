@@ -267,7 +267,7 @@ def group_lines(sim, viewer: int, t: int, since: int | None = None, until: int |
             filled.append(x)
             prev = x[0]
         out = filled
-    info = {"spans": [{"joined": a, "left": (b if b < 10 ** 9 else None)} for a, b in spans], "hidden_before_joining": hidden,
+    info = {"name": M.thread_name(int(t)), "spans": [{"joined": a, "left": (b if b < 10 ** 9 else None)} for a, b in spans], "hidden_before_joining": hidden,
             "volume": round(float(T.cols["volume"][p]), 1) if p >= 0 else 0.0}
     return [x[3] for x in out], info
 

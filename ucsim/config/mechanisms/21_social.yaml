@@ -158,9 +158,9 @@ mechanisms:
     label: Which conversations are kept
     target: closeness
     sources: []
-    form: "recording only (no behavior): every consequential in-person exchange is kept; ordinary talk between people who know each other is kept when hash(pair, day, block) mod ordinary_every = 0 (a quarter of that for couples)"
+    form: "recording only (no behavior): every consequential in-person exchange is kept; ordinary talk between people who know each other is kept when hash(pair, day, block) mod ordinary_every = 0 (half of that for couples and for first meetings at get-togethers)"
     params:
-      ordinary_every: {value: 40, range: [5, 200]}
+      ordinary_every: {value: 6, range: [3, 200]}
     timescale: block
     evidence: hypothetical
   social.app:

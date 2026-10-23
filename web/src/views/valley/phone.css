@@ -23,7 +23,8 @@
 .ph-back { display: none; }
 .ph-body { flex: 1; }
 .ph-f { flex-wrap: wrap; }
-.ph-whyb { font-size: 11px; padding: 2px 8px; color: var(--text-muted); }
+.ph-whyb, .linkish.ph-whyb { font-size: 11px; padding: 1px 8px; color: var(--text-muted); opacity: .75; }
+.sc-msg .ph-whyb { align-self: inherit; }
 .ph-whyb:hover { color: var(--accent); }
 .ph-gap { font-size: 12px; padding: 4px 10px; border-top: 1px dashed var(--border); border-bottom: 1px dashed var(--border); }
 .ph-prof { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
@@ -45,3 +46,7 @@
   .ph-pv { grid-template-columns: 1fr; }
 }
 .ph-tool { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.ph-word-c { align-self: center; display: flex; gap: 10px; font-size: 11px; color: var(--text-muted); }
+.ph-word-c .linkish { font-size: 11px; }
+.vl-dev-acts .linkish { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
+.vl-dev-acts svg { width: 12px; height: 12px; }

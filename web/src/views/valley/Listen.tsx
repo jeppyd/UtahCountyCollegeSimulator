@@ -40,7 +40,7 @@ export function ListenView() {
     if (!open) return
     const g = gen.current
     const since = last.current
-    phoneApi.listen({ people: open.people, occ: open.occ, since_ex: since, days: since < 0 ? 2 : 30 }, u).then(r => {
+    phoneApi.listen({ people: open.people, occ: open.occ, since_ex: since, days: since < 0 ? 7 : 30 }, u).then(r => {
       if (g !== gen.current) return
       setErr('')
       setLoaded(true)
@@ -107,16 +107,17 @@ export function ListenView() {
         <div className="sc-body">
           {err && <div className="bx-problem">{err}</div>}
           {!loaded && !err && <div className="sc-wait">Listening…</div>}
-          {loaded && !convs.length && <div className="sc-wait">Nobody's talking right now. {running ? 'Conversations appear as time passes.' : 'Let time run, and conversations appear here as they happen.'}</div>}
+          {loaded && !convs.length && <div className="sc-wait">Nobody's talking right now (no conversations of theirs in the last week). {running ? 'Conversations appear as time passes.' : 'Let time run, and conversations appear here as they happen.'}</div>}
           {convs.map(c => {
             if (left <= 0) return null
             const n = Math.min(left, c.lines.length)
             left -= n
             return (
               <div key={c.key} className="ph-conv">
-                <div className="sc-stage">{c.block_name} · {c.where} · {c.people.map(p => p.name.split(' ')[0]).join(', ')}</div>
-                {c.lines.slice(0, n).map((l, k) => <Line key={l.id + k} l={l} prev={c.lines[k - 1] ?? { ...l, date: '', time: null }} me={pov} why={why} setWhy={setWhy} said />)}
-                {n === c.lines.length && c.wording.realizable && <WordingBar w={c.wording} view={{ kind: 'listen', people: c.people.map(p => p.id), occ: c.occasion ?? undefined, days: 30, conv: c.key }} onDone={() => reword(c)} />}
+                <div className="sc-day">{new Date(c.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })} · {c.block_name}</div>
+                <div className="sc-stage">{c.where} · {c.people.map(p => p.name.split(' ')[0]).join(', ')}</div>
+                {c.lines.slice(0, n).map((l, k) => <Line key={l.id + k} l={l} prev={c.lines[k - 1] ?? l} me={pov} why={why} setWhy={setWhy} said />)}
+                {n === c.lines.length && c.wording.realizable && <WordingBar compact w={c.wording} view={{ kind: 'listen', people: c.people.map(p => p.id), occ: c.occasion ?? undefined, days: 30, conv: c.key }} onDone={() => reword(c)} />}
               </div>
             )
           })}

@@ -23,14 +23,53 @@ const loadGeo = () => (geoCache ??= Promise.all([
   fetch(api.geo('roads.json')).then(r => r.json()).catch(() => null),
   fetch(api.geo('cities.json')).then(r => r.json()).catch(() => null),
 ]).then(([roads, cities]) => ({ roads, cities })))
-// the street map under everything (the classic map's OpenFreeMap styles): street and place names, parks, water.
-// Its own flat buildings are dropped, since ours stand on top. Offline, the map keeps the bundled roads.
+// the map underneath (the base style): plain ground with the bundled roads (works offline), OpenFreeMap street maps,
+// or aerial photos. Street maps drop their own flat buildings, since ours stand on top; offline, any style falls back to
+// the plain ground and the bundled roads.
+export type MapStyle = 'plain' | 'streets' | 'bright' | 'satellite' | 'satellite-sharp' | 'hybrid' | 'topo'
+export const MAP_STYLES: { id: MapStyle; label: string; title: string }[] = [
+  { id: 'plain', label: 'Plain', title: 'Plain ground and the bundled roads, no internet needed' },
+  { id: 'streets', label: 'Streets', title: 'A quiet street map: street and place names, parks, water (OpenFreeMap; clay or your theme colors)' },
+  { id: 'bright', label: 'Bright streets', title: 'A colorful street map: green parks, blue water, road colors, shops and places (OpenFreeMap)' },
+  { id: 'satellite', label: 'Satellite', title: 'Aerial photos of the valley (USGS National Map, public domain; sharpest up to street level)' },
+  { id: 'satellite-sharp', label: 'Satellite (sharper)', title: 'Sharper aerial photos, good close in (Esri World Imagery; free for personal use)' },
+  { id: 'hybrid', label: 'Satellite + labels', title: 'The sharper aerial photos with street and place names on top' },
+  { id: 'topo', label: 'Topo', title: 'The USGS topographic map: contours, trails, the mountains (public domain)' },
+]
+export const styleOf = (o: LivingOpts): MapStyle => o.style ?? ((o.basemap ?? !STATIC) ? 'streets' : 'plain')
 const BLANK = (bg: string): any => ({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': bg } }] })
+const IMAGERY: Record<string, { tiles: string; maxzoom: number; attribution: string }> = {
+  usgs: { tiles: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}', maxzoom: 16,
+    attribution: 'Imagery: <a href="https://www.usgs.gov/programs/national-geospatial-program/national-map">USGS The National Map</a>, USDA NAIP' },
+  esri: { tiles: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', maxzoom: 19,
+    attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community' },
+  topo: { tiles: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}', maxzoom: 16,
+    attribution: 'Map: <a href="https://www.usgs.gov/programs/national-geospatial-program/national-map">USGS The National Map</a>' },
+}
+const fetchJson = (url: string) => fetch(url).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
+// one tile over Provo, to learn whether the imagery can be reached before swapping the bundled roads for it
+const probe = (src: string) => fetch(IMAGERY[src].tiles.replace('{z}', '12').replace('{y}', '1547').replace('{x}', '777'), { mode: 'no-cors' })
+const noBuildings = (st: any) => st.layers.filter((l: any) => !l.id.startsWith('building'))
+const raster = (src: string, extra: any = null): any => ({
+  version: 8, ...(extra ? { glyphs: extra.glyphs, sprite: extra.sprite } : {}),
+  sources: { ...(extra?.sources ?? {}), [src]: { type: 'raster', tiles: [IMAGERY[src].tiles], tileSize: 256, maxzoom: IMAGERY[src].maxzoom, attribution: IMAGERY[src].attribution } },
+  layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#55594f' } }, { id: src, type: 'raster', source: src, paint: { 'raster-fade-duration': 150 } },
+    ...(extra ? extra.layers : [])],
+})
 const styleCache: Record<string, Promise<any>> = {}
-const loadStyle = (look: 'dark' | 'light' | 'clay') => (styleCache[look] ??= fetch(`https://tiles.openfreemap.org/styles/${look === 'dark' ? 'dark' : 'positron'}`)
-  .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
-  .then(st => ({ ...st, layers: st.layers.filter((l: any) => l.id !== 'building' && !l.id.startsWith('building'))
-    .map((l: any) => (look === 'clay' && l.type === 'background' ? { ...l, paint: { ...l.paint, 'background-color': CLAY['--map-bg'] } } : l)) })))
+const loadStyle = (key: string): Promise<any> => (styleCache[key] ??= (() => {
+  const ofm = (name: string) => fetchJson(`https://tiles.openfreemap.org/styles/${name}`)
+  if (key === 'satellite') return probe('usgs').then(() => raster('usgs'))
+  if (key === 'satellite-sharp') return probe('esri').then(() => raster('esri'))
+  if (key === 'topo') return probe('topo').then(() => raster('topo'))
+  // aerial photos with the street map's names on top (its labels and road shields only)
+  if (key === 'hybrid') return Promise.all([probe('esri'), ofm('liberty')]).then(([, st]) => raster('esri', {
+    ...st, layers: st.layers.filter((l: any) => l.type === 'symbol' && !l.id.startsWith('road_one_way') && !l.id.startsWith('poi_')),
+  }))
+  if (key === 'bright') return ofm('liberty').then(st => ({ ...st, layers: noBuildings(st) }))
+  return ofm(key === 'dark' ? 'dark' : 'positron').then(st => ({ ...st, layers: noBuildings(st)
+    .map((l: any) => (key === 'clay' && l.type === 'background' ? { ...l, paint: { ...l.paint, 'background-color': CLAY['--map-bg'] } } : l)) }))
+})())
 const BOUNDS: [number, number][] = [[-112.0, 40.0], [-111.4, 40.0], [-111.4, 40.55], [-112.0, 40.55]]
 // the clay look (docs/concepts, "City · architectural clay"): warm off-white ground, one pale clay for every building,
 // fine gray lines; the map keeps it whatever the app's theme
@@ -49,7 +88,8 @@ export type LivingOpts = {
   refresh?: Refresh
   when?: 'now' | number     // the latest part of the day, or part 0–4 of the last full day
   labels?: boolean
-  basemap?: boolean
+  basemap?: boolean         // (older saved maps) the street map on or off; style replaces it
+  style?: MapStyle          // the map underneath: plain, street maps, satellite, topo
   pins?: boolean            // occasions happening now, as pins
   daylight?: boolean        // light by the time of day (evening glow, dark night with lit homes)
   look?: 'clay' | 'theme'   // the clay look (default) or the app's light/dark colors
@@ -109,7 +149,7 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
   const dark = !isClay && (theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches))
   const mv = (name: string) => (isClay && CLAY[name] ? CLAY[name] : cssVar(name))      // a map color in the current look
   const view3d = opts.view3d ?? true, xray = opts.xray ?? true, refresh: Refresh = opts.refresh ?? 'auto'
-  const when = opts.when ?? 'now', labels = opts.labels ?? true, pins = opts.pins ?? true, basemap = opts.basemap ?? !STATIC
+  const when = opts.when ?? 'now', labels = opts.labels ?? true, pins = opts.pins ?? true, style = styleOf(opts)
   const [card, setCard] = useState<number | null>(null)              // the person whose card is open
   const [follow, setFollow] = useState<number | null>(null)          // the person the camera stays on
   const [occs, setOccs] = useState<NowOccasions | null>(null)
@@ -131,7 +171,7 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
   const [core, setCore] = useState<Set<number> | null>(null)       // buildings people use (standing); the rest flat
   const [pick, setPick] = useState<number | 'all'>('all')          // the floor picked in the opened building
   const [sep, setSep] = useState(true)                              // the opened building's floors pulled apart
-  const [streets, setStreets] = useState(false)                     // the street map loaded (else the bundled roads)
+  const [streets, setStreets] = useState(false)                     // a base style loaded (else the bundled roads)
 
   // ---- the map
   useEffect(() => {
@@ -171,12 +211,15 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
     const m = map.current
     if (!m || !ready) return
     let alive = true
-    if (!basemap) { setStreets(false); m.setStyle(BLANK(mv('--map-bg')), { diff: false }); return }
-    const st = isClay ? 'clay' : dark ? 'dark' : 'light'
+    if (style === 'plain') { setStreets(false); m.setStyle(BLANK(mv('--map-bg')), { diff: false }); return }
+    const st = style !== 'streets' ? style : isClay ? 'clay' : dark ? 'dark' : 'light'
     loadStyle(st).then(js => { if (alive && map.current) { map.current.setStyle(js, { diff: false }); setStreets(true) } })
-      .catch(() => { delete styleCache[st]; if (alive) setStreets(false) })
+      .catch(() => {
+        delete styleCache[st]
+        if (alive && map.current) { setStreets(false); map.current.setStyle(BLANK(mv('--map-bg')), { diff: false }) }
+      })
     return () => { alive = false }
-  }, [ready, basemap, dark, isClay])
+  }, [ready, style, dark, isClay])
   useEffect(() => {
     const m = map.current
     if (!m || !ready || streets) return
@@ -488,7 +531,9 @@ export function LivingMap({ u, opts, setOpts, colorOf, chosen, focus, onPerson, 
         <button className={`btn small ${list ? 'primary' : ''}`} onClick={() => setList(!list)} disabled={!occs} title="Everything happening at this moment: dates, dinners, parties, games…">Right now{occs ? ` · ${occs.occasions.length}` : ''}</button>
         <label className="inline small lm-chk"><input type="checkbox" checked={pins} onChange={e => setOpts({ ...opts, pins: e.target.checked })} />pins</label>
         <label className="inline small lm-chk" title="Place and building names (from afar, the busiest places with how many people are there)"><input type="checkbox" checked={labels} onChange={e => setOpts({ ...opts, labels: e.target.checked })} />labels</label>
-        <label className="inline small lm-chk" title="The street map underneath: street and place names, parks, water (needs the internet)"><input type="checkbox" checked={basemap} onChange={e => setOpts({ ...opts, basemap: e.target.checked })} />streets</label>
+        <select value={style} onChange={e => setOpts({ ...opts, style: e.target.value as MapStyle })} title="The map underneath: plain ground, street maps, satellite photos or topo (all but plain need the internet)">
+          {MAP_STYLES.map(s => <option key={s.id} value={s.id} title={s.title}>{s.label}</option>)}
+        </select>
         <label className="inline small lm-chk" title="The clay look: warm ground and pale clay buildings, whatever the app's theme (off: the app's light or dark colors)"><input type="checkbox" checked={isClay} onChange={e => setOpts({ ...opts, look: e.target.checked ? 'clay' : 'theme' })} />clay</label>
         <label className="inline small lm-chk" title="Light by the time of day: a warm evening, a dark night with homes lit from within"><input type="checkbox" checked={daylight} onChange={e => setOpts({ ...opts, daylight: e.target.checked })} />light</label>
         {children}

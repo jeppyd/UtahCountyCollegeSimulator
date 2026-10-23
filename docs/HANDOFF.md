@@ -188,6 +188,15 @@ time-occasions and provenance-trace). Agents still never push to or merge into `
   `scripts/perf.py --update "hour-by-hour days"`. Run outputs differ from before.
 - Not done: the building-occupancy parquet is still by the old blocks (read as parts); early-morning shifts.
 
+### 2026-10-23 (5) — Claude Code (cloud session) — map styles (owner-directed)
+- The living map's "streets" checkbox became a style picker: Plain (bundled roads, offline), Streets (OpenFreeMap
+  positron/dark, clay-tinted as before), Bright streets (OpenFreeMap liberty), Satellite (USGS National Map NAIP
+  imagery, public domain, native to z16), Satellite (sharper) (Esri World Imagery, personal use, to z19),
+  Satellite + labels (Esri + liberty's symbol layers), Topo (USGS topo, public domain). `opts.style`; older saved
+  maps map `basemap` true/false to streets/plain. Our buildings, dots and night tint draw on top of every style.
+- Imagery styles probe one tile first; offline, any style falls back to the plain ground and bundled roads.
+  Tiles are not stored for offline use (a county at z17 is ~0.5 GB); WebView2's HTTP cache keeps recent ones a day.
+
 ### 2026-10-23 — Make it happen: finding people and more verbs (cloud session, branch claude/project-thread-v6a979)
 - People finder inside Make it happen: how they stand with the person (friends, roommates, ward, classmates, exes,
   hasn't met, into them, tense…), any app filter (CondEditor), a name, sort by closeness, distance, interest either

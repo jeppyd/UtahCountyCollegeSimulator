@@ -1,7 +1,8 @@
 """Routines: free time has a shape that repeats week to week.
 
 People do not choose their Tuesday evening from scratch every week. Each person keeps a routine memory for
-the 28 weekly slots (7 days × morning/afternoon/evening/late evening): the free-time option they habitually take there
+the 168 weekly slots (7 days × 24 hours): the free-time option they habitually take there (going to bed included, so
+bedtimes settle into a weekly shape too)
 and how automatic it has become. Doing the same thing in the same slot strengthens the habit (asymptotic
 learning, Lally et al. 2010); doing something else weakens it, and a new routine replaces a faded one.
 Habit strength adds to that option's utility (Wood & Neal 2007: habits cue behavior directly), so routines
@@ -9,7 +10,7 @@ persist through small changes in mood and circumstances but give way to large on
 a coping episode). This is the plan memory of activity-based models (MATSim agents keep and reuse plans
 rather than re-planning every day) at the resolution this model runs.
 
-Storage: two n × 28 arrays (option code and float16 strength) — about 3 bytes per slot per person.
+Storage: two n × 168 arrays (option code and float16 strength) — about 3 bytes per slot per person.
 """
 from __future__ import annotations
 
@@ -40,12 +41,13 @@ class Routine:
             self.act, self.str = a, s
 
     def bonus(self, idx: np.ndarray, wd: int, b: int) -> np.ndarray:
-        """Utility bonus for each free-time option (8 columns): the habitual option in this slot."""
+        """Utility bonus for each free-time option (activity.NOPT columns): the habitual option in this slot."""
+        from .activity import NOPT
         self._grow()
         slot = int(clock.slot(wd, b))
         a = self.act[idx, slot]
         st = self.str[idx, slot].astype(np.float32)
-        B = np.zeros((len(idx), 8))
+        B = np.zeros((len(idx), NOPT))
         has = a != NONE
         B[np.where(has)[0], a[has]] = self.sim.p("routine.habit.weight") * st[has]
         return B
@@ -76,7 +78,8 @@ class Routine:
         P["routine_strength"] = self.str[:n].astype(np.float32).mean(axis=1)
 
     def for_agent(self, i: int) -> list[dict]:
-        names = ["home", "campus", "gym", "eating out", "outdoors", "dancing", "visiting friends", "around the complex"]
+        from .activity import OPTIONS
+        names = list(OPTIONS)
         days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         out = []
         if i >= self.act.shape[0]:
@@ -84,6 +87,7 @@ class Routine:
         for s in range(SLOTS):
             a = int(self.act[i, s])
             if a != NONE:
-                out.append({"day": days[s // clock.N_BLOCKS], "block": clock.BLOCK_NAMES[s % clock.N_BLOCKS], "activity": names[a],
+                out.append({"day": days[s // clock.N_BLOCKS], "block": clock.BLOCK_NAMES[s % clock.N_BLOCKS],
+                            "part": clock.PARTS[int(clock.PART[s % clock.N_BLOCKS])], "activity": names[a],
                             "strength": round(float(self.str[i, s]), 3)})
         return out

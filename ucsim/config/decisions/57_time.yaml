@@ -1,0 +1,33 @@
+# Decisions from the hour-by-hour day (engine/systems/activity.py). Routine hours (staying in, going to bed, the gym)
+# aren't recorded one by one; these are the choices worth tracing.
+decisions:
+  skip_class:
+    label: Whether to go to class
+    units: logit
+    outcomes: [skipped, went]
+    factors:
+      base:          {label: "how often students go to class", more: "", less: ""}
+      conscientious: {label: "conscientiousness", more: "dutiful", less: "easygoing about class"}
+      tired:         {label: "how tired they are", more: "", less: "exhausted"}
+      pressure:      {label: "academic pressure", more: "worried about grades", less: ""}
+      depressed:     {label: "a depressive episode", more: "", less: "depressed"}
+      coping:        {label: "how they're coping", more: "", less: "pulling back from things"}
+      better_offer:  {label: "something better going on", more: "", less: "in the middle of time with someone"}
+  late_night_plan:
+    label: Going out late together
+    units: utility
+    outcomes: [came_along]
+    factors:
+      their_pull:    {label: "how much they wanted that outing", more: "up for it", less: "not really feeling it"}
+      company:       {label: "wanting to be with this person", more: "close to them", less: ""}
+      partner:       {label: "it was their partner", more: "their partner asked", less: ""}
+      instead:       {label: "what they'd have done instead", more: "", less: "would have gone to bed or stayed in"}
+  past_visiting_hours:
+    label: Staying past visiting hours
+    units: utility
+    outcomes: [stayed]
+    factors:
+      carry_on:      {label: "not wanting the night to end", more: "having a good time", less: ""}
+      the_rule:      {label: "holding to the visiting-hours rule", more: "", less: "keeps the rules"}
+      heat:          {label: "the heat of the moment", more: "caught up in the moment", less: ""}
+      sleep:         {label: "the pull of bed", more: "", less: "tired"}

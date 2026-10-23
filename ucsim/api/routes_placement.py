@@ -10,7 +10,14 @@ from fastapi.responses import Response
 from ..engine import placement
 
 router = APIRouter()
+from ..engine import clock
+
 BLOCK_WORDS = ["morning", "afternoon", "evening", "late evening", "night"]
+
+
+def hour_words(b: int) -> str:
+    """'11 pm · late evening' for hour step b."""
+    return f"{clock.BLOCK_NAMES[b]} · {BLOCK_WORDS[int(clock.PART[b])]}" if 0 <= b < clock.N_BLOCKS else ""
 
 
 def _server():
@@ -25,8 +32,8 @@ def _server():
 @router.get("/api/positions/precise")
 def positions_precise(u: str = "base", block: str = "now"):
     """Everyone's position in metres from placement.ORIGIN (x east, y north, z up), their building and floor, what
-    they are doing and the kind of place: as of the latest part of the day simulated (block=now), or in part 0–4
-    (morning … night) of the last full day."""
+    they are doing and the kind of place: as of the latest hour simulated (block=now), or at hour 0–23 (6 am … 5 am)
+    of the last full day."""
     S = _server()
     sim = S.WS.sim(u)
     act = sim.systems["activity"]
@@ -50,7 +57,7 @@ def positions_precise(u: str = "base", block: str = "now"):
         "ctx": (f["ctype"].astype(np.uint8), {"categories": CTX}),
         "place": (np.clip(f["cid"], -1, 2**31 - 1).astype(np.int32), {}),
         "frame": (np.array([f["day"], f["hour"], f.get("block", -1)], np.int32),
-                  {"date": str(sim.cal.date(f["day"])), "block_words": BLOCK_WORDS[f["block"]] if 0 <= f.get("block", -1) < 5 else ""}),
+                  {"date": str(sim.cal.date(f["day"])), "block_words": hour_words(int(f.get("block", -1)))}),
     }
     assert all(len(v[0]) == n for k, v in cols.items() if k != "frame")
     return Response(S.pack_columns(cols), media_type="application/octet-stream")
@@ -144,8 +151,8 @@ def now_person(i: int, u: str = "base"):
 
 @router.get("/api/now/occasions")
 def now_occasions(u: str = "base", block: str = "now"):
-    """What's happening right now: every occasion people are at in the latest part of the day (or part 0–4 of the last
-    full day), with how many are there and where (for the map's pins and the 'right now' list)."""
+    """What's happening right now: every occasion people are at in the latest hour (or hour 0–23 of the last full
+    day), with how many are there and where (for the map's pins and the 'right now' list)."""
     S = _server()
     sim = S.WS.sim(u)
     act = sim.systems["activity"]

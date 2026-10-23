@@ -356,7 +356,7 @@ class _Graph:
         host = f" hosted by {self.W.name(org)}" if org >= 0 else ""
         people = ([org] if org >= 0 else []) + [int(x) for x in came[:12] if int(x) != org]
         start = int(r["start"]) if r["start"] >= 0 else None
-        blk = int(clock.block_of(start)) if start is not None else 2
+        blk = int(clock.part_of(start)) if start is not None else 2
         return {"day": int(r["day"]), "block": max(blk, 0), "minute": start, "people": people,
                 "lane": org if org >= 0 else (people[0] if people else None),
                 "label": f"{name}{host}" + (f" at {clock.hhmm(start)}" if start is not None else ""),

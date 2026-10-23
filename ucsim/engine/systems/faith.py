@@ -19,7 +19,6 @@ from __future__ import annotations
 import numpy as np
 from scipy.special import expit
 
-from .. import clock
 from ..provenance import chance, latest_event, link, pick, softmax_prob, state_ref
 
 
@@ -36,8 +35,9 @@ class Faith:
         P.add_internal("guilt_weeks", np.int16, 0)
         P.add_internal("works_sunday", np.bool_, False)
         P.internal["attend_prob"][: P.n] = P["attend_rate"]
-        mask = P.internal["shift_mask"][: P.n] if "shift_mask" in P.internal else np.zeros(P.n, np.uint32)
-        P.internal["works_sunday"][: P.n] = (mask & np.uint32(1 << int(clock.slot(6, 0)))) > 0   # a Sunday-morning shift
+        if "shift_start" in P.internal:      # a Sunday shift during the morning meetings
+            s, e = P.internal["shift_start"][: P.n, 6].astype(np.int32), P.internal["shift_end"][: P.n, 6].astype(np.int32)
+            P.internal["works_sunday"][: P.n] = (s >= 0) & (s < 12 * 60) & (e > 9 * 60)
         self.attending_today = np.zeros(P.n, bool)
         self.attending_other = np.zeros(P.n, bool)
         w = self.sim.w
@@ -53,6 +53,15 @@ class Faith:
         P.add_internal("temple_pref", np.float32, 0.0)
         P.add_internal("scripture_pref", np.float32, 0.0)
         self.init_practices(np.arange(P.n))
+
+    def meeting_start(self, ids) -> np.ndarray:
+        """Minute each person's Sunday meeting starts: wards meet in two-hour blocks at 9, 10:30, noon or 1:30 (spread
+        over the wards sharing a building); other congregations at 10."""
+        P = self.sim.w.P
+        ids = np.asarray(ids, np.int64)
+        ward = P["ward_id"][ids].astype(np.int64)
+        times = np.array([9 * 60, 10 * 60 + 30, 12 * 60, 13 * 60 + 30], np.int64)
+        return np.where(P["lds_member"][ids] & (ward >= 0), times[np.maximum(ward, 0) % 4], 10 * 60)
 
     def init_practices(self, ids):
         """Store sampled practice levels as preferences and set current practice from activity."""

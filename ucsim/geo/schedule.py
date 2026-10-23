@@ -78,7 +78,7 @@ def _main_meeting(M: pl.DataFrame) -> pl.DataFrame:
     M = M.filter((pl.col("mask") & 0b11111) > 0)                         # weekday classes (Saturday-only left out)
     M = M.with_columns(((pl.col("end_minute") - pl.col("start_minute")) * pl.col("mask").map_elements(
         lambda m: m.bit_count(), return_dtype=pl.Int32)).alias("weekly"),
-        pl.Series("block", clock.block_of(np.maximum(M["start_minute"].to_numpy(), clock.DAY_START)).astype(np.int32)))
+        pl.Series("block", clock.part_of(np.maximum(M["start_minute"].to_numpy(), clock.DAY_START)).astype(np.int32)))
     M = M.filter(pl.col("block") >= 0)
     main = M.sort(["section_id", "weekly", "meeting_id"], descending=[False, True, False]).unique("section_id", keep="first")
     same_block = M.join(main.select("section_id", pl.col("block").alias("b0")), on="section_id").filter(pl.col("block") == pl.col("b0"))
@@ -257,7 +257,7 @@ def build_occupancy() -> pl.DataFrame:
     O = O.filter(pl.col("yearterm").is_in(list(TERMS)))
     hm = O["slot_start"].str.split_exact(":", 1)
     minute = hm.struct.field("field_0").cast(pl.Int32) * 60 + hm.struct.field("field_1").cast(pl.Int32)
-    O = O.with_columns(pl.Series("block", clock.block_of(minute.to_numpy()).astype(np.int32)),
+    O = O.with_columns(pl.Series("block", clock.part_of(minute.to_numpy()).astype(np.int32)),
                        pl.col("weekday").replace_strict({d: i for i, d in enumerate(WEEKDAYS)}, return_dtype=pl.Int8).alias("wd"),
                        pl.col("estimated_people").cast(pl.Float64))
     O = O.filter(pl.col("block") >= 0)

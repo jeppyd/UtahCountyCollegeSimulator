@@ -263,7 +263,7 @@ variables:
   activity_now:
     label: Current activity
     dtype: cat
-    categories: [home, class, work, church, campus, gym, gathering, date, venue, outdoors, ward_activity, away, club]
+    categories: [home, class, work, church, campus, gym, gathering, date, venue, outdoors, ward_activity, away, club, sleep, with_partner]
     kind: state
     update: hourly
     flags: [filter, chart, map]

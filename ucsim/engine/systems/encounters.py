@@ -76,9 +76,10 @@ class Encounters:
         return r
 
     def run(self, b: int):
-        """Interactions among co-present people in block b. Attempt rates are per old (five-hour) block: ambient time
-        is scaled by its share of the block (activity.ctx_share: a whole evening at home adds up to one old evening);
-        at an occasion the rate is the get-together rate x the kind's rate x the share of the occasion in this block."""
+        """Interactions among co-present people who are up in hour b. Attempt rates are per old (five-hour) block:
+        ambient time is scaled by its share of such a block (activity.ctx_share, clock.LEGACY_SHARE: a whole evening at
+        home adds up to one old evening); a class, a meeting or an occasion by the share of it that falls in this hour
+        (at an occasion the rate is the get-together rate x the kind's rate). People asleep meet no one."""
         sim, w = self.sim, self.sim.w
         P, E, p = w.P, w.E, sim.p
         act = sim.systems["activity"]
@@ -86,6 +87,8 @@ class Encounters:
         ctype, cid = act.ctype, act.cid
         day = w.day
         valid = (ctype != NONE) & (cid >= 0) & (ctype != CTX_ID["date"])
+        if len(getattr(act, "asleep_now", ())) == len(valid):
+            valid &= ~act.asleep_now
         idx = np.where(valid)[0]
         if len(idx) < 2:
             return
@@ -151,7 +154,8 @@ class Encounters:
         gflag = is_gath[src_pos][ok]
         occ_pair = ctx == CTX_ID["occasion"]
         new_at_occ = occ_pair & (E.find(EdgeStore.make_keys(a, bb)) < 0) if occ_pair.any() else occ_pair
-        self.apply(a, bb, ctx, cplace, b, sim_[rows, best][ok], gflag)
+        part = int(clock.PART[b])
+        self.apply(a, bb, ctx, cplace, part, sim_[rows, best][ok], gflag, step=b)
         if new_at_occ.any():
             # met at someone's occasion: the organizer introduced them (first meetings only)
             lo_, hi_, place_ = a[new_at_occ], bb[new_at_occ], cplace[new_at_occ]
@@ -162,15 +166,14 @@ class Encounters:
                 fresh = (eix >= 0) & (E["introducer"][np.maximum(eix, 0)] < 0)
                 E.cols["introducer"][eix[fresh]] = org[intro][fresh]
                 E.cols["flags"][eix[fresh]] |= Tie.INTRODUCED
-        if b in clock.EVENING:
+        # the evening and night's social pairs (parties, dances, friends' places): romance's make-outs, after the night
+        if b in clock.SOCIAL_NIGHT:
             social = gflag | (ctx == CTX_ID["dance"])
             if occ_pair.any():
                 social = social | (occ_pair & occs.ncmo_ok(np.where(occ_pair, cplace, 0)))
             pairs = (a[social], bb[social])
-            prev = self.evening_social_pairs if b != clock.EVENING[0] else None
+            prev = self.evening_social_pairs if b != clock.SOCIAL_NIGHT[0] else None
             self.evening_social_pairs = pairs if prev is None else (np.r_[prev[0], pairs[0]], np.r_[prev[1], pairs[1]])
-        elif b == 0:
-            self.evening_social_pairs = None
 
     def bedroom(self):
         """Lights-out talks: people sharing a bedroom (spouses aside) often talk before sleep, one more conversation at
@@ -202,8 +205,8 @@ class Encounters:
             return
         # only clear mismatches grate: tidiness over 1.2 standard deviations apart, sleep over two hours apart
         friction = -(p("housing.bedroom.tidy") * np.clip(np.abs(sim.z("conscientiousness")[a] - sim.z("conscientiousness")[b]) - 1.2, 0, None)
-                     + p("housing.bedroom.sleep") * np.clip(np.abs(P["sleep_hours"][a] - P["sleep_hours"][b]) - 2.0, 0, None))
-        self.apply(a, b, np.full(len(a), CTX_ID["unit"], np.uint8), P["unit_id"][a].astype(np.int64), clock.N_BLOCKS - 1,
+                     + p("housing.bedroom.sleep") * np.clip(np.abs(P["chronotype"][a] - P["chronotype"][b]) - 1.5, 0, None))
+        self.apply(a, b, np.full(len(a), CTX_ID["unit"], np.uint8), P["unit_id"][a].astype(np.int64), clock.N_PARTS - 1,
                    self.similarity(a, b), np.zeros(len(a), bool), v_adj=friction, stream="bedroom_valence")
 
     def friend_contact(self):
@@ -307,7 +310,9 @@ class Encounters:
         s += 0.1 * (P["origin_region"][a] == P["origin_region"][b])
         return s.astype(np.float32)
 
-    def apply(self, a, b, ctx, place, block, sim_, gath, v_adj=None, stream: str = "valence"):
+    def apply(self, a, b, ctx, place, block, sim_, gath, v_adj=None, stream: str = "valence", step: int | None = None):
+        """Interactions between a[i] and b[i]: `block` is the part of the day they're recorded in (clock.PARTS);
+        `step`, the hour, keys the random draws when there are several in one part."""
         sim, w = self.sim, self.sim.w
         P, E, p = w.P, w.E, sim.p
         day = w.day
@@ -351,7 +356,8 @@ class Encounters:
             E.cols["att_hl"][ni] = att_hl
             sim.systems["mind"].init_beliefs(ni, lo, hi)
         # ---- interaction valence
-        rng = sim.streams.gen(stream, day, block)
+        rkey = block if step is None else 100 + int(step)
+        rng = sim.streams.gen(stream, day, rkey)
         chem = E["chemistry"][idx]
         mood = P["mood"]
         v = (p("encounter.valence.base") + p("encounter.valence.chemistry") * chem
@@ -422,7 +428,7 @@ class Encounters:
         seek = rom.seeking_mask()
         either = (comp_ab | comp_ba) & (seek[a] | seek[b])
         if either.any():
-            mind.update_beliefs(idx[either], a[either], b[either], p("mind.romantic_perception.learning_rate"), block)
+            mind.update_beliefs(idx[either], a[either], b[either], p("mind.romantic_perception.learning_rate"), rkey)
         mind.observe_interactions(a, b, ctx, v)
         # ---- social-contact accounting
         hours_today = P.internal["hours_today"]

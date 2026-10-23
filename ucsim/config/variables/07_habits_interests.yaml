@@ -9,6 +9,51 @@ variables:
     init: "copula provostats.sleep_hours"
     source: [provostats]
     flags: [filter, chart, map, timeseries]
+    desc: "Hours actually slept in the last day (6 am to 6 am, naps included), from the hour-by-hour day (engine/systems/sleep.py): when they went to bed, how long it took to fall asleep, and when an alarm, a class or a shift got them up. The starting value is their usual amount (ProvoStats), which stays their sleep need."
+  chronotype:
+    label: Night-owl lean
+    kind: trait
+    units: hours
+    range: [-4, 5]
+    update: static
+    evidence: literature
+    group: sleep
+    desc: "How much later than the typical person their body clock runs, in hours (negative: an early bird). It shifts when they get sleepy and when they're most up for going out. Younger adults run latest (Roenneberg et al. 2004); conscientious people lean earlier and sensation seekers, gamers and heavy phone users later (Tsaousis 2010; Tonetti et al. 2010); marriage and children pull schedules earlier."
+    init: "engine/systems/sleep.py: from age, conscientiousness, sensation seeking, extraversion, gaming, social media, marriage and children, plus a personal part"
+    source: [model]
+  bedtime:
+    label: Fell asleep (last night)
+    kind: state
+    units: hours
+    range: [18, 34]
+    update: daily
+    evidence: structural
+    group: sleep
+    desc: "When they last fell asleep for the night, as hours after midnight of the evening before (23.5 = 11:30 pm, 25 = 1 am, 27 = 3 am)."
+    init: "engine/systems/sleep.py"
+    source: [model]
+  wake_time:
+    label: Woke up (this morning)
+    kind: state
+    units: hours
+    range: [3, 15]
+    update: daily
+    evidence: structural
+    group: sleep
+    desc: "When they last got up in the morning (7.5 = 7:30 am)."
+    init: "engine/systems/sleep.py"
+    source: [model]
+  late_nights_week:
+    label: Late nights / week
+    kind: habit
+    units: nights
+    range: [0, 7]
+    update: daily
+    evidence: structural
+    group: sleep
+    desc: "Nights in the last week they were still out or up with people after midnight (an average that fades over about a week)."
+    init: "engine/systems/sleep.py"
+    source: [model]
   workouts_week:
     label: Workouts / week
     range: [0, 14]

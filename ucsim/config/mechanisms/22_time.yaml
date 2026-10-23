@@ -1,0 +1,133 @@
+system: activity
+# The hour-by-hour day (engine/clock.py, engine/systems/activity.py, engine/systems/sleep.py). Every hour each person
+# who isn't committed somewhere chooses what to do, sleep included; nothing outside the calendar's fixed events is
+# tied to a time of day. Times of day only make things more or less likely, through the person's body clock, their
+# plans tomorrow, how tired they are, who they're with and what they're in the middle of. Directions follow the
+# literature cited; most magnitudes are hypothetical, set so a typical student's week looks plausible (bedtime
+# around midnight to 1 am on weeknights and later on weekends, about 7 hours of sleep, most social time in the
+# evening, a few late nights a month).
+mechanisms:
+  sleep.chronotype:
+    label: Body clock (night-owl lean)
+    target: chronotype
+    sources: [age, conscientiousness, sensation_seeking, extraversion, gaming, social_media_hours, rel_status, children]
+    form: "chronotype (hours later than typical) = age·(21 − age)/10 − consc·z(C) + sensation·z(SS) + extra·z(E) + gaming·[gamer] + phone·z(social media hours) − married·[married] − kids·[has children] + sd·N(0,1), clipped to [−4, 5]"
+    params:
+      age: {value: 0.45, range: [0.2, 0.8]}
+      consc: {value: 0.35, range: [0.1, 0.6]}
+      sensation: {value: 0.25, range: [0.0, 0.5]}
+      extra: {value: 0.1, range: [0.0, 0.3]}
+      gaming: {value: 0.4, range: [0.0, 0.8]}
+      phone: {value: 0.2, range: [0.0, 0.5]}
+      married: {value: 0.4, range: [0.0, 0.8]}
+      kids: {value: 0.6, range: [0.2, 1.2]}
+      sd: {value: 0.85, range: [0.5, 1.2]}
+    timescale: static
+    evidence: literature
+    refs: ["Roenneberg et al. (2004) Current Biology: chronotype is latest around age 20 and moves earlier after", "Tsaousis (2010) Biological Rhythm Research, meta-analysis: morningness correlates with conscientiousness (r ≈ .3)", "Tonetti, Fabbri & Natale (2009) Chronobiology International: eveningness and sensation seeking", "Exelmans & Van den Bulck (2016) Social Science & Medicine: bedtime screen use delays sleep"]
+    desc: "A personal shift of the 24-hour sleepiness curve and of when going out feels most appealing. The population spread (SD ≈ 1 hour) matches what chronotype surveys find among young adults."
+  sleep.choice:
+    label: Going to bed
+    target: [activity_now, bedtime]
+    sources: [hours awake, chronotype, fatigue, sleep debt, tomorrow's first commitment, social_media_hours, self_control, ill]
+    form: "Sleep is one of the hour's options: U(sleep) = base + pressure·(hours awake − 16)/2 + circadian·C(clock hour − chronotype) + alarm·clip(sleep need − hours until tomorrow's alarm, −2, 4) + fatigue·fatigue + debt·sleep debt (hours) + ill·[sick] − procrastinate·max(0, z(social media) − z(self-control))/2 − nap·[9 am–7 pm]; C is the 24-hour sleepiness curve (high from about 11 pm to 6 am, a dip after lunch). What they're in the middle of (a party, time with a partner) competes through its own carry-on pull, so people stay up when the night is good."
+    params:
+      base: {value: 0.0, range: [-1.5, 0.8]}
+      pressure: {value: 0.55, range: [0.2, 1.0]}
+      circadian: {value: 1.0, range: [0.5, 1.5]}
+      alarm: {value: 0.7, range: [0.3, 1.2]}
+      fatigue: {value: 1.0, range: [0.3, 2.0]}
+      ill: {value: 1.2, range: [0.5, 2.0]}
+      procrastinate: {value: 0.5, range: [0.0, 1.0]}
+      nap: {value: 1.2, range: [0.0, 2.5]}
+      debt: {value: 0.2, range: [0.0, 0.5]}
+    timescale: hourly
+    evidence: hypothetical
+    refs: ["Borbély (1982) Human Neurobiology: the two-process model (sleep pressure and the circadian rhythm)", "Kroese et al. (2014) Frontiers in Psychology: bedtime procrastination and self-control", "Lund et al. (2010) J Adolescent Health: US college students' sleep patterns"]
+  sleep.onset:
+    label: Falling asleep
+    target: sleep_hours
+    sources: [stress, anxiety, coffee, hours awake]
+    form: "Each hour in bed, P(asleep) = logistic(base − stress·(stress − 0.4) − anxiety·(anxiety − 0.3) − caffeine·[coffee drinker] + tired·(hours awake − 16)/4); asleep within the hour counts half of it."
+    params:
+      base: {value: 2.6, range: [1.5, 3.5]}
+      stress: {value: 2.0, range: [0.5, 3.5]}
+      anxiety: {value: 1.5, range: [0.5, 3.0]}
+      caffeine: {value: 0.3, range: [0.0, 0.8]}
+      tired: {value: 0.6, range: [0.2, 1.2]}
+    timescale: hourly
+    evidence: hypothetical
+    refs: ["Åkerstedt et al. (2012) J Sleep Research: stress and worry before bedtime lengthen sleep latency"]
+  sleep.wake:
+    label: Waking up (alarms, sleeping in)
+    target: [wake_time, class_attendance]
+    sources: [sleep need, sleep debt, conscientiousness, depressive_episode, first commitment]
+    form: "Natural wake = when they fell asleep + need (their usual sleep + need_gap, since the habit they report already includes short nights, + catch_up·debt + N(0, 0.5) hours; a daytime nap 1–2 hours). An alarm 50 minutes before the first class, shift or church meeting: each hour it rings, P(up) = logistic(base + consc·z(C) + shift·[work] − debt·(need − hours slept so far) − depressed·[depressive episode]); otherwise they sleep on (and miss what started meanwhile)."
+    params:
+      base: {value: 3.2, range: [2.0, 4.5]}
+      consc: {value: 0.6, range: [0.2, 1.0]}
+      shift: {value: 1.0, range: [0.0, 2.0]}
+      debt: {value: 0.45, range: [0.1, 0.9]}
+      depressed: {value: 1.0, range: [0.3, 2.0]}
+      catch_up: {value: 0.4, range: [0.0, 0.8]}
+      need_gap: {value: 0.6, range: [0.0, 1.2]}
+    timescale: hourly
+    evidence: hypothetical
+  activity.hourly:
+    label: What to do this hour (carrying on, times of day)
+    target: activity_now
+    sources: [chronotype, weekday, hours already doing it, weather]
+    form: "Each free hour every option's utility gets a time-of-day term from its 24-hour curve (read at clock hour − shift·chronotype for going-out options, one hour later on Friday and Saturday nights), and the option they're already doing gets carry_on − satiation·max(0, hours so far − its usual length) (staying home: carry_on_home). The choice is the same Gumbel-max as before (activity.choice), so any option can happen at any hour; the curves only make some much less likely."
+    params:
+      carry_on: {value: 2.2, range: [1.0, 3.5]}
+      carry_on_home: {value: 1.0, range: [0.0, 2.0]}
+      satiation: {value: 0.7, range: [0.3, 1.5]}
+      hour_weight: {value: 1.0, range: [0.5, 1.5]}
+      shift: {value: 0.6, range: [0.0, 1.0]}
+      weekend_later: {value: 1.0, range: [0.0, 2.0]}
+    timescale: hourly
+    evidence: hypothetical
+    refs: ["Activity-based travel demand models (Bowman & Ben-Akiva 2001; MATSim): activity duration and time-of-day choice", "American Time Use Survey (BLS): when young adults socialize, eat out and exercise"]
+  activity.together:
+    label: Spontaneous plans (texting someone to come along)
+    target: [activity_now, social_events_month]
+    sources: [closeness, partner, extraversion, approach drive, fatigue, sleepiness]
+    form: "Someone heading out for food, the outdoors or the gym asks a partner or a close friend who is awake and free; they come if U(that outing) + base + close·closeness + partner·[dating] + Gumbel beats what they were going to do + Gumbel. A visit goes to a friend who is home and awake. After 10 pm these are recorded as decisions (late-night food runs, 1 am drives)."
+    params:
+      base: {value: 0.6, range: [-0.5, 1.5]}
+      close: {value: 1.6, range: [0.5, 2.5]}
+      partner: {value: 1.2, range: [0.3, 2.0]}
+      ask: {value: 0.55, range: [0.2, 0.9]}
+    timescale: hourly
+    evidence: hypothetical
+  activity.partner:
+    label: Time with a partner
+    target: [activity_now, close_contact_hours]
+    sources: [rel_status, cares_partnership, drive_partnership, hours together]
+    form: "Dating and engaged people can spend a free hour with their partner (at her apartment, or his if hers isn't free): U = base + couple strength (occasions.couple) + drive·partnership drive + the time-of-day curve; both have to be free and awake, and the other comes if their own pull toward it beats what they'd otherwise do."
+    params:
+      base: {value: -0.8, range: [-2.0, 0.5]}
+      drive: {value: 0.6, range: [0.2, 1.2]}
+    timescale: hourly
+    evidence: hypothetical
+  activity.skip:
+    label: Skipping class for something better
+    target: class_attendance
+    sources: [the best free-time option now, conscientiousness, academic_pressure]
+    form: "At the start of each class meeting the attendance logit (activity.class_attendance) drops by pull·max(0, U(best other option) − max(U(home), U(campus))): a class is skipped more often when they're in the middle of time with a partner or friends, or something else is unusually appealing."
+    params:
+      pull: {value: 0.55, range: [0.2, 1.0]}
+    timescale: hourly
+    evidence: hypothetical
+    refs: ["Credé, Roch & Kieszczynka (2010) Review of Educational Research: class attendance and its correlates"]
+  policy.visiting_hours:
+    label: Visiting hours (BYU housing)
+    target: activity_now
+    sources: [conformity, self_control, religious_identity, sex_drive, attraction, hours together tonight]
+    form: "A guest in an opposite-sex apartment in BYU-contracted housing after visiting hours (midnight; 1:30 am on Friday nights) gets a pull to leave on staying: −rule·(1 + z(conformity) + 0.5·religious identity + 0.5·z(self-control)) + heat·(z(sex drive) + attraction to the partner + 0.25·hours together tonight)·(1 − 0.3·z(self-control)) for a partner, 0 for friends. Staying past is a choice, not a rule, and is recorded."
+    params:
+      rule: {value: 1.6, range: [0.5, 3.0]}
+      heat: {value: 0.7, range: [0.2, 1.5]}
+    timescale: hourly
+    evidence: hypothetical
+    refs: ["config/policies/campus.yaml: BYU visiting hours", "Ariely & Loewenstein (2006) J Behavioral Decision Making: sexual arousal shifts decisions in the moment"]

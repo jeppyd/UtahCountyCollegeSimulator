@@ -909,7 +909,7 @@ def _do_make_up(occ, k, it, plan, cx) -> dict:
     """They see each other in person; the other decides whether to let it go (closeness and agreeableness for, the
     hurt against). Forgiven: most of the hurt and conflict lift. Not: the visit happened, the hurt stays."""
     sim, w = occ.sim, occ.sim.w
-    P, E, p = w.P, w.E, sim.p
+    E, p = w.E, sim.p
     src, dst = plan["from"], plan["to"]
     e = E.find(EdgeStore.make_keys(np.array([src]), np.array([dst])))
     hurt = float(E["hurt"][e][0])

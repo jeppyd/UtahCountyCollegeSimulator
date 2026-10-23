@@ -11,9 +11,9 @@ router = APIRouter()
 
 @router.post("/api/people/find")
 def people_find(body: dict = Body(...)):
-    """{"u", "around": person, "relation": friends | strangers | roommates | likes | tense | ..., "filter": [conditions],
-    "q": name, "sort": closeness | nearest | my_interest | their_interest | tension | name | <person variable>, "desc",
-    "offset", "limit"}"""
+    """Body: u, around (a person), relation (friends, strangers, roommates, likes, tense…), filter (conditions), q (a
+    name), sort (closeness, nearest, my_interest, their_interest, tension, name or a person variable), desc, offset,
+    limit."""
     from ..analysis import find as F
     return _call(body.get("u") or "base", F.find, around=body.get("around"), relation=body.get("relation") or "any",
                  filter=body.get("filter"), q=body.get("q") or "", sort=body.get("sort"), desc=body.get("desc"),
